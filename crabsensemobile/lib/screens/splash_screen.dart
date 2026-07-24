@@ -5,12 +5,11 @@ import '../utils/constants.dart';
 
 /// Màn hình splash khi khởi động ứng dụng mobile
 class SplashScreen extends StatefulWidget {
-  final Widget nextScreen;
 
   const SplashScreen({
-    super.key,
-    required this.nextScreen,
+    required this.nextScreen, super.key,
   });
+  final Widget nextScreen;
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -31,17 +30,17 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
     );
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
+        curve: const Interval(0, 0.6, curve: Curves.easeIn),
       ),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
+    _scaleAnimation = Tween<double>(begin: 0.5, end: 1).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack),
+        curve: const Interval(0, 0.6, curve: Curves.easeOutBack),
       ),
     );
 
@@ -64,17 +63,16 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
+  Widget build(BuildContext context) => Scaffold(
+      body: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              AppConstants.primaryColor.withOpacity(0.1),
+              AppConstants.primaryColor.withValues(alpha: 0.1),
               Colors.white,
-              AppConstants.secondaryColor.withOpacity(0.1),
+              AppConstants.secondaryColor.withValues(alpha: 0.1),
             ],
           ),
         ),
@@ -118,7 +116,7 @@ class _SplashScreenState extends State<SplashScreen>
                     const SizedBox(height: 40),
                     
                     // Loading indicator
-                    SizedBox(
+                    const SizedBox(
                       width: 32,
                       height: 32,
                       child: CircularProgressIndicator(
@@ -146,5 +144,4 @@ class _SplashScreenState extends State<SplashScreen>
         ),
       ),
     );
-  }
 }

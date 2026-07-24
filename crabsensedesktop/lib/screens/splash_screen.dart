@@ -73,8 +73,8 @@ class _SplashScreenState extends State<SplashScreen>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppConstants.primaryColor.withOpacity(0.1),
-              AppConstants.secondaryColor.withOpacity(0.1),
+              AppConstants.primaryColor.withValues(alpha: 0.1),
+              AppConstants.secondaryColor.withValues(alpha: 0.1),
             ],
           ),
         ),

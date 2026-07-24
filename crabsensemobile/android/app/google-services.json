@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "558115783722",
+    "project_id": "crabssense",
+    "storage_bucket": "crabssense.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:558115783722:android:539b2d0c28fff2615c2f53",
+        "android_client_info": {
+          "package_name": "com.example.crabsensemobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "558115783722-gn2101sanmnmht9p59715ru2eghqdu2o.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQvVxzTgRgxNL8vm3GJy0Mbp7c5NxAK8g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "558115783722-gn2101sanmnmht9p59715ru2eghqdu2o.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

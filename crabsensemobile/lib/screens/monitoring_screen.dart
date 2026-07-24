@@ -49,8 +49,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+  Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(
         title: const Text('Giám sát dữ liệu'),
         actions: [
@@ -63,7 +62,6 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       ),
       body: _buildBody(),
     );
-  }
 
   Widget _buildBody() {
     if (_isLoading) {
@@ -86,7 +84,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
+              const Icon(
                 Icons.error_outline,
                 size: 64,
                 color: AppConstants.errorColor,
@@ -141,9 +139,7 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       child: ListView.builder(
         padding: const EdgeInsets.all(AppConstants.defaultPadding),
         itemCount: _data!.length,
-        itemBuilder: (context, index) {
-          return DataCardMobile(data: _data![index]);
-        },
+        itemBuilder: (context, index) => DataCardMobile(data: _data![index]),
       ),
     );
   }

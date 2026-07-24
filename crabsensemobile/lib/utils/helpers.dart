@@ -2,31 +2,19 @@ import 'package:intl/intl.dart';
 
 class Helpers {
   // Format datetime
-  static String formatDateTime(DateTime dateTime) {
-    return DateFormat('dd/MM/yyyy HH:mm:ss').format(dateTime);
-  }
+  static String formatDateTime(DateTime dateTime) => DateFormat('dd/MM/yyyy HH:mm:ss').format(dateTime);
 
-  static String formatDate(DateTime dateTime) {
-    return DateFormat('dd/MM/yyyy').format(dateTime);
-  }
+  static String formatDate(DateTime dateTime) => DateFormat('dd/MM/yyyy').format(dateTime);
 
-  static String formatTime(DateTime dateTime) {
-    return DateFormat('HH:mm:ss').format(dateTime);
-  }
+  static String formatTime(DateTime dateTime) => DateFormat('HH:mm:ss').format(dateTime);
 
-  static String formatTimeShort(DateTime dateTime) {
-    return DateFormat('HH:mm').format(dateTime);
-  }
+  static String formatTimeShort(DateTime dateTime) => DateFormat('HH:mm').format(dateTime);
 
   // Format số thập phân
-  static String formatDecimal(double value, {int decimals = 2}) {
-    return value.toStringAsFixed(decimals);
-  }
+  static String formatDecimal(double value, {int decimals = 2}) => value.toStringAsFixed(decimals);
 
   // Kiểm tra giá trị trong ngưỡng
-  static bool isInRange(double value, double min, double max) {
-    return value >= min && value <= max;
-  }
+  static bool isInRange(double value, double min, double max) => value >= min && value <= max;
 
   // Xác định trạng thái dựa trên ngưỡng
   static String getStatusText(double value, double min, double max) {
@@ -36,9 +24,7 @@ class Helpers {
   }
 
   // Chuyển đổi timestamp
-  static DateTime parseTimestamp(String timestamp) {
-    return DateTime.parse(timestamp);
-  }
+  static DateTime parseTimestamp(String timestamp) => DateTime.parse(timestamp);
 
   // Format relative time (e.g., "5 phút trước")
   static String formatRelativeTime(DateTime dateTime) {

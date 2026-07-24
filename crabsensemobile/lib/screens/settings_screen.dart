@@ -13,11 +13,10 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
   bool _darkModeEnabled = false;
-  String _language = 'vi';
+  final String _language = 'vi';
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+  Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(
         title: const Text('Cài đặt'),
       ),
@@ -28,7 +27,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.all(AppConstants.largePadding),
             child: const Column(
               children: [
-                AppLogo(size: 80),
+                AppLogo(),
                 SizedBox(height: 12),
                 Text(
                   'CrabSense Mobile',
@@ -140,21 +139,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
-  }
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
+  Widget _buildSectionTitle(String title) => Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Text(
         title,
-        style: TextStyle(
+        style: const TextStyle(
           color: AppConstants.primaryColor,
           fontWeight: FontWeight.bold,
           fontSize: 14,
         ),
       ),
     );
-  }
 
   void _showEditDialog(BuildContext context, String title, String currentValue) {
     showDialog(

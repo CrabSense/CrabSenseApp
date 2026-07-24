@@ -65,7 +65,7 @@ class AppLogo extends StatelessWidget {
         borderRadius: BorderRadius.circular(size / 4),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -78,7 +78,7 @@ class AppLogo extends StatelessWidget {
           Icon(
             Icons.water,
             size: size * 0.5,
-            color: Colors.white.withOpacity(0.9),
+            color: Colors.white.withValues(alpha: 0.9),
           ),
           // Icon tôm nhỏ ở góc
           Positioned(

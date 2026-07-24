@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
+import '../core/constants/app_constants.dart';
 
 /// Widget tái sử dụng cho logo CrabSense Mobile
 class AppLogo extends StatelessWidget {
-  final double size;
-  final bool showText;
-  final Color? textColor;
 
   const AppLogo({
     super.key,
@@ -12,6 +10,9 @@ class AppLogo extends StatelessWidget {
     this.showText = false,
     this.textColor,
   });
+  final double size;
+  final bool showText;
+  final Color? textColor;
 
   @override
   Widget build(BuildContext context) {
@@ -36,9 +37,8 @@ class AppLogo extends StatelessWidget {
     return _buildLogoImage(context);
   }
 
-  Widget _buildLogoImage(BuildContext context) {
-    return Image.asset(
-      'assets/images/logo.png',
+  Widget _buildLogoImage(BuildContext context) => Image.asset(
+      AppConstants.logoPath,
       width: size,
       height: size,
       fit: BoxFit.contain,
@@ -47,10 +47,8 @@ class AppLogo extends StatelessWidget {
         return _buildDefaultLogo(context);
       },
     );
-  }
 
-  Widget _buildDefaultLogo(BuildContext context) {
-    return Container(
+  Widget _buildDefaultLogo(BuildContext context) => Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
@@ -65,7 +63,7 @@ class AppLogo extends StatelessWidget {
         borderRadius: BorderRadius.circular(size / 4),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -78,7 +76,7 @@ class AppLogo extends StatelessWidget {
           Icon(
             Icons.water,
             size: size * 0.5,
-            color: Colors.white.withOpacity(0.9),
+            color: Colors.white.withValues(alpha: 0.9),
           ),
           // Icon tôm nhỏ ở góc
           Positioned(
@@ -100,7 +98,6 @@ class AppLogo extends StatelessWidget {
         ],
       ),
     );
-  }
 }
 
 /// Logo nhỏ cho AppBar
@@ -108,22 +105,20 @@ class AppBarLogo extends StatelessWidget {
   const AppBarLogo({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.all(8.0),
+  Widget build(BuildContext context) => const Padding(
+      padding: EdgeInsets.all(8),
       child: AppLogo(size: 28),
     );
-  }
 }
 
 /// Logo loading với animation
 class AnimatedAppLogo extends StatefulWidget {
-  final double size;
 
   const AnimatedAppLogo({
     super.key,
     this.size = 80,
   });
+  final double size;
 
   @override
   State<AnimatedAppLogo> createState() => _AnimatedAppLogoState();
@@ -154,10 +149,8 @@ class _AnimatedAppLogoState extends State<AnimatedAppLogo>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return ScaleTransition(
+  Widget build(BuildContext context) => ScaleTransition(
       scale: _animation,
       child: AppLogo(size: widget.size),
     );
-  }
 }

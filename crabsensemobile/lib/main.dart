@@ -1,64 +1,99 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'screens/splash_screen.dart';
-import 'screens/main_navigation_screen.dart';
-import 'utils/constants.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'app/app.dart';
+import 'core/di/injection.dart' as di;
+import 'features/authentication/data/datasources/auth_local_data_source.dart';
+import 'features/notifications/data/datasources/notification_history_local_data_source.dart';
+import 'features/profile/data/datasources/notification_preferences_local_data_source.dart';
+import 'shared/services/background_sync_service.dart';
+import 'shared/services/notification_service.dart';
 
-void main() {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
+  // Register FCM background handler & initialize Firebase safely
+  try {
+    await Firebase.initializeApp();
+    if (Firebase.apps.isNotEmpty) {
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    }
+  } catch (e) {
+    debugPrint('Firebase skipped/not configured: $e');
+  }
+
+  // Initialize Hive for local storage
+  try {
+    await Hive.initFlutter();
+    await Hive.openBox(kNotifHistoryBoxName);
+    await Hive.openBox(kNotifPrefsBoxName);
+  } catch (e) {
+    debugPrint('Hive initialization warning: $e');
+  }
+
+  // Initialize dependency injection
+  try {
+    await di.init();
+  } catch (e) {
+    debugPrint('DI initialization warning: $e');
+  }
+
+  // Purge leftover mock_* session BEFORE any API calls (Notification/Sync).
+  try {
+    if (di.sl.isRegistered<AuthLocalDataSource>()) {
+      final purged = await di.sl<AuthLocalDataSource>().purgeMockSessionIfPresent();
+      if (purged) {
+        debugPrint('Cleared mock auth session — please log in again.');
+      }
+    }
+  } catch (e) {
+    debugPrint('Mock session purge warning: $e');
+  }
+
+  // Initialize notification service safely if registered
+  try {
+    if (di.sl.isRegistered<NotificationService>()) {
+      await di.sl<NotificationService>().initialize();
+    }
+  } catch (e) {
+    debugPrint('NotificationService initialization warning: $e');
+  }
+
+  // Initialize background sync safely if registered
+  try {
+    if (di.sl.isRegistered<BackgroundSyncService>()) {
+      await di.sl<BackgroundSyncService>().initialize();
+      await di.sl<BackgroundSyncService>().schedulePeriodicSync();
+    }
+  } catch (e) {
+    debugPrint('BackgroundSyncService initialization warning: $e');
+  }
+
   // Set preferred orientations for mobile
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-  
-  // Set status bar style
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-    ),
-  );
-  
-  runApp(const CrabSenseMobileApp());
-}
+  try {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
 
-class CrabSenseMobileApp extends StatelessWidget {
-  const CrabSenseMobileApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: AppConstants.appName,
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppConstants.primaryColor,
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          centerTitle: true,
-          elevation: 0,
-          scrolledUnderElevation: 2,
-        ),
-        cardTheme: CardTheme(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppConstants.defaultBorderRadius),
-          ),
-        ),
-        floatingActionButtonTheme: FloatingActionButtonThemeData(
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-      ),
-      home: const SplashScreen(
-        nextScreen: MainNavigationScreen(),
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
       ),
     );
+  } catch (e) {
+    debugPrint('SystemChrome warning: $e');
   }
+
+  runApp(
+    const ProviderScope(
+      child: CrabSenseApp(),
+    ),
+  );
 }

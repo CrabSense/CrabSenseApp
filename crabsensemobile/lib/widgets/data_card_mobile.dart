@@ -5,13 +5,12 @@ import '../utils/helpers.dart';
 
 /// Card hiển thị dữ liệu chất lượng nước - Tối ưu cho mobile
 class DataCardMobile extends StatelessWidget {
+
+  const DataCardMobile({required this.data, super.key});
   final WaterQualityData data;
 
-  const DataCardMobile({super.key, required this.data});
-
   @override
-  Widget build(BuildContext context) {
-    return Card(
+  Widget build(BuildContext context) => Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: AppConstants.cardElevation,
       child: Padding(
@@ -25,7 +24,7 @@ class DataCardMobile extends StatelessWidget {
                 Expanded(
                   child: Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.location_on,
                         size: 16,
                         color: AppConstants.primaryColor,
@@ -149,7 +148,6 @@ class DataCardMobile extends StatelessWidget {
         ),
       ),
     );
-  }
 
   Widget _buildDataItem(
     BuildContext context,
@@ -157,15 +155,13 @@ class DataCardMobile extends StatelessWidget {
     String label,
     String value,
     Color statusColor,
-  ) {
-    return Container(
+  ) => Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: statusColor.withOpacity(0.08),
+        color: statusColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: statusColor.withOpacity(0.2),
-          width: 1,
+          color: statusColor.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -200,7 +196,6 @@ class DataCardMobile extends StatelessWidget {
         ],
       ),
     );
-  }
 
   Color _getStatusColor(double value, double min, double max) {
     if (value < min || value > max) {

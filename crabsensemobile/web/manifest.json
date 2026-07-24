@@ -1,6 +1,6 @@
 {
-    "name": "crabsensemobile",
-    "short_name": "crabsensemobile",
+    "name": "CrabSense",
+    "short_name": "CrabSense",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

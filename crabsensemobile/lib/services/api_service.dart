@@ -3,9 +3,9 @@ import 'package:http/http.dart' as http;
 import '../models/water_quality_data.dart';
 
 class ApiService {
-  final String baseUrl;
 
   ApiService({required this.baseUrl});
+  final String baseUrl;
 
   // Lấy dữ liệu chất lượng nước mới nhất
   Future<List<WaterQualityData>> getLatestData() async {

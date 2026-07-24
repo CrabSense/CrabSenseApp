@@ -2,13 +2,22 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Flutter Mobile (Android)",
+      "name": "Flutter Mobile (Physical Android)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
-      "args": [
-        "-d",
-        "android"
+      "toolArgs": [
+        "--dart-define=API_BASE_URL=http://192.168.1.192:5080"
+      ]
+    },
+    {
+      "name": "Flutter Mobile (Android Emulator)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": ["-d", "android"],
+      "toolArgs": [
+        "--dart-define=API_BASE_URL=http://10.0.2.2:5080"
       ]
     },
     {
@@ -16,9 +25,9 @@
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
-      "args": [
-        "-d",
-        "ios"
+      "args": ["-d", "ios"],
+      "toolArgs": [
+        "--dart-define=API_BASE_URL=http://localhost:5080"
       ]
     },
     {

@@ -13,8 +13,7 @@ class _ChartScreenState extends State<ChartScreen> {
   String _selectedPeriod = '24h';
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+  Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(
         title: const Text('Biểu đồ & Phân tích'),
       ),
@@ -65,10 +64,8 @@ class _ChartScreenState extends State<ChartScreen> {
         ),
       ),
     );
-  }
 
-  Widget _buildPeriodSelector() {
-    return Card(
+  Widget _buildPeriodSelector() => Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
@@ -87,7 +84,7 @@ class _ChartScreenState extends State<ChartScreen> {
                 ButtonSegment(value: '30d', label: Text('30d')),
               ],
               selected: {_selectedPeriod},
-              onSelectionChanged: (Set<String> newSelection) {
+              onSelectionChanged: (newSelection) {
                 setState(() {
                   _selectedPeriod = newSelection.first;
                 });
@@ -97,14 +94,12 @@ class _ChartScreenState extends State<ChartScreen> {
         ),
       ),
     );
-  }
 
   Widget _buildChartCard({
     required String title,
     required IconData icon,
     required Color color,
-  }) {
-    return Card(
+  }) => Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -129,9 +124,9 @@ class _ChartScreenState extends State<ChartScreen> {
             Container(
               height: 200,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: color.withOpacity(0.3)),
+                border: Border.all(color: color.withValues(alpha: 0.3)),
               ),
               child: Center(
                 child: Column(
@@ -171,10 +166,8 @@ class _ChartScreenState extends State<ChartScreen> {
         ),
       ),
     );
-  }
 
-  Widget _buildStatItem(String label, String value, Color color) {
-    return Column(
+  Widget _buildStatItem(String label, String value, Color color) => Column(
       children: [
         Text(
           label,
@@ -194,5 +187,4 @@ class _ChartScreenState extends State<ChartScreen> {
         ),
       ],
     );
-  }
 }
