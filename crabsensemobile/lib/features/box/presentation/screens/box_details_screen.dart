@@ -7,6 +7,8 @@ import '../../../../app/theme.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../home/presentation/widgets/crab_hologram_painter.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../data/datasources/box_remote_data_source.dart';
 import '../../data/models/crab_model.dart';
 import '../widgets/action_panel.dart';
@@ -58,47 +60,130 @@ class _BoxDetailsView extends StatelessWidget {
   final String boxId;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: CrabSenseColors.background,
-    appBar: AppBar(
-      title: Text('Box ${boxId.length > 12 ? '${boxId.substring(0, 12)}…' : boxId}'),
-      backgroundColor: CrabSenseColors.surface,
-      foregroundColor: CrabSenseColors.textPrimary,
-    ),
-    body: BlocBuilder<BoxBloc, BoxState>(
-      builder: (context, state) {
-        if (state is BoxLoading) {
-          return const _SkeletonDetails();
-        }
+  Widget build(BuildContext context) {
+    final shortId =
+        boxId.length > 12 ? '${boxId.substring(0, 12)}…' : boxId;
+    return Scaffold(
+      backgroundColor: const Color(0xFF071426),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+            ),
+            border: Border(
+              bottom: BorderSide(
+                color: kHomeBorderBlue.withValues(alpha: 0.45),
+              ),
+            ),
+          ),
+        ),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.inventory_2_rounded,
+              size: 18,
+              color: kHomeBlueLight,
+              shadows: [
+                Shadow(
+                  color: kHomeBlueLight.withValues(alpha: 0.8),
+                  blurRadius: 10,
+                ),
+              ],
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                'CHI TIẾT BOX',
+                style: TextStyle(
+                  color: kHomeBlueLight,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                  fontSize: 14,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        centerTitle: true,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Center(
+              child: Text(
+                shortId,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.45),
+                  fontSize: 11,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: CrabHologramPainter(
+                  color: kHomeBlueLight.withValues(alpha: 0.05),
+                  trayExtent: 30,
+                ),
+              ),
+            ),
+          ),
+          BlocBuilder<BoxBloc, BoxState>(
+            builder: (context, state) {
+              if (state is BoxLoading) {
+                return const _SkeletonDetails();
+              }
 
-        if (state is BoxError) {
-          return ErrorStateWidget(
-            icon: state.isOffline ? Icons.wifi_off : Icons.error_outline,
-            title: state.isOffline ? 'No Connection' : 'Something went wrong',
-            message: state.message,
-            onRetry: () => context.read<BoxBloc>().add(BoxDetailsLoadRequested(boxId)),
-          );
-        }
+              if (state is BoxError) {
+                return ErrorStateWidget(
+                  icon: state.isOffline ? Icons.wifi_off : Icons.error_outline,
+                  title: state.isOffline
+                      ? 'Không có kết nối'
+                      : 'Đã xảy ra lỗi',
+                  message: state.message,
+                  onRetry: () => context
+                      .read<BoxBloc>()
+                      .add(BoxDetailsLoadRequested(boxId)),
+                );
+              }
 
-        if (state is BoxLoaded) {
-          return RefreshIndicator(
-            color: CrabSenseColors.primary,
-            backgroundColor: CrabSenseColors.surface,
-            onRefresh: () async {
-              context.read<BoxBloc>().add(BoxDetailsRefreshRequested(boxId));
-              await context.read<BoxBloc>().stream.firstWhere(
-                (s) => s is BoxLoaded && !s.isRefreshing || s is BoxError,
-              );
+              if (state is BoxLoaded) {
+                return RefreshIndicator(
+                  color: kHomeBlue,
+                  backgroundColor: kHomeNavy,
+                  onRefresh: () async {
+                    context
+                        .read<BoxBloc>()
+                        .add(BoxDetailsRefreshRequested(boxId));
+                    await context.read<BoxBloc>().stream.firstWhere(
+                          (s) =>
+                              s is BoxLoaded && !s.isRefreshing ||
+                              s is BoxError,
+                        );
+                  },
+                  child: _BoxContent(box: state.box, isOffline: false),
+                );
+              }
+
+              return const _SkeletonDetails();
             },
-            child: _BoxContent(box: state.box, isOffline: false),
-          );
-        }
-
-        // BoxInitial — show skeleton until the first event fires.
-        return const _SkeletonDetails();
-      },
-    ),
-  );
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ── Loaded content ────────────────────────────────────────────────────────────
@@ -153,24 +238,27 @@ class _StalenessBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: CrabSenseColors.warning.withValues(alpha: 0.15),
+        color: kHomeOrange.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: CrabSenseColors.warning.withValues(alpha: 0.4)),
+        border: Border.all(color: kHomeOrange.withValues(alpha: 0.55)),
+        boxShadow: [
+          BoxShadow(color: kHomeOrange.withValues(alpha: 0.2), blurRadius: 10),
+        ],
       ),
-      child: Row(
+      child: const Row(
         children: [
-          const Icon(Icons.warning_amber, size: 18, color: CrabSenseColors.warning),
-          const SizedBox(width: 8),
+          Icon(Icons.warning_amber_rounded, size: 18, color: kHomeOrange),
+          SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Data may be outdated',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: CrabSenseColors.warning,
-                fontWeight: FontWeight.w600,
+              'Dữ liệu có thể đã cũ',
+              style: TextStyle(
+                color: kHomeOrange,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
               ),
             ),
           ),
@@ -190,70 +278,87 @@ class _BoxInfoCard extends StatelessWidget {
   Color _statusColor() {
     switch (box.status) {
       case BoxStatus.active:
-        return CrabSenseColors.success;
+        return kHomeGreen;
       case BoxStatus.inactive:
-        return CrabSenseColors.textDisabled;
+        return Colors.white54;
       case BoxStatus.maintenance:
-        return CrabSenseColors.warning;
+        return kHomeOrange;
       case BoxStatus.harvested:
-        return CrabSenseColors.info;
+        return kHomeCyan;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return _GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle(label: 'Box Info'),
+          const _SectionTitle(
+            icon: Icons.info_outline_rounded,
+            label: 'THÔNG TIN BOX',
+          ),
           const SizedBox(height: 12),
-
-          // ID row
-          _InfoRow(icon: Icons.qr_code_2, label: 'ID', value: box.id),
+          _InfoRow(icon: Icons.qr_code_2_rounded, label: 'Mã', value: box.id),
           const SizedBox(height: 8),
-
-          // Status chip
           Row(
             children: [
-              const Icon(Icons.circle, size: 12, color: CrabSenseColors.textSecondary),
+              Icon(
+                Icons.circle,
+                size: 10,
+                color: Colors.white.withValues(alpha: 0.45),
+              ),
               const SizedBox(width: 8),
               Text(
-                'Status',
-                style: theme.textTheme.bodySmall?.copyWith(color: CrabSenseColors.textSecondary),
+                'Trạng thái',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.55),
+                  fontSize: 12,
+                ),
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
-                  color: _statusColor().withValues(alpha: 0.15),
+                  color: _statusColor().withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _statusColor().withValues(alpha: 0.5)),
+                  border: Border.all(
+                    color: _statusColor().withValues(alpha: 0.6),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _statusColor().withValues(alpha: 0.25),
+                      blurRadius: 8,
+                    ),
+                  ],
                 ),
                 child: Text(
                   box.status.displayName,
-                  style: theme.textTheme.labelSmall?.copyWith(
+                  style: TextStyle(
                     color: _statusColor(),
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-
-          // Farm + optional pond
           _InfoRow(
             icon: Icons.location_on_outlined,
-            label: 'Farm',
-            value: box.pondId != null ? '${box.farmId} / Pond ${box.pondId}' : box.farmId,
+            label: 'Khu',
+            value: box.pondId != null
+                ? '${box.farmId} / Ao ${box.pondId}'
+                : box.farmId,
           ),
-
-          // Location label
           if (box.location.label != null) ...[
             const SizedBox(height: 8),
-            _InfoRow(icon: Icons.map_outlined, label: 'Location', value: box.location.label!),
+            _InfoRow(
+              icon: Icons.map_outlined,
+              label: 'Vị trí',
+              value: box.location.label!,
+            ),
           ],
         ],
       ),
@@ -269,18 +374,13 @@ class _CrabStatsCard extends StatelessWidget {
   final Box box;
 
   Color _capacityColor(double fill) {
-    if (fill >= 0.9) {
-      return CrabSenseColors.error;
-    }
-    if (fill >= 0.7) {
-      return CrabSenseColors.warning;
-    }
-    return CrabSenseColors.success;
+    if (fill >= 0.9) return Colors.redAccent;
+    if (fill >= 0.7) return kHomeOrange;
+    return kHomeGreen;
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final fillRatio = box.capacity > 0
         ? (box.currentCrabCount / box.capacity).clamp(0.0, 1.0)
         : 0.0;
@@ -290,17 +390,18 @@ class _CrabStatsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle(label: 'Crab Inventory'),
+          const _SectionTitle(
+            icon: Icons.pets_rounded,
+            label: 'TỒN KHO CUA',
+          ),
           const SizedBox(height: 12),
-
-          // Three stats row
           Row(
             children: [
               Expanded(
                 child: _StatItem(
                   icon: Icons.set_meal_outlined,
                   value: '${box.currentCrabCount}/${box.capacity}',
-                  label: 'Count',
+                  label: 'Số lượng',
                   color: capacityColor,
                 ),
               ),
@@ -308,38 +409,39 @@ class _CrabStatsCard extends StatelessWidget {
                 child: _StatItem(
                   icon: Icons.category_outlined,
                   value: box.species.displayName,
-                  label: 'Species',
+                  label: 'Giống',
                 ),
               ),
               Expanded(
                 child: _StatItem(
                   icon: Icons.scale_outlined,
                   value: '${box.averageWeight.toStringAsFixed(1)}g',
-                  label: 'Avg Weight',
+                  label: 'TB khối lượng',
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-
-          // Capacity progress bar
           Row(
             children: [
               Expanded(
-                child: LinearProgressIndicator(
-                  value: fillRatio,
-                  backgroundColor: CrabSenseColors.outlineVariant,
-                  valueColor: AlwaysStoppedAnimation<Color>(capacityColor),
-                  minHeight: 6,
+                child: ClipRRect(
                   borderRadius: BorderRadius.circular(3),
+                  child: LinearProgressIndicator(
+                    value: fillRatio,
+                    backgroundColor: kHomeNavyLift,
+                    valueColor: AlwaysStoppedAnimation<Color>(capacityColor),
+                    minHeight: 6,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 '${(fillRatio * 100).round()}%',
-                style: theme.textTheme.labelSmall?.copyWith(
+                style: TextStyle(
                   color: capacityColor,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
                 ),
               ),
             ],
@@ -352,6 +454,15 @@ class _CrabStatsCard extends StatelessWidget {
                   onPressed: () => _showAddCrabDialog(context, box),
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Thêm cua'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: kHomeBlueLight,
+                    side: BorderSide(
+                      color: kHomeBorderBlue.withValues(alpha: 0.6),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -360,6 +471,15 @@ class _CrabStatsCard extends StatelessWidget {
                   onPressed: () => _showTransferDialog(context, box),
                   icon: const Icon(Icons.swap_horiz, size: 18),
                   label: const Text('Chuyển hộp'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: kHomeCyan,
+                    side: BorderSide(
+                      color: kHomeCyan.withValues(alpha: 0.55),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -540,24 +660,46 @@ class _WaterQualityCardState extends State<_WaterQualityCard> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return _GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle(label: 'Water Quality'),
+          const _SectionTitle(
+            icon: Icons.water_rounded,
+            label: 'CHẤT LƯỢNG NƯỚC',
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(Icons.sensors, size: 32, color: CrabSenseColors.info),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: kHomeCyan.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: kHomeCyan.withValues(alpha: 0.45)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kHomeCyan.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.sensors, size: 22, color: kHomeCyan),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: _loading
-                    ? const LinearProgressIndicator(minHeight: 2)
+                    ? LinearProgressIndicator(
+                        minHeight: 2,
+                        color: kHomeBlue,
+                        backgroundColor: kHomeNavyLift,
+                      )
                     : Text(
                         _summary,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: CrabSenseColors.textSecondary,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 13,
                         ),
                       ),
               ),
@@ -570,7 +712,8 @@ class _WaterQualityCardState extends State<_WaterQualityCard> {
                         : RoutePaths.waterQuality,
                   );
                 },
-                child: const Text('View'),
+                style: TextButton.styleFrom(foregroundColor: kHomeBlueLight),
+                child: const Text('Xem'),
               ),
             ],
           ),
@@ -639,30 +782,59 @@ class _AiHealthCardState extends State<_AiHealthCard> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return _GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle(label: 'AI Health Status'),
+          const _SectionTitle(
+            icon: Icons.auto_awesome_rounded,
+            label: 'TÌNH TRẠNG AI',
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(Icons.psychology_outlined, size: 32, color: CrabSenseColors.primary),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: kHomePurple.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                  border:
+                      Border.all(color: kHomePurple.withValues(alpha: 0.45)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kHomePurple.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.psychology_outlined,
+                  size: 22,
+                  color: kHomePurple,
+                ),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: _loading
-                    ? const LinearProgressIndicator(minHeight: 2)
+                    ? LinearProgressIndicator(
+                        minHeight: 2,
+                        color: kHomeBlue,
+                        backgroundColor: kHomeNavyLift,
+                      )
                     : Text(
                         _summary,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: CrabSenseColors.textSecondary,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 13,
                         ),
                       ),
               ),
               TextButton(
-                onPressed: () => context.go(RoutePaths.boxVideo(widget.box.id)),
-                child: const Text('Capture'),
+                onPressed: () =>
+                    context.go(RoutePaths.boxVideo(widget.box.id)),
+                style: TextButton.styleFrom(foregroundColor: kHomeBlueLight),
+                child: const Text('Quay'),
               ),
             ],
           ),
@@ -733,35 +905,60 @@ class _ActiveAlertsCardState extends State<_ActiveAlertsCard> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = _count > 0 ? CrabSenseColors.warning : CrabSenseColors.success;
+    final color = _count > 0 ? kHomeOrange : kHomeGreen;
     return _GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle(label: 'Active Alerts'),
+          const _SectionTitle(
+            icon: Icons.notifications_active_rounded,
+            label: 'CẢNH BÁO ĐANG MỞ',
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Icon(
-                _count > 0 ? Icons.notifications_active_outlined : Icons.notifications_none_outlined,
-                size: 32,
-                color: color,
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: color.withValues(alpha: 0.45)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  _count > 0
+                      ? Icons.notifications_active_outlined
+                      : Icons.notifications_none_outlined,
+                  size: 22,
+                  color: color,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _loading
-                    ? const LinearProgressIndicator(minHeight: 2)
+                    ? LinearProgressIndicator(
+                        minHeight: 2,
+                        color: kHomeBlue,
+                        backgroundColor: kHomeNavyLift,
+                      )
                     : Text(
                         _summary,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: CrabSenseColors.textSecondary,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 13,
                         ),
                       ),
               ),
               TextButton(
                 onPressed: () => context.go(RoutePaths.alerts),
-                child: const Text('View All'),
+                style: TextButton.styleFrom(foregroundColor: kHomeBlueLight),
+                child: const Text('Tất cả'),
               ),
             ],
           ),
@@ -781,32 +978,65 @@ class _GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: CrabSenseColors.surface.withValues(alpha: 0.8),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: CrabSenseColors.primary.withValues(alpha: 0.15)),
-    ),
-    child: child,
-  );
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
+          boxShadow: [
+            BoxShadow(
+              color: kHomeBlue.withValues(alpha: 0.14),
+              blurRadius: 14,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: child,
+      );
 }
 
 /// Section header label.
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.label});
+  const _SectionTitle({required this.label, this.icon});
 
   final String label;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Text(
-      label,
-      style: theme.textTheme.titleSmall?.copyWith(
-        color: CrabSenseColors.textPrimary,
-        fontWeight: FontWeight.w700,
-      ),
+    return Row(
+      children: [
+        if (icon != null) ...[
+          Icon(
+            icon,
+            size: 16,
+            color: kHomeBlueLight,
+            shadows: [
+              Shadow(
+                color: kHomeBlueLight.withValues(alpha: 0.8),
+                blurRadius: 10,
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+        ],
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: kHomeBlueLight,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.0,
+              fontSize: 12.5,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -821,20 +1051,26 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: CrabSenseColors.textSecondary),
+        Icon(icon, size: 18, color: kHomeBlueLight.withValues(alpha: 0.8)),
         const SizedBox(width: 8),
         Text(
           '$label: ',
-          style: theme.textTheme.bodySmall?.copyWith(color: CrabSenseColors.textSecondary),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.5),
+            fontSize: 12.5,
+          ),
         ),
         Expanded(
           child: Text(
             value,
-            style: theme.textTheme.bodySmall?.copyWith(color: CrabSenseColors.textPrimary),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+            ),
             overflow: TextOverflow.ellipsis,
             maxLines: 2,
           ),
@@ -850,7 +1086,7 @@ class _StatItem extends StatelessWidget {
     required this.icon,
     required this.value,
     required this.label,
-    this.color = CrabSenseColors.textPrimary,
+    this.color = Colors.white,
   });
 
   final IconData icon;
@@ -860,20 +1096,38 @@ class _StatItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
       children: [
-        Icon(icon, size: 20, color: color),
-        const SizedBox(height: 4),
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color.withValues(alpha: 0.45)),
+            boxShadow: [
+              BoxShadow(color: color.withValues(alpha: 0.25), blurRadius: 8),
+            ],
+          ),
+          child: Icon(icon, size: 18, color: color),
+        ),
+        const SizedBox(height: 6),
         Text(
           value,
-          style: theme.textTheme.titleSmall?.copyWith(color: color, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.w800,
+            fontSize: 13,
+          ),
           textAlign: TextAlign.center,
           overflow: TextOverflow.ellipsis,
         ),
         Text(
           label,
-          style: theme.textTheme.labelSmall?.copyWith(color: CrabSenseColors.textSecondary),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.45),
+            fontSize: 10,
+          ),
           textAlign: TextAlign.center,
         ),
       ],
@@ -988,28 +1242,49 @@ class _TimelineSectionState extends State<_TimelineSection> {
   }
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: CrabSenseColors.surface.withValues(alpha: 0.8),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: CrabSenseColors.primary.withValues(alpha: 0.15)),
-    ),
-    child: _loading
-        ? const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-          )
-        : _error != null && _events.isEmpty
-        ? Column(
-            children: [
-              Text(_error!, style: Theme.of(context).textTheme.bodySmall),
-              TextButton(onPressed: _load, child: const Text('Thử lại')),
-            ],
-          )
-        : BoxTimelineWidget(events: _events, totalCount: _events.length),
-  );
+  Widget build(BuildContext context) => _GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _SectionTitle(
+              icon: Icons.timeline_rounded,
+              label: 'DÒNG THỜI GIAN',
+            ),
+            const SizedBox(height: 12),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: kHomeBlue,
+                  ),
+                ),
+              )
+            else if (_error != null && _events.isEmpty)
+              Column(
+                children: [
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      fontSize: 12,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  TextButton(
+                    onPressed: _load,
+                    style:
+                        TextButton.styleFrom(foregroundColor: kHomeBlueLight),
+                    child: const Text('Thử lại'),
+                  ),
+                ],
+              )
+            else
+              BoxTimelineWidget(events: _events, totalCount: _events.length),
+          ],
+        ),
+      );
 }
 
 // ── Skeleton loading ──────────────────────────────────────────────────────────

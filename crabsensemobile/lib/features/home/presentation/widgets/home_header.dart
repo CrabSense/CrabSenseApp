@@ -44,89 +44,174 @@ class HomeHeader extends StatelessWidget {
   void _showFarmSelector(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: _kNavy,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Chọn trang trại điều hành',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    icon: const Icon(
-                      Icons.close,
-                      color: CrabSenseColors.hintText,
-                    ),
-                  ),
-                ],
+        return Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [_kNavyLift, _kNavy, _kNavyDeep],
+            ),
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(
+              color: _kBorderBlue.withValues(alpha: 0.5),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _kBlue.withValues(alpha: 0.25),
+                blurRadius: 24,
+                offset: const Offset(0, -6),
               ),
-              const SizedBox(height: 16),
-              ...data.availableFarms.map((farm) {
-                final isSelected = farm.id == data.selectedFarmId ||
-                    (data.selectedFarmId == null &&
-                        farm.name == data.selectedFarmName);
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? _kBlue.withValues(alpha: 0.14)
-                        : _kNavyLift.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isSelected
-                          ? _kBlue
-                          : _kBorderBlue.withValues(alpha: 0.35),
-                      width: isSelected ? 1.5 : 1,
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              // Họa tiết lưới khay nuôi + cua (đồng bộ trang home)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: CrabHologramPainter(
+                      color: _kBlueLight.withValues(alpha: 0.08),
+                      trayExtent: 28,
                     ),
                   ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
-                    ),
-                    leading: Icon(
-                      Icons.location_on_rounded,
-                      color: isSelected ? _kBlue : CrabSenseColors.hintText,
-                    ),
-                    title: Text(
-                      farm.name,
-                      style: TextStyle(
-                        color: isSelected
-                            ? _kBlueLight
-                            : CrabSenseColors.textPrimary,
-                        fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.w500,
+                ),
+              ),
+              // Vệt sáng cạnh trên
+              Positioned(
+                top: 0,
+                left: 32,
+                right: 32,
+                height: 1,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.transparent,
+                          _kBlueLight.withValues(alpha: 0.6),
+                          Colors.transparent,
+                        ],
                       ),
                     ),
-                    trailing: isSelected
-                        ? const Icon(
-                            Icons.check_circle_rounded,
-                            color: _kBlue,
-                          )
-                        : null,
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      onFarmSwitched(farm.id);
-                    },
                   ),
-                );
-              }),
+                ),
+              ),
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Thanh kéo
+                      Center(
+                        child: Container(
+                          width: 42,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: _kBorderBlue.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: _kBlue.withValues(alpha: 0.4),
+                                blurRadius: 6,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          // Pin phát sáng như thanh chọn trại
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _kBlue.withValues(alpha: 0.14),
+                              border: Border.all(
+                                color: _kBlue.withValues(alpha: 0.5),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _kBlue.withValues(alpha: 0.4),
+                                  blurRadius: 14,
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.location_on_rounded,
+                              color: _kBlue,
+                              size: 20,
+                              shadows: [
+                                Shadow(
+                                  color: _kBlue.withValues(alpha: 0.9),
+                                  blurRadius: 12,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'CHỌN TRANG TRẠI ĐIỀU HÀNH',
+                                  style: TextStyle(
+                                    color: _kBlueLight,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.0,
+                                    fontSize: 13,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${data.availableFarms.length} khu vực khả dụng',
+                                  style: const TextStyle(
+                                    color: CrabSenseColors.textSecondary,
+                                    fontSize: 11.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _SheetCloseButton(onTap: () => Navigator.pop(ctx)),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Flexible(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            children: data.availableFarms.map((farm) {
+                              final isSelected =
+                                  farm.id == data.selectedFarmId ||
+                                      (data.selectedFarmId == null &&
+                                          farm.name == data.selectedFarmName);
+                              return _FarmOptionTile(
+                                name: farm.name,
+                                isSelected: isSelected,
+                                onTap: () {
+                                  Navigator.pop(ctx);
+                                  onFarmSwitched(farm.id);
+                                },
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         );
@@ -313,6 +398,195 @@ class HomeHeader extends StatelessWidget {
             ),
           ],
         );
+  }
+}
+
+/// Item chọn trại trong bottom sheet: pin phát sáng + tên trại,
+/// item đang chọn có viền + glow xanh và nhãn "Đang điều hành".
+class _FarmOptionTile extends StatelessWidget {
+  const _FarmOptionTile({
+    required this.name,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String name;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Ink(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
+            decoration: BoxDecoration(
+              gradient: isSelected
+                  ? LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        _kBlue.withValues(alpha: 0.22),
+                        _kBlue.withValues(alpha: 0.08),
+                      ],
+                    )
+                  : const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [_kNavyLift, _kNavyDeep],
+                    ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSelected
+                    ? _kBlue.withValues(alpha: 0.9)
+                    : _kBorderBlue.withValues(alpha: 0.4),
+                width: isSelected ? 1.4 : 1,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: _kBlue.withValues(alpha: 0.35),
+                        blurRadius: 14,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isSelected
+                        ? _kBlue.withValues(alpha: 0.18)
+                        : _kNavy.withValues(alpha: 0.8),
+                    border: Border.all(
+                      color: isSelected
+                          ? _kBlue.withValues(alpha: 0.6)
+                          : _kBorderBlue.withValues(alpha: 0.4),
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: _kBlue.withValues(alpha: 0.45),
+                              blurRadius: 12,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Icon(
+                    Icons.location_on_rounded,
+                    size: 18,
+                    color: isSelected ? _kBlue : CrabSenseColors.hintText,
+                    shadows: isSelected
+                        ? [
+                            Shadow(
+                              color: _kBlue.withValues(alpha: 0.9),
+                              blurRadius: 10,
+                            ),
+                          ]
+                        : null,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: TextStyle(
+                          color: isSelected
+                              ? Colors.white
+                              : CrabSenseColors.textPrimary,
+                          fontWeight:
+                              isSelected ? FontWeight.w800 : FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (isSelected) ...[
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Đang điều hành',
+                          style: TextStyle(
+                            color: _kBlueLight,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (isSelected)
+                  Icon(
+                    Icons.check_circle_rounded,
+                    color: _kBlue,
+                    size: 22,
+                    shadows: [
+                      Shadow(
+                        color: _kBlue.withValues(alpha: 0.8),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  )
+                else
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: CrabSenseColors.hintText.withValues(alpha: 0.7),
+                    size: 22,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Nút đóng tròn nhỏ trong bottom sheet.
+class _SheetCloseButton extends StatelessWidget {
+  const _SheetCloseButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _kNavy.withValues(alpha: 0.9),
+            border: Border.all(
+              color: _kBorderBlue.withValues(alpha: 0.45),
+            ),
+          ),
+          child: const Icon(
+            Icons.close_rounded,
+            color: CrabSenseColors.hintText,
+            size: 18,
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -64,6 +64,7 @@ class ApiConstants {
   static const String changePassword = '/auth/change-password';
   static const String verifyEmail = '/auth/verify-email';
   static const String currentUser = '/auth/me';
+  static const String notificationPreferences = '/auth/me/notification-preferences';
 
   // ===========================================================================
   // User Endpoints

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/boxes_models.dart';
 import 'box_card.dart';
 import 'box_status_badge.dart';
@@ -52,9 +53,22 @@ class BoxListTileCard extends StatelessWidget {
             child: Ink(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
-                color: CrabSenseColors.card,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+                ),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: CrabSenseColors.border),
+                border: Border.all(
+                  color: kHomeBorderBlue.withValues(alpha: 0.45),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: kHomeBlue.withValues(alpha: 0.12),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
@@ -91,7 +105,7 @@ class BoxListTileCard extends StatelessWidget {
                               child: Text(
                                 box.code,
                                 style: const TextStyle(
-                                  color: CrabSenseColors.textPrimary,
+                                  color: Colors.white,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 14,
                                 ),
@@ -107,8 +121,8 @@ class BoxListTileCard extends StatelessWidget {
                           '${box.water.temperature != null ? ' · ${box.water.temperature!.toStringAsFixed(0)}°C' : ''}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: CrabSenseColors.textSecondary,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.55),
                             fontSize: 11,
                           ),
                         ),
@@ -119,13 +133,13 @@ class BoxListTileCard extends StatelessWidget {
                               const Icon(
                                 Icons.warning_amber_rounded,
                                 size: 12,
-                                color: CrabSenseColors.warning,
+                                color: kHomeOrange,
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 '${box.alerts.count} cảnh báo',
                                 style: const TextStyle(
-                                  color: CrabSenseColors.warning,
+                                  color: kHomeOrange,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -134,8 +148,8 @@ class BoxListTileCard extends StatelessWidget {
                             ],
                             Text(
                               formatRelativeTime(box.lastUpdated),
-                              style: const TextStyle(
-                                color: CrabSenseColors.hintText,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.4),
                                 fontSize: 10,
                               ),
                             ),

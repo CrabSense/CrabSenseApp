@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/boxes_models.dart';
 
 class BoxFilterChips extends StatelessWidget {
@@ -17,8 +17,8 @@ class BoxFilterChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasActive =
-        !activeFilters.contains(BoxQuickFilter.all) || activeFilters.length > 1;
+    final hasActive = !activeFilters.contains(BoxQuickFilter.all) ||
+        activeFilters.length > 1;
 
     return SizedBox(
       height: 40,
@@ -26,8 +26,7 @@ class BoxFilterChips extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         children: [
           ...BoxQuickFilter.values.map((filter) {
-            final selected =
-                activeFilters.contains(filter) ||
+            final selected = activeFilters.contains(filter) ||
                 (filter == BoxQuickFilter.all &&
                     activeFilters.length == 1 &&
                     activeFilters.contains(BoxQuickFilter.all));
@@ -37,20 +36,20 @@ class BoxFilterChips extends StatelessWidget {
                 selected: selected,
                 label: Text(filter.label),
                 onSelected: (_) => onToggle(filter),
-                selectedColor: CrabSenseColors.primary.withValues(alpha: 0.22),
-                backgroundColor: CrabSenseColors.surface,
-                checkmarkColor: CrabSenseColors.primary,
+                selectedColor: kHomeBlue.withValues(alpha: 0.22),
+                backgroundColor: kHomeNavyDeep.withValues(alpha: 0.75),
+                checkmarkColor: kHomeBlueLight,
                 labelStyle: TextStyle(
                   color: selected
-                      ? CrabSenseColors.primary
-                      : CrabSenseColors.textSecondary,
+                      ? kHomeBlueLight
+                      : Colors.white.withValues(alpha: 0.55),
                   fontSize: 12,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 ),
                 side: BorderSide(
                   color: selected
-                      ? CrabSenseColors.primary.withValues(alpha: 0.6)
-                      : CrabSenseColors.border,
+                      ? kHomeBlue.withValues(alpha: 0.8)
+                      : kHomeBorderBlue.withValues(alpha: 0.4),
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
@@ -64,7 +63,7 @@ class BoxFilterChips extends StatelessWidget {
             TextButton(
               onPressed: onClear,
               style: TextButton.styleFrom(
-                foregroundColor: CrabSenseColors.danger,
+                foregroundColor: Colors.redAccent,
                 minimumSize: const Size(48, 36),
               ),
               child: const Text('Xóa bộ lọc', style: TextStyle(fontSize: 12)),
@@ -90,27 +89,27 @@ class ViewModeSwitcher extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: CrabSenseColors.surface,
+        color: kHomeNavyDeep.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: CrabSenseColors.border),
+        border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.45)),
       ),
       child: Row(
         children: [
           _ModeBtn(
             icon: Icons.grid_view_rounded,
-            label: 'Grid',
+            label: 'Lưới',
             selected: mode == BoxesViewMode.grid,
             onTap: () => onChanged(BoxesViewMode.grid),
           ),
           _ModeBtn(
             icon: Icons.view_list_rounded,
-            label: 'List',
+            label: 'Danh sách',
             selected: mode == BoxesViewMode.list,
             onTap: () => onChanged(BoxesViewMode.list),
           ),
           _ModeBtn(
             icon: Icons.map_rounded,
-            label: 'Map',
+            label: 'Bản đồ',
             selected: mode == BoxesViewMode.farmMap,
             onTap: () => onChanged(BoxesViewMode.farmMap),
           ),
@@ -137,15 +136,28 @@ class _ModeBtn extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Material(
-        color: selected
-            ? CrabSenseColors.primary.withValues(alpha: 0.2)
-            : Colors.transparent,
+        color: selected ? kHomeBlue.withValues(alpha: 0.2) : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(10),
-          child: SizedBox(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
             height: 40,
+            decoration: selected
+                ? BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: kHomeBlue.withValues(alpha: 0.45),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: kHomeBlue.withValues(alpha: 0.25),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  )
+                : null,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -153,18 +165,23 @@ class _ModeBtn extends StatelessWidget {
                   icon,
                   size: 16,
                   color: selected
-                      ? CrabSenseColors.primary
-                      : CrabSenseColors.hintText,
+                      ? kHomeBlueLight
+                      : Colors.white.withValues(alpha: 0.4),
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: selected
-                        ? CrabSenseColors.primary
-                        : CrabSenseColors.hintText,
-                    fontSize: 12,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: selected
+                          ? kHomeBlueLight
+                          : Colors.white.withValues(alpha: 0.4),
+                      fontSize: 12,
+                      fontWeight:
+                          selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
                   ),
                 ),
               ],

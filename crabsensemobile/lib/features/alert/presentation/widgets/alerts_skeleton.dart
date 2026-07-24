@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 
 /// Skeleton loaders matching Alerts Command Center layout.
 class AlertsSkeleton extends StatelessWidget {
@@ -84,9 +84,9 @@ class PriorityAlertSkeleton extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: CrabSenseColors.card,
+        color: kHomeNavyLift,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: CrabSenseColors.border),
+        border: Border.all(color: kHomeBorderBlue),
       ),
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,9 +145,9 @@ class AlertCardSkeleton extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: CrabSenseColors.card,
+        color: kHomeNavyLift,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: CrabSenseColors.border),
+        border: Border.all(color: kHomeBorderBlue),
       ),
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,9 +295,9 @@ class _ShimmerBlockState extends State<_ShimmerBlock>
               begin: Alignment(_animation.value - 1, 0),
               end: Alignment(_animation.value, 0),
               colors: const [
-                CrabSenseColors.surface,
-                CrabSenseColors.container,
-                CrabSenseColors.surface,
+                kHomeNavy,
+                kHomeNavyDeep,
+                kHomeNavy,
               ],
             ),
           ),

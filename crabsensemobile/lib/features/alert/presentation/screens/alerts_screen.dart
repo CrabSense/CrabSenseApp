@@ -4,10 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routes.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../authentication/domain/entities/user.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
+import '../../../home/presentation/widgets/crab_hologram_painter.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/alerts_models.dart';
 import '../providers/alerts_provider.dart';
 import '../widgets/alert_card_v2.dart';
@@ -56,7 +57,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: CrabSenseColors.container,
+        backgroundColor: kHomeNavyLift,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
@@ -161,83 +162,108 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
   void _showSortGroupSheet(AlertsStateData data) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: CrabSenseColors.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Sắp xếp & nhóm',
-                  style: TextStyle(
-                    color: CrabSenseColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Sắp xếp',
-                  style: TextStyle(color: CrabSenseColors.hintText),
-                ),
-                for (final s in AlertSortOption.values)
-                  RadioListTile<AlertSortOption>(
-                    value: s,
-                    groupValue: data.sortOption,
-                    activeColor: CrabSenseColors.primary,
-                    title: Text(
-                      switch (s) {
-                        AlertSortOption.priorityDesc => 'Priority cao → thấp',
-                        AlertSortOption.newest => 'Mới nhất',
-                        AlertSortOption.oldest => 'Cũ nhất',
-                        AlertSortOption.severity => 'Theo mức độ',
-                      },
-                      style: const TextStyle(
-                        color: CrabSenseColors.textPrimary,
-                      ),
-                    ),
-                    onChanged: (v) {
-                      if (v == null) return;
-                      ref.read(alertsStateProvider.notifier).setSort(v);
-                      Navigator.pop(ctx);
-                    },
-                  ),
-                const Text(
-                  'Nhóm theo',
-                  style: TextStyle(color: CrabSenseColors.hintText),
-                ),
-                for (final g in AlertGroupBy.values)
-                  RadioListTile<AlertGroupBy>(
-                    value: g,
-                    groupValue: data.groupBy,
-                    activeColor: CrabSenseColors.primary,
-                    title: Text(
-                      switch (g) {
-                        AlertGroupBy.severity => 'Mức độ',
-                        AlertGroupBy.date => 'Ngày',
-                        AlertGroupBy.category => 'Loại cảnh báo',
-                        AlertGroupBy.status => 'Trạng thái',
-                        AlertGroupBy.box => 'Box',
-                        AlertGroupBy.none => 'Không nhóm',
-                      },
-                      style: const TextStyle(
-                        color: CrabSenseColors.textPrimary,
-                      ),
-                    ),
-                    onChanged: (v) {
-                      if (v == null) return;
-                      ref.read(alertsStateProvider.notifier).setGroupBy(v);
-                      Navigator.pop(ctx);
-                    },
-                  ),
-              ],
+        final maxH = MediaQuery.sizeOf(ctx).height * 0.85;
+        return Container(
+          constraints: BoxConstraints(maxHeight: maxH),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
             ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              const HomeCrabWatermark(alpha: 0.05, trayExtent: 28),
+              SafeArea(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 14),
+                          decoration: BoxDecoration(
+                            color: kHomeCyan.withValues(alpha: 0.75),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                      const Text(
+                        'SẮP XẾP & NHÓM',
+                        style: TextStyle(
+                          color: kHomeBlueLight,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Sắp xếp',
+                        style: TextStyle(color: Colors.white54),
+                      ),
+                      for (final s in AlertSortOption.values)
+                        RadioListTile<AlertSortOption>(
+                          value: s,
+                          groupValue: data.sortOption,
+                          activeColor: kHomeCyan,
+                          title: Text(
+                            switch (s) {
+                              AlertSortOption.priorityDesc =>
+                                'Ưu tiên cao → thấp',
+                              AlertSortOption.newest => 'Mới nhất',
+                              AlertSortOption.oldest => 'Cũ nhất',
+                              AlertSortOption.severity => 'Theo mức độ',
+                            },
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          onChanged: (v) {
+                            if (v == null) return;
+                            ref.read(alertsStateProvider.notifier).setSort(v);
+                            Navigator.pop(ctx);
+                          },
+                        ),
+                      const Text(
+                        'Nhóm theo',
+                        style: TextStyle(color: Colors.white54),
+                      ),
+                      for (final g in AlertGroupBy.values)
+                        RadioListTile<AlertGroupBy>(
+                          value: g,
+                          groupValue: data.groupBy,
+                          activeColor: kHomeCyan,
+                          title: Text(
+                            switch (g) {
+                              AlertGroupBy.severity => 'Mức độ',
+                              AlertGroupBy.date => 'Ngày',
+                              AlertGroupBy.category => 'Loại cảnh báo',
+                              AlertGroupBy.status => 'Trạng thái',
+                              AlertGroupBy.box => 'Hộp',
+                              AlertGroupBy.none => 'Không nhóm',
+                            },
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          onChanged: (v) {
+                            if (v == null) return;
+                            ref.read(alertsStateProvider.notifier).setGroupBy(v);
+                            Navigator.pop(ctx);
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -247,36 +273,61 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
   void _showHistoryRangeSheet(AlertsStateData data) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: CrabSenseColors.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+        return Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
             children: [
-              for (final r in AlertHistoryRange.values)
-                ListTile(
-                  title: Text(
-                    switch (r) {
-                      AlertHistoryRange.today => 'Hôm nay',
-                      AlertHistoryRange.days7 => '7 ngày',
-                      AlertHistoryRange.days30 => '30 ngày',
-                      AlertHistoryRange.custom => 'Tùy chỉnh (30 ngày)',
-                    },
-                    style: TextStyle(
-                      color: data.historyRange == r
-                          ? CrabSenseColors.primary
-                          : CrabSenseColors.textPrimary,
-                      fontWeight: FontWeight.w600,
+              const HomeCrabWatermark(alpha: 0.05, trayExtent: 28),
+              SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 10),
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: kHomeCyan.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
-                  ),
-                  onTap: () {
-                    ref.read(alertsStateProvider.notifier).setHistoryRange(r);
-                    Navigator.pop(ctx);
-                  },
+                    for (final r in AlertHistoryRange.values)
+                      ListTile(
+                        title: Text(
+                          switch (r) {
+                            AlertHistoryRange.today => 'Hôm nay',
+                            AlertHistoryRange.days7 => '7 ngày',
+                            AlertHistoryRange.days30 => '30 ngày',
+                            AlertHistoryRange.custom => 'Tùy chỉnh (30 ngày)',
+                          },
+                          style: TextStyle(
+                            color: data.historyRange == r
+                                ? kHomeCyan
+                                : Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        onTap: () {
+                          ref
+                              .read(alertsStateProvider.notifier)
+                              .setHistoryRange(r);
+                          Navigator.pop(ctx);
+                        },
+                      ),
+                  ],
                 ),
+              ),
             ],
           ),
         );
@@ -296,24 +347,38 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
     final maxWidth = width >= 700 ? 720.0 : double.infinity;
 
     return Scaffold(
-      backgroundColor: CrabSenseColors.background,
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: async.when(
-              loading: () => const AlertsSkeleton(),
-              error: (e, _) => Center(
-                child: SectionErrorCard(
-                  message: e.toString(),
-                  onRetry: () =>
-                      ref.read(alertsStateProvider.notifier).refresh(),
+      backgroundColor: kHomeNavyDeep,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: CrabHologramPainter(
+                  color: kHomeBlueLight.withValues(alpha: 0.05),
+                  trayExtent: 32,
                 ),
               ),
-              data: _buildContent,
             ),
           ),
-        ),
+          SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxWidth),
+                child: async.when(
+                  loading: () => const AlertsSkeleton(),
+                  error: (e, _) => Center(
+                    child: SectionErrorCard(
+                      message: e.toString(),
+                      onRetry: () =>
+                          ref.read(alertsStateProvider.notifier).refresh(),
+                    ),
+                  ),
+                  data: _buildContent,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -322,8 +387,8 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
     final notifier = ref.read(alertsStateProvider.notifier);
 
     return RefreshIndicator(
-      color: CrabSenseColors.primary,
-      backgroundColor: CrabSenseColors.surface,
+      color: kHomeCyan,
+      backgroundColor: kHomeNavy,
       onRefresh: () => notifier.refresh(),
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -351,7 +416,8 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                         _snack('Đã đánh dấu tất cả đã xem');
                       }
                     : null,
-                onNotificationSettings: () => context.go(RoutePaths.profile),
+                onNotificationSettings: () =>
+                    context.push(RoutePaths.notificationSettings),
               ),
             ),
           ),
@@ -469,7 +535,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                 child: Text(
                   'Lịch sử cảnh báo',
                   style: TextStyle(
-                    color: CrabSenseColors.textPrimary,
+                    color: Colors.white,
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
                   ),
@@ -508,7 +574,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
           child: Center(
             child: Text(
               'Không có lịch sử trong khoảng thời gian này',
-              style: TextStyle(color: CrabSenseColors.hintText),
+              style: TextStyle(color: Colors.white54),
             ),
           ),
         )
@@ -527,7 +593,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
             child: Text(
               '${section.title} (${section.items.length})',
               style: const TextStyle(
-                color: CrabSenseColors.textSecondary,
+                color: Colors.white70,
                 fontWeight: FontWeight.w800,
                 fontSize: 13,
                 letterSpacing: 0.3,

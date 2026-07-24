@@ -1,16 +1,17 @@
+// ignore_for_file: lines_longer_than_80_chars
+
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../app/theme.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/network_info.dart';
-import '../../../../shared/widgets/errors/error_state_widget.dart';
-import '../../../../shared/widgets/loading/skeleton_loader.dart';
+import '../../../home/presentation/widgets/crab_hologram_painter.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/entities/water_quality.dart';
 import '../../domain/entities/water_quality_thresholds.dart';
 import '../../domain/repositories/water_quality_repository.dart';
@@ -22,38 +23,26 @@ import '../widgets/farm_pond_filter_widget.dart';
 import '../widgets/historical_chart.dart';
 import '../widgets/sensor_reading_card.dart';
 
-/// The water quality monitoring screen of the CrabSense application.
-///
-/// Provides:
-/// 1. Real-time sensor readings: temperature, pH, dissolved oxygen, salinity
-/// 2. Threshold-based warning indicators for out-of-range values
-/// 3. Offline/device offline status banners
-/// 4. Pull-to-refresh and 30-second auto-refresh
-/// 5. Historical data charts with period selector (task 13.4)
-///
-/// Requirements: 8.1–8.10
+/// Màn hình giám sát chất lượng nước + biểu đồ lịch sử.
 class WaterQualityScreen extends StatelessWidget {
   const WaterQualityScreen({super.key, this.farmId, this.pondId});
 
-  /// The farm to display water quality readings for.
   final String? farmId;
-
-  /// Optional specific pond within the farm.
   final String? pondId;
 
   @override
   Widget build(BuildContext context) => BlocProvider<WaterQualityBloc>(
-    create: (_) =>
-        sl<WaterQualityBloc>()
-          ..add(WaterQualityLoadRequested(farmId: farmId ?? 'default', pondId: pondId)),
-    child: _WaterQualityView(farmId: farmId, pondId: pondId),
-  );
+        create: (_) => sl<WaterQualityBloc>()
+          ..add(
+            WaterQualityLoadRequested(
+              farmId: farmId ?? 'default',
+              pondId: pondId,
+            ),
+          ),
+        child: _WaterQualityView(farmId: farmId, pondId: pondId),
+      );
 }
 
-/// Internal stateful view that owns the 30-second auto-refresh timer
-/// and connectivity listener.
-///
-/// Requirements: 8.7, 8.10
 class _WaterQualityView extends StatefulWidget {
   const _WaterQualityView({this.farmId, this.pondId});
 
@@ -67,8 +56,6 @@ class _WaterQualityView extends StatefulWidget {
 class _WaterQualityViewState extends State<_WaterQualityView> {
   Timer? _refreshTimer;
   StreamSubscription<ConnectivityResult>? _connectivitySubscription;
-
-  // Tracks whether we were previously offline so we can refresh on reconnect.
   bool _wasOffline = false;
 
   @override
@@ -78,31 +65,21 @@ class _WaterQualityViewState extends State<_WaterQualityView> {
     _listenToConnectivity();
   }
 
-  /// Starts the 30-second auto-refresh timer.
-  ///
-  /// Only dispatches [WaterQualityRefreshRequested] when the device is
-  /// online. Requirement 8.7: auto-refresh every 30 seconds when screen
-  /// is active.
   void _startAutoRefreshTimer() {
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
       if (!mounted) return;
-      final networkInfo = sl<NetworkInfo>();
-      final isOnline = await networkInfo.isConnected;
+      final isOnline = await sl<NetworkInfo>().isConnected;
       if (isOnline && mounted) {
         context.read<WaterQualityBloc>().add(const WaterQualityRefreshRequested());
       }
     });
   }
 
-  /// Subscribes to connectivity changes.
-  ///
-  /// When the device comes back online after being offline, triggers an
-  /// immediate refresh to fetch fresh data (Requirement 8.10).
   void _listenToConnectivity() {
-    _connectivitySubscription = sl<Connectivity>().onConnectivityChanged.listen((result) {
+    _connectivitySubscription =
+        sl<Connectivity>().onConnectivityChanged.listen((result) {
       if (!mounted) return;
-      final isOnline =
-          result == ConnectivityResult.mobile ||
+      final isOnline = result == ConnectivityResult.mobile ||
           result == ConnectivityResult.wifi ||
           result == ConnectivityResult.ethernet ||
           result == ConnectivityResult.vpn;
@@ -123,62 +100,110 @@ class _WaterQualityViewState extends State<_WaterQualityView> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: CrabSenseColors.background,
-    appBar: AppBar(
-      title: const Text('Water Quality'),
-      backgroundColor: CrabSenseColors.surface,
-      foregroundColor: CrabSenseColors.textPrimary,
-    ),
-    body: BlocBuilder<WaterQualityBloc, WaterQualityState>(
-      builder: (context, state) {
-        if (state is WaterQualityLoading || state is WaterQualityInitial) {
-          return const _SkeletonWaterQuality();
-        }
-
-        if (state is WaterQualityError) {
-          return ErrorStateWidget(
-            icon: state.isOffline ? Icons.wifi_off : Icons.error_outline,
-            title: state.isOffline ? 'No Connection' : 'Something went wrong',
-            message: state.message,
-            onRetry: () => context.read<WaterQualityBloc>().add(
-              WaterQualityLoadRequested(farmId: widget.farmId ?? 'default', pondId: widget.pondId),
+        backgroundColor: const Color(0xFF071426),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          flexibleSpace: Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+              ),
+              border: Border(
+                bottom: BorderSide(
+                  color: kHomeBorderBlue.withValues(alpha: 0.45),
+                ),
+              ),
             ),
-          );
-        }
+          ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.water_rounded,
+                size: 18,
+                color: kHomeCyan,
+                shadows: [
+                  Shadow(
+                    color: kHomeCyan.withValues(alpha: 0.8),
+                    blurRadius: 10,
+                  ),
+                ],
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'CHẤT LƯỢNG NƯỚC',
+                style: TextStyle(
+                  color: kHomeBlueLight,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+          centerTitle: true,
+        ),
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: CrabHologramPainter(
+                    color: kHomeCyan.withValues(alpha: 0.05),
+                    trayExtent: 30,
+                  ),
+                ),
+              ),
+            ),
+            BlocBuilder<WaterQualityBloc, WaterQualityState>(
+              builder: (context, state) {
+                if (state is WaterQualityLoading || state is WaterQualityInitial) {
+                  return const _SkeletonWaterQuality();
+                }
 
-        if (state is WaterQualityLoaded) {
-          return RefreshIndicator(
-            color: CrabSenseColors.primary,
-            backgroundColor: CrabSenseColors.surface,
-            onRefresh: () async {
-              context.read<WaterQualityBloc>().add(const WaterQualityRefreshRequested());
-              await context.read<WaterQualityBloc>().stream.firstWhere(
-                (s) => (s is WaterQualityLoaded && !s.isRefreshing) || s is WaterQualityError,
-              );
-            },
-            child: _WaterQualityContent(state: state),
-          );
-        }
+                if (state is WaterQualityError) {
+                  return _ErrorBody(
+                    isOffline: state.isOffline,
+                    message: state.message,
+                    onRetry: () => context.read<WaterQualityBloc>().add(
+                          WaterQualityLoadRequested(
+                            farmId: widget.farmId ?? 'default',
+                            pondId: widget.pondId,
+                          ),
+                        ),
+                  );
+                }
 
-        return const _SkeletonWaterQuality();
-      },
-    ),
-  );
+                if (state is WaterQualityLoaded) {
+                  return RefreshIndicator(
+                    color: kHomeBlue,
+                    backgroundColor: kHomeNavy,
+                    onRefresh: () async {
+                      context
+                          .read<WaterQualityBloc>()
+                          .add(const WaterQualityRefreshRequested());
+                      await context.read<WaterQualityBloc>().stream.firstWhere(
+                            (s) =>
+                                (s is WaterQualityLoaded && !s.isRefreshing) ||
+                                s is WaterQualityError,
+                          );
+                    },
+                    child: _WaterQualityContent(state: state),
+                  );
+                }
+
+                return const _SkeletonWaterQuality();
+              },
+            ),
+          ],
+        ),
+      );
 }
 
-// ── Loaded content ────────────────────────────────────────────────────────────
-
-/// Scrollable content rendered when [WaterQualityLoaded] is the current
-/// state.
-///
-/// Maintains local [_selectedPeriod] state for the historical chart period
-/// selector and filters readings client-side before passing them to
-/// [HistoricalChart].
-///
-/// Shows a [FarmPondFilterWidget] at the top so the user can switch between
-/// farms and optionally narrow to a specific pond (Requirement 8.9). Farm
-/// or pond selection dispatches [WaterQualityFarmChanged] to the BLoC,
-/// which triggers a full re-fetch for the new location.
 class _WaterQualityContent extends StatefulWidget {
   const _WaterQualityContent({required this.state});
 
@@ -221,11 +246,12 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
       final pondsByArea = <String, List<PondOption>>{};
       for (final raw in rows) {
         final map = Map<String, dynamic>.from(raw as Map);
-        final areaId = (map['farmingAreaId'] ?? map['FarmingAreaId'] ?? '').toString();
+        final areaId =
+            (map['farmingAreaId'] ?? map['FarmingAreaId'] ?? '').toString();
         if (areaId.isEmpty) continue;
         final pond = PondOption(
           id: (map['id'] ?? '').toString(),
-          name: (map['name'] ?? map['code'] ?? 'Row').toString(),
+          name: (map['name'] ?? map['code'] ?? 'Dãy').toString(),
         );
         pondsByArea.putIfAbsent(areaId, () => <PondOption>[]).add(pond);
       }
@@ -238,7 +264,7 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
         farms.add(
           FarmOption(
             id: id,
-            name: (map['name'] ?? map['code'] ?? 'Farm').toString(),
+            name: (map['name'] ?? map['code'] ?? 'Khu').toString(),
             ponds: pondsByArea[id] ?? const [],
           ),
         );
@@ -250,7 +276,7 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
             ? [
                 FarmOption(
                   id: widget.state.farmId,
-                  name: 'Current farm',
+                  name: 'Khu hiện tại',
                   ponds: const [],
                 ),
               ]
@@ -261,15 +287,21 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
       if (!mounted) return;
       setState(() {
         _farms = [
-          FarmOption(id: widget.state.farmId, name: 'Current farm', ponds: const []),
+          FarmOption(
+            id: widget.state.farmId,
+            name: 'Khu hiện tại',
+            ponds: const [],
+          ),
         ];
         _farmsLoading = false;
       });
     }
   }
 
-  /// Filters [readings] to only include entries within the given [period].
-  List<WaterQuality> _filterByPeriod(List<WaterQuality> readings, HistoricalPeriod period) {
+  List<WaterQuality> _filterByPeriod(
+    List<WaterQuality> readings,
+    HistoricalPeriod period,
+  ) {
     final now = DateTime.now();
     final cutoff = switch (period) {
       HistoricalPeriod.last24Hours => now.subtract(const Duration(hours: 24)),
@@ -279,7 +311,6 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
     return readings.where((r) => r.timestamp.isAfter(cutoff)).toList();
   }
 
-  /// Returns the farm id to display in the filter.
   String _resolvedFarmId() {
     final stateId = widget.state.farmId;
     if (_farms.any((f) => f.id == stateId)) return stateId;
@@ -287,45 +318,49 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
   }
 
   void _onFilterChanged(BuildContext context, String farmId, String? pondId) {
-    context.read<WaterQualityBloc>().add(WaterQualityFarmChanged(farmId: farmId, pondId: pondId));
+    context
+        .read<WaterQualityBloc>()
+        .add(WaterQualityFarmChanged(farmId: farmId, pondId: pondId));
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final readings = widget.state.readings;
     final thresholds = widget.state.thresholds;
-
-    final latestTimestamp = readings.isNotEmpty ? readings.first.timestamp : null;
+    final latestTimestamp =
+        readings.isNotEmpty ? readings.first.timestamp : null;
     final historicalReadings = _filterByPeriod(readings, _selectedPeriod);
     final resolvedFarmId = _resolvedFarmId();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
-        // ── Farm / Pond filter ────────────────────────────────────────
         if (_farmsLoading)
-          const Padding(
-            padding: EdgeInsets.only(bottom: 12),
-            child: LinearProgressIndicator(minHeight: 2),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: LinearProgressIndicator(
+              minHeight: 2,
+              color: kHomeBlue,
+              backgroundColor: kHomeNavyLift,
+            ),
           )
         else
           FarmPondFilterWidget(
             farms: _farms,
             selectedFarmId: resolvedFarmId,
             selectedPondId: widget.state.pondId,
-          isLoading: widget.state.isRefreshing,
-          onSelectionChanged: (farmId, pondId) => _onFilterChanged(context, farmId, pondId),
-        ),
-        const SizedBox(height: 16),
+            isLoading: widget.state.isRefreshing,
+            onSelectionChanged: (farmId, pondId) =>
+                _onFilterChanged(context, farmId, pondId),
+          ),
+        const SizedBox(height: 14),
 
-        // ── Offline banners ───────────────────────────────────────────
         if (widget.state.isDeviceOffline) ...[
           const _StatusBanner(
-            title: 'Sensor Offline',
-            subtitle: 'IoT sensor is not responding',
-            icon: Icons.sensors_off,
-            color: CrabSenseColors.error,
+            title: 'Cảm biến ngoại tuyến',
+            subtitle: 'Thiết bị IoT không phản hồi',
+            icon: Icons.sensors_off_rounded,
+            color: Colors.redAccent,
           ),
           const SizedBox(height: 8),
         ],
@@ -334,30 +369,31 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
           const SizedBox(height: 8),
         ],
 
-        // ── Last updated row ──────────────────────────────────────────
         if (latestTimestamp != null) ...[
           _LastUpdatedRow(timestamp: latestTimestamp),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
         ],
 
-        // ── Section title ─────────────────────────────────────────────
-        Text(
-          'Current Readings',
-          style: theme.textTheme.titleSmall?.copyWith(
-            color: CrabSenseColors.textSecondary,
-            letterSpacing: 0.5,
-          ),
-        ),
+        _SectionLabel(icon: Icons.sensors_rounded, title: 'CHỈ SỐ HIỆN TẠI'),
         const SizedBox(height: 12),
 
-        // ── 2×2 grid of sensor reading cards ─────────────────────────
         if (readings.isEmpty)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 32),
-              child: Text(
-                'No readings available',
-                style: theme.textTheme.bodyMedium?.copyWith(color: CrabSenseColors.textSecondary),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
+            decoration: BoxDecoration(
+              color: kHomeNavyDeep.withValues(alpha: 0.75),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: kHomeBorderBlue.withValues(alpha: 0.4),
+              ),
+            ),
+            child: Text(
+              'Chưa có chỉ số cảm biến',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.55),
+                fontWeight: FontWeight.w600,
               ),
             ),
           )
@@ -366,14 +402,7 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
 
         const SizedBox(height: 24),
 
-        // ── Historical data chart ─────────────────────────────────────
-        Text(
-          'Historical Data',
-          style: theme.textTheme.titleSmall?.copyWith(
-            color: CrabSenseColors.textSecondary,
-            letterSpacing: 0.5,
-          ),
-        ),
+        _SectionLabel(icon: Icons.show_chart_rounded, title: 'BIỂU ĐỒ LỊCH SỬ'),
         const SizedBox(height: 12),
         HistoricalChart(
           readings: historicalReadings,
@@ -388,7 +417,39 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
   }
 }
 
-// ── Sensor grid (2 columns) ───────────────────────────────────────────────────
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.icon, required this.title});
+
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Icon(
+            icon,
+            size: 16,
+            color: kHomeBlueLight,
+            shadows: [
+              Shadow(
+                color: kHomeBlueLight.withValues(alpha: 0.8),
+                blurRadius: 10,
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              color: kHomeBlueLight,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.0,
+              fontSize: 12.5,
+            ),
+          ),
+        ],
+      );
+}
 
 class _SensorGrid extends StatelessWidget {
   const _SensorGrid({required this.readings, required this.thresholds});
@@ -403,10 +464,10 @@ class _SensorGrid extends StatelessWidget {
 
     final cards = [
       SensorReadingCard(
-        label: 'Temperature',
+        label: 'Nhiệt độ',
         value: reading.temperature.toStringAsFixed(1),
         unit: '°C',
-        icon: Icons.thermostat_outlined,
+        icon: Icons.thermostat_rounded,
         isNormal: thresholds.isTemperatureNormal(reading.temperature),
         rangeLabel:
             '${thresholds.minTemperature.toStringAsFixed(0)}–'
@@ -414,10 +475,10 @@ class _SensorGrid extends StatelessWidget {
         timestamp: timestampLabel,
       ),
       SensorReadingCard(
-        label: 'pH Level',
+        label: 'Độ pH',
         value: reading.ph.toStringAsFixed(1),
         unit: 'pH',
-        icon: Icons.science_outlined,
+        icon: Icons.science_rounded,
         isNormal: thresholds.isPhNormal(reading.ph),
         rangeLabel:
             '${thresholds.minPh.toStringAsFixed(1)}–'
@@ -425,19 +486,19 @@ class _SensorGrid extends StatelessWidget {
         timestamp: timestampLabel,
       ),
       SensorReadingCard(
-        label: 'Dissolved O₂',
+        label: 'Oxy hòa tan',
         value: reading.dissolvedOxygen.toStringAsFixed(1),
         unit: 'mg/L',
-        icon: Icons.water_outlined,
+        icon: Icons.air_rounded,
         isNormal: thresholds.isDissolvedOxygenNormal(reading.dissolvedOxygen),
         rangeLabel: '≥${thresholds.minDissolvedOxygen.toStringAsFixed(0)} mg/L',
         timestamp: timestampLabel,
       ),
       SensorReadingCard(
-        label: 'Salinity',
+        label: 'Độ mặn',
         value: reading.salinity.toStringAsFixed(1),
         unit: 'ppt',
-        icon: Icons.waves_outlined,
+        icon: Icons.waves_rounded,
         isNormal: thresholds.isSalinityNormal(reading.salinity),
         rangeLabel:
             '${thresholds.minSalinity.toStringAsFixed(0)}–'
@@ -459,13 +520,11 @@ class _SensorGrid extends StatelessWidget {
 
   String _formatTimestamp(DateTime timestamp) {
     final diff = DateTime.now().difference(timestamp);
-    if (diff.inSeconds < 60) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    return '${diff.inHours}h ago';
+    if (diff.inSeconds < 60) return 'Vừa cập nhật';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
+    return '${diff.inHours} giờ trước';
   }
 }
-
-// ── Status banners ────────────────────────────────────────────────────────────
 
 class _StatusBanner extends StatelessWidget {
   const _StatusBanner({
@@ -481,41 +540,48 @@ class _StatusBanner extends StatelessWidget {
   final Color color;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: color),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(color: CrabSenseColors.textSecondary),
-                ),
-              ],
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.5)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.15),
+              blurRadius: 10,
             ),
-          ),
-        ],
-      ),
-    );
-  }
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
 }
 
 class _OfflineBanner extends StatelessWidget {
@@ -525,26 +591,24 @@ class _OfflineBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var subtitle = 'Showing cached readings';
+    var subtitle = 'Đang hiển thị dữ liệu đã lưu';
     if (lastRefreshedAt != null) {
       final diff = DateTime.now().difference(lastRefreshedAt!);
       if (diff.inMinutes < 60) {
-        subtitle = 'Last synced ${diff.inMinutes}m ago';
+        subtitle = 'Đồng bộ lần cuối ${diff.inMinutes} phút trước';
       } else {
-        subtitle = 'Last synced ${diff.inHours}h ago';
+        subtitle = 'Đồng bộ lần cuối ${diff.inHours} giờ trước';
       }
     }
 
     return _StatusBanner(
-      title: 'Network Offline',
+      title: 'Mất kết nối mạng',
       subtitle: subtitle,
-      icon: Icons.wifi_off,
-      color: CrabSenseColors.warning,
+      icon: Icons.wifi_off_rounded,
+      color: kHomeOrange,
     );
   }
 }
-
-// ── Last updated row ──────────────────────────────────────────────────────────
 
 class _LastUpdatedRow extends StatelessWidget {
   const _LastUpdatedRow({required this.timestamp});
@@ -553,65 +617,172 @@ class _LastUpdatedRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final diff = DateTime.now().difference(timestamp);
-    String label;
-    if (diff.inSeconds < 60) {
-      label = 'Updated just now';
-    } else if (diff.inMinutes < 60) {
-      label = 'Updated ${diff.inMinutes}m ago';
-    } else {
-      label = 'Updated ${diff.inHours}h ago';
-    }
+    final label = diff.inSeconds < 60
+        ? 'Cập nhật vừa xong'
+        : diff.inMinutes < 60
+            ? 'Cập nhật ${diff.inMinutes} phút trước'
+            : 'Cập nhật ${diff.inHours} giờ trước';
 
     return Row(
       children: [
-        const Icon(Icons.access_time, size: 14, color: CrabSenseColors.textDisabled),
+        Icon(
+          Icons.access_time_rounded,
+          size: 14,
+          color: Colors.white.withValues(alpha: 0.4),
+        ),
         const SizedBox(width: 4),
         Text(
           label,
-          style: theme.textTheme.bodySmall?.copyWith(color: CrabSenseColors.textDisabled),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.4),
+            fontSize: 12,
+          ),
         ),
       ],
     );
   }
 }
 
-// ── Skeleton loading ──────────────────────────────────────────────────────────
+class _ErrorBody extends StatelessWidget {
+  const _ErrorBody({
+    required this.isOffline,
+    required this.message,
+    required this.onRetry,
+  });
 
-/// Full-screen skeleton shown during the initial data load.
-///
-/// Requirement 8.1: display within 3 seconds, show loading state.
+  final bool isOffline;
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: (isOffline ? kHomeOrange : Colors.redAccent)
+                      .withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: (isOffline ? kHomeOrange : Colors.redAccent)
+                        .withValues(alpha: 0.5),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isOffline ? kHomeOrange : Colors.redAccent)
+                          .withValues(alpha: 0.3),
+                      blurRadius: 14,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  isOffline ? Icons.wifi_off_rounded : Icons.error_outline_rounded,
+                  size: 36,
+                  color: isOffline ? kHomeOrange : Colors.redAccent,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                isOffline ? 'Không có kết nối' : 'Đã xảy ra lỗi',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 12.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+              OutlinedButton.icon(
+                onPressed: onRetry,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: kHomeBlueLight,
+                  side: BorderSide(
+                    color: kHomeBorderBlue.withValues(alpha: 0.6),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Thử lại'),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
 class _SkeletonWaterQuality extends StatelessWidget {
   const _SkeletonWaterQuality();
 
   @override
   Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-    children: const [
-      SkeletonLoader(height: 14, width: 120, borderRadius: 4),
-      SizedBox(height: 16),
-      SkeletonLoader(height: 14, width: 100, borderRadius: 4),
-      SizedBox(height: 12),
-      Row(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
-          Expanded(child: SkeletonLoader(height: 140, borderRadius: 16)),
-          SizedBox(width: 12),
-          Expanded(child: SkeletonLoader(height: 140, borderRadius: 16)),
+          _skel(height: 72, radius: 16),
+          const SizedBox(height: 16),
+          _skel(height: 14, width: 140, radius: 4),
+          const SizedBox(height: 12),
+          const Row(
+            children: [
+              Expanded(child: _SkelBox(height: 140)),
+              SizedBox(width: 12),
+              Expanded(child: _SkelBox(height: 140)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Row(
+            children: [
+              Expanded(child: _SkelBox(height: 140)),
+              SizedBox(width: 12),
+              Expanded(child: _SkelBox(height: 140)),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _skel(height: 14, width: 140, radius: 4),
+          const SizedBox(height: 12),
+          _skel(height: 280, radius: 16),
         ],
-      ),
-      SizedBox(height: 12),
-      Row(
-        children: [
-          Expanded(child: SkeletonLoader(height: 140, borderRadius: 16)),
-          SizedBox(width: 12),
-          Expanded(child: SkeletonLoader(height: 140, borderRadius: 16)),
-        ],
-      ),
-      SizedBox(height: 24),
-      SkeletonLoader(height: 14, width: 100, borderRadius: 4),
-      SizedBox(height: 12),
-      SkeletonLoader(height: 280, borderRadius: 16),
-    ],
-  );
+      );
+
+  Widget _skel({required double height, double? width, double radius = 12}) =>
+      Container(
+        height: height,
+        width: width,
+        decoration: BoxDecoration(
+          color: kHomeNavyLift.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(radius),
+          border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.25)),
+        ),
+      );
+}
+
+class _SkelBox extends StatelessWidget {
+  const _SkelBox({required this.height});
+
+  final double height;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        height: height,
+        decoration: BoxDecoration(
+          color: kHomeNavyLift.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.25)),
+        ),
+      );
 }

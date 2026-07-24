@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/crab_hologram_painter.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 
 class AlertsEmptyState extends StatelessWidget {
   const AlertsEmptyState({
@@ -17,58 +18,75 @@ class AlertsEmptyState extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: CrabSenseColors.success.withValues(alpha: 0.14),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.verified_rounded,
-                size: 36,
-                color: CrabSenseColors.success,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Hiện không có cảnh báo nào',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: CrabSenseColors.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Hệ thống đang hoạt động ổn định',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: CrabSenseColors.textSecondary,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                FilledButton.icon(
-                  onPressed: onRefresh,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Làm mới'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: CrabSenseColors.primary,
-                    foregroundColor: CrabSenseColors.background,
+            const SizedBox(
+              width: 280,
+              height: 220,
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: CrabHologramPainter(
+                    color: Color(0x146FB0FF),
+                    trayExtent: 28,
                   ),
                 ),
-                const SizedBox(width: 10),
-                OutlinedButton(
-                  onPressed: onHistory,
-                  child: const Text('Xem lịch sử'),
+              ),
+            ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: kHomeGreen.withValues(alpha: 0.14),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.verified_rounded,
+                    size: 36,
+                    color: kHomeGreen,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Hiện không có cảnh báo nào',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Hệ thống đang hoạt động ổn định',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: onRefresh,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Làm mới'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: kHomeCyan,
+                        foregroundColor: kHomeNavyDeep,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    OutlinedButton(
+                      onPressed: onHistory,
+                      child: const Text('Xem lịch sử'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -95,14 +113,14 @@ class AlertsFilterEmptyState extends StatelessWidget {
             const Icon(
               Icons.filter_alt_off_rounded,
               size: 48,
-              color: CrabSenseColors.hintText,
+              color: Colors.white54,
             ),
             const SizedBox(height: 14),
             const Text(
               'Không có cảnh báo phù hợp với bộ lọc',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: CrabSenseColors.textPrimary,
+                color: Colors.white,
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
               ),
@@ -137,17 +155,17 @@ class AlertsOfflineBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: CrabSenseColors.warning.withValues(alpha: 0.12),
+        color: kHomeOrange.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: CrabSenseColors.warning.withValues(alpha: 0.35),
+          color: kHomeOrange.withValues(alpha: 0.35),
         ),
       ),
       child: Row(
         children: [
           const Icon(
             Icons.cloud_off_rounded,
-            color: CrabSenseColors.warning,
+            color: kHomeOrange,
             size: 18,
           ),
           const SizedBox(width: 10),
@@ -158,7 +176,7 @@ class AlertsOfflineBanner extends StatelessWidget {
                 const Text(
                   'Dữ liệu ngoại tuyến',
                   style: TextStyle(
-                    color: CrabSenseColors.warning,
+                    color: kHomeOrange,
                     fontWeight: FontWeight.w800,
                     fontSize: 12,
                   ),
@@ -168,7 +186,7 @@ class AlertsOfflineBanner extends StatelessWidget {
                       ? '$syncLabel · $pendingCount thay đổi chờ sync'
                       : syncLabel,
                   style: const TextStyle(
-                    color: CrabSenseColors.textSecondary,
+                    color: Colors.white70,
                     fontSize: 11,
                   ),
                 ),
@@ -206,17 +224,17 @@ class SectionErrorCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: CrabSenseColors.danger.withValues(alpha: 0.1),
+        color: Colors.redAccent.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: CrabSenseColors.danger.withValues(alpha: 0.3),
+          color: Colors.redAccent.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
         children: [
           const Icon(
             Icons.error_outline,
-            color: CrabSenseColors.danger,
+            color: Colors.redAccent,
             size: 18,
           ),
           const SizedBox(width: 10),
@@ -224,7 +242,7 @@ class SectionErrorCard extends StatelessWidget {
             child: Text(
               message,
               style: const TextStyle(
-                color: CrabSenseColors.textSecondary,
+                color: Colors.white70,
                 fontSize: 12,
               ),
             ),
@@ -250,14 +268,14 @@ class AlertsNoPermissionState extends StatelessWidget {
             Icon(
               Icons.lock_outline_rounded,
               size: 48,
-              color: CrabSenseColors.hintText,
+              color: Colors.white54,
             ),
             SizedBox(height: 12),
             Text(
               'Bạn chỉ có quyền xem cảnh báo',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: CrabSenseColors.textPrimary,
+                color: Colors.white,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -265,7 +283,7 @@ class AlertsNoPermissionState extends StatelessWidget {
             Text(
               'Liên hệ quản lý nếu cần xử lý hoặc giao việc.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: CrabSenseColors.hintText, fontSize: 13),
+              style: TextStyle(color: Colors.white54, fontSize: 13),
             ),
           ],
         ),

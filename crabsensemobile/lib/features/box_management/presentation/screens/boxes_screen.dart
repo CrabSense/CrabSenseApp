@@ -8,6 +8,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../authentication/domain/entities/user.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
+import '../../../home/presentation/widgets/crab_hologram_painter.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/boxes_models.dart';
 import '../providers/boxes_provider.dart';
 import '../widgets/box_filter_chips.dart';
@@ -71,94 +73,137 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
 
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      backgroundColor: CrabSenseColors.card,
+      backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setModal) {
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                16,
-                16,
-                16,
-                16 + MediaQuery.paddingOf(ctx).bottom,
+            return Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+                ),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(24)),
+                border: Border.all(
+                  color: kHomeBorderBlue.withValues(alpha: 0.5),
+                ),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Thêm Box',
-                    style: TextStyle(
-                      color: CrabSenseColors.textPrimary,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 17,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedRowId,
-                    dropdownColor: CrabSenseColors.card,
-                    decoration: InputDecoration(
-                      labelText: 'Dãy nuôi',
-                      labelStyle: const TextStyle(color: CrabSenseColors.hintText),
-                      filled: true,
-                      fillColor: CrabSenseColors.surface,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    items: rows
-                        .map(
-                          (r) => DropdownMenuItem(
-                            value: r.id,
-                            child: Text(
-                              r.name,
-                              style: const TextStyle(
-                                color: CrabSenseColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) {
-                      if (v != null) setModal(() => selectedRowId = v);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: codeController,
-                    style: const TextStyle(color: CrabSenseColors.textPrimary),
-                    decoration: InputDecoration(
-                      labelText: 'Mã Box (để trống = tự sinh)',
-                      labelStyle: const TextStyle(color: CrabSenseColors.hintText),
-                      filled: true,
-                      fillColor: CrabSenseColors.surface,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: FilledButton(
-                      onPressed: () => Navigator.pop(ctx, true),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: CrabSenseColors.primary,
-                        foregroundColor: CrabSenseColors.background,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  16,
+                  16,
+                  16 + MediaQuery.paddingOf(ctx).bottom,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 42,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: kHomeBorderBlue.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      child: const Text('Tạo Box'),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    const Text(
+                      'THÊM BOX',
+                      style: TextStyle(
+                        color: kHomeBlueLight,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedRowId,
+                      dropdownColor: kHomeNavy,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Dãy nuôi',
+                        labelStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.5),
+                        ),
+                        filled: true,
+                        fillColor: kHomeNavyDeep.withValues(alpha: 0.75),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                            color: kHomeBorderBlue.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                            color: kHomeBlue.withValues(alpha: 0.9),
+                          ),
+                        ),
+                      ),
+                      items: rows
+                          .map(
+                            (r) => DropdownMenuItem(
+                              value: r.id,
+                              child: Text(r.name),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) setModal(() => selectedRowId = v);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: codeController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Mã Box (để trống = tự sinh)',
+                        labelStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.5),
+                        ),
+                        filled: true,
+                        fillColor: kHomeNavyDeep.withValues(alpha: 0.75),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                            color: kHomeBorderBlue.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                            color: kHomeBlue.withValues(alpha: 0.9),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: FilledButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: kHomeBlue,
+                          foregroundColor: Colors.white,
+                          elevation: 6,
+                          shadowColor: kHomeBlue.withValues(alpha: 0.6),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: const Text('Tạo Box'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -184,34 +229,54 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
   Future<void> _openViewModeSheet(BoxesViewMode current) async {
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: CrabSenseColors.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Chế độ hiển thị',
-                  style: TextStyle(
-                    color: CrabSenseColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
+        return Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: kHomeBorderBlue.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                ViewModeSwitcher(
-                  mode: current,
-                  onChanged: (mode) {
-                    Navigator.pop(ctx);
-                    ref.read(boxesStateProvider.notifier).setViewMode(mode);
-                  },
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  const Text(
+                    'CHẾ ĐỘ HIỂN THỊ',
+                    style: TextStyle(
+                      color: kHomeBlueLight,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.0,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  ViewModeSwitcher(
+                    mode: current,
+                    onChanged: (mode) {
+                      Navigator.pop(ctx);
+                      ref.read(boxesStateProvider.notifier).setViewMode(mode);
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -318,33 +383,59 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
     final columns = _gridColumns(width);
 
     return Scaffold(
-      backgroundColor: CrabSenseColors.background,
+      backgroundColor: const Color(0xFF071426),
       floatingActionButton: asyncState.maybeWhen(
         data: (data) {
           if (!data.canCreateBox) return null;
-          return FloatingActionButton.extended(
-            onPressed: () => _showCreateBoxSheet(data),
-            backgroundColor: CrabSenseColors.primary,
-            foregroundColor: CrabSenseColors.background,
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Thêm Box'),
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [
+                BoxShadow(
+                  color: kHomeBlue.withValues(alpha: 0.55),
+                  blurRadius: 18,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: FloatingActionButton.extended(
+              onPressed: () => _showCreateBoxSheet(data),
+              backgroundColor: kHomeBlue,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Thêm Box'),
+            ),
           );
         },
         orElse: () => null,
       ),
-      body: SafeArea(
-        child: asyncState.when(
-          loading: () => BoxesSkeleton(gridColumns: columns),
-          error: (error, _) => Center(
-            child: BoxesSectionErrorCard(
-              message: error.toString(),
-              onRetry: () => ref
-                  .read(boxesStateProvider.notifier)
-                  .loadData(forceRefresh: true),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: CrabHologramPainter(
+                  color: kHomeBlueLight.withValues(alpha: 0.05),
+                  trayExtent: 32,
+                ),
+              ),
             ),
           ),
-          data: (data) => _buildContent(data, columns),
-        ),
+          SafeArea(
+            child: asyncState.when(
+              loading: () => BoxesSkeleton(gridColumns: columns),
+              error: (error, _) => Center(
+                child: BoxesSectionErrorCard(
+                  message: error.toString(),
+                  onRetry: () => ref
+                      .read(boxesStateProvider.notifier)
+                      .loadData(forceRefresh: true),
+                ),
+              ),
+              data: (data) => _buildContent(data, columns),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -352,8 +443,8 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
   Widget _buildContent(BoxesStateData data, int columns) {
     return RefreshIndicator(
       onRefresh: () => ref.read(boxesStateProvider.notifier).refresh(),
-      color: CrabSenseColors.primary,
-      backgroundColor: CrabSenseColors.surface,
+      color: kHomeBlue,
+      backgroundColor: kHomeNavy,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(

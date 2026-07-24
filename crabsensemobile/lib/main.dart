@@ -1,5 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -21,6 +23,17 @@ void main() async {
     await Firebase.initializeApp();
     if (Firebase.apps.isNotEmpty) {
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      // Crashlytics — bắt lỗi Flutter (non-blocking nếu plugin chưa sẵn sàng)
+      try {
+        FlutterError.onError =
+            FirebaseCrashlytics.instance.recordFlutterFatalError;
+        PlatformDispatcher.instance.onError = (error, stack) {
+          FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+          return true;
+        };
+      } catch (e) {
+        debugPrint('Crashlytics hook skipped: $e');
+      }
     }
   } catch (e) {
     debugPrint('Firebase skipped/not configured: $e');

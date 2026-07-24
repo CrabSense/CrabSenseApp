@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/boxes_models.dart';
 import 'box_status_badge.dart';
 
@@ -28,6 +28,19 @@ class BoxCard extends StatelessWidget {
   final ValueChanged<String> onMenuSelected;
   final VoidCallback? onExplainHealth;
 
+  Color get _accent {
+    switch (box.status) {
+      case BoxHealthStatus.healthy:
+        return kHomeGreen;
+      case BoxHealthStatus.warning:
+        return kHomeOrange;
+      case BoxHealthStatus.critical:
+        return Colors.redAccent;
+      case BoxHealthStatus.offline:
+        return Colors.white54;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Semantics(
@@ -41,17 +54,19 @@ class BoxCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Ink(
             decoration: BoxDecoration(
-              color: CrabSenseColors.card,
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+              ),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: box.status == BoxHealthStatus.critical
-                    ? CrabSenseColors.danger.withValues(alpha: 0.45)
-                    : CrabSenseColors.border,
+                color: _accent.withValues(alpha: 0.5),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.16),
-                  blurRadius: 10,
+                  color: _accent.withValues(alpha: 0.16),
+                  blurRadius: 14,
                   offset: const Offset(0, 4),
                 ),
               ],
@@ -72,7 +87,7 @@ class BoxCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                color: CrabSenseColors.textPrimary,
+                                color: Colors.white,
                                 fontWeight: FontWeight.w800,
                                 fontSize: 15,
                               ),
@@ -80,8 +95,8 @@ class BoxCard extends StatelessWidget {
                             const SizedBox(height: 2),
                             Text(
                               box.location.areaName,
-                              style: const TextStyle(
-                                color: CrabSenseColors.hintText,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.45),
                                 fontSize: 11,
                               ),
                             ),
@@ -91,30 +106,58 @@ class BoxCard extends StatelessWidget {
                       BoxStatusBadge(status: box.status, compact: true),
                       PopupMenuButton<String>(
                         tooltip: 'Thao tác nhanh',
-                        color: CrabSenseColors.card,
+                        color: kHomeNavy,
                         onSelected: onMenuSelected,
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(value: 'qr', child: Text('Scan QR')),
+                        itemBuilder: (_) => [
+                          PopupMenuItem(
+                            value: 'qr',
+                            child: Text(
+                              'Quét QR',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                              ),
+                            ),
+                          ),
                           PopupMenuItem(
                             value: 'ai',
-                            child: Text('AI Detection'),
+                            child: Text(
+                              'Phát hiện AI',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                              ),
+                            ),
                           ),
                           PopupMenuItem(
                             value: 'water',
-                            child: Text('Kiểm tra nước'),
+                            child: Text(
+                              'Kiểm tra nước',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                              ),
+                            ),
                           ),
                           PopupMenuItem(
                             value: 'harvest',
-                            child: Text('Thu hoạch'),
+                            child: Text(
+                              'Thu hoạch',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                              ),
+                            ),
                           ),
                           PopupMenuItem(
                             value: 'detail',
-                            child: Text('Xem chi tiết'),
+                            child: Text(
+                              'Xem chi tiết',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                              ),
+                            ),
                           ),
                         ],
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.more_vert_rounded,
-                          color: CrabSenseColors.hintText,
+                          color: Colors.white.withValues(alpha: 0.45),
                           size: 20,
                         ),
                       ),
@@ -163,32 +206,32 @@ class BoxCard extends StatelessWidget {
                             : Icons.sensors_off_rounded,
                         size: 14,
                         color: box.devices.isOnline
-                            ? CrabSenseColors.success
-                            : CrabSenseColors.hintText,
+                            ? kHomeGreen
+                            : Colors.white.withValues(alpha: 0.4),
                       ),
                       const SizedBox(width: 4),
                       Text(
                         box.devices.isOnline ? 'Online' : 'Offline',
                         style: TextStyle(
                           color: box.devices.isOnline
-                              ? CrabSenseColors.success
-                              : CrabSenseColors.hintText,
+                              ? kHomeGreen
+                              : Colors.white.withValues(alpha: 0.4),
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       if (box.alerts.hasAlerts) ...[
                         const SizedBox(width: 8),
-                        Icon(
+                        const Icon(
                           Icons.notifications_active_rounded,
                           size: 13,
-                          color: CrabSenseColors.warning,
+                          color: kHomeOrange,
                         ),
                         const SizedBox(width: 2),
                         Text(
                           '${box.alerts.count}',
                           style: const TextStyle(
-                            color: CrabSenseColors.warning,
+                            color: kHomeOrange,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                           ),
@@ -204,9 +247,9 @@ class BoxCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Updated ${formatRelativeTime(box.lastUpdated)}',
-                    style: const TextStyle(
-                      color: CrabSenseColors.hintText,
+                    'Cập nhật ${formatRelativeTime(box.lastUpdated)}',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.4),
                       fontSize: 10,
                     ),
                   ),
@@ -231,18 +274,19 @@ class _MetricChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
-        color: CrabSenseColors.container.withValues(alpha: 0.7),
+        color: kHomeNavyDeep.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.35)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: CrabSenseColors.accent),
+          Icon(icon, size: 12, color: kHomeCyan),
           const SizedBox(width: 4),
           Text(
             label,
-            style: const TextStyle(
-              color: CrabSenseColors.textSecondary,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
               fontSize: 10,
             ),
           ),

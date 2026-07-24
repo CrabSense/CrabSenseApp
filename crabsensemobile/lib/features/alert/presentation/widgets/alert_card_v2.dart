@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/alerts_models.dart';
 import 'alert_badges.dart';
 
@@ -30,24 +30,19 @@ class AlertCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
           child: Ink(
-            decoration: BoxDecoration(
-              color: CrabSenseColors.card,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: alert.isUnread
-                    ? alert.severity.color.withValues(alpha: 0.45)
-                    : CrabSenseColors.border,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.16),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+            decoration: homeCardDecoration(
+              radius: 16,
+              glowAlpha: alert.isUnread ? 0.2 : 0.1,
+              accent: alert.isUnread
+                  ? alert.severity.color
+                  : kHomeBorderBlue,
             ),
-            padding: const EdgeInsets.all(14),
-            child: Column(
+            child: Stack(
+              children: [
+                const HomeCrabWatermark(alpha: 0.05, trayExtent: 22),
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
@@ -58,8 +53,8 @@ class AlertCard extends StatelessWidget {
                       height: 40,
                       decoration: BoxDecoration(
                         color: alert.category == AlertCategory.waterQuality
-                            ? CrabSenseColors.info.withValues(alpha: 0.15)
-                            : CrabSenseColors.container,
+                            ? kHomeBlueLight.withValues(alpha: 0.15)
+                            : kHomeNavyDeep,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -81,7 +76,7 @@ class AlertCard extends StatelessWidget {
                                   height: 8,
                                   margin: const EdgeInsets.only(right: 6),
                                   decoration: const BoxDecoration(
-                                    color: CrabSenseColors.primary,
+                                    color: kHomeCyan,
                                     shape: BoxShape.circle,
                                   ),
                                 ),
@@ -91,7 +86,7 @@ class AlertCard extends StatelessWidget {
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    color: CrabSenseColors.textPrimary,
+                                    color: Colors.white,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 14,
                                   ),
@@ -103,7 +98,7 @@ class AlertCard extends StatelessWidget {
                           Text(
                             alert.locationLabel,
                             style: const TextStyle(
-                              color: CrabSenseColors.textSecondary,
+                              color: Colors.white70,
                               fontSize: 12,
                             ),
                           ),
@@ -118,7 +113,7 @@ class AlertCard extends StatelessWidget {
                       ),
                       icon: const Icon(
                         Icons.more_vert_rounded,
-                        color: CrabSenseColors.hintText,
+                        color: Colors.white54,
                       ),
                     ),
                   ],
@@ -138,7 +133,7 @@ class AlertCard extends StatelessWidget {
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color: CrabSenseColors.warning.withValues(
+                          color: kHomeOrange.withValues(
                             alpha: 0.15,
                           ),
                           borderRadius: BorderRadius.circular(8),
@@ -146,7 +141,7 @@ class AlertCard extends StatelessWidget {
                         child: const Text(
                           'Pending sync',
                           style: TextStyle(
-                            color: CrabSenseColors.warning,
+                            color: kHomeOrange,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                           ),
@@ -160,7 +155,7 @@ class AlertCard extends StatelessWidget {
                     '${alert.threshold!.currentValue} ${alert.threshold!.unit ?? ''} · Ngưỡng ${alert.threshold!.allowedRange ?? '—'}'
                         .trim(),
                     style: const TextStyle(
-                      color: CrabSenseColors.textSecondary,
+                      color: Colors.white70,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -172,7 +167,7 @@ class AlertCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: CrabSenseColors.hintText,
+                    color: Colors.white54,
                     fontSize: 12,
                     height: 1.35,
                   ),
@@ -184,7 +179,7 @@ class AlertCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: CrabSenseColors.accent,
+                      color: kHomeCyan,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -196,7 +191,7 @@ class AlertCard extends StatelessWidget {
                     Text(
                       _timeAgo(alert.detectedAt),
                       style: const TextStyle(
-                        color: CrabSenseColors.hintText,
+                        color: Colors.white54,
                         fontSize: 11,
                       ),
                     ),
@@ -205,7 +200,7 @@ class AlertCard extends StatelessWidget {
                       const Icon(
                         Icons.person_outline_rounded,
                         size: 13,
-                        color: CrabSenseColors.hintText,
+                        color: Colors.white54,
                       ),
                       const SizedBox(width: 3),
                       Flexible(
@@ -213,7 +208,7 @@ class AlertCard extends StatelessWidget {
                           alert.assignment.assigneeName ?? '',
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: CrabSenseColors.hintText,
+                            color: Colors.white54,
                             fontSize: 11,
                           ),
                         ),
@@ -230,11 +225,14 @@ class AlertCard extends StatelessWidget {
                       Text(
                         'Cập nhật ${_timeAgo(alert.updatedAt)}',
                         style: const TextStyle(
-                          color: CrabSenseColors.hintText,
+                          color: Colors.white54,
                           fontSize: 10,
                         ),
                       ),
                   ],
+                ),
+                    ],
+                  ),
                 ),
               ],
             ),

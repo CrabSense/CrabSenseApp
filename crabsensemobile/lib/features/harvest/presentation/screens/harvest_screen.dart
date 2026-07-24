@@ -11,6 +11,8 @@ import '../../../../core/di/injection.dart';
 import '../../../authentication/domain/entities/user.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
+import '../../../home/presentation/widgets/crab_hologram_painter.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/entities/harvest.dart';
 import '../bloc/harvest_bloc.dart';
 import '../bloc/harvest_event.dart';
@@ -77,6 +79,39 @@ class HarvestScreen extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Field decoration (đồng bộ phong cách navy + viền xanh của trang home)
+// ─────────────────────────────────────────────────────────────────────────────
+
+InputDecoration _fieldDecoration({
+  String? label,
+  String? hint,
+  String? errorText,
+  String? suffixText,
+  Widget? prefixIcon,
+}) {
+  OutlineInputBorder border(Color c, [double w = 1]) => OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: BorderSide(color: c, width: w),
+  );
+  return InputDecoration(
+    labelText: label,
+    hintText: hint,
+    errorText: errorText,
+    suffixText: suffixText,
+    prefixIcon: prefixIcon,
+    labelStyle: const TextStyle(color: CrabSenseColors.textSecondary),
+    hintStyle: const TextStyle(color: CrabSenseColors.textDisabled, fontSize: 13),
+    suffixStyle: const TextStyle(color: CrabSenseColors.textSecondary),
+    filled: true,
+    fillColor: kHomeNavyDeep.withValues(alpha: 0.75),
+    enabledBorder: border(kHomeBorderBlue.withValues(alpha: 0.4)),
+    focusedBorder: border(kHomeBlue, 1.5),
+    errorBorder: border(CrabSenseColors.error.withValues(alpha: 0.6)),
+    focusedErrorBorder: border(CrabSenseColors.error),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // View
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -94,23 +129,60 @@ class _HarvestView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: CrabSenseColors.background,
+      backgroundColor: const Color(0xFF071426),
       appBar: AppBar(
-        title: const Text(
-          'Record Harvest',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: CrabSenseColors.surface,
+        backgroundColor: Colors.transparent,
         foregroundColor: CrabSenseColors.textPrimary,
         elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+            ),
+            border: Border(
+              bottom: BorderSide(
+                color: kHomeBorderBlue.withValues(alpha: 0.45),
+              ),
+            ),
+          ),
+        ),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.inventory_2_rounded,
+              size: 18,
+              color: kHomeBlueLight,
+              shadows: [
+                Shadow(
+                  color: kHomeBlueLight.withValues(alpha: 0.8),
+                  blurRadius: 10,
+                ),
+              ],
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'GHI NHẬN THU HOẠCH',
+              style: TextStyle(
+                color: kHomeBlueLight,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.0,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+        centerTitle: true,
       ),
       body: BlocConsumer<HarvestBloc, HarvestState>(
         listener: (context, state) {
           if (state is HarvestFormState) {
             if (state.isSubmitted) {
               final message = state.isOffline
-                  ? 'Harvest recorded offline and queued for sync.'
-                  : 'Harvest record submitted successfully!';
+                  ? 'Đã lưu thu hoạch ngoại tuyến, sẽ đồng bộ khi có mạng.'
+                  : 'Đã ghi nhận thu hoạch thành công!';
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(message),
@@ -133,56 +205,71 @@ class _HarvestView extends StatelessWidget {
         builder: (context, state) {
           if (state is! HarvestFormState) {
             return const Center(
-              child: CircularProgressIndicator(color: CrabSenseColors.primary),
+              child: CircularProgressIndicator(color: kHomeBlue),
             );
           }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildSectionHeader('Box & Location'),
-                const SizedBox(height: 8),
-                _buildBoxAndFarmInputs(context, state),
-                const SizedBox(height: 20),
-
-                _buildSectionHeader('Harvest Metrics'),
-                const SizedBox(height: 8),
-                _buildMetricsInputs(context, state),
-                const SizedBox(height: 12),
-                _buildAverageWeightCard(state),
-                const SizedBox(height: 20),
-
-                _buildSectionHeader('Quality Assessment'),
-                const SizedBox(height: 8),
-                _buildQualityGradeSelector(context, state),
-                const SizedBox(height: 20),
-
-                _buildSectionHeader('Harvest Date & Time'),
-                const SizedBox(height: 8),
-                _buildDatePickerButton(context, state),
-                const SizedBox(height: 20),
-
-                _buildSectionHeader('Photo Documentation'),
-                const SizedBox(height: 8),
-                _PhotoSection(state: state),
-                const SizedBox(height: 20),
-
-                _buildSectionHeader('Notes & Observations'),
-                const SizedBox(height: 8),
-                _buildNotesInput(context, state),
-                const SizedBox(height: 28),
-
-                _SubmitButton(
-                  state: state,
-                  operatorId: operatorId,
-                  operatorName: operatorName,
-                  userRole: userRole,
+          return Stack(
+            children: [
+              // Họa tiết lưới khay nuôi + cua (đồng bộ trang home)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: CrabHologramPainter(
+                      color: kHomeBlueLight.withValues(alpha: 0.05),
+                      trayExtent: 30,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 24),
-              ],
-            ),
+              ),
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionHeader('HỘP & VỊ TRÍ'),
+                    const SizedBox(height: 8),
+                    _buildBoxAndFarmInputs(context, state),
+                    const SizedBox(height: 20),
+
+                    _buildSectionHeader('CHỈ SỐ THU HOẠCH'),
+                    const SizedBox(height: 8),
+                    _buildMetricsInputs(context, state),
+                    const SizedBox(height: 12),
+                    _buildAverageWeightCard(state),
+                    const SizedBox(height: 20),
+
+                    _buildSectionHeader('ĐÁNH GIÁ CHẤT LƯỢNG'),
+                    const SizedBox(height: 8),
+                    _buildQualityGradeSelector(context, state),
+                    const SizedBox(height: 20),
+
+                    _buildSectionHeader('NGÀY & GIỜ THU HOẠCH'),
+                    const SizedBox(height: 8),
+                    _buildDatePickerButton(context, state),
+                    const SizedBox(height: 20),
+
+                    _buildSectionHeader('HÌNH ẢNH MINH CHỨNG'),
+                    const SizedBox(height: 8),
+                    _PhotoSection(state: state),
+                    const SizedBox(height: 20),
+
+                    _buildSectionHeader('GHI CHÚ & QUAN SÁT'),
+                    const SizedBox(height: 8),
+                    _buildNotesInput(context, state),
+                    const SizedBox(height: 28),
+
+                    _SubmitButton(
+                      state: state,
+                      operatorId: operatorId,
+                      operatorName: operatorName,
+                      userRole: userRole,
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -193,10 +280,10 @@ class _HarvestView extends StatelessWidget {
     return Text(
       title,
       style: const TextStyle(
-        color: CrabSenseColors.primary,
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.5,
+        color: kHomeBlueLight,
+        fontSize: 12.5,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.6,
       ),
     );
   }
@@ -207,25 +294,11 @@ class _HarvestView extends StatelessWidget {
         TextFormField(
           initialValue: state.boxId,
           style: const TextStyle(color: CrabSenseColors.textPrimary),
-          decoration: InputDecoration(
-            labelText: 'Box ID *',
-            hintText: 'e.g. BOX-101',
-            prefixIcon: const Icon(Icons.grid_view_rounded, color: CrabSenseColors.primary),
-            filled: true,
-            fillColor: CrabSenseColors.surface,
+          decoration: _fieldDecoration(
+            label: 'Mã hộp *',
+            hint: 'VD: BOX-101',
             errorText: state.boxIdError,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: CrabSenseColors.outline),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: CrabSenseColors.outline),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: CrabSenseColors.primary, width: 2),
-            ),
+            prefixIcon: const Icon(Icons.grid_view_rounded, color: kHomeBlueLight),
           ),
           onChanged: (val) =>
               context.read<HarvestBloc>().add(HarvestBoxIdChanged(boxId: val)),
@@ -234,24 +307,10 @@ class _HarvestView extends StatelessWidget {
         TextFormField(
           initialValue: state.farmId,
           style: const TextStyle(color: CrabSenseColors.textPrimary),
-          decoration: InputDecoration(
-            labelText: 'Farm ID',
-            hintText: 'e.g. FARM-01',
-            prefixIcon: const Icon(Icons.agriculture_rounded, color: CrabSenseColors.primary),
-            filled: true,
-            fillColor: CrabSenseColors.surface,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: CrabSenseColors.outline),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: CrabSenseColors.outline),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: CrabSenseColors.primary, width: 2),
-            ),
+          decoration: _fieldDecoration(
+            label: 'Mã trang trại',
+            hint: 'VD: FARM-01',
+            prefixIcon: const Icon(Icons.agriculture_rounded, color: kHomeBlueLight),
           ),
           onChanged: (val) =>
               context.read<HarvestBloc>().add(HarvestFarmIdChanged(farmId: val)),
@@ -272,26 +331,12 @@ class _HarvestView extends StatelessWidget {
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
             ],
-            decoration: InputDecoration(
-              labelText: 'Total Weight *',
-              hintText: '0.00',
+            decoration: _fieldDecoration(
+              label: 'Tổng khối lượng *',
+              hint: '0.00',
               suffixText: 'kg',
-              prefixIcon: const Icon(Icons.scale_rounded, color: CrabSenseColors.primary),
-              filled: true,
-              fillColor: CrabSenseColors.surface,
               errorText: state.weightError,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: CrabSenseColors.outline),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: CrabSenseColors.outline),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: CrabSenseColors.primary, width: 2),
-              ),
+              prefixIcon: const Icon(Icons.scale_rounded, color: kHomeBlueLight),
             ),
             onChanged: (val) =>
                 context.read<HarvestBloc>().add(HarvestWeightChanged(weightText: val)),
@@ -304,26 +349,12 @@ class _HarvestView extends StatelessWidget {
             style: const TextStyle(color: CrabSenseColors.textPrimary),
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: InputDecoration(
-              labelText: 'Crab Count *',
-              hintText: '0',
-              suffixText: 'crabs',
-              prefixIcon: const Icon(Icons.format_list_numbered_rounded, color: CrabSenseColors.primary),
-              filled: true,
-              fillColor: CrabSenseColors.surface,
+            decoration: _fieldDecoration(
+              label: 'Số cua *',
+              hint: '0',
+              suffixText: 'con',
               errorText: state.crabCountError,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: CrabSenseColors.outline),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: CrabSenseColors.outline),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: CrabSenseColors.primary, width: 2),
-              ),
+              prefixIcon: const Icon(Icons.format_list_numbered_rounded, color: kHomeBlueLight),
             ),
             onChanged: (val) =>
                 context.read<HarvestBloc>().add(HarvestCrabCountChanged(crabCountText: val)),
@@ -339,9 +370,9 @@ class _HarvestView extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: CrabSenseColors.surfaceVariant.withValues(alpha: 0.5),
+        color: kHomeNavyDeep.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: CrabSenseColors.outline),
+        border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.4)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -351,17 +382,23 @@ class _HarvestView extends StatelessWidget {
               Icon(Icons.functions_rounded, color: CrabSenseColors.textSecondary, size: 20),
               SizedBox(width: 8),
               Text(
-                'Avg Weight per Crab',
+                'KL trung bình mỗi con',
                 style: TextStyle(color: CrabSenseColors.textSecondary, fontSize: 13),
               ),
             ],
           ),
           Text(
-            avgWeight > 0 ? '${avgWeight.toStringAsFixed(2)} kg / crab' : '-- kg / crab',
-            style: const TextStyle(
-              color: CrabSenseColors.primary,
+            avgWeight > 0 ? '${avgWeight.toStringAsFixed(2)} kg / con' : '-- kg / con',
+            style: TextStyle(
+              color: kHomeBlueLight,
               fontSize: 14,
               fontWeight: FontWeight.bold,
+              shadows: [
+                Shadow(
+                  color: kHomeBlue.withValues(alpha: 0.6),
+                  blurRadius: 8,
+                ),
+              ],
             ),
           ),
         ],
@@ -388,15 +425,23 @@ class _HarvestView extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? CrabSenseColors.primary.withValues(alpha: 0.2)
-                          : CrabSenseColors.surface,
+                          ? kHomeBlue.withValues(alpha: 0.18)
+                          : kHomeNavyDeep.withValues(alpha: 0.75),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isSelected
-                            ? CrabSenseColors.primary
-                            : CrabSenseColors.outline,
-                        width: isSelected ? 2 : 1,
+                            ? kHomeBlue.withValues(alpha: 0.9)
+                            : kHomeBorderBlue.withValues(alpha: 0.4),
+                        width: isSelected ? 1.5 : 1,
                       ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: kHomeBlue.withValues(alpha: 0.35),
+                                blurRadius: 12,
+                              ),
+                            ]
+                          : null,
                     ),
                     child: Column(
                       children: [
@@ -404,7 +449,7 @@ class _HarvestView extends StatelessWidget {
                           grade.displayName,
                           style: TextStyle(
                             color: isSelected
-                                ? CrabSenseColors.primary
+                                ? kHomeBlueLight
                                 : CrabSenseColors.textPrimary,
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
@@ -415,7 +460,7 @@ class _HarvestView extends StatelessWidget {
                           _getGradeDescription(grade),
                           style: TextStyle(
                             color: isSelected
-                                ? CrabSenseColors.primary.withValues(alpha: 0.8)
+                                ? kHomeBlueLight.withValues(alpha: 0.85)
                                 : CrabSenseColors.textSecondary,
                             fontSize: 10,
                           ),
@@ -435,11 +480,11 @@ class _HarvestView extends StatelessWidget {
   String _getGradeDescription(QualityGrade grade) {
     switch (grade) {
       case QualityGrade.gradeA:
-        return 'Premium';
+        return 'Cao cấp';
       case QualityGrade.gradeB:
-        return 'Standard';
+        return 'Tiêu chuẩn';
       case QualityGrade.gradeC:
-        return 'Low / Soft';
+        return 'Thấp / Mềm';
     }
   }
 
@@ -458,9 +503,9 @@ class _HarvestView extends StatelessWidget {
             return Theme(
               data: Theme.of(context).copyWith(
                 colorScheme: const ColorScheme.dark(
-                  primary: CrabSenseColors.primary,
-                  onPrimary: CrabSenseColors.background,
-                  surface: CrabSenseColors.surface,
+                  primary: kHomeBlue,
+                  onPrimary: Colors.white,
+                  surface: kHomeNavy,
                   onSurface: CrabSenseColors.textPrimary,
                 ),
               ),
@@ -477,9 +522,9 @@ class _HarvestView extends StatelessWidget {
               return Theme(
                 data: Theme.of(context).copyWith(
                   colorScheme: const ColorScheme.dark(
-                    primary: CrabSenseColors.primary,
-                    onPrimary: CrabSenseColors.background,
-                    surface: CrabSenseColors.surface,
+                    primary: kHomeBlue,
+                    onPrimary: Colors.white,
+                    surface: kHomeNavy,
                     onSurface: CrabSenseColors.textPrimary,
                   ),
                 ),
@@ -506,12 +551,12 @@ class _HarvestView extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: CrabSenseColors.surface,
-          borderRadius: BorderRadius.circular(12),
+          color: kHomeNavyDeep.withValues(alpha: 0.75),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: state.dateError != null
                 ? CrabSenseColors.error
-                : CrabSenseColors.outline,
+                : kHomeBorderBlue.withValues(alpha: 0.4),
           ),
         ),
         child: Row(
@@ -520,7 +565,7 @@ class _HarvestView extends StatelessWidget {
             Row(
               children: [
                 const Icon(Icons.calendar_today_rounded,
-                    color: CrabSenseColors.primary, size: 20),
+                    color: kHomeBlueLight, size: 20),
                 const SizedBox(width: 12),
                 Text(
                   formattedDate,
@@ -544,22 +589,8 @@ class _HarvestView extends StatelessWidget {
       initialValue: state.notes,
       maxLines: 3,
       style: const TextStyle(color: CrabSenseColors.textPrimary),
-      decoration: InputDecoration(
-        hintText: 'Optional harvest notes, crab condition, or remarks...',
-        filled: true,
-        fillColor: CrabSenseColors.surface,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: CrabSenseColors.outline),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: CrabSenseColors.outline),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: CrabSenseColors.primary, width: 2),
-        ),
+      decoration: _fieldDecoration(
+        hint: 'Ghi chú thu hoạch, tình trạng cua hoặc nhận xét...',
       ),
       onChanged: (val) =>
           context.read<HarvestBloc>().add(HarvestNotesChanged(notes: val)),
@@ -591,32 +622,53 @@ class _PhotoSection extends StatelessWidget {
   void _showSourceSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: CrabSenseColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (bottomSheetContext) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.camera_alt_rounded, color: CrabSenseColors.primary),
-                title: const Text('Take Photo', style: TextStyle(color: CrabSenseColors.textPrimary)),
-                onTap: () {
-                  Navigator.pop(bottomSheetContext);
-                  _pickPhoto(context, ImageSource.camera);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library_rounded, color: CrabSenseColors.primary),
-                title: const Text('Choose from Gallery', style: TextStyle(color: CrabSenseColors.textPrimary)),
-                onTap: () {
-                  Navigator.pop(bottomSheetContext);
-                  _pickPhoto(context, ImageSource.gallery);
-                },
-              ),
-            ],
+        return Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+            ),
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(20)),
+            border: Border.all(
+              color: kHomeBorderBlue.withValues(alpha: 0.5),
+            ),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: kHomeBorderBlue.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                ListTile(
+                  leading: const Icon(Icons.camera_alt_rounded, color: kHomeBlueLight),
+                  title: const Text('Chụp ảnh', style: TextStyle(color: CrabSenseColors.textPrimary)),
+                  onTap: () {
+                    Navigator.pop(bottomSheetContext);
+                    _pickPhoto(context, ImageSource.camera);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library_rounded, color: kHomeBlueLight),
+                  title: const Text('Chọn từ thư viện', style: TextStyle(color: CrabSenseColors.textPrimary)),
+                  onTap: () {
+                    Navigator.pop(bottomSheetContext);
+                    _pickPhoto(context, ImageSource.gallery);
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -648,22 +700,28 @@ class _PhotoSection extends StatelessWidget {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: CrabSenseColors.surface,
+                    color: kHomeNavyDeep.withValues(alpha: 0.75),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: CrabSenseColors.primary.withValues(alpha: 0.5),
+                      color: kHomeBlue.withValues(alpha: 0.5),
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: kHomeBlue.withValues(alpha: 0.2),
+                        blurRadius: 10,
+                      ),
+                    ],
                   ),
                   child: const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.add_a_photo_outlined,
-                          color: CrabSenseColors.primary, size: 24),
+                          color: kHomeBlueLight, size: 24),
                       SizedBox(height: 4),
                       Text(
-                        'Add Photo',
+                        'Thêm ảnh',
                         style: TextStyle(
-                            color: CrabSenseColors.primary, fontSize: 10),
+                            color: kHomeBlueLight, fontSize: 10),
                       ),
                     ],
                   ),
@@ -699,7 +757,7 @@ class _PhotoThumbnail extends StatelessWidget {
               errorBuilder: (_, __, ___) => Container(
                 width: 80,
                 height: 80,
-                color: CrabSenseColors.surfaceVariant,
+                color: kHomeNavyLift,
                 child: const Icon(Icons.broken_image_outlined,
                     color: CrabSenseColors.textSecondary),
               ),
@@ -768,29 +826,30 @@ class _SubmitButton extends StatelessWidget {
                     );
               },
         style: ElevatedButton.styleFrom(
-          backgroundColor: CrabSenseColors.primary,
-          foregroundColor: CrabSenseColors.background,
-          disabledBackgroundColor: CrabSenseColors.surfaceVariant,
+          backgroundColor: kHomeBlue,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: kHomeNavyLift,
           disabledForegroundColor: CrabSenseColors.textDisabled,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
-          elevation: 2,
+          elevation: 6,
+          shadowColor: kHomeBlue.withValues(alpha: 0.6),
         ),
         child: state.isSubmitting
             ? const SizedBox(
                 width: 24,
                 height: 24,
                 child: CircularProgressIndicator(
-                  color: CrabSenseColors.background,
+                  color: Colors.white,
                   strokeWidth: 2.5,
                 ),
               )
             : const Text(
-                'Record Harvest',
+                'Ghi nhận thu hoạch',
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
       ),

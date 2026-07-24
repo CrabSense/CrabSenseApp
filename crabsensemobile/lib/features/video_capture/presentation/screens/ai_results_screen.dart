@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../app/theme.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../app/routes.dart';
 import '../../domain/entities/ai_detection.dart';
@@ -52,11 +52,19 @@ class _AiResultsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: CrabSenseColors.background,
+    backgroundColor: kHomeNavyDeep,
     appBar: AppBar(
-      title: const Text('AI Analysis Results'),
-      backgroundColor: CrabSenseColors.surface,
-      foregroundColor: CrabSenseColors.textPrimary,
+      title: const Text(
+        'K?T QU? AI',
+        style: TextStyle(
+          color: kHomeBlueLight,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1,
+        ),
+      ),
+      backgroundColor: kHomeNavy,
+      foregroundColor: kHomeBlueLight,
+      elevation: 0,
       actions: [
         BlocBuilder<AiResultsBloc, AiResultsState>(
           builder: (context, state) {
@@ -64,7 +72,7 @@ class _AiResultsView extends StatelessWidget {
             if (isLoading) return const SizedBox.shrink();
             return IconButton(
               icon: const Icon(Icons.refresh_rounded),
-              tooltip: 'Refresh',
+              tooltip: 'T?i l?i',
               onPressed: () =>
                   context.read<AiResultsBloc>().add(RefreshAIResults(videoId: videoId)),
             );
@@ -82,7 +90,7 @@ class _AiResultsView extends StatelessWidget {
     if (state is FeedbackSubmitted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Feedback submitted â€” thank you!'),
+          content: Text('?? g?i ph?n h?i ? c?m ?n b?n!'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -92,7 +100,7 @@ class _AiResultsView extends StatelessWidget {
         SnackBar(
           content: Text(state.message),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: CrabSenseColors.error,
+          backgroundColor: Colors.redAccent,
         ),
       );
     }
@@ -159,33 +167,33 @@ class _DetectionResultView extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Low-confidence banner â€” Requirement 6.7
+        // Low-confidence banner ? Requirement 6.7
         if (requiresManualInspection) _LowConfidenceBanner(boxId: boxId),
         if (requiresManualInspection) const SizedBox(height: 16),
 
-        // Confidence score card â€” Requirement 6.3
+        // Confidence score card ? Requirement 6.3
         _ConfidenceScoreCard(detection: detection),
         const SizedBox(height: 12),
 
-        // Molting status card â€” Requirement 6.2
+        // Molting status card ? Requirement 6.2
         _MoltingStatusCard(moltingStatus: detection.moltingStatus),
         const SizedBox(height: 12),
 
-        // Health indicators card â€” Requirement 6.4
+        // Health indicators card ? Requirement 6.4
         _HealthIndicatorCard(healthStatus: detection.healthStatus),
         const SizedBox(height: 12),
 
-        // Detected crabs overlay â€” Requirement 6.6
+        // Detected crabs overlay ? Requirement 6.6
         if (detection.detectedCrabs.isNotEmpty) ...[
           _DetectedCrabsCard(detectedCrabs: detection.detectedCrabs),
           const SizedBox(height: 12),
         ],
 
-        // Recommendations â€” Requirement 6.5
+        // Recommendations ? Requirement 6.5
         _RecommendationsCard(recommendations: detection.recommendations),
         const SizedBox(height: 16),
 
-        // Feedback buttons â€” Requirement 6.9
+        // Feedback buttons ? Requirement 6.9
         _FeedbackSection(detection: detection, isLoading: isFeedbackLoading),
         const SizedBox(height: 8),
       ],
@@ -194,7 +202,7 @@ class _DetectionResultView extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Low-confidence banner â€” Requirement 6.7
+// Low-confidence banner ? Requirement 6.7
 // ---------------------------------------------------------------------------
 
 class _LowConfidenceBanner extends StatelessWidget {
@@ -206,40 +214,40 @@ class _LowConfidenceBanner extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: CrabSenseColors.warning.withValues(alpha: 0.15),
+      color: kHomeOrange.withValues(alpha: 0.15),
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: CrabSenseColors.warning.withValues(alpha: 0.5)),
+      border: Border.all(color: kHomeOrange.withValues(alpha: 0.5)),
     ),
     child: Row(
       children: [
-        const Icon(Icons.warning_amber_rounded, color: CrabSenseColors.warning, size: 24),
+        const Icon(Icons.warning_amber_rounded, color: kHomeOrange, size: 24),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Low Confidence â€” Manual Inspection Needed',
+                '?? tin c?y th?p ? C?n ki?m tra th? công',
                 style: TextStyle(
-                  color: CrabSenseColors.warning,
+                  color: kHomeOrange,
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                 ),
               ),
               const SizedBox(height: 4),
               const Text(
-                'AI confidence is below 70%. Please verify '
-                'the results with a manual inspection.',
-                style: TextStyle(color: CrabSenseColors.textSecondary, fontSize: 12),
+                '?? tin c?y AI d??i 70%. Vui lòng xác minh '
+                'b?ng ki?m tra th? công.',
+                style: TextStyle(color: Colors.white70, fontSize: 12),
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: () => context.go(RoutePaths.boxInspect(boxId)),
                 icon: const Icon(Icons.search_rounded, size: 16),
-                label: const Text('Start Manual Inspection'),
+                label: const Text('B?t ??u ki?m tra th? công'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: CrabSenseColors.warning,
-                  side: const BorderSide(color: CrabSenseColors.warning),
+                  foregroundColor: kHomeOrange,
+                  side: const BorderSide(color: kHomeOrange),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   textStyle: const TextStyle(fontSize: 12),
                 ),
@@ -253,7 +261,7 @@ class _LowConfidenceBanner extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Confidence score card â€” Requirement 6.3
+// Confidence score card ? Requirement 6.3
 // ---------------------------------------------------------------------------
 
 class _ConfidenceScoreCard extends StatelessWidget {
@@ -263,9 +271,9 @@ class _ConfidenceScoreCard extends StatelessWidget {
 
   Color get _confidenceColor {
     final pct = detection.confidencePercent;
-    if (pct >= 85) return CrabSenseColors.success;
-    if (pct >= 70) return CrabSenseColors.warning;
-    return CrabSenseColors.error;
+    if (pct >= 85) return kHomeGreen;
+    if (pct >= 70) return kHomeOrange;
+    return Colors.redAccent;
   }
 
   @override
@@ -283,7 +291,7 @@ class _ConfidenceScoreCard extends StatelessWidget {
               children: [
                 CircularProgressIndicator(
                   value: detection.confidenceScore,
-                  backgroundColor: CrabSenseColors.outline.withValues(alpha: 0.3),
+                  backgroundColor: kHomeBorderBlue.withValues(alpha: 0.3),
                   valueColor: AlwaysStoppedAnimation<Color>(_confidenceColor),
                   strokeWidth: 6,
                 ),
@@ -304,9 +312,9 @@ class _ConfidenceScoreCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'AI Confidence Score',
+                  '?i?m tin c?y AI',
                   style: TextStyle(
-                    color: CrabSenseColors.textPrimary,
+                    color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -315,8 +323,8 @@ class _ConfidenceScoreCard extends StatelessWidget {
                 Text(_confidenceLabel, style: TextStyle(color: _confidenceColor, fontSize: 13)),
                 const SizedBox(height: 4),
                 Text(
-                  'Analysed ${_formatTime(detection.analyzedAt)}',
-                  style: const TextStyle(color: CrabSenseColors.textSecondary, fontSize: 12),
+                  'Phân tích ${_formatTime(detection.analyzedAt)}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
             ),
@@ -328,22 +336,22 @@ class _ConfidenceScoreCard extends StatelessWidget {
 
   String get _confidenceLabel {
     final pct = detection.confidencePercent;
-    if (pct >= 85) return 'High confidence';
-    if (pct >= 70) return 'Moderate confidence';
-    return 'Low confidence â€” verify manually';
+    if (pct >= 85) return 'Tin c?y cao';
+    if (pct >= 70) return 'Tin c?y trung bình';
+    return 'Tin c?y th?p ? c?n xác minh th? công';
   }
 
   String _formatTime(DateTime dt) {
     final now = DateTime.now();
     final diff = now.difference(dt);
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    return '${diff.inHours}h ago';
+    if (diff.inMinutes < 1) return 'v?a xong';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} phút tr??c';
+    return '${diff.inHours} gi? tr??c';
   }
 }
 
 // ---------------------------------------------------------------------------
-// Molting status card â€” Requirement 6.2
+// Molting status card ? Requirement 6.2
 // ---------------------------------------------------------------------------
 
 class _MoltingStatusCard extends StatelessWidget {
@@ -356,11 +364,11 @@ class _MoltingStatusCard extends StatelessWidget {
       case MoltingStatus.preMolt:
         return const Color(0xFFFFD54F); // amber/yellow
       case MoltingStatus.molting:
-        return CrabSenseColors.warning; // orange
+        return kHomeOrange; // orange
       case MoltingStatus.postMolt:
-        return CrabSenseColors.success; // green
+        return kHomeGreen; // green
       case MoltingStatus.hardShell:
-        return CrabSenseColors.primary; // cyan/blue
+        return kHomeCyan; // cyan/blue
     }
   }
 
@@ -398,8 +406,8 @@ class _MoltingStatusCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Molting Status',
-                  style: TextStyle(color: CrabSenseColors.textSecondary, fontSize: 12),
+                  'Tr?ng thái l?t xác',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -410,8 +418,8 @@ class _MoltingStatusCard extends StatelessWidget {
                   const Padding(
                     padding: EdgeInsets.only(top: 4),
                     child: Text(
-                      'Crab is in a vulnerable stage',
-                      style: TextStyle(color: CrabSenseColors.warning, fontSize: 12),
+                      'Cua ?ang ? giai ?o?n d? t?n th??ng',
+                      style: TextStyle(color: kHomeOrange, fontSize: 12),
                     ),
                   ),
               ],
@@ -432,7 +440,7 @@ class _MoltingStatusCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Health indicator card â€” Requirement 6.4
+// Health indicator card ? Requirement 6.4
 // ---------------------------------------------------------------------------
 
 class _HealthIndicatorCard extends StatelessWidget {
@@ -443,13 +451,13 @@ class _HealthIndicatorCard extends StatelessWidget {
   Color get _healthColor {
     switch (healthStatus) {
       case HealthStatus.normal:
-        return CrabSenseColors.success;
+        return kHomeGreen;
       case HealthStatus.disease:
-        return CrabSenseColors.error;
+        return Colors.redAccent;
       case HealthStatus.stress:
-        return CrabSenseColors.warning;
+        return kHomeOrange;
       case HealthStatus.unknown:
-        return CrabSenseColors.textSecondary;
+        return Colors.white70;
     }
   }
 
@@ -469,13 +477,13 @@ class _HealthIndicatorCard extends StatelessWidget {
   String get _healthLabel {
     switch (healthStatus) {
       case HealthStatus.normal:
-        return 'All indicators normal';
+        return 'Các ch? s? bình th??ng';
       case HealthStatus.disease:
-        return 'Disease symptoms detected â€” treat promptly';
+        return 'Phát hi?n d?u hi?u b?nh ? x? lý s?m';
       case HealthStatus.stress:
-        return 'Stress indicators present â€” check conditions';
+        return 'Có d?u hi?u stress ? ki?m tra ?i?u ki?n';
       case HealthStatus.unknown:
-        return 'Could not determine health status';
+        return 'Không xác ??nh ???c tình tr?ng s?c kh?e';
     }
   }
 
@@ -500,8 +508,8 @@ class _HealthIndicatorCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Health Status',
-                  style: TextStyle(color: CrabSenseColors.textSecondary, fontSize: 12),
+                  'Tình tr?ng s?c kh?e',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -511,7 +519,7 @@ class _HealthIndicatorCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   _healthLabel,
-                  style: const TextStyle(color: CrabSenseColors.textSecondary, fontSize: 12),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
             ),
@@ -523,7 +531,7 @@ class _HealthIndicatorCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Detected crabs overlay card â€” Requirement 6.6
+// Detected crabs overlay card ? Requirement 6.6
 // ---------------------------------------------------------------------------
 
 class _DetectedCrabsCard extends StatelessWidget {
@@ -540,12 +548,12 @@ class _DetectedCrabsCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.camera_enhance_rounded, color: CrabSenseColors.primary, size: 20),
+              const Icon(Icons.camera_enhance_rounded, color: kHomeCyan, size: 20),
               const SizedBox(width: 8),
               Text(
-                'Detected Crabs (${detectedCrabs.length})',
+                'Cua phát hi?n (${detectedCrabs.length})',
                 style: const TextStyle(
-                  color: CrabSenseColors.textPrimary,
+                  color: Colors.white,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -558,9 +566,9 @@ class _DetectedCrabsCard extends StatelessWidget {
             width: double.infinity,
             height: 200,
             decoration: BoxDecoration(
-              color: CrabSenseColors.surfaceVariant,
+              color: kHomeNavyLift,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: CrabSenseColors.outline),
+              border: Border.all(color: kHomeBorderBlue),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
@@ -574,13 +582,13 @@ class _DetectedCrabsCard extends StatelessWidget {
                         Icon(
                           Icons.videocam_rounded,
                           size: 40,
-                          color: CrabSenseColors.textSecondary.withValues(alpha: 0.5),
+                          color: Colors.white70.withValues(alpha: 0.5),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Video frame preview',
+                          'Xem tr??c khung hình',
                           style: TextStyle(
-                            color: CrabSenseColors.textSecondary.withValues(alpha: 0.7),
+                            color: Colors.white70.withValues(alpha: 0.7),
                             fontSize: 12,
                           ),
                         ),
@@ -604,20 +612,20 @@ class _DetectedCrabsCard extends StatelessWidget {
                     width: 10,
                     height: 10,
                     decoration: BoxDecoration(
-                      color: CrabSenseColors.primary,
+                      color: kHomeCyan,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'Crab ${entry.key + 1}: ${entry.value.label}',
-                    style: const TextStyle(color: CrabSenseColors.textPrimary, fontSize: 13),
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
                   ),
                   const Spacer(),
                   Text(
                     '${(entry.value.confidence * 100).round()}%',
                     style: const TextStyle(
-                      color: CrabSenseColors.primary,
+                      color: kHomeCyan,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -653,15 +661,15 @@ class _BoundingBoxOverlay extends StatelessWidget {
         height: detectionBox.height * h,
         child: DecoratedBox(
           decoration: BoxDecoration(
-            border: Border.all(color: CrabSenseColors.primary, width: 2),
-            color: CrabSenseColors.primary.withValues(alpha: 0.1),
+            border: Border.all(color: kHomeCyan, width: 2),
+            color: kHomeCyan.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Align(
             alignment: Alignment.topLeft,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              color: CrabSenseColors.primary,
+              color: kHomeCyan,
               child: Text(
                 detectionBox.label,
                 style: const TextStyle(
@@ -679,7 +687,7 @@ class _BoundingBoxOverlay extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Recommendations card â€” Requirement 6.5
+// Recommendations card ? Requirement 6.5
 // ---------------------------------------------------------------------------
 
 class _RecommendationsCard extends StatelessWidget {
@@ -699,12 +707,12 @@ class _RecommendationsCard extends StatelessWidget {
           children: [
             const Row(
               children: [
-                Icon(Icons.lightbulb_outline_rounded, color: CrabSenseColors.primary, size: 20),
+                Icon(Icons.lightbulb_outline_rounded, color: kHomeCyan, size: 20),
                 SizedBox(width: 8),
                 Text(
-                  'Recommendations',
+                  'Khuy?n ngh?',
                   style: TextStyle(
-                    color: CrabSenseColors.textPrimary,
+                    color: Colors.white,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -733,13 +741,13 @@ class _RecommendationTile extends StatelessWidget {
   Color get _tileColor {
     switch (recommendation) {
       case AIRecommendation.continueMonitoring:
-        return CrabSenseColors.info;
+        return kHomeBlueLight;
       case AIRecommendation.harvestReady:
-        return CrabSenseColors.success;
+        return kHomeGreen;
       case AIRecommendation.treatDisease:
-        return CrabSenseColors.error;
+        return Colors.redAccent;
       case AIRecommendation.manualInspectionRequired:
-        return CrabSenseColors.warning;
+        return kHomeOrange;
     }
   }
 
@@ -781,7 +789,7 @@ class _RecommendationTile extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Feedback section â€” Requirement 6.9
+// Feedback section ? Requirement 6.9
 // ---------------------------------------------------------------------------
 
 class _FeedbackSection extends StatelessWidget {
@@ -803,16 +811,16 @@ class _FeedbackSection extends StatelessWidget {
             children: [
               Icon(
                 isCorrect ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                color: isCorrect ? CrabSenseColors.success : CrabSenseColors.error,
+                color: isCorrect ? kHomeGreen : Colors.redAccent,
                 size: 20,
               ),
               const SizedBox(width: 8),
               Text(
                 isCorrect
-                    ? 'You marked this result as Correct'
-                    : 'You marked this result as Incorrect',
+                    ? 'B?n ?ánh d?u k?t qu? là ?úng'
+                    : 'B?n ?ánh d?u k?t qu? là Sai',
                 style: TextStyle(
-                  color: isCorrect ? CrabSenseColors.success : CrabSenseColors.error,
+                  color: isCorrect ? kHomeGreen : Colors.redAccent,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -830,26 +838,26 @@ class _FeedbackSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Is this result accurate?',
+              'K?t qu? này có chính xác không?',
               style: TextStyle(
-                color: CrabSenseColors.textPrimary,
+                color: Colors.white,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 4),
             const Text(
-              'Your feedback helps improve AI accuracy',
-              style: TextStyle(color: CrabSenseColors.textSecondary, fontSize: 12),
+              'Ph?n h?i c?a b?n giúp c?i thi?n ?? chính xác AI',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
             ),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: _FeedbackButton(
-                    label: 'Correct',
+                    label: '?úng',
                     icon: Icons.thumb_up_alt_rounded,
-                    color: CrabSenseColors.success,
+                    color: kHomeGreen,
                     isLoading: isLoading,
                     onTap: () => context.read<AiResultsBloc>().add(
                       SubmitFeedback(detectionId: detection.id, isCorrect: true),
@@ -859,9 +867,9 @@ class _FeedbackSection extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _FeedbackButton(
-                    label: 'Incorrect',
+                    label: 'Sai',
                     icon: Icons.thumb_down_alt_rounded,
-                    color: CrabSenseColors.error,
+                    color: Colors.redAccent,
                     isLoading: isLoading,
                     onTap: () => context.read<AiResultsBloc>().add(
                       SubmitFeedback(detectionId: detection.id, isCorrect: false),
@@ -923,9 +931,9 @@ class _LoadingView extends StatelessWidget {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        CircularProgressIndicator(color: CrabSenseColors.primary),
+        CircularProgressIndicator(color: kHomeCyan),
         SizedBox(height: 16),
-        Text('Loading AI resultsâ€¦', style: TextStyle(color: CrabSenseColors.textSecondary)),
+        Text('?ang t?i k?t qu? AI?', style: TextStyle(color: Colors.white70)),
       ],
     ),
   );
@@ -943,26 +951,26 @@ class _PollingView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const CircularProgressIndicator(color: CrabSenseColors.primary),
+          const CircularProgressIndicator(color: kHomeCyan),
           const SizedBox(height: 24),
           const Text(
-            'AI analysis in progressâ€¦',
+            '?ang phân tích AI?',
             style: TextStyle(
-              color: CrabSenseColors.textPrimary,
+              color: Colors.white,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 8),
           const Text(
-            'This may take up to 60 seconds.',
-            style: TextStyle(color: CrabSenseColors.textSecondary),
+            'Có th? m?t t?i 60 giây.',
+            style: TextStyle(color: Colors.white70),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
           Text(
-            'Checkingâ€¦ (attempt $attemptCount)',
-            style: const TextStyle(color: CrabSenseColors.textDisabled, fontSize: 12),
+            '?ang ki?m tra? (l?n $attemptCount)',
+            style: const TextStyle(color: Colors.white38, fontSize: 12),
           ),
         ],
       ),
@@ -983,12 +991,12 @@ class _ErrorView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.error_outline_rounded, color: CrabSenseColors.error, size: 56),
+          const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 56),
           const SizedBox(height: 16),
           const Text(
-            'Could not load AI results',
+            'Không t?i ???c k?t qu? AI',
             style: TextStyle(
-              color: CrabSenseColors.textPrimary,
+              color: Colors.white,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -996,14 +1004,14 @@ class _ErrorView extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             message,
-            style: const TextStyle(color: CrabSenseColors.textSecondary),
+            style: const TextStyle(color: Colors.white70),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Try Again'),
+            label: const Text('Th? l?i'),
           ),
         ],
       ),
@@ -1012,7 +1020,7 @@ class _ErrorView extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Shared glassmorphism card â€” matches CrabSense design system
+// Shared glassmorphism card ? matches CrabSense design system
 // ---------------------------------------------------------------------------
 
 class _GlassCard extends StatelessWidget {
@@ -1022,18 +1030,7 @@ class _GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: CrabSenseColors.surface,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: CrabSenseColors.primary.withValues(alpha: 0.2)),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.2),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
-        ),
-      ],
-    ),
+    decoration: homeCardDecoration(radius: 16, glowAlpha: 0.12),
     child: child,
   );
 }

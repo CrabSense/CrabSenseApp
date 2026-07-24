@@ -54,6 +54,9 @@ class RouteNames {
   /// Operation logs.
   static const String operations = 'operations';
 
+  /// Operation history timeline.
+  static const String operationHistory = 'operationHistory';
+
   /// Harvest recording.
   static const String harvest = 'harvest';
 
@@ -62,6 +65,45 @@ class RouteNames {
 
   /// User profile and settings.
   static const String profile = 'profile';
+
+  /// IoT devices list.
+  static const String devices = 'devices';
+
+  /// AI center hub.
+  static const String aiCenter = 'aiCenter';
+
+  /// Reports & analytics hub.
+  static const String reports = 'reports';
+
+  /// Offline sync hub.
+  static const String offlineSync = 'offlineSync';
+
+  /// App settings hub.
+  static const String appSettings = 'appSettings';
+
+  /// Security & privacy hub.
+  static const String securityPrivacy = 'securityPrivacy';
+
+  /// Help & support hub.
+  static const String helpSupport = 'helpSupport';
+
+  /// App info hub.
+  static const String appInfo = 'appInfo';
+
+  /// Legal document (terms / privacy).
+  static const String legalDocument = 'legalDocument';
+
+  /// Firebase services hub.
+  static const String firebaseHub = 'firebaseHub';
+
+  /// Edit profile form.
+  static const String editProfile = 'editProfile';
+
+  /// Change password form.
+  static const String changePassword = 'changePassword';
+
+  /// Notification preferences.
+  static const String notificationSettings = 'notificationSettings';
 
   /// Product traceability — public, no login required.
   static const String traceability = 'traceability';
@@ -116,6 +158,9 @@ class RoutePaths {
   /// `/operations` — Operation logs.
   static const String operations = '/operations';
 
+  /// `/operations/history` — Operation history timeline.
+  static const String operationHistory = '/operations/history';
+
   /// `/harvest` — Harvest recording.
   static const String harvest = '/harvest';
 
@@ -124,6 +169,45 @@ class RoutePaths {
 
   /// `/profile` — User profile.
   static const String profile = '/profile';
+
+  /// `/devices` — IoT devices list.
+  static const String devices = '/devices';
+
+  /// `/ai-center` — AI detections / recommendations hub.
+  static const String aiCenter = '/ai-center';
+
+  /// `/reports` — Reports & analytics hub (`?type=harvest|…`).
+  static const String reports = '/reports';
+
+  /// `/offline-sync` — Offline queue & sync status.
+  static const String offlineSync = '/offline-sync';
+
+  /// `/app-settings` — App preferences hub.
+  static const String appSettings = '/app-settings';
+
+  /// `/security` — Security & privacy hub.
+  static const String securityPrivacy = '/security';
+
+  /// `/help` — Help & support hub.
+  static const String helpSupport = '/help';
+
+  /// `/app-info` — Version, terms, licenses.
+  static const String appInfo = '/app-info';
+
+  /// `/legal` — Terms / privacy document.
+  static const String legalDocument = '/legal';
+
+  /// `/firebase` — Firebase services hub (`?service=authentication|…`).
+  static const String firebaseHub = '/firebase';
+
+  /// `/profile/edit` — Edit profile.
+  static const String editProfile = '/profile/edit';
+
+  /// `/profile/change-password` — Change password.
+  static const String changePassword = '/profile/change-password';
+
+  /// `/profile/notifications` — Notification preferences.
+  static const String notificationSettings = '/profile/notifications';
 
   /// `/notifications` — Notification history / notification centre.
   static const String notificationHistory = '/notifications';

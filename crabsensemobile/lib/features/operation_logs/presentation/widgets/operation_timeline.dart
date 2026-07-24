@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../../app/theme.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/entities/operation_log.dart';
 import '../../domain/entities/operation_type.dart';
 import '../bloc/operation_bloc.dart' show OperationBloc;
@@ -29,21 +30,39 @@ extension _OperationTypeUiExtension on OperationType {
     }
   }
 
+  /// Vietnamese label for this operation type.
+  String get labelVi {
+    switch (this) {
+      case OperationType.feeding:
+        return 'Cho ăn';
+      case OperationType.waterChange:
+        return 'Thay nước';
+      case OperationType.mineralAddition:
+        return 'Bổ sung khoáng';
+      case OperationType.cleaning:
+        return 'Vệ sinh';
+      case OperationType.medication:
+        return 'Điều trị';
+      case OperationType.inspection:
+        return 'Kiểm tra';
+    }
+  }
+
   /// Accent color for this operation type.
   Color get accentColor {
     switch (this) {
       case OperationType.feeding:
         return CrabSenseColors.success;
       case OperationType.waterChange:
-        return CrabSenseColors.info;
+        return kHomeCyan;
       case OperationType.mineralAddition:
         return CrabSenseColors.warning;
       case OperationType.cleaning:
-        return CrabSenseColors.primary;
+        return kHomeBlueLight;
       case OperationType.medication:
         return CrabSenseColors.error;
       case OperationType.inspection:
-        return CrabSenseColors.primary;
+        return kHomePurple;
     }
   }
 }
@@ -185,10 +204,10 @@ class _OperationTimelineState extends State<OperationTimeline> {
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
           colorScheme: Theme.of(ctx).colorScheme.copyWith(
-            primary: CrabSenseColors.primary,
-            onPrimary: Colors.black,
-            surface: CrabSenseColors.surface,
-            onSurface: CrabSenseColors.textPrimary,
+            primary: kHomeBlue,
+            onPrimary: Colors.white,
+            surface: kHomeNavy,
+            onSurface: Colors.white,
           ),
         ),
         child: child ?? const SizedBox.shrink(),
@@ -214,12 +233,12 @@ class _OperationTimelineState extends State<OperationTimeline> {
     final yesterday = today.subtract(const Duration(days: 1));
     final d = DateTime(date.year, date.month, date.day);
     if (d == today) {
-      return 'Today';
+      return 'Hôm nay';
     }
     if (d == yesterday) {
-      return 'Yesterday';
+      return 'Hôm qua';
     }
-    return DateFormat('MMM d, yyyy').format(date);
+    return DateFormat('dd/MM/yyyy').format(date);
   }
 
   static Map<String, List<OperationLog>> _groupByDate(List<OperationLog> logs) {
@@ -288,13 +307,22 @@ class _TimelineHeader extends StatelessWidget {
     final theme = Theme.of(context);
     return Row(
       children: [
-        const Icon(Icons.history, size: 18, color: CrabSenseColors.primary),
+        Icon(
+          Icons.history,
+          size: 18,
+          color: kHomeBlueLight,
+          shadows: [
+            Shadow(color: kHomeBlueLight.withValues(alpha: 0.8), blurRadius: 10),
+          ],
+        ),
         const SizedBox(width: 8),
         Text(
-          'Operation History',
+          'DÒNG THỜI GIAN',
           style: theme.textTheme.titleSmall?.copyWith(
-            color: CrabSenseColors.textPrimary,
-            fontWeight: FontWeight.w700,
+            color: kHomeBlueLight,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.0,
+            fontSize: 12.5,
           ),
         ),
         const Spacer(),
@@ -302,13 +330,16 @@ class _TimelineHeader extends StatelessWidget {
           GestureDetector(
             onTap: onClearAll,
             child: Text(
-              'Clear filters',
-              style: theme.textTheme.labelSmall?.copyWith(color: CrabSenseColors.primary),
+              'Xóa bộ lọc',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: kHomeBlueLight,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           )
         else
           Text(
-            '$totalCount records',
+            '$totalCount bản ghi',
             style: theme.textTheme.labelSmall?.copyWith(color: CrabSenseColors.textSecondary),
           ),
       ],
@@ -328,20 +359,31 @@ class _SearchBar extends StatelessWidget {
   Widget build(BuildContext context) => TextField(
     controller: controller,
     onChanged: onChanged,
-    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: CrabSenseColors.textPrimary),
+    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white),
     decoration: InputDecoration(
-      hintText: 'Search notes…',
-      prefixIcon: const Icon(Icons.search, size: 18, color: CrabSenseColors.textSecondary),
+      hintText: 'Tìm trong ghi chú…',
+      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.45)),
+      filled: true,
+      fillColor: kHomeNavyDeep.withValues(alpha: 0.75),
+      prefixIcon: const Icon(Icons.search, size: 18, color: kHomeBlueLight),
       suffixIcon: controller.text.isNotEmpty
           ? GestureDetector(
               onTap: () {
                 controller.clear();
                 onChanged('');
               },
-              child: const Icon(Icons.close, size: 16, color: CrabSenseColors.textSecondary),
+              child: const Icon(Icons.close, size: 16, color: kHomeBlueLight),
             )
           : null,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: kHomeBorderBlue.withValues(alpha: 0.4)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: kHomeBlue.withValues(alpha: 0.9), width: 1.4),
+      ),
     ),
   );
 }
@@ -361,9 +403,9 @@ class _TypeFilterRow extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       children: [
         _FilterChip(
-          label: 'All types',
+          label: 'Tất cả loại',
           icon: Icons.list_alt_outlined,
-          accentColor: CrabSenseColors.textSecondary,
+          accentColor: kHomeBlueLight,
           isSelected: selected == null,
           onTap: () => onSelected(null),
         ),
@@ -371,7 +413,7 @@ class _TypeFilterRow extends StatelessWidget {
           (type) => Padding(
             padding: const EdgeInsets.only(left: 6),
             child: _FilterChip(
-              label: type.displayName,
+              label: type.labelVi,
               icon: type.icon,
               accentColor: type.accentColor,
               isSelected: selected == type,
@@ -409,11 +451,23 @@ class _FilterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? accentColor.withValues(alpha: 0.2) : CrabSenseColors.surfaceVariant,
+          color: isSelected
+              ? accentColor.withValues(alpha: 0.18)
+              : kHomeNavyDeep.withValues(alpha: 0.75),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? accentColor.withValues(alpha: 0.6) : CrabSenseColors.outline,
+            color: isSelected
+                ? accentColor.withValues(alpha: 0.8)
+                : kHomeBorderBlue.withValues(alpha: 0.4),
           ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: accentColor.withValues(alpha: 0.3),
+                    blurRadius: 10,
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -495,33 +549,33 @@ class _BoxFilterDropdown extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: selected != null
-            ? CrabSenseColors.primary.withValues(alpha: 0.15)
-            : CrabSenseColors.surfaceVariant,
+            ? kHomeBlue.withValues(alpha: 0.18)
+            : kHomeNavyDeep.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: selected != null
-              ? CrabSenseColors.primary.withValues(alpha: 0.5)
-              : CrabSenseColors.outline,
+              ? kHomeBlue.withValues(alpha: 0.8)
+              : kHomeBorderBlue.withValues(alpha: 0.4),
         ),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String?>(
           value: selected,
           isDense: true,
-          dropdownColor: CrabSenseColors.surface,
-          icon: const Icon(Icons.arrow_drop_down, size: 16, color: CrabSenseColors.textSecondary),
+          dropdownColor: kHomeNavy,
+          icon: const Icon(Icons.arrow_drop_down, size: 16, color: kHomeBlueLight),
           hint: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(
                 Icons.inventory_2_outlined,
                 size: 14,
-                color: CrabSenseColors.textSecondary,
+                color: kHomeBlueLight,
               ),
               const SizedBox(width: 4),
               Text(
-                'All boxes',
-                style: theme.textTheme.labelSmall?.copyWith(color: CrabSenseColors.textSecondary),
+                'Tất cả hộp',
+                style: theme.textTheme.labelSmall?.copyWith(color: kHomeBlueLight),
               ),
             ],
           ),
@@ -529,7 +583,7 @@ class _BoxFilterDropdown extends StatelessWidget {
           items: [
             DropdownMenuItem<String?>(
               child: Text(
-                'All boxes',
+                'Tất cả hộp',
                 style: theme.textTheme.labelSmall?.copyWith(color: CrabSenseColors.textSecondary),
               ),
             ),
@@ -538,7 +592,7 @@ class _BoxFilterDropdown extends StatelessWidget {
                 value: id,
                 child: Text(
                   id,
-                  style: theme.textTheme.labelSmall?.copyWith(color: CrabSenseColors.textPrimary),
+                  style: theme.textTheme.labelSmall?.copyWith(color: Colors.white),
                 ),
               ),
             ),
@@ -564,18 +618,18 @@ class _DatePickerButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: CrabSenseColors.surfaceVariant,
+          color: kHomeNavyDeep.withValues(alpha: 0.75),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: CrabSenseColors.outline),
+          border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.4)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.date_range_outlined, size: 14, color: CrabSenseColors.textSecondary),
+            const Icon(Icons.date_range_outlined, size: 14, color: kHomeBlueLight),
             const SizedBox(width: 4),
             Text(
-              'Date range',
-              style: theme.textTheme.labelSmall?.copyWith(color: CrabSenseColors.textSecondary),
+              'Khoảng ngày',
+              style: theme.textTheme.labelSmall?.copyWith(color: kHomeBlueLight),
             ),
           ],
         ),
@@ -593,14 +647,17 @@ class _DateRangeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final fmt = DateFormat('MMM d');
+    final fmt = DateFormat('dd/MM');
     final label = '${fmt.format(range.start)} – ${fmt.format(range.end)}';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: CrabSenseColors.primary.withValues(alpha: 0.15),
+        color: kHomeBlue.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: CrabSenseColors.primary.withValues(alpha: 0.5)),
+        border: Border.all(color: kHomeBlue.withValues(alpha: 0.8)),
+        boxShadow: [
+          BoxShadow(color: kHomeBlue.withValues(alpha: 0.3), blurRadius: 10),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -608,14 +665,14 @@ class _DateRangeChip extends StatelessWidget {
           Text(
             label,
             style: theme.textTheme.labelSmall?.copyWith(
-              color: CrabSenseColors.primary,
+              color: kHomeBlueLight,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(width: 4),
           GestureDetector(
             onTap: onClear,
-            child: const Icon(Icons.close, size: 14, color: CrabSenseColors.primary),
+            child: const Icon(Icons.close, size: 14, color: kHomeBlueLight),
           ),
         ],
       ),
@@ -671,14 +728,18 @@ class _DateGroupHeader extends StatelessWidget {
           Text(
             label,
             style: theme.textTheme.labelSmall?.copyWith(
-              color: CrabSenseColors.textSecondary,
-              fontWeight: FontWeight.w600,
+              color: kHomeBlueLight,
+              fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
             ),
           ),
           const SizedBox(width: 8),
-          const Expanded(
-            child: Divider(color: CrabSenseColors.outlineVariant, thickness: 1, height: 1),
+          Expanded(
+            child: Divider(
+              color: kHomeBorderBlue.withValues(alpha: 0.35),
+              thickness: 1,
+              height: 1,
+            ),
           ),
         ],
       ),
@@ -719,11 +780,22 @@ class _TimelineRow extends StatelessWidget {
                     color: accent.withValues(alpha: 0.25),
                     shape: BoxShape.circle,
                     border: Border.all(color: accent, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.5),
+                        blurRadius: 8,
+                      ),
+                    ],
                   ),
                 ),
                 // Connector line
                 if (!isLast)
-                  Expanded(child: Container(width: 2, color: CrabSenseColors.outlineVariant)),
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      color: kHomeBorderBlue.withValues(alpha: 0.35),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -735,9 +807,20 @@ class _TimelineRow extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: CrabSenseColors.surface,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+                ),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: accent.withValues(alpha: 0.2)),
+                border: Border.all(color: accent.withValues(alpha: 0.4)),
+                boxShadow: [
+                  BoxShadow(
+                    color: accent.withValues(alpha: 0.12),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -750,6 +833,7 @@ class _TimelineRow extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: accent.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: accent.withValues(alpha: 0.5)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -757,7 +841,7 @@ class _TimelineRow extends StatelessWidget {
                             Icon(icon, size: 14, color: accent),
                             const SizedBox(width: 4),
                             Text(
-                              log.type.displayName,
+                              log.type.labelVi,
                               style: theme.textTheme.labelSmall?.copyWith(
                                 color: accent,
                                 fontWeight: FontWeight.w600,
@@ -792,11 +876,11 @@ class _TimelineRow extends StatelessWidget {
                         color: CrabSenseColors.textSecondary,
                       ),
                       const SizedBox(width: 6),
-                      Expanded(
+                        Expanded(
                         child: Text(
                           log.boxIds.join(', '),
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: CrabSenseColors.textPrimary,
+                            color: Colors.white,
                             fontWeight: FontWeight.w500,
                           ),
                           maxLines: 1,
@@ -820,7 +904,7 @@ class _TimelineRow extends StatelessWidget {
                         Text(
                           '${log.quantity}${log.unit != null ? ' ${log.unit}' : ''}',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: CrabSenseColors.textPrimary,
+                            color: Colors.white,
                           ),
                         ),
                       ],
@@ -834,8 +918,11 @@ class _TimelineRow extends StatelessWidget {
                       width: double.infinity,
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: CrabSenseColors.surfaceVariant.withValues(alpha: 0.5),
+                        color: kHomeNavyDeep.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: kHomeBorderBlue.withValues(alpha: 0.25),
+                        ),
                       ),
                       child: Text(
                         log.notes,
@@ -888,13 +975,16 @@ class _TimelineRow extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: CrabSenseColors.primary.withValues(alpha: 0.12),
+                            color: kHomeBlue.withValues(alpha: 0.14),
                             borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: kHomeBlue.withValues(alpha: 0.5),
+                            ),
                           ),
                           child: Text(
-                            'Editable',
+                            'Có thể sửa',
                             style: theme.textTheme.labelSmall?.copyWith(
-                              color: CrabSenseColors.primary,
+                              color: kHomeBlueLight,
                               fontSize: 9,
                               fontWeight: FontWeight.w600,
                             ),
@@ -975,7 +1065,7 @@ class _SkeletonRowState extends State<_SkeletonRow> with SingleTickerProviderSta
                     width: 14,
                     height: 14,
                     decoration: BoxDecoration(
-                      color: CrabSenseColors.surfaceVariant.withValues(alpha: opacity),
+                      color: kHomeNavyLift.withValues(alpha: opacity),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -983,7 +1073,7 @@ class _SkeletonRowState extends State<_SkeletonRow> with SingleTickerProviderSta
                     Expanded(
                       child: Container(
                         width: 2,
-                        color: CrabSenseColors.outlineVariant.withValues(alpha: opacity),
+                        color: kHomeBorderBlue.withValues(alpha: opacity),
                       ),
                     ),
                 ],
@@ -997,10 +1087,10 @@ class _SkeletonRowState extends State<_SkeletonRow> with SingleTickerProviderSta
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: CrabSenseColors.surface,
+                  color: kHomeNavyDeep.withValues(alpha: 0.75),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: CrabSenseColors.outlineVariant.withValues(alpha: opacity),
+                    color: kHomeBorderBlue.withValues(alpha: opacity),
                   ),
                 ),
                 child: Column(
@@ -1013,7 +1103,7 @@ class _SkeletonRowState extends State<_SkeletonRow> with SingleTickerProviderSta
                           width: 80,
                           height: 22,
                           decoration: BoxDecoration(
-                            color: CrabSenseColors.surfaceVariant.withValues(alpha: opacity),
+                            color: kHomeNavyLift.withValues(alpha: opacity),
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
@@ -1022,7 +1112,7 @@ class _SkeletonRowState extends State<_SkeletonRow> with SingleTickerProviderSta
                           width: 40,
                           height: 14,
                           decoration: BoxDecoration(
-                            color: CrabSenseColors.surfaceVariant.withValues(alpha: opacity),
+                            color: kHomeNavyLift.withValues(alpha: opacity),
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
@@ -1034,7 +1124,7 @@ class _SkeletonRowState extends State<_SkeletonRow> with SingleTickerProviderSta
                       width: 120,
                       height: 14,
                       decoration: BoxDecoration(
-                        color: CrabSenseColors.surfaceVariant.withValues(alpha: opacity),
+                        color: kHomeNavyLift.withValues(alpha: opacity),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
@@ -1046,7 +1136,7 @@ class _SkeletonRowState extends State<_SkeletonRow> with SingleTickerProviderSta
                           width: 80,
                           height: 12,
                           decoration: BoxDecoration(
-                            color: CrabSenseColors.surfaceVariant.withValues(alpha: opacity),
+                            color: kHomeNavyLift.withValues(alpha: opacity),
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
@@ -1082,28 +1172,35 @@ class _TimelineEmptyState extends StatelessWidget {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: CrabSenseColors.surfaceVariant.withValues(alpha: 0.5),
+              color: kHomeBlue.withValues(alpha: 0.14),
               shape: BoxShape.circle,
+              border: Border.all(color: kHomeBlue.withValues(alpha: 0.5)),
+              boxShadow: [
+                BoxShadow(
+                  color: kHomeBlue.withValues(alpha: 0.3),
+                  blurRadius: 14,
+                ),
+              ],
             ),
             child: Icon(
               hasFilter ? Icons.filter_list_off_outlined : Icons.history_outlined,
               size: 36,
-              color: CrabSenseColors.textSecondary,
+              color: kHomeBlueLight,
             ),
           ),
           const SizedBox(height: 16),
           Text(
-            hasFilter ? 'No matching operations' : 'No operations yet',
+            hasFilter ? 'Không có thao tác phù hợp' : 'Chưa có nhật ký nào',
             style: theme.textTheme.titleSmall?.copyWith(
-              color: CrabSenseColors.textPrimary,
+              color: Colors.white,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             hasFilter
-                ? 'Try adjusting your filters or search terms to find operations.'
-                : 'Operations you log will appear here in chronological order.',
+                ? 'Thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm.'
+                : 'Nhật ký vận hành bạn ghi nhận sẽ hiển thị ở đây theo thời gian.',
             style: theme.textTheme.bodySmall?.copyWith(color: CrabSenseColors.textSecondary),
             textAlign: TextAlign.center,
           ),
@@ -1132,19 +1229,25 @@ class _LoadMoreButton extends StatelessWidget {
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
             decoration: BoxDecoration(
-              color: CrabSenseColors.primary.withValues(alpha: 0.1),
+              color: kHomeBlue.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: CrabSenseColors.primary.withValues(alpha: 0.3)),
+              border: Border.all(color: kHomeBlue.withValues(alpha: 0.55)),
+              boxShadow: [
+                BoxShadow(
+                  color: kHomeBlue.withValues(alpha: 0.25),
+                  blurRadius: 12,
+                ),
+              ],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.expand_more_rounded, size: 18, color: CrabSenseColors.primary),
+                const Icon(Icons.expand_more_rounded, size: 18, color: kHomeBlueLight),
                 const SizedBox(width: 6),
                 Text(
-                  'Load more',
+                  'Tải thêm',
                   style: theme.textTheme.labelMedium?.copyWith(
-                    color: CrabSenseColors.primary,
+                    color: kHomeBlueLight,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

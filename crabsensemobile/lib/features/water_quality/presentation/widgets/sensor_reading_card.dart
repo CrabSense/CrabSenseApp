@@ -1,16 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../../app/theme.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 
-/// A card that displays a single sensor parameter reading.
-///
-/// Used on the water quality screen to show temperature, pH,
-/// dissolved oxygen, and salinity readings with their units, ranges,
-/// and out-of-range warning indicators.
-///
-/// Requirements: 8.2, 8.3, 8.4
+/// Card hiển thị một chỉ số cảm biến chất lượng nước.
 class SensorReadingCard extends StatelessWidget {
-  /// Creates a sensor reading card.
   const SensorReadingCard({
     required this.label,
     required this.value,
@@ -22,143 +15,162 @@ class SensorReadingCard extends StatelessWidget {
     this.timestamp,
   });
 
-  /// Parameter name, e.g. "Temperature".
   final String label;
-
-  /// Formatted numeric value, e.g. "28.5".
   final String value;
-
-  /// Unit of measurement, e.g. "°C".
   final String unit;
-
-  /// Icon representing this parameter.
   final IconData icon;
-
-  /// Whether the reading is within the acceptable threshold range.
-  ///
-  /// When false the card border and badge turn [CrabSenseColors.warning]
-  /// to highlight the out-of-range value (Requirement 8.4).
   final bool isNormal;
-
-  /// Human-readable threshold range, e.g. "26–30°C".
   final String rangeLabel;
-
-  /// Optional "Updated X min ago" timestamp text.
   final String? timestamp;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final borderColor = isNormal
-        ? CrabSenseColors.primary.withValues(alpha: 0.3)
-        : CrabSenseColors.warning;
-    final valueColor = isNormal ? CrabSenseColors.textPrimary : CrabSenseColors.warning;
+    final accent = isNormal ? kHomeCyan : kHomeOrange;
+    final valueColor = isNormal ? Colors.white : kHomeOrange;
 
-    return DecoratedBox(
+    return Container(
       decoration: BoxDecoration(
-        color: CrabSenseColors.surface,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+        ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor, width: isNormal ? 1 : 1.5),
+        border: Border.all(
+          color: accent.withValues(alpha: isNormal ? 0.4 : 0.75),
+          width: isNormal ? 1 : 1.4,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: accent.withValues(alpha: isNormal ? 0.12 : 0.28),
+            blurRadius: 14,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Stack(
         children: [
-          // Main content
           Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Icon and label row
                 Row(
                   children: [
-                    Icon(
-                      icon,
-                      size: 18,
-                      color: isNormal ? CrabSenseColors.primary : CrabSenseColors.warning,
+                    Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(9),
+                        border: Border.all(
+                          color: accent.withValues(alpha: 0.45),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: accent.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: Icon(icon, size: 16, color: accent),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         label,
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: CrabSenseColors.textSecondary,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-
-                // Value and unit
+                const SizedBox(height: 14),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      value,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        color: valueColor,
-                        fontWeight: FontWeight.w700,
+                    Flexible(
+                      child: Text(
+                        value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: valueColor,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          height: 1.05,
+                          letterSpacing: -0.4,
+                          shadows: [
+                            Shadow(
+                              color: accent.withValues(alpha: 0.45),
+                              blurRadius: 12,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 3),
+                    const SizedBox(width: 4),
                     Padding(
                       padding: const EdgeInsets.only(bottom: 3),
                       child: Text(
                         unit,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: valueColor.withValues(alpha: 0.8),
+                        style: TextStyle(
+                          color: valueColor.withValues(alpha: 0.7),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
                   ],
                 ),
-
                 const Spacer(),
-
-                // Range hint
                 Text(
                   rangeLabel,
-                  style: theme.textTheme.bodySmall?.copyWith(color: CrabSenseColors.textSecondary),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.45),
+                    fontSize: 11,
+                  ),
                 ),
-
-                // Optional timestamp
                 if (timestamp != null) ...[
                   const SizedBox(height: 2),
                   Text(
                     timestamp!,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: CrabSenseColors.textDisabled,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.35),
+                      fontSize: 10,
                     ),
                   ),
                 ],
               ],
             ),
           ),
-
-          // Warning badge in top-right corner
           if (!isNormal)
             Positioned(
               top: 8,
               right: 8,
               child: Container(
-                padding: const EdgeInsets.all(3),
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: CrabSenseColors.warning.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: CrabSenseColors.warning.withValues(alpha: 0.5)),
+                  color: kHomeOrange.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: kHomeOrange.withValues(alpha: 0.55),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kHomeOrange.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                    ),
+                  ],
                 ),
                 child: const Icon(
                   Icons.warning_amber_rounded,
                   size: 14,
-                  color: CrabSenseColors.warning,
+                  color: kHomeOrange,
                 ),
               ),
             ),

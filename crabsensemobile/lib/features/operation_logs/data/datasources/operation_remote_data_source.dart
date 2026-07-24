@@ -57,6 +57,17 @@ abstract class OperationRemoteDataSource {
     DateTime? endDate,
     OperationType? type,
   });
+
+  /// Fetches all farm operations across every box, paginated.
+  ///
+  /// Backed by `GET /operations`. Used by the operation history screen.
+  Future<List<OperationLogModel>> getAllOperations({
+    int page = 1,
+    int limit = 50,
+    DateTime? startDate,
+    DateTime? endDate,
+    OperationType? type,
+  });
 }
 
 /// Dio-backed implementation of [OperationRemoteDataSource].
@@ -201,6 +212,41 @@ class OperationRemoteDataSourceImpl implements OperationRemoteDataSource {
     _checkFailure(result.failure, 'operation history for box $boxId');
 
     final items = _extractList(result.data.data, 'getOperationHistory');
+    return items
+        .map((e) => OperationLogModel.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
+  @override
+  Future<List<OperationLogModel>> getAllOperations({
+    int page = 1,
+    int limit = 50,
+    DateTime? startDate,
+    DateTime? endDate,
+    OperationType? type,
+  }) async {
+    logger.d('OperationRemote: getAllOperations page=$page limit=$limit');
+
+    final queryParams = <String, dynamic>{'page': page, 'limit': limit};
+
+    if (startDate != null) {
+      queryParams['startDate'] = startDate.toIso8601String();
+    }
+    if (endDate != null) {
+      queryParams['endDate'] = endDate.toIso8601String();
+    }
+    if (type != null) {
+      queryParams['type'] = type.name;
+    }
+
+    final result = await apiClient.safeGet<Map<String, dynamic>>(
+      ApiConstants.operations,
+      queryParameters: queryParams,
+    );
+
+    _checkFailure(result.failure, 'all operations');
+
+    final items = _extractList(result.data.data, 'getAllOperations');
     return items
         .map((e) => OperationLogModel.fromJson(e as Map<String, dynamic>))
         .toList(growable: false);

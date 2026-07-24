@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/entities/scan_quick_result.dart';
 
 class ScanHistoryList extends StatelessWidget {
@@ -22,7 +22,7 @@ class ScanHistoryList extends StatelessWidget {
         child: Text(
           'Chưa có lịch sử quét',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: CrabSenseColors.hintText,
+                color: Colors.white.withValues(alpha: 0.4),
               ),
         ),
       );
@@ -33,39 +33,46 @@ class ScanHistoryList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Lịch sử quét',
+          'LỊCH SỬ QUÉT',
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: CrabSenseColors.textPrimary,
-                fontWeight: FontWeight.w700,
+                color: kHomeBlueLight,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
               ),
         ),
         const SizedBox(height: 8),
         ...entries.take(10).map((e) {
-          return ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading: Container(
-              width: 44,
-              alignment: Alignment.center,
-              child: Text(
-                fmt.format(e.scannedAt.toLocal()),
-                style: const TextStyle(
-                  color: CrabSenseColors.hintText,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
+          return Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            decoration: homeTileDecoration(radius: 12),
+            child: ListTile(
+              dense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              leading: SizedBox(
+                width: 44,
+                child: Text(
+                  fmt.format(e.scannedAt.toLocal()),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.45),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
                 ),
               ),
-            ),
-            title: Text(
-              e.code,
-              style: const TextStyle(
-                color: CrabSenseColors.textPrimary,
-                fontWeight: FontWeight.w600,
+              title: Text(
+                e.code,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            trailing: TextButton(
-              onPressed: () => onRescan(e),
-              child: const Text('Quét lại'),
+              trailing: TextButton(
+                onPressed: () => onRescan(e),
+                style: TextButton.styleFrom(foregroundColor: kHomeCyan),
+                child: const Text('Quét lại'),
+              ),
             ),
           );
         }),

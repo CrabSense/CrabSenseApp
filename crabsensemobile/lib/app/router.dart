@@ -32,6 +32,21 @@ import '../features/manual_inspection/domain/usecases/submit_inspection_use_case
 import '../features/manual_inspection/presentation/bloc/bloc.dart';
 import '../features/manual_inspection/presentation/screens/inspection_screen.dart';
 import '../features/profile/presentation/screens/profile_screen.dart';
+import '../features/profile/presentation/screens/edit_profile_screen.dart';
+import '../features/profile/presentation/screens/change_password_screen.dart';
+import '../features/profile/presentation/screens/notification_settings_screen.dart';
+import '../features/devices/presentation/screens/devices_screen.dart';
+import '../features/ai_center/presentation/screens/ai_center_screen.dart';
+import '../features/ai_center/data/models/ai_center_models.dart';
+import '../features/reports/data/models/report_models.dart';
+import '../features/reports/presentation/screens/reports_hub_screen.dart';
+import '../features/profile/presentation/screens/offline_sync_screen.dart';
+import '../features/profile/presentation/screens/app_settings_screen.dart';
+import '../features/profile/presentation/screens/security_privacy_screen.dart';
+import '../features/profile/presentation/screens/help_support_screen.dart';
+import '../features/profile/presentation/screens/legal_document_screen.dart';
+import '../features/firebase_hub/presentation/screens/firebase_hub_screen.dart';
+import '../features/firebase_hub/data/firebase_hub_models.dart';
 import '../features/qr_scanner/presentation/bloc/bloc.dart';
 import '../features/qr_scanner/presentation/screens/qr_scanner_screen.dart';
 import '../features/video_capture/domain/usecases/get_ai_results_usecase.dart';
@@ -43,6 +58,7 @@ import '../features/notifications/presentation/screens/notification_history_scre
 import '../features/water_quality/presentation/screens/water_quality_screen.dart';
 import '../features/sales/presentation/screens/sales_screen.dart';
 import '../features/operation_logs/domain/entities/operation_log.dart';
+import '../features/operation_logs/presentation/screens/operation_history_screen.dart';
 import '../features/operation_logs/presentation/screens/operation_log_screen.dart';
 import 'scaffold_with_navbar.dart';
 import 'routes.dart';
@@ -340,6 +356,104 @@ GoRouter createRouter(AuthBloc authBloc) {
             },
           ),
         ],
+      ),
+
+      // ── /profile/edit|change-password|notifications + /devices ──────
+      GoRoute(
+        path: RoutePaths.devices,
+        name: RouteNames.devices,
+        builder: (context, state) {
+          final type = state.uri.queryParameters['type'];
+          return DevicesScreen(initialType: type);
+        },
+      ),
+      GoRoute(
+        path: RoutePaths.aiCenter,
+        name: RouteNames.aiCenter,
+        builder: (context, state) {
+          final tab = switch (state.uri.queryParameters['tab']) {
+            'detections' => AiCenterTab.detections,
+            'recommendations' => AiCenterTab.recommendations,
+            _ => AiCenterTab.overview,
+          };
+          return AiCenterScreen(initialTab: tab);
+        },
+      ),
+      GoRoute(
+        path: RoutePaths.reports,
+        name: RouteNames.reports,
+        builder: (context, state) {
+          final kind = ReportKindX.fromQuery(state.uri.queryParameters['type']);
+          return ReportsHubScreen(initialKind: kind);
+        },
+      ),
+      GoRoute(
+        path: RoutePaths.offlineSync,
+        name: RouteNames.offlineSync,
+        builder: (context, state) => const OfflineSyncScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.appSettings,
+        name: RouteNames.appSettings,
+        builder: (context, state) => const AppSettingsScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.securityPrivacy,
+        name: RouteNames.securityPrivacy,
+        builder: (context, state) => const SecurityPrivacyScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.helpSupport,
+        name: RouteNames.helpSupport,
+        builder: (context, state) => const HelpSupportScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.appInfo,
+        name: RouteNames.appInfo,
+        builder: (context, state) => const AppInfoScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.legalDocument,
+        name: RouteNames.legalDocument,
+        builder: (context, state) {
+          final extra = state.extra;
+          final args = extra is LegalDocumentArgs
+              ? extra
+              : LegalDocumentArgs.terms;
+          return LegalDocumentScreen(args: args);
+        },
+      ),
+      GoRoute(
+        path: RoutePaths.firebaseHub,
+        name: RouteNames.firebaseHub,
+        builder: (context, state) {
+          final kind = FirebaseServiceKindX.fromQuery(
+            state.uri.queryParameters['service'],
+          );
+          return FirebaseHubScreen(initialKind: kind);
+        },
+      ),
+      GoRoute(
+        path: RoutePaths.editProfile,
+        name: RouteNames.editProfile,
+        builder: (context, state) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.changePassword,
+        name: RouteNames.changePassword,
+        builder: (context, state) => const ChangePasswordScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.notificationSettings,
+        name: RouteNames.notificationSettings,
+        builder: (context, state) => const NotificationSettingsScreen(),
+      ),
+
+      // ── /operations/history ──────────────────────────────────────────
+      GoRoute(
+        path: RoutePaths.operationHistory,
+        name: RouteNames.operationHistory,
+        builder: (context, state) => const OperationHistoryScreen(),
       ),
 
       // ── /operations ──────────────────────────────────────────────────

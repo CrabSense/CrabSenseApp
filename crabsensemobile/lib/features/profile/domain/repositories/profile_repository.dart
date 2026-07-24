@@ -31,6 +31,15 @@ abstract class ProfileRepository {
   /// Toggle biometric setting
   Future<SecuritySummary> updateBiometricSetting(bool enabled);
 
+  /// Update profile fields (PUT /auth/me)
+  Future<ProfileSummary> updateProfile({
+    required String fullName,
+    required String email,
+    String? phone,
+    String? employeeId,
+    String? avatarUrl,
+  });
+
   /// Trigger manual offline sync
   Future<SyncSummary> triggerSync();
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/crab_hologram_painter.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/boxes_models.dart';
 
 class FarmOverviewSummary extends StatelessWidget {
@@ -18,117 +19,135 @@ class FarmOverviewSummary extends StatelessWidget {
     final total = overview.total == 0 ? 1 : overview.total;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: CrabSenseColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: CrabSenseColors.border),
-        gradient: CrabSenseColors.glassGradient,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              _Stat(
-                label: 'Total',
-                value: overview.total,
-                color: CrabSenseColors.primary,
-                onTap: () => onStatusTap?.call(BoxQuickFilter.all),
+      decoration: homeCardDecoration(),
+      clipBehavior: Clip.antiAlias,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: CrabHologramPainter(
+                    color: kHomeBlueLight.withValues(alpha: 0.08),
+                    trayExtent: 24,
+                  ),
+                ),
               ),
-              _Stat(
-                label: 'Healthy',
-                value: overview.healthy,
-                color: CrabSenseColors.success,
-                onTap: () => onStatusTap?.call(BoxQuickFilter.healthy),
-              ),
-              _Stat(
-                label: 'Warning',
-                value: overview.warning,
-                color: CrabSenseColors.warning,
-                onTap: () => onStatusTap?.call(BoxQuickFilter.warning),
-              ),
-              _Stat(
-                label: 'Critical',
-                value: overview.critical,
-                color: CrabSenseColors.danger,
-                onTap: () => onStatusTap?.call(BoxQuickFilter.critical),
-              ),
-              _Stat(
-                label: 'Offline',
-                value: overview.offline,
-                color: CrabSenseColors.hintText,
-                onTap: () => onStatusTap?.call(BoxQuickFilter.offline),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: SizedBox(
-              height: 6,
-              child: Row(
+            ),
+            const HomeTopEdgeGlow(),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
                 children: [
-                  Expanded(
-                    flex: overview.healthy,
-                    child: Container(color: CrabSenseColors.success),
+                  Row(
+                    children: [
+                      _Stat(
+                        label: 'Tổng',
+                        value: overview.total,
+                        color: kHomeBlueLight,
+                        onTap: () => onStatusTap?.call(BoxQuickFilter.all),
+                      ),
+                      _Stat(
+                        label: 'Ổn định',
+                        value: overview.healthy,
+                        color: kHomeGreen,
+                        onTap: () => onStatusTap?.call(BoxQuickFilter.healthy),
+                      ),
+                      _Stat(
+                        label: 'Cảnh báo',
+                        value: overview.warning,
+                        color: kHomeOrange,
+                        onTap: () => onStatusTap?.call(BoxQuickFilter.warning),
+                      ),
+                      _Stat(
+                        label: 'Nghiêm trọng',
+                        value: overview.critical,
+                        color: Colors.redAccent,
+                        onTap: () =>
+                            onStatusTap?.call(BoxQuickFilter.critical),
+                      ),
+                      _Stat(
+                        label: 'Offline',
+                        value: overview.offline,
+                        color: Colors.white54,
+                        onTap: () => onStatusTap?.call(BoxQuickFilter.offline),
+                      ),
+                    ],
                   ),
-                  Expanded(
-                    flex: overview.warning,
-                    child: Container(color: CrabSenseColors.warning),
-                  ),
-                  Expanded(
-                    flex: overview.critical,
-                    child: Container(color: CrabSenseColors.danger),
-                  ),
-                  Expanded(
-                    flex: overview.offline,
-                    child: Container(color: CrabSenseColors.hintText),
-                  ),
-                  if (overview.total == 0)
-                    const Expanded(
-                      child: ColoredBox(color: CrabSenseColors.container),
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      height: 6,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: overview.healthy,
+                            child: Container(color: kHomeGreen),
+                          ),
+                          Expanded(
+                            flex: overview.warning,
+                            child: Container(color: kHomeOrange),
+                          ),
+                          Expanded(
+                            flex: overview.critical,
+                            child: Container(color: Colors.redAccent),
+                          ),
+                          Expanded(
+                            flex: overview.offline,
+                            child: Container(color: Colors.white38),
+                          ),
+                          if (overview.total == 0)
+                            Expanded(
+                              child: Container(
+                                color: kHomeNavyLift,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
+                  ),
+                  if (overview.withAiRecommendation > 0) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.auto_awesome_rounded,
+                          size: 14,
+                          color: kHomePurple,
+                          shadows: [
+                            Shadow(
+                              color: kHomePurple.withValues(alpha: 0.7),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${overview.withAiRecommendation} Box có đề xuất AI',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${((overview.healthy / total) * 100).round()}% ổn định',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.45),
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
-          ),
-          if (overview.withAiRecommendation > 0) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(
-                  Icons.auto_awesome_rounded,
-                  size: 14,
-                  color: CrabSenseColors.accent,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '${overview.withAiRecommendation} Box có đề xuất AI',
-                  style: const TextStyle(
-                    color: CrabSenseColors.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${((overview.healthy / total) * 100).round()}% healthy',
-                  style: const TextStyle(
-                    color: CrabSenseColors.hintText,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -163,14 +182,21 @@ class _Stat extends StatelessWidget {
                   color: color,
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
+                  shadows: [
+                    Shadow(color: color.withValues(alpha: 0.45), blurRadius: 8),
+                  ],
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 label,
-                style: const TextStyle(
-                  color: CrabSenseColors.hintText,
-                  fontSize: 10,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.45),
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],

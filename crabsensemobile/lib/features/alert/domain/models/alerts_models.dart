@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 
 /// Severity for the Alerts Command Center.
 enum AlertItemSeverity { critical, high, medium, low, resolved }
@@ -9,15 +9,15 @@ extension AlertItemSeverityX on AlertItemSeverity {
   String get label {
     switch (this) {
       case AlertItemSeverity.critical:
-        return 'Critical';
+        return 'Nghiêm trọng';
       case AlertItemSeverity.high:
-        return 'High';
+        return 'Cao';
       case AlertItemSeverity.medium:
-        return 'Medium';
+        return 'Trung bình';
       case AlertItemSeverity.low:
-        return 'Low';
+        return 'Thấp';
       case AlertItemSeverity.resolved:
-        return 'Resolved';
+        return 'Đã giải quyết';
     }
   }
 
@@ -54,15 +54,15 @@ extension AlertItemSeverityX on AlertItemSeverity {
   Color get color {
     switch (this) {
       case AlertItemSeverity.critical:
-        return CrabSenseColors.danger;
+        return Colors.redAccent;
       case AlertItemSeverity.high:
-        return CrabSenseColors.warning;
+        return kHomeOrange;
       case AlertItemSeverity.medium:
-        return CrabSenseColors.info;
+        return kHomeBlueLight;
       case AlertItemSeverity.low:
-        return CrabSenseColors.hintText;
+        return Colors.white54;
       case AlertItemSeverity.resolved:
-        return CrabSenseColors.success;
+        return kHomeGreen;
     }
   }
 
@@ -82,17 +82,17 @@ extension AlertCategoryX on AlertCategory {
   String get label {
     switch (this) {
       case AlertCategory.waterQuality:
-        return 'Water Quality';
+        return 'Chất lượng nước';
       case AlertCategory.crabHealth:
-        return 'Crab Health';
+        return 'Sức khỏe cua';
       case AlertCategory.device:
-        return 'Device';
+        return 'Thiết bị';
       case AlertCategory.ai:
         return 'AI';
       case AlertCategory.operations:
-        return 'Operations';
+        return 'Vận hành';
       case AlertCategory.system:
-        return 'System';
+        return 'Hệ thống';
     }
   }
 
@@ -145,17 +145,17 @@ extension AlertLifecycleStatusX on AlertLifecycleStatus {
   Color get color {
     switch (this) {
       case AlertLifecycleStatus.newly:
-        return CrabSenseColors.danger;
+        return Colors.redAccent;
       case AlertLifecycleStatus.acknowledged:
-        return CrabSenseColors.info;
+        return kHomeBlueLight;
       case AlertLifecycleStatus.inProgress:
-        return CrabSenseColors.warning;
+        return kHomeOrange;
       case AlertLifecycleStatus.resolved:
-        return CrabSenseColors.success;
+        return kHomeGreen;
       case AlertLifecycleStatus.reopened:
-        return CrabSenseColors.danger;
+        return Colors.redAccent;
       case AlertLifecycleStatus.dismissed:
-        return CrabSenseColors.hintText;
+        return Colors.white54;
     }
   }
 
@@ -195,9 +195,9 @@ extension AlertQuickFilterX on AlertQuickFilter {
       case AlertQuickFilter.all:
         return 'Tất cả';
       case AlertQuickFilter.critical:
-        return 'Critical';
+        return 'Nghiêm trọng';
       case AlertQuickFilter.high:
-        return 'High';
+        return 'Cao';
       case AlertQuickFilter.unread:
         return 'Chưa xem';
       case AlertQuickFilter.inProgress:
@@ -205,17 +205,17 @@ extension AlertQuickFilterX on AlertQuickFilter {
       case AlertQuickFilter.resolved:
         return 'Đã giải quyết';
       case AlertQuickFilter.waterQuality:
-        return 'Water Quality';
+        return 'Chất lượng nước';
       case AlertQuickFilter.crabHealth:
-        return 'Crab Health';
+        return 'Sức khỏe cua';
       case AlertQuickFilter.device:
-        return 'Device';
+        return 'Thiết bị';
       case AlertQuickFilter.ai:
         return 'AI';
       case AlertQuickFilter.operations:
-        return 'Operations';
+        return 'Vận hành';
       case AlertQuickFilter.system:
-        return 'System';
+        return 'Hệ thống';
     }
   }
 }
@@ -241,10 +241,10 @@ class AlertPriorityScore {
   AlertItemSeverity get band => AlertItemSeverityX.fromPriorityScore(score);
 
   Color get color {
-    if (score >= 85) return CrabSenseColors.danger;
-    if (score >= 70) return CrabSenseColors.warning;
-    if (score >= 50) return CrabSenseColors.info;
-    return CrabSenseColors.hintText;
+    if (score >= 85) return Colors.redAccent;
+    if (score >= 70) return kHomeOrange;
+    if (score >= 50) return kHomeBlueLight;
+    return Colors.white54;
   }
 }
 

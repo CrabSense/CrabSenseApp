@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/models/home_models.dart';
+import 'crab_hologram_painter.dart';
 import 'home_palette.dart';
 
 /// Bottom sheet chi tiết Farm Health Score (nút "Xem phân tích").
@@ -18,207 +19,405 @@ void showFarmHealthAnalysisSheet(
     HealthStatusLevel.warning => CrabSenseColors.warning,
     HealthStatusLevel.danger => CrabSenseColors.danger,
   };
+  final delta = healthScore.deltaVsYesterday;
+  final deltaPositive = delta >= 0;
+  final deltaColor = deltaPositive ? kHomeGreen : CrabSenseColors.danger;
 
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: kHomeNavy,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
+    backgroundColor: Colors.transparent,
     builder: (ctx) {
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: CrabSenseColors.border,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Phân tích Farm Health',
-                        style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: CrabSenseColors.textPrimary,
-                            ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      icon: const Icon(Icons.close, color: CrabSenseColors.hintText),
-                    ),
-                  ],
-                ),
-                if (farmName != null && farmName.isNotEmpty) ...[
-                  Text(
-                    farmName,
-                    style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
-                          color: CrabSenseColors.textSecondary,
-                        ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                Row(
-                  children: [
-                    Container(
-                      width: 72,
-                      height: 72,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: statusColor, width: 4),
-                        color: statusColor.withValues(alpha: 0.12),
-                      ),
-                      child: Text(
-                        '${healthScore.score}',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: statusColor,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: statusColor.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: statusColor.withValues(alpha: 0.6),
-                              ),
-                            ),
-                            child: Text(
-                              healthScore.statusLabel,
-                              style: TextStyle(
-                                color: statusColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'So với hôm qua: '
-                            '${healthScore.deltaVsYesterday >= 0 ? '+' : ''}'
-                            '${healthScore.deltaVsYesterday.toStringAsFixed(0)}%',
-                            style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                                  color: CrabSenseColors.textSecondary,
-                                ),
-                          ),
-                          Text(
-                            'Cập nhật AI: ${_formatTime(healthScore.lastAiUpdated)}',
-                            style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                                  color: CrabSenseColors.hintText,
-                                  fontSize: 11,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Giải thích',
-                  style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: CrabSenseColors.textPrimary,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  healthScore.explanation.isNotEmpty
-                      ? healthScore.explanation
-                      : 'Chưa có giải thích từ hệ thống.',
-                  style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
-                        color: CrabSenseColors.textSecondary,
-                        height: 1.4,
-                      ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Chỉ số thành phần',
-                  style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: CrabSenseColors.textPrimary,
-                      ),
-                ),
-                const SizedBox(height: 12),
-                _FactorBar(
-                  label: 'Chất lượng nước',
-                  score: healthScore.waterQualityScore,
-                  icon: Icons.water_drop_rounded,
-                ),
-                const SizedBox(height: 10),
-                _FactorBar(
-                  label: 'Sức khỏe cua',
-                  score: healthScore.crabHealthScore,
-                  icon: Icons.favorite_rounded,
-                ),
-                const SizedBox(height: 10),
-                _FactorBar(
-                  label: 'Thiết bị IoT',
-                  score: healthScore.deviceStatusScore,
-                  icon: Icons.memory_rounded,
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          context.go(RoutePaths.waterQuality);
-                        },
-                        icon: const Icon(Icons.water_drop_outlined, size: 18),
-                        label: const Text('Xem nước'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: kHomeBlueLight,
-                          side: BorderSide(
-                            color: kHomeBorderBlue.withValues(alpha: 0.7),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          context.go(RoutePaths.alerts);
-                        },
-                        icon: const Icon(Icons.warning_amber_rounded, size: 18),
-                        label: const Text('Cảnh báo'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: kHomeBlue,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+      return Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(ctx).size.height * 0.88,
+        ),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
           ),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(
+            color: kHomeBorderBlue.withValues(alpha: 0.5),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: kHomeBlue.withValues(alpha: 0.25),
+              blurRadius: 24,
+              offset: const Offset(0, -6),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          children: [
+            // Họa tiết lưới khay nuôi + cua (đồng bộ trang home)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: CrabHologramPainter(
+                    color: kHomeBlueLight.withValues(alpha: 0.07),
+                    trayExtent: 28,
+                  ),
+                ),
+              ),
+            ),
+            // Vệt sáng cạnh trên
+            Positioned(
+              top: 0,
+              left: 32,
+              right: 32,
+              height: 1,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        kHomeBlueLight.withValues(alpha: 0.6),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Thanh kéo phát sáng
+                    Center(
+                      child: Container(
+                        width: 42,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: kHomeBorderBlue.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: kHomeBlue.withValues(alpha: 0.4),
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Header: icon phát sáng + tiêu đề + nút đóng
+                    Row(
+                      children: [
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: kHomeBlue.withValues(alpha: 0.14),
+                            border: Border.all(
+                              color: kHomeBlue.withValues(alpha: 0.5),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: kHomeBlue.withValues(alpha: 0.4),
+                                blurRadius: 14,
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.insights_rounded,
+                            color: kHomeBlueLight,
+                            size: 20,
+                            shadows: [
+                              Shadow(
+                                color: kHomeBlue.withValues(alpha: 0.9),
+                                blurRadius: 12,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'PHÂN TÍCH FARM HEALTH',
+                                style: TextStyle(
+                                  color: kHomeBlueLight,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.0,
+                                  fontSize: 13,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (farmName != null && farmName.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  farmName,
+                                  style: const TextStyle(
+                                    color: CrabSenseColors.textSecondary,
+                                    fontSize: 11.5,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        _SheetCloseButton(onTap: () => Navigator.pop(ctx)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Điểm số + trạng thái
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(14),
+                              decoration: homeTileDecoration(radius: 16),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 76,
+                                    height: 76,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: statusColor,
+                                        width: 4,
+                                      ),
+                                      color:
+                                          statusColor.withValues(alpha: 0.12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: statusColor.withValues(
+                                            alpha: 0.45,
+                                          ),
+                                          blurRadius: 18,
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      '${healthScore.score}',
+                                      style: TextStyle(
+                                        fontSize: 26,
+                                        fontWeight: FontWeight.w800,
+                                        color: statusColor,
+                                        shadows: [
+                                          Shadow(
+                                            color: statusColor.withValues(
+                                              alpha: 0.7,
+                                            ),
+                                            blurRadius: 14,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: statusColor.withValues(
+                                              alpha: 0.14,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                              color: statusColor.withValues(
+                                                alpha: 0.85,
+                                              ),
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: statusColor.withValues(
+                                                  alpha: 0.3,
+                                                ),
+                                                blurRadius: 10,
+                                              ),
+                                            ],
+                                          ),
+                                          child: Text(
+                                            healthScore.statusLabel,
+                                            style: TextStyle(
+                                              color: statusColor,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              deltaPositive
+                                                  ? Icons.trending_up_rounded
+                                                  : Icons
+                                                      .trending_down_rounded,
+                                              size: 16,
+                                              color: deltaColor,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '${deltaPositive ? '+' : ''}'
+                                              '${delta.toStringAsFixed(0)}% '
+                                              'so với hôm qua',
+                                              style: TextStyle(
+                                                color: deltaColor,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Cập nhật AI: '
+                                          '${_formatTime(healthScore.lastAiUpdated)}',
+                                          style: const TextStyle(
+                                            color: CrabSenseColors.hintText,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            // Giải thích từ AI
+                            const _SectionLabel(
+                              icon: Icons.auto_awesome_rounded,
+                              label: 'GIẢI THÍCH TỪ AI',
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: homeTileDecoration(radius: 12),
+                              child: Text(
+                                healthScore.explanation.isNotEmpty
+                                    ? healthScore.explanation
+                                    : 'Chưa có giải thích từ hệ thống.',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  height: 1.45,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            // Chỉ số thành phần
+                            const _SectionLabel(
+                              icon: Icons.stacked_bar_chart_rounded,
+                              label: 'CHỈ SỐ THÀNH PHẦN',
+                            ),
+                            const SizedBox(height: 10),
+                            _FactorBar(
+                              label: 'Chất lượng nước',
+                              score: healthScore.waterQualityScore,
+                              icon: Icons.water_drop_rounded,
+                            ),
+                            const SizedBox(height: 10),
+                            _FactorBar(
+                              label: 'Sức khỏe cua',
+                              score: healthScore.crabHealthScore,
+                              icon: Icons.favorite_rounded,
+                            ),
+                            const SizedBox(height: 10),
+                            _FactorBar(
+                              label: 'Thiết bị IoT',
+                              score: healthScore.deviceStatusScore,
+                              icon: Icons.memory_rounded,
+                            ),
+                            const SizedBox(height: 20),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      Navigator.pop(ctx);
+                                      context.go(RoutePaths.waterQuality);
+                                    },
+                                    icon: const Icon(
+                                      Icons.water_drop_outlined,
+                                      size: 18,
+                                    ),
+                                    label: const Text('Xem nước'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: kHomeBlueLight,
+                                      side: BorderSide(
+                                        color: kHomeBorderBlue.withValues(
+                                          alpha: 0.7,
+                                        ),
+                                      ),
+                                      minimumSize: const Size(48, 44),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      Navigator.pop(ctx);
+                                      context.go(RoutePaths.alerts);
+                                    },
+                                    icon: const Icon(
+                                      Icons.warning_amber_rounded,
+                                      size: 18,
+                                    ),
+                                    label: const Text('Cảnh báo'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: kHomeBlue,
+                                      foregroundColor: Colors.white,
+                                      elevation: 6,
+                                      shadowColor:
+                                          kHomeBlue.withValues(alpha: 0.6),
+                                      minimumSize: const Size(48, 44),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       );
     },
@@ -230,6 +429,81 @@ String _formatTime(DateTime dt) {
   final hh = local.hour.toString().padLeft(2, '0');
   final mm = local.minute.toString().padLeft(2, '0');
   return '$hh:$mm · ${local.day}/${local.month}/${local.year}';
+}
+
+/// Nhãn section in hoa xanh sáng với icon phát sáng.
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 15,
+          color: kHomeBlueLight,
+          shadows: [
+            Shadow(
+              color: kHomeBlueLight.withValues(alpha: 0.8),
+              blurRadius: 10,
+            ),
+          ],
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: kHomeBlueLight,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.0,
+              fontSize: 12,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Nút đóng tròn nhỏ trong bottom sheet.
+class _SheetCloseButton extends StatelessWidget {
+  const _SheetCloseButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: kHomeNavy.withValues(alpha: 0.9),
+            border: Border.all(
+              color: kHomeBorderBlue.withValues(alpha: 0.45),
+            ),
+          ),
+          child: const Icon(
+            Icons.close_rounded,
+            color: CrabSenseColors.hintText,
+            size: 18,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _FactorBar extends StatelessWidget {
@@ -247,7 +521,9 @@ class _FactorBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = score >= 85
         ? CrabSenseColors.success
-        : (score >= 70 ? CrabSenseColors.info : (score >= 50 ? CrabSenseColors.warning : CrabSenseColors.danger));
+        : (score >= 70
+            ? CrabSenseColors.info
+            : (score >= 50 ? CrabSenseColors.warning : CrabSenseColors.danger));
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -257,16 +533,35 @@ class _FactorBar extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 8),
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color.withValues(alpha: 0.14),
+                  border: Border.all(
+                    color: color.withValues(alpha: 0.5),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.35),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+                child: Icon(icon, size: 15, color: color),
+              ),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   label,
                   style: const TextStyle(
-                    color: CrabSenseColors.textPrimary,
+                    color: Colors.white,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               Text(
@@ -275,11 +570,17 @@ class _FactorBar extends StatelessWidget {
                   color: color,
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
+                  shadows: [
+                    Shadow(
+                      color: color.withValues(alpha: 0.6),
+                      blurRadius: 8,
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(

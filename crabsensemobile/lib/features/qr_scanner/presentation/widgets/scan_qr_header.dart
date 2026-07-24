@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 
 /// Top bar for Scan QR: title, farm, torch, flip, album, help.
 class ScanQRHeader extends StatelessWidget {
@@ -30,7 +30,7 @@ class ScanQRHeader extends StatelessWidget {
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
+        padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -41,27 +41,78 @@ class ScanQRHeader extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Scan QR',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              color: CrabSenseColors.textPrimary,
-                              fontWeight: FontWeight.w700,
+                        'QUÉT QR',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              color: kHomeBlueLight,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.2,
+                              shadows: [
+                                Shadow(
+                                  color: kHomeCyan.withValues(alpha: 0.55),
+                                  blurRadius: 12,
+                                ),
+                              ],
                             ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        farmLabel,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: CrabSenseColors.textSecondary,
+                      const SizedBox(height: 6),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: kHomeNavyDeep.withValues(alpha: 0.72),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: kHomeBorderBlue.withValues(alpha: 0.55),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: kHomeBlue.withValues(alpha: 0.2),
+                              blurRadius: 10,
                             ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                          ],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Stack(
+                          children: [
+                            const HomeCrabWatermark(alpha: 0.08, trayExtent: 16),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.location_on_rounded,
+                                    size: 14,
+                                    color: kHomeCyan,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      farmLabel,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
                 _IconBtn(
-                  icon: isTorchOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
-                  tooltip: 'Flash',
+                  icon: isTorchOn
+                      ? Icons.flash_on_rounded
+                      : Icons.flash_off_rounded,
+                  tooltip: 'Đèn flash',
                   active: isTorchOn,
                   onTap: onToggleTorch,
                 ),
@@ -82,27 +133,30 @@ class ScanQRHeader extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Align(
               alignment: Alignment.centerLeft,
               child: FilterChip(
                 selected: continuousScan,
                 onSelected: (_) => onToggleContinuous(),
                 label: Text(
-                  continuousScan ? 'Continuous Scan' : 'Single Scan',
+                  continuousScan ? 'Quét liên tục' : 'Quét một lần',
                   style: TextStyle(
-                    color: continuousScan
-                        ? CrabSenseColors.background
-                        : CrabSenseColors.textSecondary,
+                    color: continuousScan ? Colors.white : Colors.white70,
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                selectedColor: CrabSenseColors.primary,
-                backgroundColor: CrabSenseColors.container.withValues(alpha: 0.72),
-                side: BorderSide(color: CrabSenseColors.border),
+                selectedColor: kHomeBlue.withValues(alpha: 0.45),
+                backgroundColor: kHomeNavyDeep.withValues(alpha: 0.72),
+                side: BorderSide(
+                  color: continuousScan
+                      ? kHomeCyan.withValues(alpha: 0.8)
+                      : kHomeBorderBlue.withValues(alpha: 0.45),
+                ),
                 showCheckmark: false,
                 visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
           ],
@@ -132,14 +186,21 @@ class _IconBtn extends StatelessWidget {
       child: IconButton(
         tooltip: tooltip,
         onPressed: onTap,
+        visualDensity: VisualDensity.compact,
         style: IconButton.styleFrom(
           backgroundColor: active
-              ? CrabSenseColors.primary.withValues(alpha: 0.22)
-              : CrabSenseColors.surface.withValues(alpha: 0.55),
-          foregroundColor:
-              active ? CrabSenseColors.primary : CrabSenseColors.textPrimary,
+              ? kHomeBlue.withValues(alpha: 0.28)
+              : kHomeNavyDeep.withValues(alpha: 0.65),
+          foregroundColor: active ? kHomeCyan : kHomeBlueLight,
+          side: BorderSide(
+            color: active
+                ? kHomeCyan.withValues(alpha: 0.7)
+                : kHomeBorderBlue.withValues(alpha: 0.45),
+          ),
+          shadowColor: active ? kHomeCyan.withValues(alpha: 0.45) : null,
+          elevation: active ? 4 : 0,
         ),
-        icon: Icon(icon, size: 22),
+        icon: Icon(icon, size: 20),
       ),
     );
   }

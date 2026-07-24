@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../app/theme.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../shared/widgets/errors/error_state_widget.dart';
 import '../../../../shared/widgets/loading/skeleton_loader.dart';
@@ -55,7 +55,7 @@ class _AlertView extends StatelessWidget {
       final activeFilters = _activeFilters(state);
 
       return Scaffold(
-        backgroundColor: CrabSenseColors.background,
+        backgroundColor: kHomeNavyDeep,
         appBar: _buildAppBar(context, unreadCount),
         body: Column(
           children: [
@@ -74,15 +74,23 @@ class _AlertView extends StatelessWidget {
     title: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text('Alerts'),
+        const Text(
+          'CẢNH BÁO',
+          style: TextStyle(
+            color: kHomeBlueLight,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1,
+          ),
+        ),
         if (unreadCount > 0) ...[
           const SizedBox(width: 8),
           _UnreadBadge(count: unreadCount),
         ],
       ],
     ),
-    backgroundColor: CrabSenseColors.surface,
-    foregroundColor: CrabSenseColors.textPrimary,
+    backgroundColor: kHomeNavy,
+    foregroundColor: kHomeBlueLight,
+    elevation: 0,
   );
 
   Widget _buildBody(BuildContext context, AlertState state) {
@@ -93,7 +101,7 @@ class _AlertView extends StatelessWidget {
     if (state is AlertError) {
       return ErrorStateWidget(
         icon: state.isOffline ? Icons.wifi_off : Icons.error_outline,
-        title: state.isOffline ? 'No Connection' : 'Something went wrong',
+        title: state.isOffline ? 'Không có kết nối' : 'Đã xảy ra lỗi',
         message: state.message,
         onRetry: () =>
             context.read<AlertBloc>().add(const AlertLoadRequested()),
@@ -147,7 +155,7 @@ class _UnreadBadge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
     decoration: BoxDecoration(
-      color: CrabSenseColors.error,
+      color: Colors.redAccent,
       borderRadius: BorderRadius.circular(10),
     ),
     child: Text(
@@ -174,7 +182,7 @@ class _FilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    color: CrabSenseColors.surface,
+    color: kHomeNavy,
     padding: const EdgeInsets.symmetric(vertical: 8),
     child: SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -183,30 +191,30 @@ class _FilterBar extends StatelessWidget {
         children: [
           // ── Severity filters ─────────────────────────────────────
           _FilterChip(
-            label: 'All',
+            label: 'Tất cả',
             selected: activeFilters.severity == null,
-            color: CrabSenseColors.primary,
+            color: kHomeCyan,
             onTap: () => _setSeverity(context, null),
           ),
           const SizedBox(width: 8),
           _FilterChip(
-            label: 'Critical',
+            label: 'Nghiêm trọng',
             selected: activeFilters.severity == AlertSeverity.critical,
-            color: CrabSenseColors.error,
+            color: Colors.redAccent,
             onTap: () => _setSeverity(context, AlertSeverity.critical),
           ),
           const SizedBox(width: 8),
           _FilterChip(
-            label: 'Warning',
+            label: 'Cảnh báo',
             selected: activeFilters.severity == AlertSeverity.warning,
-            color: CrabSenseColors.warning,
+            color: kHomeOrange,
             onTap: () => _setSeverity(context, AlertSeverity.warning),
           ),
           const SizedBox(width: 8),
           _FilterChip(
-            label: 'Info',
+            label: 'Thông tin',
             selected: activeFilters.severity == AlertSeverity.info,
-            color: CrabSenseColors.info,
+            color: kHomeBlueLight,
             onTap: () => _setSeverity(context, AlertSeverity.info),
           ),
 
@@ -215,28 +223,28 @@ class _FilterBar extends StatelessWidget {
             margin: const EdgeInsets.symmetric(horizontal: 12),
             width: 1,
             height: 24,
-            color: CrabSenseColors.outline,
+            color: kHomeBorderBlue,
           ),
 
           // ── Status filters ───────────────────────────────────────
           _FilterChip(
             label: 'Unread',
             selected: activeFilters.status == AlertStatus.unread,
-            color: CrabSenseColors.primary,
+            color: kHomeCyan,
             onTap: () => _setStatus(context, AlertStatus.unread),
           ),
           const SizedBox(width: 8),
           _FilterChip(
             label: 'Read',
             selected: activeFilters.status == AlertStatus.read,
-            color: CrabSenseColors.textSecondary,
+            color: Colors.white70,
             onTap: () => _setStatus(context, AlertStatus.read),
           ),
           const SizedBox(width: 8),
           _FilterChip(
             label: 'Acknowledged',
             selected: activeFilters.status == AlertStatus.acknowledged,
-            color: CrabSenseColors.success,
+            color: kHomeGreen,
             onTap: () => _setStatus(context, AlertStatus.acknowledged),
           ),
 
@@ -245,7 +253,7 @@ class _FilterBar extends StatelessWidget {
             margin: const EdgeInsets.symmetric(horizontal: 12),
             width: 1,
             height: 24,
-            color: CrabSenseColors.outline,
+            color: kHomeBorderBlue,
           ),
 
           // ── Type filters ─────────────────────────────────────────
@@ -253,7 +261,7 @@ class _FilterBar extends StatelessWidget {
             _FilterChip(
               label: type.displayName,
               selected: activeFilters.type == type,
-              color: CrabSenseColors.primary,
+              color: kHomeCyan,
               onTap: () => _setType(context, type),
             ),
             const SizedBox(width: 8),
@@ -329,17 +337,17 @@ class _FilterChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: selected
             ? color.withValues(alpha: 0.2)
-            : CrabSenseColors.surfaceVariant,
+            : kHomeNavyLift,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: selected ? color : CrabSenseColors.outline,
+          color: selected ? color : kHomeBorderBlue,
           width: selected ? 1.5 : 1,
         ),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: selected ? color : CrabSenseColors.textSecondary,
+          color: selected ? color : Colors.white70,
           fontSize: 12,
           fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
           fontFamily: 'Inter',
@@ -366,8 +374,8 @@ class _AlertListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => RefreshIndicator(
-    color: CrabSenseColors.primary,
-    backgroundColor: CrabSenseColors.surface,
+    color: kHomeCyan,
+    backgroundColor: kHomeNavy,
     onRefresh: () async {
       context.read<AlertBloc>().add(const AlertRefreshRequested());
       await context.read<AlertBloc>().stream.firstWhere(
@@ -418,19 +426,19 @@ class _OfflineBanner extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
     decoration: BoxDecoration(
-      color: CrabSenseColors.warning.withValues(alpha: 0.15),
+      color: kHomeOrange.withValues(alpha: 0.15),
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: CrabSenseColors.warning.withValues(alpha: 0.4)),
+      border: Border.all(color: kHomeOrange.withValues(alpha: 0.4)),
     ),
     child: Row(
       children: [
-        const Icon(Icons.wifi_off, size: 16, color: CrabSenseColors.warning),
+        const Icon(Icons.wifi_off, size: 16, color: kHomeOrange),
         const SizedBox(width: 8),
         Text(
           'Showing cached alerts — changes will sync when online',
           style: Theme.of(
             context,
-          ).textTheme.bodySmall?.copyWith(color: CrabSenseColors.warning),
+          ).textTheme.bodySmall?.copyWith(color: kHomeOrange),
         ),
       ],
     ),
@@ -454,13 +462,13 @@ class _EmptyState extends StatelessWidget {
             const Icon(
               Icons.notifications_none_rounded,
               size: 64,
-              color: CrabSenseColors.textDisabled,
+              color: Colors.white38,
             ),
             const SizedBox(height: 16),
             Text(
               'No alerts',
               style: theme.textTheme.titleMedium?.copyWith(
-                color: CrabSenseColors.textPrimary,
+                color: Colors.white,
               ),
             ),
             const SizedBox(height: 8),
@@ -468,7 +476,7 @@ class _EmptyState extends StatelessWidget {
               "You're all caught up. No alerts match the current filters.",
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: CrabSenseColors.textSecondary,
+                color: Colors.white70,
               ),
             ),
           ],

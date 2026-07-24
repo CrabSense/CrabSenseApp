@@ -62,7 +62,7 @@ dependencies:
   dio: ^5.4.0
   
   # HTTP Client (for simple requests)
-  http: ^1.1.0
+  http: ^1.6.0
   
   # Camera & Media
   camera: ^0.10.5+5
@@ -114,6 +114,12 @@ dependencies:
   
   # Cryptographic Functions
   crypto: ^3.0.3
+  share_plus: ^12.0.2
+  google_sign_in: ^7.2.0
+  url_launcher: ^6.3.2
+  firebase_auth: ^4.16.0
+  firebase_storage: ^11.6.5
+  firebase_crashlytics: ^3.5.7
   
   # Error Tracking (optional)
   # sentry_flutter: ^7.13.2

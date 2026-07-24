@@ -9,7 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:logger/logger.dart';
 
 import '../../../../app/routes.dart';
-import '../../../../app/theme.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../../../core/di/injection.dart';
 import '../../../box/domain/entities/box_enums.dart';
 import '../../../video_capture/domain/entities/ai_detection.dart';
@@ -79,11 +79,19 @@ class _InspectionView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: CrabSenseColors.background,
+    backgroundColor: kHomeNavyDeep,
     appBar: AppBar(
-      title: const Text('Manual Inspection'),
-      backgroundColor: CrabSenseColors.surface,
-      foregroundColor: CrabSenseColors.textPrimary,
+      title: const Text(
+        'KIỂM TRA THỦ CÔNG',
+        style: TextStyle(
+          color: kHomeBlueLight,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1,
+        ),
+      ),
+      backgroundColor: kHomeNavy,
+      foregroundColor: kHomeBlueLight,
+      elevation: 0,
     ),
     body: BlocConsumer<InspectionBloc, InspectionState>(
       listener: _onStateChange,
@@ -96,8 +104,8 @@ class _InspectionView extends StatelessWidget {
       if (state.isSubmitted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Inspection submitted successfully'),
-            backgroundColor: CrabSenseColors.success,
+            content: Text('Đã gửi phiếu kiểm tra thành công'),
+            backgroundColor: kHomeGreen,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -109,7 +117,7 @@ class _InspectionView extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(state.submissionError!),
-            backgroundColor: CrabSenseColors.error,
+            backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -118,7 +126,7 @@ class _InspectionView extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(state.aiFeedbackError!),
-            backgroundColor: CrabSenseColors.error,
+            backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -128,7 +136,7 @@ class _InspectionView extends StatelessWidget {
 
   Widget _buildBody(BuildContext context, InspectionState state) {
     if (state is InspectionInitial) {
-      return const Center(child: CircularProgressIndicator(color: CrabSenseColors.primary));
+      return const Center(child: CircularProgressIndicator(color: kHomeCyan));
     }
     if (state is InspectionFormState) {
       return _InspectionForm(
@@ -138,7 +146,7 @@ class _InspectionView extends StatelessWidget {
         state: state,
       );
     }
-    return const Center(child: CircularProgressIndicator(color: CrabSenseColors.primary));
+    return const Center(child: CircularProgressIndicator(color: kHomeCyan));
   }
 }
 
@@ -213,7 +221,7 @@ class _InspectionFormState extends State<_InspectionForm> {
             const SizedBox(height: 16),
           ],
           // 2. Molting status
-          const _SectionLabel(label: 'Molting Status *'),
+          const _SectionLabel(label: 'Trạng thái lột xác *'),
           const SizedBox(height: 8),
           _MoltingDropdown(current: state.moltingStatus),
           const SizedBox(height: 16),
@@ -221,22 +229,22 @@ class _InspectionFormState extends State<_InspectionForm> {
           const _InspectionChecklistWidget(),
           const SizedBox(height: 16),
           // 3. Health condition
-          const _SectionLabel(label: 'Health Condition *'),
+          const _SectionLabel(label: 'Tình trạng sức khỏe *'),
           const SizedBox(height: 8),
           _HealthDropdown(current: state.healthStatus),
           const SizedBox(height: 16),
           // 4. Weight input
-          const _SectionLabel(label: 'Weight (grams) *'),
+          const _SectionLabel(label: 'Khối lượng (gram) *'),
           const SizedBox(height: 8),
           _WeightInput(controller: _weightController, errorText: state.weightError),
           const SizedBox(height: 16),
           // 5. Notes
-          const _SectionLabel(label: 'Notes (optional)'),
+          const _SectionLabel(label: 'Ghi chú (tuỳ chọn)'),
           const SizedBox(height: 8),
           _NotesInput(controller: _notesController),
           const SizedBox(height: 16),
           // 6. Photo capture
-          const _SectionLabel(label: 'Photos (optional)'),
+          const _SectionLabel(label: 'Ảnh (tuỳ chọn)'),
           const SizedBox(height: 8),
           _PhotoCaptureWidget(photoPaths: state.photoPaths, atLimit: state.photosAtLimit),
           const SizedBox(height: 16),
@@ -282,24 +290,24 @@ class _AiComparisonPanel extends StatelessWidget {
       case MoltingStatus.preMolt:
         return const Color(0xFFFFD54F);
       case MoltingStatus.molting:
-        return CrabSenseColors.warning;
+        return kHomeOrange;
       case MoltingStatus.postMolt:
-        return CrabSenseColors.success;
+        return kHomeGreen;
       case MoltingStatus.hardShell:
-        return CrabSenseColors.primary;
+        return kHomeCyan;
     }
   }
 
   Color _healthColor(HealthStatus s) {
     switch (s) {
       case HealthStatus.normal:
-        return CrabSenseColors.success;
+        return kHomeGreen;
       case HealthStatus.disease:
-        return CrabSenseColors.error;
+        return Colors.redAccent;
       case HealthStatus.stress:
-        return CrabSenseColors.warning;
+        return kHomeOrange;
       case HealthStatus.unknown:
-        return CrabSenseColors.textSecondary;
+        return Colors.white70;
     }
   }
 
@@ -312,12 +320,12 @@ class _AiComparisonPanel extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.smart_toy_outlined, color: CrabSenseColors.primary, size: 18),
+              Icon(Icons.smart_toy_outlined, color: kHomeCyan, size: 18),
               SizedBox(width: 8),
               Text(
-                'AI Detection Results (for comparison)',
+                'Kết quả AI (để so sánh)',
                 style: TextStyle(
-                  color: CrabSenseColors.primary,
+                  color: kHomeCyan,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -339,7 +347,7 @@ class _AiComparisonPanel extends StatelessWidget {
               const Spacer(),
               Text(
                 '${detection.confidencePercent}% confidence',
-                style: const TextStyle(color: CrabSenseColors.textSecondary, fontSize: 12),
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
             ],
           ),
@@ -404,7 +412,7 @@ class _SkeletonLine extends StatelessWidget {
     width: width,
     height: height,
     decoration: BoxDecoration(
-      color: CrabSenseColors.surfaceVariant,
+      color: kHomeNavyLift,
       borderRadius: BorderRadius.circular(4),
     ),
   );
@@ -423,7 +431,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) => Text(
     label,
     style: const TextStyle(
-      color: CrabSenseColors.textSecondary,
+      color: Colors.white70,
       fontSize: 13,
       fontWeight: FontWeight.w500,
     ),
@@ -438,14 +446,14 @@ class _MoltingDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DropdownButtonFormField<MoltingStatus>(
     initialValue: current,
-    decoration: const InputDecoration(hintText: 'Select molting status'),
-    dropdownColor: CrabSenseColors.surface,
-    style: const TextStyle(color: CrabSenseColors.textPrimary),
+    decoration: const InputDecoration(hintText: 'Chọn trạng thái lột xác'),
+    dropdownColor: kHomeNavy,
+    style: const TextStyle(color: Colors.white),
     items: MoltingStatus.values
         .map(
           (s) => DropdownMenuItem(
             value: s,
-            child: Text(s.displayName, style: const TextStyle(color: CrabSenseColors.textPrimary)),
+            child: Text(s.displayName, style: const TextStyle(color: Colors.white)),
           ),
         )
         .toList(),
@@ -465,14 +473,14 @@ class _HealthDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DropdownButtonFormField<HealthStatus>(
     initialValue: current,
-    decoration: const InputDecoration(hintText: 'Select health condition'),
-    dropdownColor: CrabSenseColors.surface,
-    style: const TextStyle(color: CrabSenseColors.textPrimary),
+    decoration: const InputDecoration(hintText: 'Chọn tình trạng sức khỏe'),
+    dropdownColor: kHomeNavy,
+    style: const TextStyle(color: Colors.white),
     items: HealthStatus.values
         .map(
           (s) => DropdownMenuItem(
             value: s,
-            child: Text(s.displayName, style: const TextStyle(color: CrabSenseColors.textPrimary)),
+            child: Text(s.displayName, style: const TextStyle(color: Colors.white)),
           ),
         )
         .toList(),
@@ -495,12 +503,12 @@ class _WeightInput extends StatelessWidget {
     controller: controller,
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
     inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
-    style: const TextStyle(color: CrabSenseColors.textPrimary),
+    style: const TextStyle(color: Colors.white),
     decoration: InputDecoration(
       hintText: 'e.g. 150.5',
       errorText: errorText,
       suffixText: 'g',
-      suffixStyle: const TextStyle(color: CrabSenseColors.textSecondary),
+      suffixStyle: const TextStyle(color: Colors.white70),
     ),
     onChanged: (value) => context.read<InspectionBloc>().add(UpdateWeight(value: value)),
   );
@@ -515,9 +523,9 @@ class _NotesInput extends StatelessWidget {
   Widget build(BuildContext context) => TextFormField(
     controller: controller,
     maxLines: 4,
-    style: const TextStyle(color: CrabSenseColors.textPrimary),
+    style: const TextStyle(color: Colors.white),
     decoration: const InputDecoration(
-      hintText: 'Add any observations or notes...',
+      hintText: 'Thêm quan sát hoặc ghi chú...',
       alignLabelWithHint: true,
     ),
     onChanged: (value) => context.read<InspectionBloc>().add(UpdateNotes(notes: value)),
@@ -562,18 +570,18 @@ class _PhotoCaptureWidget extends StatelessWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: CrabSenseColors.surfaceVariant,
+                  color: kHomeNavyLift,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: CrabSenseColors.primary.withValues(alpha: 0.4)),
+                  border: Border.all(color: kHomeCyan.withValues(alpha: 0.4)),
                 ),
                 child: const Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.add_a_photo_outlined, color: CrabSenseColors.primary, size: 24),
+                    Icon(Icons.add_a_photo_outlined, color: kHomeCyan, size: 24),
                     SizedBox(height: 4),
                     Text(
-                      'Add Photo',
-                      style: TextStyle(color: CrabSenseColors.primary, fontSize: 10),
+                      'Thêm ảnh',
+                      style: TextStyle(color: kHomeCyan, fontSize: 10),
                     ),
                   ],
                 ),
@@ -606,8 +614,8 @@ class _PhotoThumbnail extends StatelessWidget {
             errorBuilder: (_, _, _) => Container(
               width: 80,
               height: 80,
-              color: CrabSenseColors.surfaceVariant,
-              child: const Icon(Icons.broken_image_outlined, color: CrabSenseColors.textSecondary),
+              color: kHomeNavyLift,
+              child: const Icon(Icons.broken_image_outlined, color: Colors.white70),
             ),
           ),
         ),
@@ -619,7 +627,7 @@ class _PhotoThumbnail extends StatelessWidget {
             child: Container(
               width: 20,
               height: 20,
-              decoration: const BoxDecoration(color: CrabSenseColors.error, shape: BoxShape.circle),
+              decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
               child: const Icon(Icons.close, color: Colors.white, size: 12),
             ),
           ),
@@ -648,17 +656,17 @@ class _AiFeedbackSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Was the AI result accurate?',
+            'Kết quả AI có chính xác không?',
             style: TextStyle(
-              color: CrabSenseColors.textPrimary,
+              color: Colors.white,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 4),
           const Text(
-            'Your feedback helps improve AI accuracy',
-            style: TextStyle(color: CrabSenseColors.textSecondary, fontSize: 12),
+            'Phản hồi của bạn giúp cải thiện độ chính xác AI',
+            style: TextStyle(color: Colors.white70, fontSize: 12),
           ),
           const SizedBox(height: 12),
           // Feedback already submitted
@@ -668,19 +676,19 @@ class _AiFeedbackSection extends StatelessWidget {
                 Icon(
                   state.aiFeedbackSubmitted! ? Icons.check_circle_rounded : Icons.cancel_rounded,
                   color: state.aiFeedbackSubmitted!
-                      ? CrabSenseColors.success
-                      : CrabSenseColors.error,
+                      ? kHomeGreen
+                      : Colors.redAccent,
                   size: 18,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   state.aiFeedbackSubmitted!
-                      ? 'You marked this as Correct'
-                      : 'You marked this as Incorrect',
+                      ? 'Bạn đánh dấu là Đúng'
+                      : 'Bạn đánh dấu là Sai',
                   style: TextStyle(
                     color: state.aiFeedbackSubmitted!
-                        ? CrabSenseColors.success
-                        : CrabSenseColors.error,
+                        ? kHomeGreen
+                        : Colors.redAccent,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -688,7 +696,7 @@ class _AiFeedbackSection extends StatelessWidget {
               ],
             ),
           ] else if (state.aiFeedbackSubmitting) ...[
-            const Center(child: CircularProgressIndicator(color: CrabSenseColors.primary)),
+            const Center(child: CircularProgressIndicator(color: kHomeCyan)),
           ] else ...[
             Row(
               children: [
@@ -703,9 +711,9 @@ class _AiFeedbackSection extends StatelessWidget {
                       ),
                     ),
                     icon: const Icon(Icons.thumb_up_alt_rounded, size: 16),
-                    label: const Text('Correct'),
+                    label: const Text('Đúng'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: CrabSenseColors.success,
+                      backgroundColor: kHomeGreen,
                       foregroundColor: Colors.white,
                     ),
                   ),
@@ -722,10 +730,10 @@ class _AiFeedbackSection extends StatelessWidget {
                       ),
                     ),
                     icon: const Icon(Icons.thumb_down_alt_rounded, size: 16),
-                    label: const Text('Incorrect'),
+                    label: const Text('Sai'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: CrabSenseColors.error,
-                      side: const BorderSide(color: CrabSenseColors.error),
+                      foregroundColor: Colors.redAccent,
+                      side: const BorderSide(color: Colors.redAccent),
                     ),
                   ),
                 ),
@@ -772,7 +780,7 @@ class _SubmitButton extends StatelessWidget {
               child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2.5),
             )
           : const Text(
-              'Submit Inspection',
+              'Gửi kiểm tra',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
     ),
@@ -797,12 +805,12 @@ class _AgreementRateWidget extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.analytics_outlined, color: CrabSenseColors.primary, size: 18),
+              Icon(Icons.analytics_outlined, color: kHomeCyan, size: 18),
               SizedBox(width: 8),
               Text(
-                'AI Agreement Rate',
+                'Tỷ lệ đồng thuận AI',
                 style: TextStyle(
-                  color: CrabSenseColors.primary,
+                  color: kHomeCyan,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -815,8 +823,8 @@ class _AgreementRateWidget extends StatelessWidget {
               Expanded(
                 child: LinearProgressIndicator(
                   value: agreementRate,
-                  backgroundColor: CrabSenseColors.surfaceVariant,
-                  color: CrabSenseColors.success,
+                  backgroundColor: kHomeNavyLift,
+                  color: kHomeGreen,
                   minHeight: 8,
                   borderRadius: BorderRadius.circular(4),
                 ),
@@ -825,7 +833,7 @@ class _AgreementRateWidget extends StatelessWidget {
               Text(
                 '${(agreementRate * 100).toStringAsFixed(0)}%',
                 style: const TextStyle(
-                  color: CrabSenseColors.textPrimary,
+                  color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -834,8 +842,8 @@ class _AgreementRateWidget extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'How often you and AI agree on detection results',
-            style: TextStyle(color: CrabSenseColors.textSecondary, fontSize: 12),
+            'Tần suất bạn và AI đồng thuận kết quả phát hiện',
+            style: TextStyle(color: Colors.white70, fontSize: 12),
           ),
         ],
       ),
@@ -855,9 +863,9 @@ class _GlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DecoratedBox(
     decoration: BoxDecoration(
-      color: CrabSenseColors.surface,
+      color: kHomeNavy,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: CrabSenseColors.primary.withValues(alpha: 0.2)),
+      border: Border.all(color: kHomeCyan.withValues(alpha: 0.2)),
     ),
     child: child,
   );
@@ -890,34 +898,34 @@ class _InspectionChecklistWidgetState extends State<_InspectionChecklistWidget> 
           children: [
             const Text(
               'Checklist Hiện Trường (4 Tiêu chí)',
-              style: TextStyle(color: CrabSenseColors.primary, fontWeight: FontWeight.bold, fontSize: 13),
+              style: TextStyle(color: kHomeCyan, fontWeight: FontWeight.bold, fontSize: 13),
             ),
             const SizedBox(height: 6),
             CheckboxListTile(
               value: _isSoftShell,
               dense: true,
-              activeColor: CrabSenseColors.primary,
+              activeColor: kHomeCyan,
               title: const Text('Vỏ mềm (Softshell sẵn sàng)', style: TextStyle(color: Colors.white, fontSize: 12)),
               onChanged: (val) => setState(() => _isSoftShell = val ?? false),
             ),
             CheckboxListTile(
               value: _hasGoodReflex,
               dense: true,
-              activeColor: CrabSenseColors.primary,
+              activeColor: kHomeCyan,
               title: const Text('Phản xạ tốt (Khỏe mạnh)', style: TextStyle(color: Colors.white, fontSize: 12)),
               onChanged: (val) => setState(() => _hasGoodReflex = val ?? false),
             ),
             CheckboxListTile(
               value: _hasDoubleLine,
               dense: true,
-              activeColor: CrabSenseColors.primary,
+              activeColor: kHomeCyan,
               title: const Text('Thấy đường đôi (Double line - Sắp lột)', style: TextStyle(color: Colors.white, fontSize: 12)),
               onChanged: (val) => setState(() => _hasDoubleLine = val ?? false),
             ),
             CheckboxListTile(
               value: _isMolted,
               dense: true,
-              activeColor: CrabSenseColors.primary,
+              activeColor: kHomeCyan,
               title: const Text('Đã lột vỏ xong (Post-molt)', style: TextStyle(color: Colors.white, fontSize: 12)),
               onChanged: (val) => setState(() => _isMolted = val ?? false),
             ),

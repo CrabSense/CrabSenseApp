@@ -61,11 +61,13 @@ class ProfileRepositoryImpl implements ProfileRepository {
         _fetchFarms(userId),
         _fetchDevices(),
         _fetchBoxes(),
+        _fetchAiSummary(),
       ].map((p) => p.catchError((_) => null)));
 
       final farmsList = results[0] as List<FarmSummaryItem>? ?? const [];
       final deviceSummary = results[1] as DeviceSummary?;
       final boxCounts = results[2] as Map<String, int>?;
+      final aiSummary = results[3] as AISummary?;
 
       final roleStr = userInfo?['role']?.toString().toLowerCase() ?? 'staff';
       UserRole userRole = UserRole.operator;
@@ -78,6 +80,11 @@ class ProfileRepositoryImpl implements ProfileRepository {
       final fullName = userInfo?['fullName'] as String? ?? userInfo?['name'] as String? ?? userInfo?['username'] as String? ?? 'Chưa cập nhật';
       final email = userInfo?['email'] as String? ?? userInfo?['username'] as String? ?? '';
       final currentFarmName = farmsList.isNotEmpty ? farmsList.first.name : 'Chưa có trang trại';
+      DateTime joinedDate = now;
+      final createdRaw = userInfo?['createdAt']?.toString();
+      if (createdRaw != null && createdRaw.isNotEmpty) {
+        joinedDate = DateTime.tryParse(createdRaw) ?? now;
+      }
 
       final profileSummary = ProfileSummary(
         userId: userId ?? '',
@@ -88,8 +95,9 @@ class ProfileRepositoryImpl implements ProfileRepository {
         role: userRole,
         currentFarm: currentFarmName,
         isOnline: true,
-        joinedDate: now,
-        status: 'Đang hoạt động',
+        joinedDate: joinedDate,
+        status: userInfo?['isActive'] == false ? 'Ngưng hoạt động' : 'Đang hoạt động',
+        avatarUrl: userInfo?['avatarUrl']?.toString(),
       );
 
       final farmManagementSummary = FarmManagementSummary(
@@ -110,15 +118,16 @@ class ProfileRepositoryImpl implements ProfileRepository {
         profile: profileSummary,
         farmManagement: farmManagementSummary,
         devices: deviceSummary ?? emptyDeviceSummary,
-        aiSummary: const AISummary(
-          detectionHistoryCount: 0,
-          recommendationHistoryCount: 0,
-          modelVersion: 'v2.4.1',
-          modelStatus: 'Chờ kết nối AI',
-          feedbackCount: 0,
-          trainingInfo: 'N/A',
-          avgConfidencePercentage: 0,
-        ),
+        aiSummary: aiSummary ??
+            const AISummary(
+              detectionHistoryCount: 0,
+              recommendationHistoryCount: 0,
+              modelVersion: 'crabsense-ai-v1',
+              modelStatus: 'Sẵn sàng',
+              feedbackCount: 0,
+              trainingInfo: 'Rules engine + dữ liệu trang trại',
+              avgConfidencePercentage: 0,
+            ),
         reports: ReportSummary(
           totalReportsAvailable: 0,
           lastGeneratedReport: now,
@@ -285,6 +294,68 @@ class ProfileRepositoryImpl implements ProfileRepository {
     return null;
   }
 
+  @override
+  Future<ProfileSummary> updateProfile({
+    required String fullName,
+    required String email,
+    String? phone,
+    String? employeeId,
+    String? avatarUrl,
+  }) async {
+    final res = await _dio.put(
+      '${ApiConstants.apiBaseUrl}${ApiConstants.updateProfile}',
+      data: {
+        'fullName': fullName,
+        'email': email,
+        'phone': phone,
+        'employeeId': employeeId,
+        'avatarUrl': avatarUrl,
+      },
+    );
+    if (res.statusCode != 200 || res.data == null) {
+      throw Exception('Không cập nhật được hồ sơ');
+    }
+    final raw = res.data is Map<String, dynamic> ? res.data['data'] ?? res.data : null;
+    if (raw is! Map<String, dynamic>) {
+      throw Exception('Phản hồi hồ sơ không hợp lệ');
+    }
+
+    final roleStr = raw['role']?.toString().toLowerCase() ?? 'staff';
+    UserRole userRole = UserRole.operator;
+    if (roleStr.contains('owner') || roleStr.contains('manager')) {
+      userRole = UserRole.manager;
+    } else if (roleStr.contains('admin')) {
+      userRole = UserRole.admin;
+    }
+
+    final joined = DateTime.tryParse(raw['createdAt']?.toString() ?? '') ??
+        _cachedData?.profile.joinedDate ??
+        DateTime.now();
+
+    final updated = ProfileSummary(
+      userId: raw['id']?.toString() ?? _cachedData?.profile.userId ?? '',
+      fullName: raw['fullName']?.toString() ?? fullName,
+      email: raw['email']?.toString() ?? email,
+      phone: raw['phone']?.toString() ?? phone ?? '',
+      employeeId: raw['employeeId']?.toString() ?? employeeId ?? '',
+      role: userRole,
+      currentFarm: _cachedData?.profile.currentFarm ?? 'Chưa có trang trại',
+      isOnline: true,
+      joinedDate: joined,
+      status: raw['isActive'] == false ? 'Ngưng hoạt động' : 'Đang hoạt động',
+      avatarUrl: raw['avatarUrl']?.toString() ?? avatarUrl,
+    );
+
+    if (_cachedData != null) {
+      _cachedData = _cachedData!.copyWith(
+        profile: updated,
+        isOfflineCached: false,
+        lastSyncedAt: DateTime.now(),
+      );
+    }
+    return updated;
+  }
+
   Future<List<FarmSummaryItem>?> _fetchFarms([String? ownerId]) async {
     final queryParams = ownerId != null && ownerId.isNotEmpty ? {'ownerId': ownerId} : null;
     final res = await _dio.get('${ApiConstants.apiBaseUrl}${ApiConstants.farmingAreas}', queryParameters: queryParams);
@@ -421,6 +492,52 @@ class ProfileRepositoryImpl implements ProfileRepository {
       }
     } catch (_) {}
     return null;
+  }
+
+  Future<AISummary?> _fetchAiSummary() async {
+    try {
+      final results = await Future.wait([
+        _dio.get('${ApiConstants.apiBaseUrl}${ApiConstants.aiDetections}'),
+        _dio.get('${ApiConstants.apiBaseUrl}${ApiConstants.aiRecommendations}'),
+      ]);
+
+      final detList = _extractList(results[0].data) ?? const [];
+      final recList = _extractList(results[1].data) ?? const [];
+
+      var confSum = 0.0;
+      var confN = 0;
+      var model = 'crabsense-ai-v1';
+      for (final item in detList) {
+        if (item is! Map) continue;
+        final map = Map<String, dynamic>.from(item);
+        final conf = (map['confidence'] as num?)?.toDouble();
+        if (conf != null) {
+          confSum += conf <= 1 ? conf * 100 : conf;
+          confN++;
+        }
+        final mv = map['modelVersion']?.toString();
+        if (mv != null && mv.isNotEmpty) model = mv;
+      }
+
+      final activeRecs = recList.where((item) {
+        if (item is! Map) return false;
+        final map = Map<String, dynamic>.from(item);
+        return map['hasActiveRecommendation'] != false;
+      }).length;
+
+      return AISummary(
+        detectionHistoryCount: detList.length,
+        recommendationHistoryCount: activeRecs,
+        modelVersion: model,
+        modelStatus: detList.isEmpty ? 'Sẵn sàng' : 'Đang hoạt động',
+        feedbackCount: 0,
+        trainingInfo: 'Rules engine + tín hiệu trang trại realtime',
+        avgConfidencePercentage:
+            confN == 0 ? 0 : double.parse((confSum / confN).toStringAsFixed(1)),
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   ProfileStateData _emptyProfileState() {

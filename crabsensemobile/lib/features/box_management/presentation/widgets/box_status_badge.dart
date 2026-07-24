@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/boxes_models.dart';
 
 class BoxStatusBadge extends StatelessWidget {
@@ -72,9 +73,9 @@ class AIHealthBadge extends StatelessWidget {
             vertical: compact ? 6 : 8,
           ),
           decoration: BoxDecoration(
-            color: CrabSenseColors.container.withValues(alpha: 0.7),
+            color: kHomeNavyDeep.withValues(alpha: 0.75),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: CrabSenseColors.border),
+            border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.4)),
           ),
           child: Row(
             children: [
@@ -92,16 +93,15 @@ class AIHealthBadge extends StatelessWidget {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: color.withValues(alpha: 0.25),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+                      color: color.withValues(alpha: 0.35),
+                      blurRadius: 10,
                     ),
                   ],
                 ),
                 child: Text(
                   '${healthScore.score}',
                   style: TextStyle(
-                    color: CrabSenseColors.textPrimary,
+                    color: Colors.white,
                     fontWeight: FontWeight.w800,
                     fontSize: compact ? 12 : 13,
                   ),
@@ -115,7 +115,7 @@ class AIHealthBadge extends StatelessWidget {
                     Text(
                       'Health Score',
                       style: TextStyle(
-                        color: CrabSenseColors.hintText,
+                        color: Colors.white.withValues(alpha: 0.45),
                         fontSize: compact ? 9 : 10,
                       ),
                     ),
@@ -125,7 +125,7 @@ class AIHealthBadge extends StatelessWidget {
                         Text(
                           'AI ${healthScore.aiConfidence.round()}%',
                           style: TextStyle(
-                            color: CrabSenseColors.textSecondary,
+                            color: Colors.white.withValues(alpha: 0.75),
                             fontSize: compact ? 10 : 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -154,10 +154,10 @@ class AIHealthBadge extends StatelessWidget {
                 ),
               ),
               if (onExplain != null)
-                const Icon(
+                Icon(
                   Icons.info_outline_rounded,
                   size: 16,
-                  color: CrabSenseColors.hintText,
+                  color: Colors.white.withValues(alpha: 0.4),
                 ),
             ],
           ),

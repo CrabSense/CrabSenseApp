@@ -1,23 +1,35 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../../../shared/widgets/loading/skeleton_loader.dart';
 
 /// Skeleton bottom sheet while box quick-result loads.
 class ScanSkeleton extends StatelessWidget {
   const ScanSkeleton({super.key});
 
-  static const _base = Color(0xFF10233A);
-  static const _highlight = Color(0xFF173552);
+  static const _base = Color(0xFF0A1F42);
+  static const _highlight = Color(0xFF163A6E);
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-      decoration: const BoxDecoration(
-        color: CrabSenseColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+        ),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: kHomeBlue.withValues(alpha: 0.2),
+            blurRadius: 18,
+            offset: const Offset(0, -4),
+          ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -28,8 +40,14 @@ class ScanSkeleton extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: CrabSenseColors.border,
+                color: kHomeCyan.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(4),
+                boxShadow: [
+                  BoxShadow(
+                    color: kHomeCyan.withValues(alpha: 0.45),
+                    blurRadius: 8,
+                  ),
+                ],
               ),
             ),
           ),

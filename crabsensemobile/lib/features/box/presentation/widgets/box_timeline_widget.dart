@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../app/theme.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 
 // ── Domain model ─────────────────────────────────────────────────────────────
 
@@ -292,19 +293,30 @@ class _TimelineHeader extends StatelessWidget {
     final theme = Theme.of(context);
     return Row(
       children: [
-        const Icon(Icons.history, size: 18, color: CrabSenseColors.primary),
+        Icon(
+          Icons.history_rounded,
+          size: 16,
+          color: kHomeBlueLight,
+          shadows: [
+            Shadow(color: kHomeBlueLight.withValues(alpha: 0.7), blurRadius: 8),
+          ],
+        ),
         const SizedBox(width: 8),
         Text(
-          'Timeline',
+          'Sự kiện',
           style: theme.textTheme.titleSmall?.copyWith(
-            color: CrabSenseColors.textPrimary,
-            fontWeight: FontWeight.w700,
+            color: kHomeBlueLight,
+            fontWeight: FontWeight.w800,
+            fontSize: 12.5,
+            letterSpacing: 0.6,
           ),
         ),
         const Spacer(),
         Text(
-          '$totalCount events',
-          style: theme.textTheme.labelSmall?.copyWith(color: CrabSenseColors.textSecondary),
+          '$totalCount bản ghi',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: Colors.white.withValues(alpha: 0.45),
+          ),
         ),
       ],
     );
@@ -326,9 +338,9 @@ class _TypeFilterRow extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       children: [
         _TypeChip(
-          label: 'All',
+          label: 'Tất cả',
           icon: Icons.list_alt_outlined,
-          color: CrabSenseColors.textSecondary,
+          color: kHomeBlueLight,
           isSelected: selected == null,
           onTap: () => onSelected(null),
         ),
@@ -374,11 +386,18 @@ class _TypeChip extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.2) : CrabSenseColors.surfaceVariant,
+          color: isSelected
+              ? color.withValues(alpha: 0.2)
+              : kHomeNavyDeep.withValues(alpha: 0.75),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? color.withValues(alpha: 0.6) : CrabSenseColors.outline,
+            color: isSelected
+                ? color.withValues(alpha: 0.75)
+                : kHomeBorderBlue.withValues(alpha: 0.4),
           ),
+          boxShadow: isSelected
+              ? [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 8)]
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -633,9 +652,15 @@ class _TimelineEventCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: CrabSenseColors.surface.withValues(alpha: 0.8),
+        color: kHomeNavyDeep.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: CrabSenseColors.primary.withValues(alpha: 0.12)),
+        border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: kHomeBlue.withValues(alpha: 0.1),
+            blurRadius: 8,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -645,7 +670,9 @@ class _TimelineEventCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               event.description!,
-              style: theme.textTheme.bodySmall?.copyWith(color: CrabSenseColors.textSecondary),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white.withValues(alpha: 0.55),
+              ),
             ),
           ],
           if (event.operatorName != null) ...[
@@ -673,15 +700,17 @@ class _CardTitleRow extends StatelessWidget {
           child: Text(
             event.title,
             style: theme.textTheme.labelLarge?.copyWith(
-              color: CrabSenseColors.textPrimary,
+              color: Colors.white,
               fontWeight: FontWeight.w600,
             ),
           ),
         ),
         const SizedBox(width: 8),
         Text(
-          DateFormat('h:mm a').format(event.timestamp),
-          style: theme.textTheme.labelSmall?.copyWith(color: CrabSenseColors.textDisabled),
+          DateFormat('HH:mm').format(event.timestamp),
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: Colors.white.withValues(alpha: 0.4),
+          ),
         ),
       ],
     );

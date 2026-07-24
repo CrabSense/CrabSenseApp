@@ -88,6 +88,13 @@ class ProfileNotifier extends StateNotifier<AsyncValue<ProfileStateData>> {
     state = AsyncValue.data(current.copyWith(security: updatedSecurity));
   }
 
+  /// Update local app settings (theme, language, units, …).
+  void updateSettings(SettingsSummary settings) {
+    if (!state.hasValue) return;
+    final current = state.value!;
+    state = AsyncValue.data(current.copyWith(settings: settings));
+  }
+
   /// Trigger sync
   Future<void> triggerSync() async {
     if (!state.hasValue) return;

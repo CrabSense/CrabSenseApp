@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/boxes_models.dart';
 
 /// Farm Digital Twin — schematic layout of boxes by area (pan / zoom).
@@ -80,7 +81,7 @@ class _FarmDigitalTwinState extends State<FarmDigitalTwin> {
               onPressed: _fitAll,
               icon: const Icon(
                 Icons.fit_screen_rounded,
-                color: CrabSenseColors.textSecondary,
+                color: kHomeBlueLight,
               ),
             ),
             IconButton(
@@ -88,7 +89,7 @@ class _FarmDigitalTwinState extends State<FarmDigitalTwin> {
               onPressed: _fitAll,
               icon: const Icon(
                 Icons.refresh_rounded,
-                color: CrabSenseColors.textSecondary,
+                color: kHomeBlueLight,
               ),
             ),
           ],
@@ -97,9 +98,19 @@ class _FarmDigitalTwinState extends State<FarmDigitalTwin> {
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              color: CrabSenseColors.surface,
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+              ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: CrabSenseColors.border),
+              border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
+              boxShadow: [
+                BoxShadow(
+                  color: kHomeBlue.withValues(alpha: 0.14),
+                  blurRadius: 14,
+                ),
+              ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
@@ -153,7 +164,7 @@ class _BoxNode extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? CrabSenseColors.primary : box.status.color;
+    final color = selected ? kHomeBlue : box.status.color;
     return Semantics(
       label: box.semanticLabel,
       button: true,
@@ -170,11 +181,16 @@ class _BoxNode extends StatelessWidget {
             boxShadow: selected
                 ? [
                     BoxShadow(
-                      color: CrabSenseColors.primary.withValues(alpha: 0.35),
-                      blurRadius: 12,
+                      color: kHomeBlue.withValues(alpha: 0.45),
+                      blurRadius: 14,
                     ),
                   ]
-                : null,
+                : [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.2),
+                      blurRadius: 8,
+                    ),
+                  ],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -192,7 +208,7 @@ class _BoxNode extends StatelessWidget {
               Text(
                 '${box.healthScore.score}',
                 style: TextStyle(
-                  color: CrabSenseColors.textSecondary,
+                  color: Colors.white.withValues(alpha: 0.7),
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
@@ -206,13 +222,13 @@ class _BoxNode extends StatelessWidget {
                       const Icon(
                         Icons.priority_high_rounded,
                         size: 10,
-                        color: CrabSenseColors.warning,
+                        color: kHomeOrange,
                       ),
                     if (box.aiRecommendation.hasRecommendation)
                       const Icon(
                         Icons.auto_awesome_rounded,
                         size: 10,
-                        color: CrabSenseColors.accent,
+                        color: kHomePurple,
                       ),
                   ],
                 ),
@@ -232,7 +248,7 @@ class _FarmGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = CrabSenseColors.divider
+      ..color = kHomeBorderBlue.withValues(alpha: 0.35)
       ..strokeWidth = 1;
     for (var x = 0.0; x < size.width; x += 72) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
@@ -265,16 +281,19 @@ class _AreaChip extends StatelessWidget {
         label: Text(label),
         selected: selected,
         onSelected: (_) => onTap(),
-        selectedColor: CrabSenseColors.primary.withValues(alpha: 0.25),
+        selectedColor: kHomeBlue.withValues(alpha: 0.25),
         labelStyle: TextStyle(
           color: selected
-              ? CrabSenseColors.primary
-              : CrabSenseColors.textSecondary,
+              ? kHomeBlueLight
+              : Colors.white.withValues(alpha: 0.55),
           fontSize: 11,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
         ),
-        backgroundColor: CrabSenseColors.container,
+        backgroundColor: kHomeNavyDeep.withValues(alpha: 0.75),
         side: BorderSide(
-          color: selected ? CrabSenseColors.primary : CrabSenseColors.border,
+          color: selected
+              ? kHomeBlue.withValues(alpha: 0.8)
+              : kHomeBorderBlue.withValues(alpha: 0.4),
         ),
       ),
     );
@@ -290,11 +309,11 @@ class _MapLegend extends StatelessWidget {
       spacing: 12,
       runSpacing: 6,
       children: [
-        _legend(CrabSenseColors.success, 'Healthy'),
-        _legend(CrabSenseColors.warning, 'Warning'),
-        _legend(CrabSenseColors.danger, 'Critical'),
-        _legend(CrabSenseColors.hintText, 'Offline'),
-        _legend(CrabSenseColors.primary, 'Selected'),
+        _legend(kHomeGreen, 'Ổn định'),
+        _legend(kHomeOrange, 'Cảnh báo'),
+        _legend(Colors.redAccent, 'Nghiêm trọng'),
+        _legend(Colors.white54, 'Offline'),
+        _legend(kHomeBlue, 'Đang chọn'),
       ],
     );
   }
@@ -306,12 +325,21 @@ class _MapLegend extends StatelessWidget {
         Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 6),
+            ],
+          ),
         ),
         const SizedBox(width: 4),
         Text(
           label,
-          style: const TextStyle(color: CrabSenseColors.hintText, fontSize: 10),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.45),
+            fontSize: 10,
+          ),
         ),
       ],
     );

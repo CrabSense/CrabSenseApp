@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/alerts_models.dart';
 
 class AlertFilterChips extends StatelessWidget {
@@ -36,20 +36,20 @@ class AlertFilterChips extends StatelessWidget {
                     (f == AlertQuickFilter.all &&
                         activeFilters.contains(AlertQuickFilter.all)),
                 onSelected: (_) => onToggle(f),
-                selectedColor: CrabSenseColors.primary.withValues(alpha: 0.22),
-                backgroundColor: CrabSenseColors.container,
-                checkmarkColor: CrabSenseColors.primary,
+                selectedColor: kHomeCyan.withValues(alpha: 0.22),
+                backgroundColor: kHomeNavyDeep,
+                checkmarkColor: kHomeCyan,
                 labelStyle: TextStyle(
                   color: activeFilters.contains(f)
-                      ? CrabSenseColors.primary
-                      : CrabSenseColors.textSecondary,
+                      ? kHomeCyan
+                      : Colors.white70,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
                 side: BorderSide(
                   color: activeFilters.contains(f)
-                      ? CrabSenseColors.primary
-                      : CrabSenseColors.border,
+                      ? kHomeCyan
+                      : kHomeBorderBlue,
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
@@ -65,7 +65,7 @@ class AlertFilterChips extends StatelessWidget {
               child: const Text(
                 'Xóa bộ lọc',
                 style: TextStyle(
-                  color: CrabSenseColors.accent,
+                  color: kHomeCyan,
                   fontWeight: FontWeight.w700,
                 ),
               ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 
 class BoxesEmptyState extends StatelessWidget {
   const BoxesEmptyState({
@@ -77,17 +78,23 @@ class BoxesEmptyState extends StatelessWidget {
               height: 72,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: CrabSenseColors.container,
-                border: Border.all(color: CrabSenseColors.border),
+                color: kHomeBlue.withValues(alpha: 0.14),
+                border: Border.all(color: kHomeBlue.withValues(alpha: 0.5)),
+                boxShadow: [
+                  BoxShadow(
+                    color: kHomeBlue.withValues(alpha: 0.3),
+                    blurRadius: 14,
+                  ),
+                ],
               ),
-              child: Icon(icon, color: CrabSenseColors.primary, size: 32),
+              child: Icon(icon, color: kHomeBlueLight, size: 32),
             ),
             const SizedBox(height: 16),
             Text(
               title,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: CrabSenseColors.textPrimary,
+                color: Colors.white,
                 fontWeight: FontWeight.w800,
                 fontSize: 16,
               ),
@@ -96,8 +103,8 @@ class BoxesEmptyState extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: CrabSenseColors.textSecondary,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.55),
                 fontSize: 13,
               ),
             ),
@@ -106,9 +113,11 @@ class BoxesEmptyState extends StatelessWidget {
               FilledButton(
                 onPressed: onPrimary,
                 style: FilledButton.styleFrom(
-                  backgroundColor: CrabSenseColors.primary,
-                  foregroundColor: CrabSenseColors.background,
+                  backgroundColor: kHomeBlue,
+                  foregroundColor: Colors.white,
                   minimumSize: const Size(160, 48),
+                  elevation: 6,
+                  shadowColor: kHomeBlue.withValues(alpha: 0.6),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -118,7 +127,11 @@ class BoxesEmptyState extends StatelessWidget {
             ],
             if (secondaryLabel != null) ...[
               const SizedBox(height: 8),
-              TextButton(onPressed: onSecondary, child: Text(secondaryLabel!)),
+              TextButton(
+                onPressed: onSecondary,
+                style: TextButton.styleFrom(foregroundColor: kHomeBlueLight),
+                child: Text(secondaryLabel!),
+              ),
             ],
           ],
         ),

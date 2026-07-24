@@ -1,11 +1,10 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/crab_hologram_painter.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/alerts_models.dart';
 
-/// Glassmorphism Alerts header — neon cyan tabs matching CrabSense cyber UI.
+/// Header tab Cảnh báo — đồng bộ phong cách hologram trang home / Boxes.
 class AlertsHeader extends StatelessWidget {
   const AlertsHeader({
     required this.data,
@@ -26,241 +25,396 @@ class AlertsHeader extends StatelessWidget {
   final VoidCallback? onMarkAllRead;
   final VoidCallback? onNotificationSettings;
 
+  void _showFarmSelector(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
+            boxShadow: [
+              BoxShadow(
+                color: kHomeBlue.withValues(alpha: 0.25),
+                blurRadius: 24,
+                offset: const Offset(0, -6),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: CrabHologramPainter(
+                      color: kHomeBlueLight.withValues(alpha: 0.08),
+                      trayExtent: 28,
+                    ),
+                  ),
+                ),
+              ),
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: kHomeCyan.withValues(alpha: 0.75),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'CHỌN TRANG TRẠI',
+                        style: TextStyle(
+                          color: kHomeBlueLight,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ...data.availableFarms.map((f) {
+                        final selected = f.id == data.selectedFarmId;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.pop(ctx);
+                                onFarmSwitched(f.id);
+                              },
+                              borderRadius: BorderRadius.circular(14),
+                              child: Ink(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? kHomeBlue.withValues(alpha: 0.22)
+                                      : kHomeNavyDeep.withValues(alpha: 0.65),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: selected
+                                        ? kHomeCyan.withValues(alpha: 0.7)
+                                        : kHomeBorderBlue.withValues(alpha: 0.4),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.location_on_rounded,
+                                      size: 18,
+                                      color: selected ? kHomeCyan : Colors.white54,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        f.name,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: selected
+                                              ? FontWeight.w700
+                                              : FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    if (selected)
+                                      const Icon(
+                                        Icons.check_circle_rounded,
+                                        color: kHomeCyan,
+                                        size: 18,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final open = data.summary.open;
     final online = data.isOnline && !data.isOfflineCached;
 
     return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: CrabSenseColors.primary.withValues(alpha: 0.2),
-            blurRadius: 20,
-            spreadRadius: 0,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(14, 12, 10, 14),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  CrabSenseColors.card.withValues(alpha: 0.94),
-                  CrabSenseColors.surface.withValues(alpha: 0.82),
-                  CrabSenseColors.container.withValues(alpha: 0.6),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
-                color: CrabSenseColors.primary.withValues(alpha: 0.45),
-                width: 1.2,
+      decoration: homeCardDecoration(radius: 22, glowAlpha: 0.16),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: CrabHologramPainter(
+                  color: kHomeBlueLight.withValues(alpha: 0.06),
+                  trayExtent: 26,
+                ),
               ),
             ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 10, 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: CrabSenseColors.primary,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: CrabSenseColors.primary
-                                          .withValues(alpha: 0.7),
-                                      blurRadius: 8,
-                                      spreadRadius: 1,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              const Flexible(
-                                child: Text(
-                                  'Alerts',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: CrabSenseColors.textPrimary,
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.2,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          PopupMenuButton<String>(
-                            onSelected: onFarmSwitched,
-                            color: CrabSenseColors.card,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              side: BorderSide(
-                                color: CrabSenseColors.primary
-                                    .withValues(alpha: 0.25),
-                              ),
-                            ),
-                            itemBuilder: (context) => data.availableFarms
-                                .map(
-                                  (f) => PopupMenuItem(
-                                    value: f.id,
-                                    child: Text(
-                                      f.name,
-                                      style: TextStyle(
-                                        color: f.id == data.selectedFarmId
-                                            ? CrabSenseColors.primary
-                                            : CrabSenseColors.textPrimary,
-                                        fontWeight: f.id == data.selectedFarmId
-                                            ? FontWeight.w700
-                                            : FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                ConstrainedBox(
-                                  constraints:
-                                      const BoxConstraints(maxWidth: 160),
-                                  child: Text(
-                                    data.selectedFarmName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: CrabSenseColors.accent,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                                const Icon(
-                                  Icons.keyboard_arrow_down_rounded,
-                                  size: 18,
-                                  color: CrabSenseColors.accent,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '$open cảnh báo chưa xử lý',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: CrabSenseColors.hintText,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    _OnlineChip(online: online),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                // Neon glass action tabs (tiled cyber style)
-                Row(
-                  children: [
-                    Expanded(
-                      child: _NeonActionTile(
-                        icon: Icons.search_rounded,
-                        label: 'Tìm',
-                        onPressed: onSearchPressed,
-                      ),
+                    Icon(
+                      Icons.notifications_active_rounded,
+                      size: 20,
+                      color: kHomeBlueLight,
+                      shadows: [
+                        Shadow(
+                          color: kHomeBlueLight.withValues(alpha: 0.8),
+                          blurRadius: 10,
+                        ),
+                      ],
                     ),
                     const SizedBox(width: 8),
-                    Expanded(
-                      child: _NeonActionTile(
-                        icon: Icons.tune_rounded,
-                        label: 'Lọc',
-                        onPressed: onFilterPressed,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _NeonActionTile(
-                        icon: data.showingHistory
-                            ? Icons.notifications_active_rounded
-                            : Icons.history_rounded,
-                        label: 'Lịch sử',
-                        highlighted: data.showingHistory,
-                        onPressed: onHistoryPressed,
-                      ),
-                    ),
-                    if (onMarkAllRead != null ||
-                        onNotificationSettings != null) ...[
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: PopupMenuButton<_OverflowAction>(
-                          tooltip: 'Thêm',
-                          color: CrabSenseColors.card,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            side: BorderSide(
-                              color: CrabSenseColors.primary
-                                  .withValues(alpha: 0.3),
-                            ),
-                          ),
-                          onSelected: (action) {
-                            switch (action) {
-                              case _OverflowAction.markAllRead:
-                                onMarkAllRead?.call();
-                              case _OverflowAction.notificationSettings:
-                                onNotificationSettings?.call();
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            if (onMarkAllRead != null)
-                              const PopupMenuItem(
-                                value: _OverflowAction.markAllRead,
-                                child: Text(
-                                  'Đánh dấu tất cả đã xem',
-                                  style: TextStyle(
-                                    color: CrabSenseColors.textPrimary,
-                                  ),
-                                ),
-                              ),
-                            if (onNotificationSettings != null)
-                              const PopupMenuItem(
-                                value: _OverflowAction.notificationSettings,
-                                child: Text(
-                                  'Cài đặt thông báo',
-                                  style: TextStyle(
-                                    color: CrabSenseColors.textPrimary,
-                                  ),
-                                ),
-                              ),
-                          ],
-                          child: const _NeonActionTile(
-                            icon: Icons.more_horiz_rounded,
-                            label: 'Thêm',
-                            onPressed: null,
+                    const Expanded(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'CẢNH BÁO',
+                          style: TextStyle(
+                            color: kHomeBlueLight,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.2,
                           ),
                         ),
                       ),
-                    ],
+                    ),
+                    const SizedBox(width: 8),
+                    _OnlineChip(online: online),
                   ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$open cảnh báo chưa xử lý',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.45),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _FarmSelectorBar(
+                        farmName: data.selectedFarmName,
+                        onTap: () => _showFarmSelector(context),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _HeaderIconButton(
+                      icon: Icons.search_rounded,
+                      tooltip: 'Tìm kiếm',
+                      onPressed: onSearchPressed,
+                    ),
+                    _HeaderIconButton(
+                      icon: Icons.tune_rounded,
+                      tooltip: 'Sắp xếp & nhóm',
+                      onPressed: onFilterPressed,
+                    ),
+                    _HeaderIconButton(
+                      icon: data.showingHistory
+                          ? Icons.notifications_active_rounded
+                          : Icons.history_rounded,
+                      tooltip: 'Lịch sử',
+                      onPressed: onHistoryPressed,
+                      active: data.showingHistory,
+                    ),
+                    if (onMarkAllRead != null || onNotificationSettings != null)
+                      PopupMenuButton<_OverflowAction>(
+                        tooltip: 'Thêm',
+                        color: kHomeNavyLift,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: BorderSide(
+                            color: kHomeBorderBlue.withValues(alpha: 0.45),
+                          ),
+                        ),
+                        onSelected: (action) {
+                          switch (action) {
+                            case _OverflowAction.markAllRead:
+                              onMarkAllRead?.call();
+                            case _OverflowAction.notificationSettings:
+                              onNotificationSettings?.call();
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          if (onMarkAllRead != null)
+                            const PopupMenuItem(
+                              value: _OverflowAction.markAllRead,
+                              child: Text(
+                                'Đánh dấu tất cả đã xem',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          if (onNotificationSettings != null)
+                            const PopupMenuItem(
+                              value: _OverflowAction.notificationSettings,
+                              child: Text(
+                                'Cài đặt thông báo',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                        ],
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          margin: const EdgeInsets.only(left: 4),
+                          decoration: BoxDecoration(
+                            color: kHomeNavyDeep.withValues(alpha: 0.65),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: kHomeBorderBlue.withValues(alpha: 0.45),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.more_horiz_rounded,
+                            size: 20,
+                            color: kHomeBlueLight,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+enum _OverflowAction { markAllRead, notificationSettings }
+
+class _FarmSelectorBar extends StatelessWidget {
+  const _FarmSelectorBar({
+    required this.farmName,
+    required this.onTap,
+  });
+
+  final String farmName;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(28),
+        child: Ink(
+          height: 40,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+            ),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: kHomeBlueLight.withValues(alpha: 0.55),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: kHomeBlue.withValues(alpha: 0.28),
+                blurRadius: 10,
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      painter: CrabHologramPainter(
+                        color: kHomeBlueLight.withValues(alpha: 0.07),
+                        trayExtent: 22,
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: kHomeBlue.withValues(alpha: 0.18),
+                          boxShadow: [
+                            BoxShadow(
+                              color: kHomeBlue.withValues(alpha: 0.45),
+                              blurRadius: 12,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.location_on_rounded,
+                          size: 16,
+                          color: kHomeCyan,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          farmName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 18,
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -271,162 +425,52 @@ class AlertsHeader extends StatelessWidget {
   }
 }
 
-enum _OverflowAction { markAllRead, notificationSettings }
-
-/// Individual glowing tile — active fills neon blue; inactive glass + corner dot.
-class _NeonActionTile extends StatelessWidget {
-  const _NeonActionTile({
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({
     required this.icon,
-    required this.label,
+    required this.tooltip,
     required this.onPressed,
-    this.highlighted = false,
+    this.active = false,
   });
 
   final IconData icon;
-  final String label;
+  final String tooltip;
   final VoidCallback? onPressed;
-  final bool highlighted;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
-    final tile = AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
-      constraints: const BoxConstraints(minHeight: 56),
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-      decoration: BoxDecoration(
-        gradient: highlighted
-            ? const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF3DDCFF),
-                  CrabSenseColors.primary,
-                  CrabSenseColors.primaryDark,
-                ],
-              )
-            : LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  CrabSenseColors.container.withValues(alpha: 0.9),
-                  CrabSenseColors.surface.withValues(alpha: 0.72),
-                ],
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Tooltip(
+        message: tooltip,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(12),
+            child: Ink(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: active
+                    ? kHomeBlue.withValues(alpha: 0.28)
+                    : kHomeNavyDeep.withValues(alpha: 0.65),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: active
+                      ? kHomeCyan.withValues(alpha: 0.7)
+                      : kHomeBorderBlue.withValues(alpha: 0.45),
+                ),
               ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: highlighted
-              ? Colors.white.withValues(alpha: 0.35)
-              : CrabSenseColors.primary.withValues(alpha: 0.4),
-          width: highlighted ? 1.4 : 1,
+              child: Icon(
+                icon,
+                size: 20,
+                color: active ? kHomeCyan : kHomeBlueLight,
+              ),
+            ),
+          ),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: CrabSenseColors.primary
-                .withValues(alpha: highlighted ? 0.55 : 0.18),
-            blurRadius: highlighted ? 16 : 8,
-            spreadRadius: highlighted ? 1 : 0,
-          ),
-        ],
-      ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          if (!highlighted)
-            Positioned(
-              top: 0,
-              right: 2,
-              child: Container(
-                width: 5,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: CrabSenseColors.accent,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: CrabSenseColors.accent.withValues(alpha: 0.9),
-                      blurRadius: 6,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          if (highlighted)
-            Positioned(
-              top: 2,
-              left: 8,
-              right: 8,
-              child: Container(
-                height: 10,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.35),
-                      Colors.white.withValues(alpha: 0.0),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
-                  size: 20,
-                  color: highlighted
-                      ? Colors.white
-                      : CrabSenseColors.textSecondary,
-                  shadows: highlighted
-                      ? [
-                          Shadow(
-                            color: Colors.white.withValues(alpha: 0.5),
-                            blurRadius: 8,
-                          ),
-                        ]
-                      : null,
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: highlighted
-                        ? Colors.white
-                        : CrabSenseColors.hintText,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    shadows: highlighted
-                        ? [
-                            Shadow(
-                              color: Colors.black.withValues(alpha: 0.25),
-                              blurRadius: 4,
-                            ),
-                          ]
-                        : null,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (onPressed == null) return tile;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(16),
-        splashColor: CrabSenseColors.primary.withValues(alpha: 0.2),
-        highlightColor: CrabSenseColors.primary.withValues(alpha: 0.1),
-        child: tile,
       ),
     );
   }
@@ -439,19 +483,13 @@ class _OnlineChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = online ? CrabSenseColors.success : CrabSenseColors.warning;
+    final color = online ? kHomeGreen : kHomeOrange;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withValues(alpha: 0.55)),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.25),
-            blurRadius: 10,
-          ),
-        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -469,7 +507,7 @@ class _OnlineChip extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Text(
-            online ? 'Online' : 'Offline',
+            online ? 'Trực tuyến' : 'Ngoại tuyến',
             style: TextStyle(
               color: color,
               fontSize: 11,

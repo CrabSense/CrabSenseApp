@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/alerts_models.dart';
 import 'alert_badges.dart';
 import 'ai_recommended_action_card.dart';
@@ -35,7 +35,7 @@ class PriorityAlertCard extends StatelessWidget {
             end: Alignment.bottomRight,
             colors: [
               alert.severity.color.withValues(alpha: 0.22),
-              CrabSenseColors.card,
+              kHomeNavyLift,
             ],
           ),
           border: Border.all(
@@ -49,97 +49,105 @@ class PriorityAlertCard extends StatelessWidget {
             ),
           ],
         ),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
           children: [
-            Row(
-              children: [
-                Icon(
-                  alert.severity.icon,
-                  color: alert.severity.color,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${alert.severity.label} Alert',
-                  style: TextStyle(
-                    color: alert.severity.color,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
+            const HomeCrabWatermark(alpha: 0.055, trayExtent: 24),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        alert.severity.icon,
+                        color: alert.severity.color,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${alert.severity.labelVi} · ưu tiên',
+                        style: TextStyle(
+                          color: alert.severity.color,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const Spacer(),
+                      AlertPriorityBadge(priority: alert.priority),
+                    ],
                   ),
-                ),
-                const Spacer(),
-                AlertPriorityBadge(priority: alert.priority),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              alert.title,
-              style: const TextStyle(
-                color: CrabSenseColors.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
+                  const SizedBox(height: 10),
+                  Text(
+                    alert.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    alert.locationLabel,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                    ),
+                  ),
+                  if (alert.threshold != null) ...[
+                    const SizedBox(height: 10),
+                    _MetaRow(
+                      label: '${alert.threshold!.label} hiện tại',
+                      value:
+                          '${alert.threshold!.currentValue ?? '—'} ${alert.threshold!.unit ?? ''}'
+                              .trim(),
+                    ),
+                    _MetaRow(
+                      label: 'Ngưỡng an toàn',
+                      value: alert.threshold!.allowedRange ?? '—',
+                    ),
+                  ],
+                  _MetaRow(label: 'Phát hiện', value: _timeAgo(alert.detectedAt)),
+                  if (alert.impactLevel != null)
+                    _MetaRow(label: 'Ảnh hưởng', value: alert.impactLevel!),
+                  _MetaRow(label: 'Hạn xử lý', value: alert.priority.slaLabel),
+                  const SizedBox(height: 6),
+                  Text(
+                    alert.priority.explanation,
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 11,
+                      height: 1.35,
+                    ),
+                  ),
+                  if (alert.aiRecommendation != null) ...[
+                    const SizedBox(height: 12),
+                    AIRecommendedActionCard(
+                      recommendation: alert.aiRecommendation!,
+                      compact: true,
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _HeroBtn(
+                        label: 'Xử lý ngay',
+                        filled: true,
+                        onPressed: onHandleNow,
+                      ),
+                      if (alert.boxId != null)
+                        _HeroBtn(label: 'Xem Box', onPressed: onViewBox),
+                      _HeroBtn(label: 'Xác nhận đã xem', onPressed: onAcknowledge),
+                      if (onAssign != null)
+                        _HeroBtn(label: 'Giao việc', onPressed: onAssign!),
+                      _HeroBtn(label: 'Xem chi tiết', onPressed: onViewDetail),
+                    ],
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              alert.locationLabel,
-              style: const TextStyle(
-                color: CrabSenseColors.textSecondary,
-                fontSize: 13,
-              ),
-            ),
-            if (alert.threshold != null) ...[
-              const SizedBox(height: 10),
-              _MetaRow(
-                label: '${alert.threshold!.label} hiện tại',
-                value:
-                    '${alert.threshold!.currentValue ?? '—'} ${alert.threshold!.unit ?? ''}'
-                        .trim(),
-              ),
-              _MetaRow(
-                label: 'Ngưỡng an toàn',
-                value: alert.threshold!.allowedRange ?? '—',
-              ),
-            ],
-            _MetaRow(label: 'Phát hiện', value: _timeAgo(alert.detectedAt)),
-            if (alert.impactLevel != null)
-              _MetaRow(label: 'Ảnh hưởng', value: alert.impactLevel!),
-            _MetaRow(label: 'Hạn xử lý', value: alert.priority.slaLabel),
-            const SizedBox(height: 6),
-            Text(
-              alert.priority.explanation,
-              style: const TextStyle(
-                color: CrabSenseColors.hintText,
-                fontSize: 11,
-                height: 1.35,
-              ),
-            ),
-            if (alert.aiRecommendation != null) ...[
-              const SizedBox(height: 12),
-              AIRecommendedActionCard(
-                recommendation: alert.aiRecommendation!,
-                compact: true,
-              ),
-            ],
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _HeroBtn(
-                  label: 'Xử lý ngay',
-                  filled: true,
-                  onPressed: onHandleNow,
-                ),
-                if (alert.boxId != null)
-                  _HeroBtn(label: 'Xem Box', onPressed: onViewBox),
-                _HeroBtn(label: 'Xác nhận đã xem', onPressed: onAcknowledge),
-                if (onAssign != null)
-                  _HeroBtn(label: 'Giao việc', onPressed: onAssign!),
-                _HeroBtn(label: 'Xem chi tiết', onPressed: onViewDetail),
-              ],
             ),
           ],
         ),
@@ -172,7 +180,7 @@ class _MetaRow extends StatelessWidget {
             child: Text(
               label,
               style: const TextStyle(
-                color: CrabSenseColors.hintText,
+                color: Colors.white54,
                 fontSize: 12,
               ),
             ),
@@ -181,7 +189,7 @@ class _MetaRow extends StatelessWidget {
             child: Text(
               value,
               style: const TextStyle(
-                color: CrabSenseColors.textSecondary,
+                color: Colors.white70,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -210,8 +218,8 @@ class _HeroBtn extends StatelessWidget {
       return FilledButton(
         onPressed: onPressed,
         style: FilledButton.styleFrom(
-          backgroundColor: CrabSenseColors.primary,
-          foregroundColor: CrabSenseColors.background,
+          backgroundColor: kHomeCyan,
+          foregroundColor: kHomeNavyDeep,
           minimumSize: const Size(48, 40),
           padding: const EdgeInsets.symmetric(horizontal: 14),
           shape: RoundedRectangleBorder(
@@ -224,8 +232,8 @@ class _HeroBtn extends StatelessWidget {
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        foregroundColor: CrabSenseColors.textPrimary,
-        side: const BorderSide(color: CrabSenseColors.border),
+        foregroundColor: Colors.white,
+        side: const BorderSide(color: kHomeBorderBlue),
         minimumSize: const Size(48, 40),
         padding: const EdgeInsets.symmetric(horizontal: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

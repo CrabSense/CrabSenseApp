@@ -6,7 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routes.dart';
-import '../../../../app/theme.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../../../shared/widgets/permissions/camera_permission_denied_widget.dart';
 import '../bloc/bloc.dart';
 import '../widgets/recording_guidelines_overlay.dart';
@@ -205,12 +205,17 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen> with WidgetsBin
       context: ctx,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
-        title: const Text('Insufficient Storage'),
+        backgroundColor: kHomeNavy,
+        title: const Text(
+          'Không đủ dung lượng',
+          style: TextStyle(color: Colors.white),
+        ),
         content: Text(
-          'Not enough storage to record a video.\n\n'
-          'Available: $availableMb MB\n'
-          'Required: $requiredMb MB\n\n'
-          'Please free up space and try again.',
+          'Không đủ bộ nhớ để quay video.\n\n'
+          'Còn trống: $availableMb MB\n'
+          'Cần tối thiểu: $requiredMb MB\n\n'
+          'Hãy giải phóng dung lượng rồi thử lại.',
+          style: const TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
@@ -241,14 +246,22 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen> with WidgetsBin
       context: ctx,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
-        title: const Text('Offline Queue Almost Full'),
+        backgroundColor: kHomeNavy,
+        title: const Text(
+          'Hàng đợi ngoại tuyến gần đầy',
+          style: TextStyle(color: Colors.white),
+        ),
         content: Text(
-          'Your offline video queue is over 80% full '
+          'Hàng đợi video ngoại tuyến đã đầy hơn 80% '
           '($usedMb MB / $totalMb MB).\n\n'
-          'Consider syncing your videos before recording more.',
+          'Nên đồng bộ video trước khi quay thêm.',
+          style: const TextStyle(color: Colors.white70),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Huỷ'),
+          ),
           ElevatedButton(
             onPressed: () {
               Navigator.of(ctx).pop();
@@ -256,7 +269,7 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen> with WidgetsBin
                 context.read<VideoCaptureBloc>().add(VideoRecordingStarted(boxId: state.boxId));
               }
             },
-            child: const Text('Continue Anyway'),
+            child: const Text('Vẫn tiếp tục'),
           ),
         ],
       ),
@@ -301,8 +314,16 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen> with WidgetsBin
   );
 
   PreferredSizeWidget _buildAppBar() => AppBar(
-    title: const Text('Capture Video'),
-    backgroundColor: Colors.transparent,
+    title: const Text(
+      'QUAY VIDEO AI',
+      style: TextStyle(
+        color: kHomeBlueLight,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1,
+      ),
+    ),
+    backgroundColor: Colors.black54,
+    foregroundColor: kHomeBlueLight,
     elevation: 0,
     leading: BackButton(onPressed: () => Navigator.of(context).pop()),
   );
@@ -312,7 +333,7 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen> with WidgetsBin
     if (state is VideoCaptureInitial ||
         state is CameraPermissionChecking ||
         state is CameraPermissionGranted) {
-      return const Center(child: CircularProgressIndicator(color: CrabSenseColors.primary));
+      return const Center(child: CircularProgressIndicator(color: kHomeCyan));
     }
 
     // Denied — show permission guidance widget.
@@ -333,7 +354,7 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen> with WidgetsBin
 
     // Stopping — spinner only, no controls.
     if (state is VideoRecordingStopping) {
-      return const Center(child: CircularProgressIndicator(color: CrabSenseColors.primary));
+      return const Center(child: CircularProgressIndicator(color: kHomeCyan));
     }
 
     // Compressing — show progress indicator with percentage
@@ -342,10 +363,10 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen> with WidgetsBin
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const CircularProgressIndicator(color: CrabSenseColors.primary),
+            const CircularProgressIndicator(color: kHomeCyan),
             const SizedBox(height: 16),
             Text(
-              'Compressing... ${(state.progress * 100).toStringAsFixed(0)}%',
+              'Đang nén... ${(state.progress * 100).toStringAsFixed(0)}%',
               style: const TextStyle(color: Colors.white, fontSize: 16),
             ),
           ],
@@ -359,17 +380,17 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen> with WidgetsBin
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const CircularProgressIndicator(color: CrabSenseColors.primary),
+            const CircularProgressIndicator(color: kHomeCyan),
             const SizedBox(height: 16),
             Text(
-              'Uploading... ${(state.progress * 100).toStringAsFixed(0)}%',
+              'Đang tải lên... ${(state.progress * 100).toStringAsFixed(0)}%',
               style: const TextStyle(color: Colors.white, fontSize: 16),
             ),
             if (state.currentAttempt > 1)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  'Attempt ${state.currentAttempt} of ${state.maxAttempts}',
+                  'Lần ${state.currentAttempt} / ${state.maxAttempts}',
                   style: const TextStyle(color: Colors.white70, fontSize: 14),
                 ),
               ),
@@ -463,7 +484,7 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen> with WidgetsBin
     // Camera states — show preview + overlay controls.
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) {
-      return const Center(child: CircularProgressIndicator(color: CrabSenseColors.primary));
+      return const Center(child: CircularProgressIndicator(color: kHomeCyan));
     }
 
     return Stack(
@@ -527,11 +548,11 @@ class _RecordButton extends StatelessWidget {
       height: 72,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: CrabSenseColors.error,
+        color: Colors.redAccent,
         border: Border.all(color: Colors.white, width: 3),
         boxShadow: [
           BoxShadow(
-            color: CrabSenseColors.error.withValues(alpha: 0.5),
+            color: Colors.redAccent.withValues(alpha: 0.5),
             blurRadius: 12,
             spreadRadius: 2,
           ),
@@ -588,11 +609,11 @@ class _StopButtonState extends State<_StopButton> with SingleTickerProviderState
         height: 72,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: CrabSenseColors.error,
+          color: Colors.redAccent,
           border: Border.all(color: Colors.white, width: 3),
           boxShadow: [
             BoxShadow(
-              color: CrabSenseColors.error.withValues(alpha: 0.5),
+              color: Colors.redAccent.withValues(alpha: 0.5),
               blurRadius: 16,
               spreadRadius: 4,
             ),

@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../app/routes.dart';
 import '../../../../app/theme.dart';
 import '../../../../core/di/injection.dart';
 import '../../domain/entities/operation_log.dart';
@@ -22,6 +23,8 @@ import '../bloc/operation_state.dart';
 import '../../../authentication/domain/entities/user.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
+import '../../../home/presentation/widgets/crab_hologram_painter.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 
 /// Screen for creating or editing an operation log.
 ///
@@ -99,15 +102,88 @@ class _OperationLogView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: CrabSenseColors.background,
+    backgroundColor: const Color(0xFF071426),
     appBar: AppBar(
-      title: const Text('Operation Log'),
-      backgroundColor: CrabSenseColors.surface,
+      backgroundColor: Colors.transparent,
       foregroundColor: CrabSenseColors.textPrimary,
+      elevation: 0,
+      flexibleSpace: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+          ),
+          border: Border(
+            bottom: BorderSide(
+              color: kHomeBorderBlue.withValues(alpha: 0.45),
+            ),
+          ),
+        ),
+      ),
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.history_rounded,
+            size: 18,
+            color: kHomeBlueLight,
+            shadows: [
+              Shadow(
+                color: kHomeBlueLight.withValues(alpha: 0.8),
+                blurRadius: 10,
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+          const Text(
+            'NHẬT KÝ VẬN HÀNH',
+            style: TextStyle(
+              color: kHomeBlueLight,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.0,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+      centerTitle: true,
+      actions: [
+        IconButton(
+          tooltip: 'Lịch sử vận hành',
+          onPressed: () => context.push(RoutePaths.operationHistory),
+          icon: Icon(
+            Icons.receipt_long_rounded,
+            size: 20,
+            color: kHomeBlueLight,
+            shadows: [
+              Shadow(
+                color: kHomeBlueLight.withValues(alpha: 0.8),
+                blurRadius: 10,
+              ),
+            ],
+          ),
+        ),
+      ],
     ),
-    body: BlocConsumer<OperationBloc, OperationState>(
-      listener: _onStateChange,
-      builder: _buildBody,
+    body: Stack(
+      children: [
+        // Họa tiết lưới khay nuôi + cua (đồng bộ trang home)
+        Positioned.fill(
+          child: IgnorePointer(
+            child: CustomPaint(
+              painter: CrabHologramPainter(
+                color: kHomeBlueLight.withValues(alpha: 0.05),
+                trayExtent: 30,
+              ),
+            ),
+          ),
+        ),
+        BlocConsumer<OperationBloc, OperationState>(
+          listener: _onStateChange,
+          builder: _buildBody,
+        ),
+      ],
     ),
   );
 
@@ -118,8 +194,8 @@ class _OperationLogView extends StatelessWidget {
           SnackBar(
             content: Text(
               state.isOffline
-                  ? 'Saved offline. Will sync when online.'
-                  : 'Operation log saved successfully.',
+                  ? 'Đã lưu ngoại tuyến. Sẽ đồng bộ khi có mạng.'
+                  : 'Đã lưu nhật ký vận hành.',
             ),
             backgroundColor: CrabSenseColors.success,
             behavior: SnackBarBehavior.floating,
@@ -143,7 +219,7 @@ class _OperationLogView extends StatelessWidget {
 
   Widget _buildBody(BuildContext context, OperationState state) {
     if (state is OperationInitial) {
-      return const Center(child: CircularProgressIndicator(color: CrabSenseColors.primary));
+      return const Center(child: CircularProgressIndicator(color: kHomeBlue));
     }
     if (state is OperationFormState) {
       return _OperationLogForm(
@@ -156,7 +232,7 @@ class _OperationLogView extends StatelessWidget {
     if (state is OperationError) {
       return _ErrorBody(message: state.message);
     }
-    return const Center(child: CircularProgressIndicator(color: CrabSenseColors.primary));
+    return const Center(child: CircularProgressIndicator(color: kHomeBlue));
   }
 }
 
@@ -176,7 +252,27 @@ class _ErrorBody extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.error_outline, color: CrabSenseColors.error, size: 48),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: CrabSenseColors.error.withValues(alpha: 0.14),
+              border: Border.all(
+                color: CrabSenseColors.error.withValues(alpha: 0.5),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: CrabSenseColors.error.withValues(alpha: 0.3),
+                  blurRadius: 14,
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.error_outline,
+              color: CrabSenseColors.error,
+              size: 36,
+            ),
+          ),
           const SizedBox(height: 16),
           Text(
             message,
@@ -184,7 +280,16 @@ class _ErrorBody extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
-          OutlinedButton(onPressed: () => context.pop(), child: const Text('Go Back')),
+          OutlinedButton(
+            onPressed: () => context.pop(),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: kHomeBlueLight,
+              side: BorderSide(
+                color: kHomeBorderBlue.withValues(alpha: 0.7),
+              ),
+            ),
+            child: const Text('Quay lại'),
+          ),
         ],
       ),
     ),
@@ -200,9 +305,19 @@ class _PermissionBanner extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: CrabSenseColors.error.withValues(alpha: 0.15),
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [kHomeNavy, kHomeNavyDeep],
+      ),
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: CrabSenseColors.error.withValues(alpha: 0.4)),
+      border: Border.all(color: CrabSenseColors.error.withValues(alpha: 0.5)),
+      boxShadow: [
+        BoxShadow(
+          color: CrabSenseColors.error.withValues(alpha: 0.15),
+          blurRadius: 12,
+        ),
+      ],
     ),
     child: const Row(
       children: [
@@ -210,7 +325,7 @@ class _PermissionBanner extends StatelessWidget {
         SizedBox(width: 10),
         Expanded(
           child: Text(
-            'Permission Denied: Requires Field Operator role or higher to record operations.',
+            'Không có quyền: Cần vai trò Field Operator trở lên để ghi nhật ký vận hành.',
             style: TextStyle(color: CrabSenseColors.error, fontSize: 13),
           ),
         ),
@@ -340,7 +455,7 @@ class _OperationLogFormState extends State<_OperationLogForm> {
           if (state.isOffline) ...[_OfflineBanner(), const SizedBox(height: 16)],
 
           // 2. Operation type
-          const _SectionLabel(label: 'Operation Type *'),
+          const _SectionLabel(label: 'LOẠI THAO TÁC *'),
           const SizedBox(height: 8),
           _GlassCard(
             child: Padding(
@@ -352,7 +467,7 @@ class _OperationLogFormState extends State<_OperationLogForm> {
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
                 ),
-                dropdownColor: CrabSenseColors.surface,
+                dropdownColor: kHomeNavy,
                 style: const TextStyle(color: CrabSenseColors.textPrimary),
                 items: OperationType.values
                     .map(
@@ -376,13 +491,13 @@ class _OperationLogFormState extends State<_OperationLogForm> {
           const SizedBox(height: 16),
 
           // 3. Box ID(s)
-          const _SectionLabel(label: 'Box ID(s) *'),
+          const _SectionLabel(label: 'MÃ HỘP NUÔI *'),
           const SizedBox(height: 8),
           TextFormField(
             controller: _boxController,
             style: const TextStyle(color: CrabSenseColors.textPrimary),
-            decoration: InputDecoration(
-              hintText: 'e.g. BOX-001, BOX-002',
+            decoration: _fieldDecoration(
+              hint: 'VD: BOX-001, BOX-002',
               errorText: state.boxIdsError,
             ),
             onChanged: (value) =>
@@ -391,14 +506,18 @@ class _OperationLogFormState extends State<_OperationLogForm> {
           const SizedBox(height: 16),
 
           // 4. Timestamp
-          const _SectionLabel(label: 'Date & Time *'),
+          const _SectionLabel(label: 'NGÀY & GIỜ *'),
           const SizedBox(height: 8),
           TextFormField(
             controller: _timestampController,
             readOnly: true,
             style: const TextStyle(color: CrabSenseColors.textPrimary),
-            decoration: const InputDecoration(
-              suffixIcon: Icon(Icons.calendar_today_outlined, color: CrabSenseColors.primary),
+            decoration: _fieldDecoration(
+              suffixIcon: const Icon(
+                Icons.calendar_today_outlined,
+                color: kHomeBlueLight,
+                size: 18,
+              ),
             ),
             onTap: () => _pickDateTime(context),
           ),
@@ -406,7 +525,7 @@ class _OperationLogFormState extends State<_OperationLogForm> {
 
           // 5 & 6. Quantity + Unit (conditional)
           if (state.showQuantityField) ...[
-            const _SectionLabel(label: 'Quantity (optional)'),
+            const _SectionLabel(label: 'SỐ LƯỢNG (TUỲ CHỌN)'),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -417,8 +536,8 @@ class _OperationLogFormState extends State<_OperationLogForm> {
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
                     style: const TextStyle(color: CrabSenseColors.textPrimary),
-                    decoration: InputDecoration(
-                      hintText: 'e.g. 5.5',
+                    decoration: _fieldDecoration(
+                      hint: 'VD: 5.5',
                       errorText: state.quantityError,
                     ),
                     onChanged: (value) =>
@@ -431,7 +550,7 @@ class _OperationLogFormState extends State<_OperationLogForm> {
                   child: TextFormField(
                     controller: _unitController,
                     style: const TextStyle(color: CrabSenseColors.textPrimary),
-                    decoration: const InputDecoration(hintText: 'kg / L'),
+                    decoration: _fieldDecoration(hint: 'kg / L'),
                     onChanged: (value) =>
                         context.read<OperationBloc>().add(OperationUnitChanged(unit: value)),
                   ),
@@ -442,15 +561,14 @@ class _OperationLogFormState extends State<_OperationLogForm> {
           ],
 
           // 7. Notes
-          const _SectionLabel(label: 'Notes (optional)'),
+          const _SectionLabel(label: 'GHI CHÚ (TUỲ CHỌN)'),
           const SizedBox(height: 8),
           TextFormField(
             controller: _notesController,
             maxLines: 4,
             style: const TextStyle(color: CrabSenseColors.textPrimary),
-            decoration: const InputDecoration(
-              hintText: 'Add any observations or notes...',
-              alignLabelWithHint: true,
+            decoration: _fieldDecoration(
+              hint: 'Thêm quan sát hoặc ghi chú...',
             ),
             onChanged: (value) =>
                 context.read<OperationBloc>().add(OperationNotesChanged(notes: value)),
@@ -458,7 +576,7 @@ class _OperationLogFormState extends State<_OperationLogForm> {
           const SizedBox(height: 16),
 
           // 8. Photo attachments
-          const _SectionLabel(label: 'Photos (optional, max 5)'),
+          const _SectionLabel(label: 'HÌNH ẢNH (TUỲ CHỌN, TỐI ĐA 5)'),
           const SizedBox(height: 8),
           _PhotoSection(photoPaths: state.photoPaths, atLimit: state.photosAtLimit),
           const SizedBox(height: 24),
@@ -478,6 +596,33 @@ class _OperationLogFormState extends State<_OperationLogForm> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Field decoration (đồng bộ phong cách navy + viền xanh của trang home)
+// ─────────────────────────────────────────────────────────────────────────────
+
+InputDecoration _fieldDecoration({
+  String? hint,
+  String? errorText,
+  Widget? suffixIcon,
+}) {
+  OutlineInputBorder border(Color c) => OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: BorderSide(color: c),
+  );
+  return InputDecoration(
+    hintText: hint,
+    errorText: errorText,
+    hintStyle: const TextStyle(color: CrabSenseColors.textDisabled, fontSize: 13),
+    filled: true,
+    fillColor: kHomeNavyDeep.withValues(alpha: 0.75),
+    suffixIcon: suffixIcon,
+    enabledBorder: border(kHomeBorderBlue.withValues(alpha: 0.4)),
+    focusedBorder: border(kHomeBlue),
+    errorBorder: border(CrabSenseColors.error.withValues(alpha: 0.6)),
+    focusedErrorBorder: border(CrabSenseColors.error),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Section label
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -490,9 +635,10 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) => Text(
     label,
     style: const TextStyle(
-      color: CrabSenseColors.textSecondary,
-      fontSize: 13,
-      fontWeight: FontWeight.w500,
+      color: kHomeBlueLight,
+      fontSize: 12.5,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.6,
     ),
   );
 }
@@ -509,9 +655,9 @@ class _GlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DecoratedBox(
     decoration: BoxDecoration(
-      color: CrabSenseColors.surface,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: CrabSenseColors.primary.withValues(alpha: 0.2)),
+      color: kHomeNavyDeep.withValues(alpha: 0.75),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.4)),
     ),
     child: child,
   );
@@ -526,9 +672,13 @@ class _OfflineBanner extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: CrabSenseColors.warning.withValues(alpha: 0.15),
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [kHomeNavy, kHomeNavyDeep],
+      ),
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: CrabSenseColors.warning.withValues(alpha: 0.4)),
+      border: Border.all(color: CrabSenseColors.warning.withValues(alpha: 0.5)),
     ),
     child: const Row(
       children: [
@@ -536,7 +686,7 @@ class _OfflineBanner extends StatelessWidget {
         SizedBox(width: 10),
         Expanded(
           child: Text(
-            "You're offline. Log will be saved and synced when connection is restored.",
+            'Bạn đang ngoại tuyến. Nhật ký sẽ được lưu và đồng bộ khi có mạng trở lại.',
             style: TextStyle(color: CrabSenseColors.warning, fontSize: 13),
           ),
         ),
@@ -581,18 +731,24 @@ class _PhotoSection extends StatelessWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: CrabSenseColors.surfaceVariant,
+                  color: kHomeNavyDeep.withValues(alpha: 0.75),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: CrabSenseColors.primary.withValues(alpha: 0.4)),
+                  border: Border.all(color: kHomeBlue.withValues(alpha: 0.5)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kHomeBlue.withValues(alpha: 0.2),
+                      blurRadius: 10,
+                    ),
+                  ],
                 ),
                 child: const Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.add_a_photo_outlined, color: CrabSenseColors.primary, size: 24),
+                    Icon(Icons.add_a_photo_outlined, color: kHomeBlueLight, size: 24),
                     SizedBox(height: 4),
                     Text(
-                      'Add Photo',
-                      style: TextStyle(color: CrabSenseColors.primary, fontSize: 10),
+                      'Thêm ảnh',
+                      style: TextStyle(color: kHomeBlueLight, fontSize: 10),
                     ),
                   ],
                 ),
@@ -625,7 +781,7 @@ class _PhotoThumbnail extends StatelessWidget {
             errorBuilder: (_, _, _) => Container(
               width: 80,
               height: 80,
-              color: CrabSenseColors.surfaceVariant,
+              color: kHomeNavyLift,
               child: const Icon(Icons.broken_image_outlined, color: CrabSenseColors.textSecondary),
             ),
           ),
@@ -676,7 +832,7 @@ class _SubmitButton extends StatelessWidget {
       height: 52,
       child: Tooltip(
         message: !hasPermission
-            ? 'Requires Field Operator role or higher'
+            ? 'Cần vai trò Field Operator trở lên'
             : '',
         child: ElevatedButton(
           onPressed: canSubmit
@@ -688,15 +844,26 @@ class _SubmitButton extends StatelessWidget {
                     ),
                   )
               : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: kHomeBlue,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: kHomeNavyLift,
+            disabledForegroundColor: CrabSenseColors.textDisabled,
+            elevation: 6,
+            shadowColor: kHomeBlue.withValues(alpha: 0.6),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
           child: state.isSubmitting
               ? const SizedBox(
                   width: 22,
                   height: 22,
-                  child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2.5),
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                 )
               : const Text(
-                  'Save Operation Log',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  'Lưu nhật ký vận hành',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
         ),
       ),

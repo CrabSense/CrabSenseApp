@@ -12,8 +12,8 @@ import '../../../../app/routes.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../box_management/presentation/providers/boxes_provider.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../bloc/bloc.dart';
 import '../widgets/permission_view.dart';
 import '../widgets/qr_scanner_view.dart';
@@ -117,21 +117,52 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
   void _showHelp() {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: CrabSenseColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+          ),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
+          boxShadow: [
+            BoxShadow(
+              color: kHomeBlue.withValues(alpha: 0.25),
+              blurRadius: 24,
+              offset: const Offset(0, -6),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: kHomeCyan.withValues(alpha: 0.75),
+                  borderRadius: BorderRadius.circular(4),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kHomeCyan.withValues(alpha: 0.4),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             Text(
-              'Hướng dẫn Scan QR',
+              'HƯỚNG DẪN QUÉT QR',
               style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                    color: CrabSenseColors.textPrimary,
-                    fontWeight: FontWeight.w700,
+                    color: kHomeBlueLight,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
                   ),
             ),
             const SizedBox(height: 12),
@@ -139,9 +170,9 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
               '1. Đưa mã QR trên hộp vào giữa khung.\n'
               '2. Giữ ổn định trong đủ sáng.\n'
               '3. Dùng Album để quét từ ảnh có sẵn.\n'
-              '4. Continuous Scan giữ camera mở sau mỗi lần quét.',
+              '4. Quét liên tục giữ camera mở sau mỗi lần quét.',
               style: TextStyle(
-                color: CrabSenseColors.textSecondary,
+                color: Colors.white70,
                 height: 1.45,
               ),
             ),
@@ -245,38 +276,96 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
   void _onFailure(BoxFetchFailure state) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: CrabSenseColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+          ),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
+          boxShadow: [
+            BoxShadow(
+              color: kHomeBlue.withValues(alpha: 0.25),
+              blurRadius: 24,
+              offset: const Offset(0, -6),
+            ),
+          ],
+        ),
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.qr_code_2_rounded,
-              color: CrabSenseColors.danger,
-              size: 40,
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.redAccent.withValues(alpha: 0.15),
+                border: Border.all(
+                  color: Colors.redAccent.withValues(alpha: 0.55),
+                ),
+              ),
+              child: const Icon(
+                Icons.qr_code_2_rounded,
+                color: Colors.redAccent,
+                size: 32,
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Text(
               state.message.isNotEmpty
                   ? state.message
                   : 'QR không thuộc hệ thống CrabSense.',
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: CrabSenseColors.textPrimary,
+                color: Colors.white,
                 fontWeight: FontWeight.w600,
+                height: 1.35,
               ),
             ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                context.read<ScannerBloc>().add(const ScannerReset());
-              },
-              child: const Text('Quét lại'),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFF5BA0FF), kHomeBlue, Color(0xFF1A5FD0)],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kHomeBlue.withValues(alpha: 0.4),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      context.read<ScannerBloc>().add(const ScannerReset());
+                    },
+                    child: const Center(
+                      child: Text(
+                        'Quét lại',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -372,7 +461,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
 
         if (state is ScannerPermissionChecking || state is ScannerInitial) {
           return const ColoredBox(
-            color: CrabSenseColors.background,
+            color: kHomeNavyDeep,
             child: Center(child: ScanSkeleton()),
           );
         }
@@ -433,7 +522,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
 
         if (isTabletLandscape) {
           return ColoredBox(
-            color: CrabSenseColors.background,
+            color: kHomeNavyDeep,
             child: Row(
               children: [
                 Expanded(flex: 55, child: camera),
@@ -443,16 +532,16 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                       ? _resultPanel(state, embedded: true)
                       : state is BoxFetchInProgress
                           ? const ColoredBox(
-                              color: CrabSenseColors.surface,
+                              color: kHomeNavy,
                               child: ScanSkeleton(),
                             )
-                          : const ColoredBox(
-                              color: CrabSenseColors.surface,
+                          : ColoredBox(
+                              color: kHomeNavy,
                               child: Center(
                                 child: Text(
-                                  'Quét QR để xem thông tin Box',
+                                  'Quét QR để xem thông tin hộp',
                                   style: TextStyle(
-                                    color: CrabSenseColors.textSecondary,
+                                    color: Colors.white.withValues(alpha: 0.55),
                                   ),
                                 ),
                               ),
@@ -463,7 +552,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
           );
         }
 
-        return ColoredBox(color: CrabSenseColors.background, child: camera);
+        return ColoredBox(color: kHomeNavyDeep, child: camera);
       },
     );
   }
@@ -480,14 +569,17 @@ class _EmptyHint extends StatelessWidget {
         Icon(
           Icons.qr_code_2_rounded,
           size: 48,
-          color: CrabSenseColors.primary.withValues(alpha: 0.55),
+          color: kHomeCyan.withValues(alpha: 0.75),
+          shadows: [
+            Shadow(color: kHomeCyan.withValues(alpha: 0.55), blurRadius: 16),
+          ],
         ),
         const SizedBox(height: 8),
         const Text(
           'Đưa QR vào giữa khung',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: CrabSenseColors.textSecondary,
+            color: Colors.white70,
             fontWeight: FontWeight.w600,
           ),
         ),

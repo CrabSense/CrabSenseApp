@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'crab_hologram_painter.dart';
+
 /// Palette + thành phần dùng chung cho các section trang home,
 /// đồng bộ với header và card Tổng quan vận hành.
 const Color kHomeBlue = Color(0xFF2F80FF);
@@ -50,6 +52,32 @@ BoxDecoration homeTileDecoration({
     borderRadius: BorderRadius.circular(radius),
     border: Border.all(color: a.withValues(alpha: 0.4)),
   );
+}
+
+/// Watermark cua hologram — đặt trong [Stack] (tự [Positioned.fill]).
+class HomeCrabWatermark extends StatelessWidget {
+  const HomeCrabWatermark({
+    super.key,
+    this.alpha = 0.06,
+    this.trayExtent = 26,
+  });
+
+  final double alpha;
+  final double? trayExtent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: CustomPaint(
+          painter: CrabHologramPainter(
+            color: kHomeBlueLight.withValues(alpha: alpha),
+            trayExtent: trayExtent,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Vệt sáng mảnh ở cạnh trên card (đặt trong Stack với Positioned).

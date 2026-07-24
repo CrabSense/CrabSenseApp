@@ -255,40 +255,19 @@ class AiRecommendationCard extends StatelessWidget {
                   children: [
                     Expanded(
                       flex: 5,
-                      child: ElevatedButton(
-                        onPressed: onExecutePressed,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: kHomeBlue,
-                          foregroundColor: Colors.white,
-                          elevation: 6,
-                          shadowColor: kHomeBlue.withValues(alpha: 0.6),
-                          minimumSize: const Size(48, 44),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Thực hiện ngay',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
+                      child: _GlowActionButton(
+                        icon: Icons.bolt_rounded,
+                        label: 'Thực hiện ngay',
+                        onTap: onExecutePressed,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     Expanded(
                       flex: 4,
-                      child: OutlinedButton(
-                        onPressed: onDetailPressed,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: kHomeBlueLight,
-                          side: BorderSide(
-                            color: kHomeBorderBlue.withValues(alpha: 0.7),
-                          ),
-                          minimumSize: const Size(48, 44),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text('Xem chi tiết'),
+                      child: _GhostActionButton(
+                        icon: Icons.visibility_outlined,
+                        label: 'Xem chi tiết',
+                        onTap: onDetailPressed,
                       ),
                     ),
                   ],
@@ -426,6 +405,185 @@ class AiRecommendationCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Nút chính: gradient xanh dương phát sáng + icon, kiểu neon của trang home.
+class _GlowActionButton extends StatelessWidget {
+  const _GlowActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 46,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: kHomeBlue.withValues(alpha: 0.45),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          splashColor: Colors.white.withValues(alpha: 0.15),
+          child: Ink(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF4D9AFF),
+                  kHomeBlue,
+                  Color(0xFF1E5FD6),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.25),
+              ),
+            ),
+            child: Stack(
+              children: [
+                // Vệt sáng mảnh cạnh trên của nút
+                Positioned(
+                  top: 0,
+                  left: 14,
+                  right: 14,
+                  height: 1,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.transparent,
+                            Colors.white.withValues(alpha: 0.7),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        icon,
+                        size: 18,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            label,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13.5,
+                              letterSpacing: 0.2,
+                            ),
+                            maxLines: 1,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Nút phụ: nền navy kính, viền xanh + icon, glow nhẹ.
+class _GhostActionButton extends StatelessWidget {
+  const _GhostActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 46,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          splashColor: kHomeBlue.withValues(alpha: 0.15),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: kHomeNavyDeep.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: kHomeBlue.withValues(alpha: 0.55),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: kHomeBlue.withValues(alpha: 0.15),
+                  blurRadius: 10,
+                ),
+              ],
+            ),
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 17, color: kHomeBlueLight),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        label,
+                        style: const TextStyle(
+                          color: kHomeBlueLight,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                        maxLines: 1,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

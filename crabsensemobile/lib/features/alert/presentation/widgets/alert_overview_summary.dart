@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/alerts_models.dart';
 
 class AlertOverviewSummary extends StatelessWidget {
@@ -17,39 +17,39 @@ class AlertOverviewSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = [
       _SummaryItem(
-        label: 'Critical',
+        label: 'Nghiêm trọng',
         value: summary.critical,
-        color: CrabSenseColors.danger,
+        color: Colors.redAccent,
         filter: AlertQuickFilter.critical,
       ),
       _SummaryItem(
-        label: 'High',
+        label: 'Cao',
         value: summary.high,
-        color: CrabSenseColors.warning,
+        color: kHomeOrange,
         filter: AlertQuickFilter.high,
       ),
       _SummaryItem(
-        label: 'Medium',
+        label: 'Trung bình',
         value: summary.medium,
-        color: CrabSenseColors.info,
+        color: kHomeBlueLight,
         filter: null,
       ),
       _SummaryItem(
-        label: 'Low',
+        label: 'Thấp',
         value: summary.low,
-        color: CrabSenseColors.hintText,
+        color: Colors.white54,
         filter: null,
       ),
       _SummaryItem(
-        label: 'Ack',
+        label: 'Đã xem',
         value: summary.acknowledged,
-        color: CrabSenseColors.primary,
+        color: kHomeCyan,
         filter: null,
       ),
       _SummaryItem(
-        label: 'Resolved',
+        label: 'Đã xử lý',
         value: summary.resolvedToday,
-        color: CrabSenseColors.success,
+        color: kHomeGreen,
         filter: AlertQuickFilter.resolved,
       ),
     ];
@@ -71,23 +71,12 @@ class AlertOverviewSummary extends StatelessWidget {
                   : null,
               borderRadius: BorderRadius.circular(14),
               child: Container(
-                width: 86,
+                width: 96,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
+                  horizontal: 8,
                   vertical: 10,
                 ),
-                decoration: BoxDecoration(
-                  color: CrabSenseColors.card,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: CrabSenseColors.border),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.18),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
+                decoration: homeTileDecoration(radius: 14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -103,7 +92,7 @@ class AlertOverviewSummary extends StatelessWidget {
                     Text(
                       item.label,
                       style: const TextStyle(
-                        color: CrabSenseColors.hintText,
+                        color: Colors.white54,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),

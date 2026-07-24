@@ -119,6 +119,7 @@ import '../../features/operation_logs/data/datasources/operation_remote_data_sou
 import '../../features/operation_logs/data/repositories/operation_repository_impl.dart';
 import '../../features/operation_logs/domain/repositories/operation_repository.dart';
 import '../../features/operation_logs/domain/usecases/create_operation_log_usecase.dart';
+import '../../features/operation_logs/domain/usecases/get_all_operation_logs_usecase.dart';
 import '../../features/operation_logs/domain/usecases/get_operation_history_usecase.dart';
 import '../../features/operation_logs/domain/usecases/update_operation_log_usecase.dart';
 import '../../features/operation_logs/presentation/bloc/operation_bloc.dart';
@@ -634,6 +635,7 @@ Future<void> init() async {
   // Use Cases
   sl.registerLazySingleton(() => CreateOperationLogUseCase(sl()));
   sl.registerLazySingleton(() => GetOperationHistoryUseCase(sl()));
+  sl.registerLazySingleton(() => GetAllOperationLogsUseCase(sl()));
   sl.registerLazySingleton(() => UpdateOperationLogUseCase(sl()));
 
   // BLoC

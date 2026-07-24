@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/alerts_models.dart';
 import 'ai_recommended_action_card.dart';
 import 'alert_badges.dart';
@@ -15,7 +15,7 @@ class AlertTimeline extends StatelessWidget {
     if (events.isEmpty) {
       return const Text(
         'Chưa có lịch sử xử lý',
-        style: TextStyle(color: CrabSenseColors.hintText, fontSize: 12),
+        style: TextStyle(color: Colors.white54, fontSize: 12),
       );
     }
 
@@ -33,7 +33,7 @@ class AlertTimeline extends StatelessWidget {
                     width: 10,
                     height: 10,
                     decoration: BoxDecoration(
-                      color: sorted[i].status?.color ?? CrabSenseColors.primary,
+                      color: sorted[i].status?.color ?? kHomeCyan,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -41,7 +41,7 @@ class AlertTimeline extends StatelessWidget {
                     Container(
                       width: 2,
                       height: 36,
-                      color: CrabSenseColors.border,
+                      color: kHomeCyan.withValues(alpha: 0.75),
                     ),
                 ],
               ),
@@ -55,7 +55,7 @@ class AlertTimeline extends StatelessWidget {
                       Text(
                         sorted[i].title,
                         style: const TextStyle(
-                          color: CrabSenseColors.textPrimary,
+                          color: Colors.white,
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
                         ),
@@ -64,7 +64,7 @@ class AlertTimeline extends StatelessWidget {
                         Text(
                           sorted[i].actorName!,
                           style: const TextStyle(
-                            color: CrabSenseColors.textSecondary,
+                            color: Colors.white70,
                             fontSize: 11,
                           ),
                         ),
@@ -72,14 +72,14 @@ class AlertTimeline extends StatelessWidget {
                         Text(
                           sorted[i].note!,
                           style: const TextStyle(
-                            color: CrabSenseColors.hintText,
+                            color: Colors.white54,
                             fontSize: 11,
                           ),
                         ),
                       Text(
                         _fmt(sorted[i].at),
                         style: const TextStyle(
-                          color: CrabSenseColors.hintText,
+                          color: Colors.white54,
                           fontSize: 10,
                         ),
                       ),
@@ -117,46 +117,51 @@ Future<void> showAlertQuickActionsSheet({
 }) {
   return showModalBottomSheet<void>(
     context: context,
-    backgroundColor: CrabSenseColors.card,
+    backgroundColor: kHomeNavyLift,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
     builder: (ctx) {
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: CrabSenseColors.border,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                alert.title,
-                style: const TextStyle(
-                  color: CrabSenseColors.textPrimary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                children: [
-                  AlertSeverityBadge(severity: alert.severity, compact: true),
-                  AlertStatusBadge(status: alert.status),
-                ],
-              ),
+      return ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        child: Stack(
+          children: [
+            const HomeCrabWatermark(alpha: 0.05, trayExtent: 28),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: kHomeCyan.withValues(alpha: 0.75),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      alert.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      children: [
+                        AlertSeverityBadge(severity: alert.severity, compact: true),
+                        AlertStatusBadge(status: alert.status),
+                      ],
+                    ),
               const SizedBox(height: 12),
               if (canAcknowledge)
                 _sheetTile(Icons.visibility_rounded, 'Xác nhận đã xem', () {
@@ -187,11 +192,11 @@ Future<void> showAlertQuickActionsSheet({
                 onHide();
               }),
               if (alert.quickActions.isNotEmpty) ...[
-                const Divider(color: CrabSenseColors.divider),
+                const Divider(color: Colors.white12),
                 const Text(
                   'Hành động theo loại',
                   style: TextStyle(
-                    color: CrabSenseColors.hintText,
+                    color: Colors.white54,
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
                   ),
@@ -203,17 +208,17 @@ Future<void> showAlertQuickActionsSheet({
                       final ok = await showDialog<bool>(
                         context: ctx,
                         builder: (dCtx) => AlertDialog(
-                          backgroundColor: CrabSenseColors.card,
+                          backgroundColor: Colors.transparent,
                           title: const Text(
                             'Xác nhận',
                             style: TextStyle(
-                              color: CrabSenseColors.textPrimary,
+                              color: Colors.white,
                             ),
                           ),
                           content: Text(
                             'Bạn chắc chắn muốn thực hiện: ${a.label}?',
                             style: const TextStyle(
-                              color: CrabSenseColors.textSecondary,
+                              color: Colors.white70,
                             ),
                           ),
                           actions: [
@@ -234,8 +239,11 @@ Future<void> showAlertQuickActionsSheet({
                     onAction(a);
                   }),
               ],
-            ],
-          ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       );
     },
@@ -245,11 +253,11 @@ Future<void> showAlertQuickActionsSheet({
 Widget _sheetTile(IconData icon, String label, VoidCallback onTap) {
   return ListTile(
     contentPadding: EdgeInsets.zero,
-    leading: Icon(icon, color: CrabSenseColors.primary),
+    leading: Icon(icon, color: kHomeCyan),
     title: Text(
       label,
       style: const TextStyle(
-        color: CrabSenseColors.textPrimary,
+        color: Colors.white,
         fontWeight: FontWeight.w600,
       ),
     ),
@@ -275,7 +283,7 @@ Future<void> showAlertAssignmentSheet({
 
   return showModalBottomSheet<void>(
     context: context,
-    backgroundColor: CrabSenseColors.card,
+    backgroundColor: kHomeNavyLift,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -283,40 +291,45 @@ Future<void> showAlertAssignmentSheet({
     builder: (ctx) {
       return StatefulBuilder(
         builder: (ctx, setModal) {
-          return Padding(
-            padding: EdgeInsets.fromLTRB(
-              16,
-              16,
-              16,
-              16 + MediaQuery.viewInsetsOf(ctx).bottom,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+          return ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            child: Stack(
               children: [
-                const Text(
-                  'Giao cảnh báo',
-                  style: TextStyle(
-                    color: CrabSenseColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 17,
+                const HomeCrabWatermark(alpha: 0.05, trayExtent: 28),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    16,
+                    16,
+                    16 + MediaQuery.viewInsetsOf(ctx).bottom,
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  alert.title,
-                  style: const TextStyle(
-                    color: CrabSenseColors.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                DropdownButtonFormField<String>(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Giao cảnh báo',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        alert.title,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      DropdownButtonFormField<String>(
                   initialValue: role,
-                  dropdownColor: CrabSenseColors.card,
+                  dropdownColor: kHomeNavyLift,
                   decoration: const InputDecoration(
                     labelText: 'Vai trò',
-                    labelStyle: TextStyle(color: CrabSenseColors.hintText),
+                    labelStyle: TextStyle(color: Colors.white54),
                   ),
                   items: const [
                     DropdownMenuItem(
@@ -338,19 +351,19 @@ Future<void> showAlertAssignmentSheet({
                 const SizedBox(height: 10),
                 TextField(
                   controller: nameCtrl,
-                  style: const TextStyle(color: CrabSenseColors.textPrimary),
+                  style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(
                     labelText: 'Tên người nhận',
-                    labelStyle: TextStyle(color: CrabSenseColors.hintText),
+                    labelStyle: TextStyle(color: Colors.white54),
                   ),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: noteCtrl,
-                  style: const TextStyle(color: CrabSenseColors.textPrimary),
+                  style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(
                     labelText: 'Ghi chú',
-                    labelStyle: TextStyle(color: CrabSenseColors.hintText),
+                    labelStyle: TextStyle(color: Colors.white54),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -371,12 +384,15 @@ Future<void> showAlertAssignmentSheet({
                       );
                     },
                     style: FilledButton.styleFrom(
-                      backgroundColor: CrabSenseColors.primary,
-                      foregroundColor: CrabSenseColors.background,
+                      backgroundColor: kHomeCyan,
+                      foregroundColor: kHomeNavyDeep,
                       minimumSize: const Size.fromHeight(48),
                     ),
                     child: const Text('Giao việc'),
                   ),
+                ),
+              ],
+            ),
                 ),
               ],
             ),
@@ -398,7 +414,7 @@ Future<void> showAlertDetailSheet({
 }) {
   return showModalBottomSheet<void>(
     context: context,
-    backgroundColor: CrabSenseColors.surface,
+    backgroundColor: kHomeNavyLift,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -410,38 +426,43 @@ Future<void> showAlertDetailSheet({
         minChildSize: 0.5,
         maxChildSize: 0.95,
         builder: (ctx, scrollController) {
-          return ListView(
-            controller: scrollController,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: CrabSenseColors.border,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                alert.code,
-                style: const TextStyle(
-                  color: CrabSenseColors.hintText,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                alert.title,
-                style: const TextStyle(
-                  color: CrabSenseColors.textPrimary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
+          return ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            child: Stack(
+              children: [
+                const HomeCrabWatermark(alpha: 0.045, trayExtent: 30),
+                ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: kHomeCyan.withValues(alpha: 0.75),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      alert.code,
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      alert.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 6,
@@ -456,7 +477,7 @@ Future<void> showAlertDetailSheet({
               Text(
                 alert.description,
                 style: const TextStyle(
-                  color: CrabSenseColors.textSecondary,
+                  color: Colors.white70,
                   height: 1.4,
                 ),
               ),
@@ -470,7 +491,7 @@ Future<void> showAlertDetailSheet({
                 ),
                 _detailRow('Ngưỡng', alert.threshold!.allowedRange ?? '—'),
               ],
-              _detailRow('Priority Score', '${alert.priority.score}'),
+              _detailRow('Điểm ưu tiên', '${alert.priority.score}'),
               _detailRow('Giải thích điểm', alert.priority.explanation),
               if (alert.possibleCause != null)
                 _detailRow('Nguyên nhân có thể', alert.possibleCause!),
@@ -497,21 +518,21 @@ Future<void> showAlertDetailSheet({
                 const Text(
                   'Người phụ trách',
                   style: TextStyle(
-                    color: CrabSenseColors.textPrimary,
+                    color: Colors.white,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   '${alert.assignment.assigneeName} · ${alert.assignment.assigneeRole}',
-                  style: const TextStyle(color: CrabSenseColors.textSecondary),
+                  style: const TextStyle(color: Colors.white70),
                 ),
               ],
               const SizedBox(height: 16),
               const Text(
                 'Timeline xử lý',
                 style: TextStyle(
-                  color: CrabSenseColors.textPrimary,
+                  color: Colors.white,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -546,7 +567,10 @@ Future<void> showAlertDetailSheet({
                     ),
                 ],
               ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           );
         },
       );
@@ -565,7 +589,7 @@ Widget _detailRow(String label, String value) {
           child: Text(
             label,
             style: const TextStyle(
-              color: CrabSenseColors.hintText,
+              color: Colors.white54,
               fontSize: 12,
             ),
           ),
@@ -574,7 +598,7 @@ Widget _detailRow(String label, String value) {
           child: Text(
             value,
             style: const TextStyle(
-              color: CrabSenseColors.textSecondary,
+              color: Colors.white70,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),

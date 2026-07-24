@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/alerts_models.dart';
 
 class AlertSeverityBadge extends StatelessWidget {
@@ -34,7 +34,7 @@ class AlertSeverityBadge extends StatelessWidget {
             Icon(severity.icon, size: compact ? 12 : 14, color: color),
             const SizedBox(width: 4),
             Text(
-              severity.label,
+              severity.labelVi,
               style: TextStyle(
                 color: color,
                 fontSize: compact ? 10 : 11,
@@ -56,13 +56,13 @@ class AlertPriorityBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Priority Score ${priority.score}',
+      label: 'Điểm ưu tiên ${priority.score}',
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: CrabSenseColors.container,
+          color: kHomeNavyDeep,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: CrabSenseColors.border),
+          border: Border.all(color: kHomeBorderBlue),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

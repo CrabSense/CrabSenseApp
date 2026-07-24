@@ -73,6 +73,22 @@ abstract class OperationRepository {
     int pageSize = 50,
   });
 
+  /// Retrieves all operation logs across every box, sorted by
+  /// [OperationLog.timestamp] descending (newest first).
+  ///
+  /// Online: fetches from `GET /operations`, refreshes the local cache,
+  /// then serves from cache so logs still pending sync are included.
+  /// Offline: serves directly from the local cache.
+  /// Supports pagination via [page] and [pageSize].
+  ///
+  /// Returns:
+  /// - `Right(List<OperationLog>)`: Matching logs (may be empty)
+  /// - `Left(CacheFailure)`: Error reading from local storage
+  Future<Either<Failure, List<OperationLog>>> getAllOperationLogs({
+    int page = 1,
+    int pageSize = 50,
+  });
+
   /// Updates an existing operation log.
   ///
   /// Editing is only permitted within 24 hours of the log's [timestamp]

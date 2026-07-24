@@ -118,7 +118,7 @@ class _CyberNavBar extends StatelessWidget {
     _NavItem(
       icon: Icons.inventory_2_outlined,
       activeIcon: Icons.inventory_2_rounded,
-      label: 'Boxes',
+      label: 'Hộp nuôi',
     ),
     _NavItem(
       icon: Icons.qr_code_scanner_rounded,
@@ -129,7 +129,7 @@ class _CyberNavBar extends StatelessWidget {
     _NavItem(
       icon: Icons.notifications_outlined,
       activeIcon: Icons.notifications_rounded,
-      label: 'Alerts',
+      label: 'Cảnh báo',
     ),
     _NavItem(
       icon: Icons.person_outline_rounded,

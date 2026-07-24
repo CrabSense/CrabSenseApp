@@ -12,7 +12,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../app/routes.dart';
-import '../../../../app/theme.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
 import '../../domain/entities/alert.dart';
@@ -52,10 +52,10 @@ class AlertCard extends StatelessWidget {
       onTap: () => _handleTap(context),
       child: Container(
         decoration: BoxDecoration(
-          color: CrabSenseColors.surface.withValues(alpha: 0.9),
+          color: kHomeNavy.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: CrabSenseColors.primary.withValues(alpha: 0.12),
+            color: kHomeCyan.withValues(alpha: 0.12),
           ),
         ),
         clipBehavior: Clip.antiAlias,
@@ -86,7 +86,7 @@ class AlertCard extends StatelessWidget {
                             child: Text(
                               alert.title,
                               style: theme.textTheme.titleSmall?.copyWith(
-                                color: CrabSenseColors.textPrimary,
+                                color: Colors.white,
                                 fontWeight: FontWeight.w600,
                               ),
                               maxLines: 1,
@@ -113,14 +113,14 @@ class AlertCard extends StatelessWidget {
                           Text(
                             '·',
                             style: theme.textTheme.labelSmall?.copyWith(
-                              color: CrabSenseColors.textDisabled,
+                              color: Colors.white38,
                             ),
                           ),
                           const SizedBox(width: 8),
                           Text(
                             _formatTimestamp(alert.createdAt),
                             style: theme.textTheme.labelSmall?.copyWith(
-                              color: CrabSenseColors.textSecondary,
+                              color: Colors.white70,
                             ),
                           ),
                         ],
@@ -132,7 +132,7 @@ class AlertCard extends StatelessWidget {
                       Text(
                         alert.message,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: CrabSenseColors.textSecondary,
+                          color: Colors.white70,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -194,11 +194,11 @@ class AlertCard extends StatelessWidget {
   Color _severityColor(AlertSeverity severity) {
     switch (severity) {
       case AlertSeverity.critical:
-        return CrabSenseColors.error;
+        return Colors.redAccent;
       case AlertSeverity.warning:
-        return CrabSenseColors.warning;
+        return kHomeOrange;
       case AlertSeverity.info:
-        return CrabSenseColors.info;
+        return kHomeBlueLight;
     }
   }
 
@@ -257,7 +257,7 @@ class _AlertActions extends StatelessWidget {
           height: 18,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation<Color>(CrabSenseColors.primary),
+            valueColor: AlwaysStoppedAnimation<Color>(kHomeCyan),
           ),
         ),
       );
@@ -273,14 +273,14 @@ class _AlertActions extends StatelessWidget {
           _ActionButton(
             label: 'Acknowledge',
             icon: Icons.check_circle_outline,
-            color: CrabSenseColors.success,
+            color: kHomeGreen,
             onTap: () => _acknowledge(context),
           ),
         if (canAcknowledge) const SizedBox(width: 8),
         _ActionButton(
           label: 'Dismiss',
           icon: Icons.close,
-          color: CrabSenseColors.textSecondary,
+          color: Colors.white70,
           onTap: () => _dismiss(context),
         ),
       ],
@@ -357,10 +357,10 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (color, label) = switch (status) {
-      AlertStatus.unread => (CrabSenseColors.error, 'Unread'),
-      AlertStatus.read => (CrabSenseColors.textSecondary, 'Read'),
-      AlertStatus.acknowledged => (CrabSenseColors.success, 'Acknowledged'),
-      AlertStatus.dismissed => (CrabSenseColors.textDisabled, 'Dismissed'),
+      AlertStatus.unread => (Colors.redAccent, 'Unread'),
+      AlertStatus.read => (Colors.white70, 'Read'),
+      AlertStatus.acknowledged => (kHomeGreen, 'Acknowledged'),
+      AlertStatus.dismissed => (Colors.white38, 'Dismissed'),
     };
 
     return Container(
@@ -395,16 +395,16 @@ class _ActionChip extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
     decoration: BoxDecoration(
-      color: CrabSenseColors.primary.withValues(alpha: 0.1),
+      color: kHomeCyan.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(6),
       border: Border.all(
-        color: CrabSenseColors.primary.withValues(alpha: 0.25),
+        color: kHomeCyan.withValues(alpha: 0.25),
       ),
     ),
     child: Text(
       label,
       style: const TextStyle(
-        color: CrabSenseColors.primary,
+        color: kHomeCyan,
         fontSize: 10,
         fontFamily: 'Inter',
       ),

@@ -36,6 +36,16 @@ abstract class OperationLocalDataSource {
     int pageSize = 50,
   });
 
+  /// Returns all cached operation logs regardless of box, paginated and
+  /// sorted by timestamp descending (newest first).
+  ///
+  /// Used by the operation history screen to show every log recorded on
+  /// this device (offline-first: every created log lands here first).
+  Future<List<OperationLogModel>> getAllCachedOperationLogs({
+    int page = 1,
+    int pageSize = 50,
+  });
+
   /// Returns a single cached operation log by ID, or null if not found.
   ///
   /// Requirements: 10.9
@@ -129,6 +139,28 @@ class OperationLocalDataSourceImpl implements OperationLocalDataSource {
     } on Exception catch (e) {
       throw CacheException(
         message: 'Failed to read cached operation logs: $e',
+        code: 'CACHE_READ_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<List<OperationLogModel>> getAllCachedOperationLogs({
+    int page = 1,
+    int pageSize = 50,
+  }) async {
+    try {
+      final offset = (page - 1) * pageSize;
+
+      final query = database.select(database.operationLogs)
+        ..orderBy([(t) => OrderingTerm(expression: t.timestamp, mode: OrderingMode.desc)])
+        ..limit(pageSize, offset: offset);
+
+      final rows = await query.get();
+      return rows.map(OperationLogModel.fromDrift).toList(growable: false);
+    } on Exception catch (e) {
+      throw CacheException(
+        message: 'Failed to read all cached operation logs: $e',
         code: 'CACHE_READ_ERROR',
       );
     }

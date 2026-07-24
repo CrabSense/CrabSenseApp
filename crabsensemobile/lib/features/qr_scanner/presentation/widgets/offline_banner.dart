@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 
 class OfflineBanner extends StatelessWidget {
   const OfflineBanner({
@@ -19,32 +19,40 @@ class OfflineBanner extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: CrabSenseColors.warning.withValues(alpha: 0.14),
+        color: kHomeOrange.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: CrabSenseColors.warning.withValues(alpha: 0.4)),
+        border: Border.all(color: kHomeOrange.withValues(alpha: 0.45)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.cloud_off_rounded, color: CrabSenseColors.warning, size: 18),
+          const Icon(Icons.cloud_off_rounded, color: kHomeOrange, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
               style: const TextStyle(
-                color: CrabSenseColors.textPrimary,
+                color: Colors.white,
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
               ),
             ),
           ),
-          TextButton(
-            onPressed: onSync,
-            style: TextButton.styleFrom(
-              foregroundColor: CrabSenseColors.warning,
-              padding: EdgeInsets.zero,
-              minimumSize: const Size(0, 32),
+          const SizedBox(width: 4),
+          Flexible(
+            child: TextButton(
+              onPressed: onSync,
+              style: TextButton.styleFrom(
+                foregroundColor: kHomeOrange,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                minimumSize: const Size(0, 32),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                'Đồng bộ',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            child: const Text('Đồng bộ khi có mạng'),
           ),
         ],
       ),

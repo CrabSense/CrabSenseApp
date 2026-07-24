@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 
 class AlertSearchBar extends StatefulWidget {
   const AlertSearchBar({
@@ -47,13 +47,13 @@ class _AlertSearchBarState extends State<AlertSearchBar> {
     return TextField(
       controller: _controller,
       onChanged: widget.onChanged,
-      style: const TextStyle(color: CrabSenseColors.textPrimary),
+      style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: 'Tìm cảnh báo, Box hoặc thiết bị',
-        hintStyle: const TextStyle(color: CrabSenseColors.hintText),
+        hintStyle: const TextStyle(color: Colors.white54),
         prefixIcon: const Icon(
           Icons.search_rounded,
-          color: CrabSenseColors.hintText,
+          color: Colors.white54,
         ),
         suffixIcon: _controller.text.isEmpty
             ? null
@@ -64,26 +64,26 @@ class _AlertSearchBarState extends State<AlertSearchBar> {
                 },
                 icon: const Icon(
                   Icons.close_rounded,
-                  color: CrabSenseColors.hintText,
+                  color: Colors.white54,
                 ),
               ),
         filled: true,
-        fillColor: CrabSenseColors.card,
+        fillColor: kHomeNavyLift,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 12,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: CrabSenseColors.border),
+          borderSide: const BorderSide(color: kHomeBorderBlue),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: CrabSenseColors.border),
+          borderSide: const BorderSide(color: kHomeBorderBlue),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: CrabSenseColors.primary),
+          borderSide: const BorderSide(color: kHomeCyan),
         ),
       ),
     );

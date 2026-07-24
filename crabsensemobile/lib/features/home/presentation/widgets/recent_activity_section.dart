@@ -6,10 +6,12 @@ import 'home_palette.dart';
 
 class RecentActivitySection extends StatelessWidget {
   final List<RecentActivityItem> activities;
+  final VoidCallback? onViewAllPressed;
 
   const RecentActivitySection({
     super.key,
     required this.activities,
+    this.onViewAllPressed,
   });
 
   IconData _getActivityIcon(ActivityType type) {
@@ -58,9 +60,11 @@ class RecentActivitySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const HomeSectionHeader(
+        HomeSectionHeader(
           icon: Icons.history_rounded,
           title: 'NHẬT KÝ HOẠT ĐỘNG GẦN ĐÂY',
+          actionLabel: onViewAllPressed != null ? 'Xem tất cả' : null,
+          onAction: onViewAllPressed,
         ),
         const SizedBox(height: 12),
         Column(

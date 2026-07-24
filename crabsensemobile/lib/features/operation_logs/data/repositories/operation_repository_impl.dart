@@ -152,6 +152,46 @@ class OperationRepositoryImpl implements OperationRepository {
   }
 
   @override
+  Future<Either<Failure, List<OperationLog>>> getAllOperationLogs({
+    int page = 1,
+    int pageSize = 50,
+  }) async {
+    // Online: refresh the cache from the server first (best-effort — on any
+    // remote error we still serve whatever is cached locally).
+    if (await networkInfo.isConnected) {
+      try {
+        final models = await remoteDataSource.getAllOperations(
+          page: page,
+          limit: pageSize,
+        );
+        await localDataSource.cacheOperationLogs(
+          models.map((m) => m.toEntity()).toList(),
+        );
+      } on ServerException catch (e) {
+        logger.w('OperationRepo: remote getAllOperations failed — ${e.message}');
+      } on NetworkException catch (e) {
+        logger.w('OperationRepo: network error on getAllOperations — ${e.message}');
+      } on ParseException catch (e) {
+        logger.w('OperationRepo: parse error on getAllOperations — ${e.message}');
+      } on CacheException catch (e) {
+        logger.w('OperationRepo: failed to cache remote operations — ${e.message}');
+      }
+    }
+
+    // Always serve from the local cache so logs created offline and still
+    // pending sync (isDirty) appear alongside server data.
+    try {
+      final cached = await localDataSource.getAllCachedOperationLogs(
+        page: page,
+        pageSize: pageSize,
+      );
+      return Right(cached.map((m) => m.toEntity()).toList());
+    } on CacheException catch (e) {
+      return Left(CacheFailure(e.message, e.code));
+    }
+  }
+
+  @override
   Future<Either<Failure, OperationLog>> updateOperationLog(OperationLog log) async {
     // Requirements: 10.9
 

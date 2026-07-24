@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 
 class BoxesSearchBar extends StatefulWidget {
   const BoxesSearchBar({
@@ -32,7 +32,7 @@ class _BoxesSearchBarState extends State<BoxesSearchBar> {
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initialQuery);
-    _focusNode = FocusNode();
+    _focusNode = FocusNode()..addListener(() => setState(() {}));
     if (widget.autofocus) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _focusNode.requestFocus();
@@ -67,27 +67,27 @@ class _BoxesSearchBarState extends State<BoxesSearchBar> {
         TextField(
           controller: _controller,
           focusNode: _focusNode,
-          onChanged: widget.onChanged,
-          style: const TextStyle(
-            color: CrabSenseColors.textPrimary,
-            fontSize: 14,
-          ),
-          cursorColor: CrabSenseColors.primary,
+          onChanged: (v) {
+            widget.onChanged(v);
+            setState(() {});
+          },
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+          cursorColor: kHomeBlueLight,
           decoration: InputDecoration(
             hintText: 'Tìm theo tên Box, mã QR hoặc khu vực',
-            hintStyle: const TextStyle(
-              color: CrabSenseColors.hintText,
+            hintStyle: TextStyle(
+              color: Colors.white.withValues(alpha: 0.4),
               fontSize: 13,
             ),
             filled: true,
-            fillColor: CrabSenseColors.surface,
+            fillColor: kHomeNavyDeep.withValues(alpha: 0.75),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 14,
               vertical: 14,
             ),
             prefixIcon: const Icon(
               Icons.search_rounded,
-              color: CrabSenseColors.hintText,
+              color: kHomeBlueLight,
             ),
             suffixIcon: _controller.text.isEmpty
                 ? null
@@ -100,21 +100,25 @@ class _BoxesSearchBarState extends State<BoxesSearchBar> {
                     },
                     icon: const Icon(
                       Icons.close_rounded,
-                      color: CrabSenseColors.hintText,
+                      color: kHomeBlueLight,
                     ),
                   ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: CrabSenseColors.border),
+              borderSide: BorderSide(
+                color: kHomeBorderBlue.withValues(alpha: 0.4),
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: CrabSenseColors.border),
+              borderSide: BorderSide(
+                color: kHomeBorderBlue.withValues(alpha: 0.4),
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(
-                color: CrabSenseColors.primary,
+              borderSide: BorderSide(
+                color: kHomeBlue.withValues(alpha: 0.9),
                 width: 1.4,
               ),
             ),
@@ -128,11 +132,13 @@ class _BoxesSearchBarState extends State<BoxesSearchBar> {
             children: widget.recentSearches.take(5).map((q) {
               return ActionChip(
                 label: Text(q, style: const TextStyle(fontSize: 11)),
-                backgroundColor: CrabSenseColors.container,
-                side: const BorderSide(color: CrabSenseColors.border),
+                backgroundColor: kHomeNavyDeep.withValues(alpha: 0.75),
+                side: BorderSide(
+                  color: kHomeBorderBlue.withValues(alpha: 0.4),
+                ),
                 onPressed: () => widget.onRecentSelected?.call(q),
-                labelStyle: const TextStyle(
-                  color: CrabSenseColors.textSecondary,
+                labelStyle: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
                 ),
               );
             }).toList(),

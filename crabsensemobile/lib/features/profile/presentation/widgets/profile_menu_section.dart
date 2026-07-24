@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
 
-/// Reusable Section Card Container for Profile Categories
+import '../../../home/presentation/widgets/home_palette.dart';
+
+/// Section card hologram cho tab Tài khoản.
 class ProfileMenuSection extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -22,63 +23,74 @@ class ProfileMenuSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      decoration: BoxDecoration(
-        color: CrabSenseColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: CrabSenseColors.border, width: 1),
-      ),
+      decoration: homeCardDecoration(radius: 16, glowAlpha: 0.1),
       margin: const EdgeInsets.only(bottom: 12),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          // Section Title Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: CrabSenseColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, size: 18, color: CrabSenseColors.primary),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          color: CrabSenseColors.textPrimary,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.2,
+          const HomeCrabWatermark(alpha: 0.04, trayExtent: 22),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: kHomeBlue.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: kHomeBorderBlue.withValues(alpha: 0.45),
+                            ),
+                          ),
+                          child: Icon(icon, size: 18, color: kHomeBlueLight),
                         ),
-                      ),
-                      if (subtitle != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          subtitle!,
-                          style: const TextStyle(
-                            color: CrabSenseColors.hintText,
-                            fontSize: 12,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              color: kHomeBlueLight,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.8,
+                              height: 1.3,
+                            ),
                           ),
                         ),
                       ],
+                    ),
+                    if (subtitle != null || trailingBadge != null) ...[
+                      const SizedBox(height: 8),
+                      if (subtitle != null)
+                        Text(
+                          subtitle!,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.45),
+                            fontSize: 12,
+                            height: 1.35,
+                          ),
+                        ),
+                      if (trailingBadge != null) ...[
+                        if (subtitle != null) const SizedBox(height: 6),
+                        trailingBadge!,
+                      ],
                     ],
-                  ),
+                  ],
                 ),
-                if (trailingBadge != null) trailingBadge!,
-              ],
-            ),
+              ),
+              Divider(
+                color: kHomeBorderBlue.withValues(alpha: 0.25),
+                height: 1,
+              ),
+              ...children,
+            ],
           ),
-          const Divider(color: CrabSenseColors.divider, height: 1),
-          // List of Tiles
-          ...children,
         ],
       ),
     );

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../app/theme.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
@@ -65,7 +65,7 @@ class _BoxCameraScreenState extends State<BoxCameraScreen> {
     await Clipboard.setData(ClipboardData(text: url));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Đã copy stream URL')),
+      const SnackBar(content: Text('Đã sao chép URL stream')),
     );
   }
 
@@ -80,65 +80,180 @@ class _BoxCameraScreenState extends State<BoxCameraScreen> {
         status.toLowerCase() == 'preview';
 
     return Scaffold(
-      backgroundColor: CrabSenseColors.background,
+      backgroundColor: kHomeNavyDeep,
       appBar: AppBar(
-        title: const Text('Camera hộp'),
-        backgroundColor: CrabSenseColors.surface,
-        foregroundColor: CrabSenseColors.textPrimary,
+        title: const Text(
+          'CAMERA TRỰC TIẾP',
+          style: TextStyle(
+            color: kHomeBlueLight,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1,
+          ),
+        ),
+        backgroundColor: kHomeNavy,
+        foregroundColor: kHomeBlueLight,
+        elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: kHomeCyan))
           : _error != null
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(_error!, textAlign: TextAlign.center),
-                  const SizedBox(height: 12),
-                  FilledButton(onPressed: _load, child: const Text('Thử lại')),
-                ],
-              ),
-            )
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton(
+                          onPressed: _load,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: kHomeBlue,
+                          ),
+                          child: const Text('Thử lại'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
               : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Container(
-                  height: 220,
-                  decoration: BoxDecoration(
-                    color: Colors.black87,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: _buildPreview(online, snapshot, stream),
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    Container(
+                      height: 220,
+                      decoration: BoxDecoration(
+                        color: Colors.black87,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: kHomeBorderBlue.withValues(alpha: 0.5),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: kHomeBlue.withValues(alpha: 0.18),
+                            blurRadius: 14,
+                          ),
+                        ],
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: _buildPreview(online, snapshot, stream),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: homeCardDecoration(radius: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _metaRow('Thiết bị', device),
+                          const SizedBox(height: 8),
+                          _metaRow('Trạng thái', status),
+                          if (message.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              message,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.55),
+                              ),
+                            ),
+                          ],
+                          if (stream.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            SelectableText(
+                              stream,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withValues(alpha: 0.65),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 46,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          gradient: const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Color(0xFF5BA0FF),
+                              kHomeBlue,
+                              Color(0xFF1A5FD0),
+                            ],
+                          ),
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: stream.isNotEmpty ? _copyStream : null,
+                            child: const Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.copy, color: Colors.white, size: 18),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Sao chép URL stream',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton(
+                      onPressed: _load,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: kHomeCyan,
+                        side: BorderSide(
+                          color: kHomeCyan.withValues(alpha: 0.55),
+                        ),
+                      ),
+                      child: const Text('Làm mới'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                Text('Thiết bị: $device'),
-                Text('Trạng thái: $status'),
-                if (message.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    message,
-                    style: TextStyle(color: CrabSenseColors.textSecondary),
-                  ),
-                ],
-                if (stream.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  SelectableText(stream, style: const TextStyle(fontSize: 12)),
-                ],
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: stream.isNotEmpty ? _copyStream : null,
-                  icon: const Icon(Icons.copy),
-                  label: const Text('Copy stream / preview URL'),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton(onPressed: _load, child: const Text('Làm mới')),
-              ],
+    );
+  }
+
+  Widget _metaRow(String label, String value) {
+    return Row(
+      children: [
+        Text(
+          '$label: ',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.45),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
             ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -165,9 +280,17 @@ class _BoxCameraScreenState extends State<BoxCameraScreen> {
             bottom: 12,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              color: Colors.black54,
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: online
+                      ? kHomeGreen.withValues(alpha: 0.6)
+                      : Colors.white24,
+                ),
+              ),
               child: Text(
-                online ? 'Live / Preview' : 'Preview',
+                online ? 'Trực tiếp / Xem trước' : 'Xem trước',
                 style: const TextStyle(color: Colors.white, fontSize: 12),
               ),
             ),
@@ -184,12 +307,12 @@ class _BoxCameraScreenState extends State<BoxCameraScreen> {
           children: [
             Icon(
               online ? Icons.videocam : Icons.videocam_off,
-              color: online ? CrabSenseColors.success : Colors.white54,
+              color: online ? kHomeGreen : Colors.white54,
               size: 48,
             ),
             const SizedBox(height: 8),
             Text(
-              online ? 'Camera online' : 'Camera offline',
+              online ? 'Camera trực tuyến' : 'Camera ngoại tuyến',
               style: const TextStyle(color: Colors.white),
             ),
           ],

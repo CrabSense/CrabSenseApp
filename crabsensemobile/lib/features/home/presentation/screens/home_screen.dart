@@ -9,6 +9,7 @@ import '../widgets/farm_overview_hero_card.dart';
 import '../widgets/farm_health_score_card.dart';
 import '../widgets/farm_health_analysis_sheet.dart';
 import '../widgets/ai_recommendation_card.dart';
+import '../widgets/ai_recommendation_detail_sheet.dart';
 import '../widgets/quick_actions_grid.dart';
 import '../widgets/alert_summary_section.dart';
 import '../widgets/water_quality_overview.dart';
@@ -123,14 +124,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   onExecutePressed: () =>
                                       context.push(RoutePaths.harvest),
                                   onDetailPressed: () =>
-                                      context.push(RoutePaths.operations),
+                                      showAiRecommendationDetailSheet(
+                                    context,
+                                    recommendation: data.aiRecommendation,
+                                    onExecutePressed: () =>
+                                        context.push(RoutePaths.harvest),
+                                    onRemindLaterPressed: () =>
+                                        _showSnackBar('Sẽ nhắc lại sau 1 giờ'),
+                                    onDismissPressed: () => ref
+                                        .read(homeStateProvider.notifier)
+                                        .dismissRecommendation(
+                                            data.aiRecommendation.id),
+                                  ),
                                   onDismissPressed: () => ref
                                       .read(homeStateProvider.notifier)
                                       .dismissRecommendation(data.aiRecommendation.id),
                                   onRemindLaterPressed: () =>
                                       _showSnackBar('Sẽ nhắc lại sau 1 giờ'),
                                   onHistoryPressed: () =>
-                                      context.push(RoutePaths.operations),
+                                      context.push(RoutePaths.operationHistory),
                                 ),
                               ),
                             ],
@@ -153,14 +165,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             onExecutePressed: () =>
                                 context.push(RoutePaths.harvest),
                             onDetailPressed: () =>
-                                context.push(RoutePaths.operations),
+                                showAiRecommendationDetailSheet(
+                              context,
+                              recommendation: data.aiRecommendation,
+                              onExecutePressed: () =>
+                                  context.push(RoutePaths.harvest),
+                              onRemindLaterPressed: () =>
+                                  _showSnackBar('Sẽ nhắc lại sau 1 giờ'),
+                              onDismissPressed: () => ref
+                                  .read(homeStateProvider.notifier)
+                                  .dismissRecommendation(
+                                      data.aiRecommendation.id),
+                            ),
                             onDismissPressed: () => ref
                                 .read(homeStateProvider.notifier)
                                 .dismissRecommendation(data.aiRecommendation.id),
                             onRemindLaterPressed: () =>
                                 _showSnackBar('Sẽ nhắc lại sau 1 giờ'),
                             onHistoryPressed: () =>
-                                context.push(RoutePaths.operations),
+                                context.push(RoutePaths.operationHistory),
                           ),
                         ],
                         const SizedBox(height: 18),
@@ -225,12 +248,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         DeviceStatusSection(
                           devices: data.deviceSummary,
                           onViewDevicesPressed: () =>
-                              context.push(RoutePaths.operations),
+                              context.push(RoutePaths.devices),
                         ),
                         const SizedBox(height: 24),
 
                         // Section E: Recent Activity
-                        RecentActivitySection(activities: data.recentActivities),
+                        RecentActivitySection(
+                          activities: data.recentActivities,
+                          onViewAllPressed: () =>
+                              context.push(RoutePaths.operationHistory),
+                        ),
                         const SizedBox(height: 32),
                       ],
                     ),

@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/entities/scan_quick_result.dart';
 import 'ai_recommendation_card.dart';
 import 'alert_summary_card.dart';
@@ -46,29 +46,45 @@ class QuickResultSheet extends StatelessWidget {
               height: 4,
               margin: const EdgeInsets.only(bottom: 14),
               decoration: BoxDecoration(
-                color: CrabSenseColors.border,
+                color: kHomeCyan.withValues(alpha: 0.75),
                 borderRadius: BorderRadius.circular(4),
+                boxShadow: [
+                  BoxShadow(
+                    color: kHomeCyan.withValues(alpha: 0.4),
+                    blurRadius: 8,
+                  ),
+                ],
               ),
             ),
           ),
         ],
-        if (result.isOffline)
-          OfflineBanner(onSync: onSync),
+        if (result.isOffline) OfflineBanner(onSync: onSync),
         Text(
           result.code,
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: CrabSenseColors.textPrimary,
+                color: Colors.white,
                 fontWeight: FontWeight.w800,
               ),
         ),
-        const SizedBox(height: 4),
-        Row(
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Text(
-              result.farmName,
-              style: const TextStyle(color: CrabSenseColors.textSecondary),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.sizeOf(context).width * 0.55,
+              ),
+              child: Text(
+                result.farmName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.55),
+                ),
+              ),
             ),
-            const SizedBox(width: 10),
             _StatusPill(label: result.statusLabel),
           ],
         ),
@@ -77,14 +93,14 @@ class QuickResultSheet extends StatelessWidget {
           children: [
             Expanded(
               child: _MetricTile(
-                label: 'Health',
+                label: 'Sức khỏe',
                 value: '${result.healthScore}',
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: _MetricTile(
-                label: 'AI Score',
+                label: 'Điểm AI',
                 value: '${result.aiScore}',
               ),
             ),
@@ -98,25 +114,25 @@ class QuickResultSheet extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        Row(
+        Wrap(
+          spacing: 10,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             if (result.temperature != null)
               _ChipStat(
                 icon: Icons.thermostat,
                 text: '${result.temperature!.toStringAsFixed(0)}°C',
               ),
-            if (result.ph != null) ...[
-              const SizedBox(width: 8),
+            if (result.ph != null)
               _ChipStat(
                 icon: Icons.water_drop_outlined,
                 text: 'pH ${result.ph!.toStringAsFixed(1)}',
               ),
-            ],
-            const Spacer(),
             Text(
-              'Updated ${result.relativeUpdatedLabel}',
-              style: const TextStyle(
-                color: CrabSenseColors.hintText,
+              'Cập nhật ${result.relativeUpdatedLabel}',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.4),
                 fontSize: 11,
               ),
             ),
@@ -140,11 +156,22 @@ class QuickResultSheet extends StatelessWidget {
     );
 
     if (embedded) {
-      return ColoredBox(
-        color: CrabSenseColors.surface.withValues(alpha: 0.96),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-          child: content,
+      return DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+          ),
+        ),
+        child: Stack(
+          children: [
+            const HomeCrabWatermark(alpha: 0.05, trayExtent: 28),
+            SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: content,
+            ),
+          ],
         ),
       );
     }
@@ -158,13 +185,33 @@ class QuickResultSheet extends StatelessWidget {
             maxHeight: MediaQuery.of(context).size.height * 0.78,
           ),
           decoration: BoxDecoration(
-            color: CrabSenseColors.surface.withValues(alpha: 0.88),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                kHomeNavyLift.withValues(alpha: 0.94),
+                kHomeNavy.withValues(alpha: 0.96),
+                kHomeNavyDeep.withValues(alpha: 0.98),
+              ],
+            ),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border.all(color: CrabSenseColors.border),
+            border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.55)),
+            boxShadow: [
+              BoxShadow(
+                color: kHomeBlue.withValues(alpha: 0.22),
+                blurRadius: 20,
+                offset: const Offset(0, -4),
+              ),
+            ],
           ),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-            child: content,
+          child: Stack(
+            children: [
+              const HomeCrabWatermark(alpha: 0.05, trayExtent: 28),
+              SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                child: content,
+              ),
+            ],
           ),
         ),
       ),
@@ -179,19 +226,22 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = label.toLowerCase().contains('health')
-        ? CrabSenseColors.success
-        : label.toLowerCase().contains('warn')
-            ? CrabSenseColors.warning
-            : label.toLowerCase().contains('critical')
-                ? CrabSenseColors.danger
-                : CrabSenseColors.info;
+    final lower = label.toLowerCase();
+    final color = lower.contains('health') ||
+            lower.contains('ổn') ||
+            lower.contains('healthy')
+        ? kHomeGreen
+        : lower.contains('warn') || lower.contains('cảnh')
+            ? kHomeOrange
+            : lower.contains('critical') || lower.contains('nghiêm')
+                ? Colors.redAccent
+                : kHomeCyan;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
       ),
       child: Text(
         label,
@@ -214,18 +264,14 @@ class _MetricTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-      decoration: BoxDecoration(
-        color: CrabSenseColors.container.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: CrabSenseColors.border),
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: homeTileDecoration(radius: 14),
       child: Column(
         children: [
           Text(
             value,
             style: const TextStyle(
-              color: CrabSenseColors.primary,
+              color: kHomeCyan,
               fontWeight: FontWeight.w800,
               fontSize: 20,
             ),
@@ -233,9 +279,12 @@ class _MetricTile extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(
-              color: CrabSenseColors.hintText,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.45),
               fontSize: 11,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -255,12 +304,12 @@ class _ChipStat extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: CrabSenseColors.textSecondary),
+        Icon(icon, size: 14, color: kHomeBlueLight),
         const SizedBox(width: 4),
         Text(
           text,
-          style: const TextStyle(
-            color: CrabSenseColors.textSecondary,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.65),
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),

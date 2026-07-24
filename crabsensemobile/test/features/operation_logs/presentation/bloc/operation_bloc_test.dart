@@ -42,6 +42,14 @@ class MockOperationRepository implements OperationRepository {
   }) async {
     return const Right([]);
   }
+
+  @override
+  Future<Either<Failure, List<OperationLog>>> getAllOperationLogs({
+    int page = 1,
+    int pageSize = 50,
+  }) async {
+    return const Right([]);
+  }
 }
 
 void main() {

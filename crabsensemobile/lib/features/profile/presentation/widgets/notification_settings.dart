@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../app/theme.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 import '../../../../shared/widgets/errors/error_state_widget.dart';
 import '../../domain/entities/notification_preferences.dart';
 import '../../domain/repositories/notification_preferences_repository.dart';
@@ -11,35 +11,19 @@ import '../bloc/notification_settings_bloc.dart';
 import '../bloc/notification_settings_event.dart';
 import '../bloc/notification_settings_state.dart';
 
-/// Notification settings widget.
-///
-/// Allows the user to enable/disable notifications by category and
-/// configure display options (sound, vibration, LED indicator).
-///
-/// Usage — provide a [NotificationPreferencesRepository] and the widget
-/// creates its own [NotificationSettingsBloc] internally:
-///
-/// ```dart
-/// NotificationSettingsWidget(repository: sl())
-/// ```
-///
-/// Requirements: 14.9-14.10
+/// Cài đặt thông báo cá nhân (Hive + API).
 class NotificationSettingsWidget extends StatelessWidget {
   const NotificationSettingsWidget({required this.repository, super.key});
 
-  /// Repository injected from outside; no get_it calls in the widget.
   final NotificationPreferencesRepository repository;
 
   @override
   Widget build(BuildContext context) => BlocProvider<NotificationSettingsBloc>(
-    create: (_) =>
-        NotificationSettingsBloc(repository: repository)
+        create: (_) => NotificationSettingsBloc(repository: repository)
           ..add(const NotificationSettingsLoadRequested()),
-    child: const _NotificationSettingsView(),
-  );
+        child: const _NotificationSettingsView(),
+      );
 }
-
-// ── Internal view ─────────────────────────────────────────────────────────────
 
 class _NotificationSettingsView extends StatelessWidget {
   const _NotificationSettingsView();
@@ -48,18 +32,21 @@ class _NotificationSettingsView extends StatelessWidget {
   Widget build(BuildContext context) =>
       BlocBuilder<NotificationSettingsBloc, NotificationSettingsState>(
         builder: (context, state) {
-          if (state is NotificationSettingsLoading || state is NotificationSettingsInitial) {
-            return const _LoadingBody();
+          if (state is NotificationSettingsLoading ||
+              state is NotificationSettingsInitial) {
+            return const Center(
+              child: CircularProgressIndicator(color: kHomeCyan),
+            );
           }
 
           if (state is NotificationSettingsError) {
             return ErrorStateWidget(
               icon: Icons.notifications_off_outlined,
-              title: 'Could not load settings',
+              title: 'Không tải được cài đặt',
               message: state.message,
               onRetry: () => context.read<NotificationSettingsBloc>().add(
-                const NotificationSettingsLoadRequested(),
-              ),
+                    const NotificationSettingsLoadRequested(),
+                  ),
             );
           }
 
@@ -67,22 +54,12 @@ class _NotificationSettingsView extends StatelessWidget {
             return _SettingsBody(state: state);
           }
 
-          return const _LoadingBody();
+          return const Center(
+            child: CircularProgressIndicator(color: kHomeCyan),
+          );
         },
       );
 }
-
-// ── Loading body ──────────────────────────────────────────────────────────────
-
-class _LoadingBody extends StatelessWidget {
-  const _LoadingBody();
-
-  @override
-  Widget build(BuildContext context) =>
-      const Center(child: CircularProgressIndicator(color: CrabSenseColors.primary));
-}
-
-// ── Settings body ─────────────────────────────────────────────────────────────
 
 class _SettingsBody extends StatelessWidget {
   const _SettingsBody({required this.state});
@@ -96,96 +73,90 @@ class _SettingsBody extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
-        // ── Categories section ──────────────────────────────────────
         _SectionHeader(
-          title: 'Notification Categories',
-          subtitle: 'Choose which alerts you receive',
+          title: 'Loại thông báo',
+          subtitle: 'Chọn loại cảnh báo bạn muốn nhận',
           isSaving: state.isSaving,
         ),
-
-        // Critical Alerts — always on, toggle is locked
         const _CategoryTile(
-          title: 'Critical Alerts',
+          title: 'Cảnh báo nghiêm trọng',
           subtitle:
-              'Water quality emergencies and equipment failures. '
-              'Cannot be disabled.',
+              'Khẩn cấp chất lượng nước / thiết bị. Không thể tắt.',
           icon: Icons.warning_amber_rounded,
-          iconColor: CrabSenseColors.error,
+          iconColor: Color(0xFFFF6B6B),
           value: true,
           enabled: false,
           onChanged: null,
         ),
-
         _CategoryTile(
-          title: 'Warnings',
-          subtitle: 'Parameters approaching thresholds, maintenance due',
+          title: 'Cảnh báo thường',
+          subtitle: 'Thông số gần ngưỡng, bảo trì đến hạn',
           icon: Icons.info_outline_rounded,
-          iconColor: CrabSenseColors.warning,
+          iconColor: kHomeOrange,
           value: prefs.warningsEnabled,
           enabled: true,
-          onChanged: (value) => _toggle(context, (p) => p.copyWith(warningsEnabled: value)),
+          onChanged: (value) =>
+              _toggle(context, (p) => p.copyWith(warningsEnabled: value)),
         ),
-
         _CategoryTile(
-          title: 'Task Reminders',
-          subtitle: 'Scheduled monitoring and inspection reminders',
+          title: 'Nhắc việc',
+          subtitle: 'Lịch giám sát và kiểm tra',
           icon: Icons.task_alt_rounded,
-          iconColor: CrabSenseColors.primary,
+          iconColor: kHomeCyan,
           value: prefs.taskRemindersEnabled,
           enabled: true,
-          onChanged: (value) => _toggle(context, (p) => p.copyWith(taskRemindersEnabled: value)),
+          onChanged: (value) =>
+              _toggle(context, (p) => p.copyWith(taskRemindersEnabled: value)),
         ),
-
         _CategoryTile(
-          title: 'System Updates',
-          subtitle: 'Platform and firmware update notifications',
+          title: 'Cập nhật hệ thống',
+          subtitle: 'Thông báo nền tảng và firmware',
           icon: Icons.system_update_alt_rounded,
-          iconColor: CrabSenseColors.textSecondary,
+          iconColor: Colors.white70,
           value: prefs.systemUpdatesEnabled,
           enabled: true,
-          onChanged: (value) => _toggle(context, (p) => p.copyWith(systemUpdatesEnabled: value)),
+          onChanged: (value) =>
+              _toggle(context, (p) => p.copyWith(systemUpdatesEnabled: value)),
         ),
-
-        const Divider(height: 32, indent: 16, endIndent: 16),
-
-        // ── Display options section ─────────────────────────────────
+        Divider(
+          height: 32,
+          indent: 16,
+          endIndent: 16,
+          color: kHomeBorderBlue.withValues(alpha: 0.3),
+        ),
         const _SectionHeader(
-          title: 'Display Options',
-          subtitle: 'Customise how notifications appear',
+          title: 'Hiển thị',
+          subtitle: 'Tùy chỉnh cách thông báo xuất hiện',
         ),
-
         _DisplayOptionTile(
-          title: 'Sound',
-          subtitle: 'Play a sound when a notification arrives',
+          title: 'Âm thanh',
+          subtitle: 'Phát âm khi có thông báo',
           icon: Icons.volume_up_rounded,
           value: prefs.soundEnabled,
-          onChanged: (value) => _toggle(context, (p) => p.copyWith(soundEnabled: value)),
+          onChanged: (value) =>
+              _toggle(context, (p) => p.copyWith(soundEnabled: value)),
         ),
-
         _DisplayOptionTile(
-          title: 'Vibration',
-          subtitle: 'Vibrate when a notification arrives',
+          title: 'Rung',
+          subtitle: 'Rung khi có thông báo',
           icon: Icons.vibration_rounded,
           value: prefs.vibrationEnabled,
-          onChanged: (value) => _toggle(context, (p) => p.copyWith(vibrationEnabled: value)),
+          onChanged: (value) =>
+              _toggle(context, (p) => p.copyWith(vibrationEnabled: value)),
         ),
-
         _DisplayOptionTile(
-          title: 'LED Indicator',
+          title: 'Đèn LED',
           subtitle: Platform.isAndroid
-              ? 'Blink the device LED for new notifications'
-              : 'LED indicator (Android only)',
+              ? 'Nhấp nháy LED khi có thông báo mới'
+              : 'Chỉ hỗ trợ trên Android',
           icon: Icons.lightbulb_outline_rounded,
           value: prefs.ledIndicatorEnabled,
-          // On iOS the toggle is shown but greyed out — the preference is
-          // stored so it takes effect if the user later uses an Android
-          // device with the same account.
           enabled: Platform.isAndroid,
           onChanged: Platform.isAndroid
-              ? (value) => _toggle(context, (p) => p.copyWith(ledIndicatorEnabled: value))
+              ? (value) =>
+                  _toggle(context, (p) => p.copyWith(ledIndicatorEnabled: value))
               : null,
         ),
-
         const SizedBox(height: 16),
       ],
     );
@@ -195,14 +166,18 @@ class _SettingsBody extends StatelessWidget {
     BuildContext context,
     NotificationPreferences Function(NotificationPreferences) updater,
   ) {
-    context.read<NotificationSettingsBloc>().add(NotificationSettingToggled(updater));
+    context
+        .read<NotificationSettingsBloc>()
+        .add(NotificationSettingToggled(updater));
   }
 }
 
-// ── Section header ────────────────────────────────────────────────────────────
-
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.subtitle, this.isSaving = false});
+  const _SectionHeader({
+    required this.title,
+    required this.subtitle,
+    this.isSaving = false,
+  });
 
   final String title;
   final String subtitle;
@@ -210,49 +185,49 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-    child: Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: CrabSenseColors.primary,
-                  fontWeight: FontWeight.w600,
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: kHomeBlueLight,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSaving) ...[
+              const SizedBox(width: 8),
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: kHomeCyan,
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: CrabSenseColors.textSecondary),
-              ),
             ],
-          ),
+          ],
         ),
-        if (isSaving) ...[
-          const SizedBox(width: 8),
-          const SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2, color: CrabSenseColors.primary),
-          ),
-        ],
-      ],
-    ),
-  );
+      );
 }
 
-// ── Category tile ─────────────────────────────────────────────────────────────
-
-/// A [SwitchListTile] representing a per-category notification toggle.
-///
-/// When [enabled] is false the tile is greyed out and the switch cannot
-/// be interacted with (used for Critical Alerts).
 class _CategoryTile extends StatelessWidget {
   const _CategoryTile({
     required this.title,
@@ -274,33 +249,33 @@ class _CategoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveColor = enabled ? iconColor : CrabSenseColors.textDisabled;
+    final effectiveColor =
+        enabled ? iconColor : Colors.white.withValues(alpha: 0.35);
 
     return SwitchListTile.adaptive(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       secondary: Icon(icon, color: effectiveColor, size: 24),
       title: Text(
         title,
-        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-          color: enabled ? CrabSenseColors.textPrimary : CrabSenseColors.textDisabled,
+        style: TextStyle(
+          color: enabled ? Colors.white : Colors.white54,
+          fontWeight: FontWeight.w600,
         ),
       ),
       subtitle: Text(
         subtitle,
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: CrabSenseColors.textSecondary),
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.5),
+          fontSize: 12,
+        ),
       ),
       value: value,
       onChanged: enabled ? onChanged : null,
-      activeTrackColor: CrabSenseColors.primary,
+      activeTrackColor: kHomeCyan,
     );
   }
 }
 
-// ── Display-option tile ───────────────────────────────────────────────────────
-
-/// A [SwitchListTile] for a display option (sound, vibration, LED).
 class _DisplayOptionTile extends StatelessWidget {
   const _DisplayOptionTile({
     required this.title,
@@ -320,26 +295,29 @@ class _DisplayOptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveIconColor = enabled ? CrabSenseColors.primary : CrabSenseColors.textDisabled;
+    final effectiveIconColor =
+        enabled ? kHomeCyan : Colors.white.withValues(alpha: 0.35);
 
     return SwitchListTile.adaptive(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       secondary: Icon(icon, color: effectiveIconColor, size: 24),
       title: Text(
         title,
-        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-          color: enabled ? CrabSenseColors.textPrimary : CrabSenseColors.textDisabled,
+        style: TextStyle(
+          color: enabled ? Colors.white : Colors.white54,
+          fontWeight: FontWeight.w600,
         ),
       ),
       subtitle: Text(
         subtitle,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: enabled ? CrabSenseColors.textSecondary : CrabSenseColors.textDisabled,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: enabled ? 0.5 : 0.35),
+          fontSize: 12,
         ),
       ),
       value: value,
       onChanged: enabled ? onChanged : null,
-      activeTrackColor: CrabSenseColors.primary,
+      activeTrackColor: kHomeCyan,
     );
   }
 }
