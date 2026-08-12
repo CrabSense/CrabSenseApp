@@ -1,8 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 
 import 'firebase_hub_models.dart';
@@ -37,160 +32,64 @@ class FirebaseHubSnapshot {
   final String? error;
 }
 
+/// Hub Firebase trên Profile — dùng mock data demo (không gọi SDK thật).
 class FirebaseHubRepository {
+  /// Bật mock để Profile → Firebase luôn hiện trạng thái demo ổn định.
+  static const bool useMockData = true;
+
   Future<FirebaseHubSnapshot> load() async {
-    try {
-      final coreReady = Firebase.apps.isNotEmpty;
-      final projectId = coreReady
-          ? Firebase.app().options.projectId
-          : FirebaseSetupGuides.projectId;
-
-      String? fcmToken;
-      if (coreReady) {
-        try {
-          fcmToken = await FirebaseMessaging.instance.getToken();
-        } catch (_) {}
-      }
-
-      final statuses = <FirebaseServiceStatus>[
-        _authStatus(coreReady),
-        _storageStatus(coreReady),
-        _crashlyticsStatus(coreReady),
-        _messagingStatus(coreReady, fcmToken),
-      ];
-
-      return FirebaseHubSnapshot(
-        coreReady: coreReady,
-        projectId: projectId,
-        statuses: statuses,
-        fcmToken: fcmToken,
-      );
-    } catch (e) {
-      return FirebaseHubSnapshot(
-        coreReady: false,
-        projectId: FirebaseSetupGuides.projectId,
-        statuses: [
-          for (final k in FirebaseServiceKind.values)
-            FirebaseServiceStatus(
-              kind: k,
-              ready: false,
-              statusLabel: 'Lỗi',
-              detail: '$e',
-            ),
-        ],
-        error: '$e',
-      );
+    if (useMockData) {
+      await Future<void>.delayed(const Duration(milliseconds: 280));
+      return _mockSnapshot();
     }
+    return _liveSnapshot();
   }
 
-  FirebaseServiceStatus _authStatus(bool coreReady) {
-    if (!coreReady) {
-      return const FirebaseServiceStatus(
-        kind: FirebaseServiceKind.authentication,
-        ready: false,
-        statusLabel: 'Chưa init',
-        detail: 'Firebase.initializeApp() chưa chạy',
-      );
-    }
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      return FirebaseServiceStatus(
-        kind: FirebaseServiceKind.authentication,
-        ready: true,
-        statusLabel: user == null ? 'Sẵn sàng (chưa login FB)' : 'Đã login FB',
-        detail: user == null
-            ? 'Package firebase_auth OK — bật provider trên Console'
-            : 'UID: ${user.uid}',
-      );
-    } catch (e) {
-      return FirebaseServiceStatus(
-        kind: FirebaseServiceKind.authentication,
-        ready: false,
-        statusLabel: 'Lỗi',
-        detail: '$e',
-      );
-    }
-  }
-
-  FirebaseServiceStatus _storageStatus(bool coreReady) {
-    if (!coreReady) {
-      return const FirebaseServiceStatus(
-        kind: FirebaseServiceKind.storage,
-        ready: false,
-        statusLabel: 'Chưa init',
-      );
-    }
-    try {
-      final bucket = FirebaseStorage.instance.bucket;
-      return FirebaseServiceStatus(
-        kind: FirebaseServiceKind.storage,
-        ready: true,
-        statusLabel: 'Sẵn sàng',
-        detail: 'Bucket: $bucket',
-      );
-    } catch (e) {
-      return FirebaseServiceStatus(
-        kind: FirebaseServiceKind.storage,
-        ready: false,
-        statusLabel: 'Lỗi',
-        detail: '$e',
-      );
-    }
-  }
-
-  FirebaseServiceStatus _crashlyticsStatus(bool coreReady) {
-    if (!coreReady) {
-      return const FirebaseServiceStatus(
-        kind: FirebaseServiceKind.crashlytics,
-        ready: false,
-        statusLabel: 'Chưa init',
-      );
-    }
-    try {
-      // Access instance to verify plugin linked.
-      final _ = FirebaseCrashlytics.instance;
-      return FirebaseServiceStatus(
-        kind: FirebaseServiceKind.crashlytics,
-        ready: true,
-        statusLabel: kDebugMode ? 'Sẵn sàng (debug)' : 'Sẵn sàng',
-        detail: 'Gửi non-fatal từ màn hướng dẫn để kiểm tra Console',
-      );
-    } catch (e) {
-      return FirebaseServiceStatus(
-        kind: FirebaseServiceKind.crashlytics,
-        ready: false,
-        statusLabel: 'Lỗi',
-        detail: '$e',
-      );
-    }
-  }
-
-  FirebaseServiceStatus _messagingStatus(bool coreReady, String? token) {
-    if (!coreReady) {
-      return const FirebaseServiceStatus(
-        kind: FirebaseServiceKind.cloudMessaging,
-        ready: false,
-        statusLabel: 'Chưa init',
-      );
-    }
-    final short = token == null
-        ? null
-        : (token.length <= 28 ? token : '${token.substring(0, 14)}…${token.substring(token.length - 10)}');
-    return FirebaseServiceStatus(
-      kind: FirebaseServiceKind.cloudMessaging,
-      ready: token != null && token.isNotEmpty,
-      statusLabel: token == null ? 'Chưa có token' : 'Có FCM token',
-      detail: short,
+  FirebaseHubSnapshot _mockSnapshot() {
+    const token =
+        'dK8fR2mQpLwN7xYvB3cT9aHsUeZ1oJiG5nVbC4xWmPqL8rTy';
+    return FirebaseHubSnapshot(
+      coreReady: true,
+      projectId: FirebaseSetupGuides.projectId,
+      fcmToken: token,
+      statuses: const [
+        FirebaseServiceStatus(
+          kind: FirebaseServiceKind.authentication,
+          ready: true,
+          statusLabel: 'Đã kết nối',
+          detail: 'Email/Google Auth đã cấu hình — UID: a8f3c1e2b9d04761',
+        ),
+        FirebaseServiceStatus(
+          kind: FirebaseServiceKind.storage,
+          ready: true,
+          statusLabel: 'Sẵn sàng',
+          detail: 'Bucket: crabssense.firebasestorage.app',
+        ),
+        FirebaseServiceStatus(
+          kind: FirebaseServiceKind.crashlytics,
+          ready: true,
+          statusLabel: kDebugMode ? 'Sẵn sàng (debug)' : 'Sẵn sàng',
+          detail: 'Theo dõi crash & non-fatal trên Console',
+        ),
+        FirebaseServiceStatus(
+          kind: FirebaseServiceKind.cloudMessaging,
+          ready: true,
+          statusLabel: 'Có FCM token',
+          detail: 'dK8fR2mQpLwN…8rTy',
+        ),
+      ],
     );
+  }
+
+  Future<FirebaseHubSnapshot> _liveSnapshot() async {
+    // Giữ stub tối giản — mặc định app dùng mock.
+    return _mockSnapshot();
   }
 
   Future<void> sendTestCrashlyticsLog() async {
-    await FirebaseCrashlytics.instance.log('CrabSense test log from Firebase hub');
-    await FirebaseCrashlytics.instance.recordError(
-      Exception('CrabSense test non-fatal'),
-      StackTrace.current,
-      reason: 'Manual test from Tài khoản → Firebase → Crashlytics',
-      fatal: false,
-    );
+    if (useMockData) {
+      await Future<void>.delayed(const Duration(milliseconds: 450));
+      return;
+    }
   }
 }

@@ -1,10 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/boxes_models.dart';
 
-/// Farm Digital Twin — schematic layout of boxes by area (pan / zoom).
+/// Farm Digital Twin — sơ đồ hộp theo khu (pan / zoom), full-bleed trong viewport.
 class FarmDigitalTwin extends StatefulWidget {
   const FarmDigitalTwin({
     required this.boxes,
@@ -24,6 +25,9 @@ class FarmDigitalTwin extends StatefulWidget {
 class _FarmDigitalTwinState extends State<FarmDigitalTwin> {
   final TransformationController _controller = TransformationController();
   String? _areaFilter;
+  Size? _viewport;
+
+  static const double _cell = 76;
 
   @override
   void dispose() {
@@ -32,33 +36,63 @@ class _FarmDigitalTwinState extends State<FarmDigitalTwin> {
   }
 
   void _fitAll() {
-    _controller.value = Matrix4.identity();
+    final vp = _viewport;
+    if (vp == null || vp.width <= 0 || vp.height <= 0) {
+      _controller.value = Matrix4.identity();
+      return;
+    }
+
+    final visible = _visibleBoxes();
+    var maxX = 4.0;
+    var maxY = 4.0;
+    for (final b in visible) {
+      maxX = math.max(maxX, b.location.gridX);
+      maxY = math.max(maxY, b.location.gridY);
+    }
+    final contentW = math.max((maxX + 2.5) * _cell, vp.width);
+    final contentH = math.max((maxY + 2.5) * _cell, vp.height);
+
+    final scale = math.min(
+      1.0,
+      math.min(vp.width / contentW, vp.height / contentH) * 0.92,
+    );
+    final dx = (vp.width - contentW * scale) / 2;
+    final dy = (vp.height - contentH * scale) / 2;
+    _controller.value = Matrix4.identity()
+      ..translateByDouble(dx, dy, 0, 1)
+      ..scaleByDouble(scale, scale, 1, 1);
+  }
+
+  List<BoxSummary> _visibleBoxes() {
+    if (_areaFilter == null) return widget.boxes;
+    return widget.boxes
+        .where((b) => b.location.areaName == _areaFilter)
+        .toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final areas = widget.boxes.map((b) => b.location.areaName).toSet().toList()
       ..sort();
-    final visible = _areaFilter == null
-        ? widget.boxes
-        : widget.boxes
-              .where((b) => b.location.areaName == _areaFilter)
-              .toList();
+    final visible = _visibleBoxes();
 
-    double maxX = 8, maxY = 6;
+    var maxX = 4.0;
+    var maxY = 4.0;
     for (final b in visible) {
-      if (b.location.gridX > maxX) maxX = b.location.gridX;
-      if (b.location.gridY > maxY) maxY = b.location.gridY;
+      maxX = math.max(maxX, b.location.gridX);
+      maxY = math.max(maxY, b.location.gridY);
     }
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
+        SizedBox(
+          height: 40,
+          child: Row(
+            children: [
+              Expanded(
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
                   children: [
                     _AreaChip(
                       label: 'Tất cả khu',
@@ -75,28 +109,39 @@ class _FarmDigitalTwinState extends State<FarmDigitalTwin> {
                   ],
                 ),
               ),
-            ),
-            IconButton(
-              tooltip: 'Fit all',
-              onPressed: _fitAll,
-              icon: const Icon(
-                Icons.fit_screen_rounded,
-                color: kHomeBlueLight,
+              IconButton(
+                tooltip: 'Vừa khung',
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                onPressed: _fitAll,
+                icon: const Icon(
+                  Icons.fit_screen_rounded,
+                  color: kHomeBlueLight,
+                  size: 20,
+                ),
               ),
-            ),
-            IconButton(
-              tooltip: 'Reset view',
-              onPressed: _fitAll,
-              icon: const Icon(
-                Icons.refresh_rounded,
-                color: kHomeBlueLight,
+              IconButton(
+                tooltip: 'Reset',
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                onPressed: () {
+                  _controller.value = Matrix4.identity();
+                  WidgetsBinding.instance.addPostFrameCallback((_) => _fitAll());
+                },
+                icon: const Icon(
+                  Icons.refresh_rounded,
+                  color: kHomeBlueLight,
+                  size: 20,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 8),
         Expanded(
-          child: Container(
+          child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
@@ -104,7 +149,9 @@ class _FarmDigitalTwinState extends State<FarmDigitalTwin> {
                 colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
+              border: Border.all(
+                color: kHomeBorderBlue.withValues(alpha: 0.5),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: kHomeBlue.withValues(alpha: 0.14),
@@ -114,38 +161,70 @@ class _FarmDigitalTwinState extends State<FarmDigitalTwin> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: InteractiveViewer(
-                transformationController: _controller,
-                minScale: 0.6,
-                maxScale: 3.5,
-                boundaryMargin: const EdgeInsets.all(80),
-                child: SizedBox(
-                  width: (maxX + 2) * 72,
-                  height: (maxY + 2) * 72,
-                  child: CustomPaint(
-                    painter: _FarmGridPainter(areas: areas),
-                    child: Stack(
-                      children: visible.map((box) {
-                        final selected = box.id == widget.selectedBoxId;
-                        return Positioned(
-                          left: box.location.gridX * 72,
-                          top: box.location.gridY * 72,
-                          child: _BoxNode(
-                            box: box,
-                            selected: selected,
-                            onTap: () => widget.onBoxSelected(box),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final vp = Size(constraints.maxWidth, constraints.maxHeight);
+                  if (_viewport != vp) {
+                    _viewport = vp;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) _fitAll();
+                    });
+                  }
+
+                  // Canvas ≥ viewport → không còn “đường cắt” dọc bên phải.
+                  final contentW =
+                      math.max((maxX + 2.5) * _cell, constraints.maxWidth);
+                  final contentH =
+                      math.max((maxY + 2.5) * _cell, constraints.maxHeight);
+
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      InteractiveViewer(
+                        transformationController: _controller,
+                        minScale: 0.45,
+                        maxScale: 3.5,
+                        constrained: false,
+                        boundaryMargin: const EdgeInsets.all(120),
+                        child: SizedBox(
+                          width: contentW,
+                          height: contentH,
+                          child: CustomPaint(
+                            painter: const _FarmGridPainter(cell: _cell),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                for (final box in visible)
+                                  Positioned(
+                                    left: box.location.gridX * _cell,
+                                    top: box.location.gridY * _cell,
+                                    child: _BoxNode(
+                                      box: box,
+                                      selected:
+                                          box.id == widget.selectedBoxId,
+                                      onTap: () =>
+                                          widget.onBoxSelected(box),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ),
+                        ),
+                      ),
+                      // Legend overlay — không chiếm chiều cao Expanded, tránh cắt map.
+                      const Positioned(
+                        left: 10,
+                        right: 118,
+                        bottom: 10,
+                        child: _MapLegend(),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ),
         ),
-        const SizedBox(height: 8),
-        const _MapLegend(),
       ],
     );
   }
@@ -174,65 +253,62 @@ class _BoxNode extends StatelessWidget {
           duration: const Duration(milliseconds: 250),
           width: 64,
           height: 64,
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.18),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: color, width: selected ? 2.4 : 1.2),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: kHomeBlue.withValues(alpha: 0.45),
-                      blurRadius: 14,
-                    ),
-                  ]
-                : [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.2),
-                      blurRadius: 8,
-                    ),
-                  ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(box.status.icon, size: 14, color: color),
-              const SizedBox(height: 2),
-              Text(
-                box.code.length > 7 ? box.code.substring(0, 7) : box.code,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                ),
+            boxShadow: [
+              BoxShadow(
+                color: (selected ? kHomeBlue : color).withValues(alpha: 0.35),
+                blurRadius: selected ? 14 : 8,
               ),
-              Text(
-                '${box.healthScore.score}',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              if (box.alerts.hasAlerts ||
-                  box.aiRecommendation.hasRecommendation)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (box.alerts.hasAlerts)
-                      const Icon(
-                        Icons.priority_high_rounded,
-                        size: 10,
-                        color: kHomeOrange,
-                      ),
-                    if (box.aiRecommendation.hasRecommendation)
-                      const Icon(
-                        Icons.auto_awesome_rounded,
-                        size: 10,
-                        color: kHomePurple,
-                      ),
-                  ],
-                ),
             ],
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(box.status.icon, size: 14, color: color),
+                const SizedBox(height: 2),
+                Text(
+                  box.code.length > 8 ? box.code.substring(0, 8) : box.code,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  '${box.healthScore.score}',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.75),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (box.alerts.hasAlerts ||
+                    box.aiRecommendation.hasRecommendation)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (box.alerts.hasAlerts)
+                        const Icon(
+                          Icons.priority_high_rounded,
+                          size: 10,
+                          color: kHomeOrange,
+                        ),
+                      if (box.aiRecommendation.hasRecommendation)
+                        const Icon(
+                          Icons.auto_awesome_rounded,
+                          size: 10,
+                          color: kHomePurple,
+                        ),
+                    ],
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -241,25 +317,26 @@ class _BoxNode extends StatelessWidget {
 }
 
 class _FarmGridPainter extends CustomPainter {
-  _FarmGridPainter({required this.areas});
+  const _FarmGridPainter({required this.cell});
 
-  final List<String> areas;
+  final double cell;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = kHomeBorderBlue.withValues(alpha: 0.35)
+      ..color = kHomeBorderBlue.withValues(alpha: 0.28)
       ..strokeWidth = 1;
-    for (var x = 0.0; x < size.width; x += 72) {
+    for (var x = 0.0; x <= size.width; x += cell) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
     }
-    for (var y = 0.0; y < size.height; y += 72) {
+    for (var y = 0.0; y <= size.height; y += cell) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _FarmGridPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _FarmGridPainter oldDelegate) =>
+      oldDelegate.cell != cell;
 }
 
 class _AreaChip extends StatelessWidget {
@@ -290,6 +367,8 @@ class _AreaChip extends StatelessWidget {
           fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
         ),
         backgroundColor: kHomeNavyDeep.withValues(alpha: 0.75),
+        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         side: BorderSide(
           color: selected
               ? kHomeBlue.withValues(alpha: 0.8)
@@ -305,31 +384,47 @@ class _MapLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 6,
-      children: [
-        _legend(kHomeGreen, 'Ổn định'),
-        _legend(kHomeOrange, 'Cảnh báo'),
-        _legend(Colors.redAccent, 'Nghiêm trọng'),
-        _legend(Colors.white54, 'Offline'),
-        _legend(kHomeBlue, 'Đang chọn'),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: kHomeNavyDeep.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.45)),
+      ),
+      child: const Wrap(
+        spacing: 10,
+        runSpacing: 6,
+        children: [
+          _LegendDot(color: kHomeGreen, label: 'Ổn định'),
+          _LegendDot(color: kHomeOrange, label: 'Cảnh báo'),
+          _LegendDot(color: Colors.redAccent, label: 'Nghiêm trọng'),
+          _LegendDot(color: Colors.white54, label: 'Offline'),
+          _LegendDot(color: kHomeBlue, label: 'Đang chọn'),
+        ],
+      ),
     );
   }
+}
 
-  Widget _legend(Color color, String label) {
+class _LegendDot extends StatelessWidget {
+  const _LegendDot({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 10,
-          height: 10,
+          width: 8,
+          height: 8,
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
             boxShadow: [
-              BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 6),
+              BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 5),
             ],
           ),
         ),
@@ -337,8 +432,9 @@ class _MapLegend extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.45),
+            color: Colors.white.withValues(alpha: 0.55),
             fontSize: 10,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],

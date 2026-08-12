@@ -34,7 +34,7 @@ class BoxesEmptyState extends StatelessWidget {
       message: canCreate
           ? 'Bắt đầu bằng cách thêm Box đầu tiên vào khu nuôi.'
           : 'Liên hệ quản lý trang trại để được phân công Box.',
-      primaryLabel: canCreate ? 'Thêm Box' : null,
+      primaryLabel: canCreate ? 'Thêm hộp' : null,
       onPrimary: canCreate ? onCreate : null,
       icon: Icons.inventory_2_outlined,
     );
@@ -67,75 +67,109 @@ class BoxesEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: kHomeBlue.withValues(alpha: 0.14),
-                border: Border.all(color: kHomeBlue.withValues(alpha: 0.5)),
-                boxShadow: [
-                  BoxShadow(
-                    color: kHomeBlue.withValues(alpha: 0.3),
-                    blurRadius: 14,
-                  ),
-                ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final content = Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: kHomeBlue.withValues(alpha: 0.14),
+                  border: Border.all(color: kHomeBlue.withValues(alpha: 0.5)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kHomeBlue.withValues(alpha: 0.3),
+                      blurRadius: 14,
+                    ),
+                  ],
+                ),
+                child: Icon(icon, color: kHomeBlueLight, size: 32),
               ),
-              child: Icon(icon, color: kHomeBlueLight, size: 32),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.55),
-                fontSize: 13,
-              ),
-            ),
-            if (primaryLabel != null) ...[
               const SizedBox(height: 16),
-              FilledButton(
-                onPressed: onPrimary,
-                style: FilledButton.styleFrom(
-                  backgroundColor: kHomeBlue,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(160, 48),
-                  elevation: 6,
-                  shadowColor: kHomeBlue.withValues(alpha: 0.6),
-                  shape: RoundedRectangleBorder(
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.55),
+                  fontSize: 13,
+                ),
+              ),
+              if (primaryLabel != null) ...[
+                const SizedBox(height: 16),
+                DecoratedBox(
+                  decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(14),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+                    ),
+                    border: Border.all(
+                      color: kHomeCyan.withValues(alpha: 0.5),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: kHomeCyan.withValues(alpha: 0.22),
+                        blurRadius: 14,
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onPrimary,
+                      borderRadius: BorderRadius.circular(14),
+                      child: SizedBox(
+                        width: 180,
+                        height: 48,
+                        child: Center(
+                          child: Text(
+                            primaryLabel!,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                child: Text(primaryLabel!),
-              ),
+              ],
+              if (secondaryLabel != null) ...[
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: onSecondary,
+                  style: TextButton.styleFrom(foregroundColor: kHomeBlueLight),
+                  child: Text(secondaryLabel!),
+                ),
+              ],
             ],
-            if (secondaryLabel != null) ...[
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: onSecondary,
-                style: TextButton.styleFrom(foregroundColor: kHomeBlueLight),
-                child: Text(secondaryLabel!),
-              ),
-            ],
-          ],
-        ),
-      ),
+          ),
+        );
+
+        // Parent (list/map pane) có thể thấp hơn nội dung → scroll thay vì overflow.
+        if (constraints.maxHeight.isFinite && constraints.maxHeight < 280) {
+          return SingleChildScrollView(child: content);
+        }
+        return Center(child: SingleChildScrollView(child: content));
+      },
     );
   }
 }

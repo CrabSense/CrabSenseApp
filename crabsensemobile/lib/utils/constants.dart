@@ -8,7 +8,7 @@ class AppConstants {
   static const String _envBaseUrl = String.fromEnvironment('API_BASE_URL');
   static const String _devHostLan = String.fromEnvironment(
     'DEV_HOST_LAN',
-    defaultValue: '10.104.7.225',
+    defaultValue: '10.33.248.225',
   );
 
   static String get apiBaseUrl {

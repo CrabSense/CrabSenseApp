@@ -1,9 +1,9 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:crabsensemobile/core/errors/failures.dart';
 import 'package:crabsensemobile/features/water_quality/domain/entities/water_quality.dart';
-import 'package:crabsensemobile/features/water_quality/domain/entities/water_quality_thresholds.dart';
 import 'package:crabsensemobile/features/water_quality/domain/repositories/water_quality_repository.dart';
 import 'package:crabsensemobile/features/water_quality/domain/usecases/get_current_readings_usecase.dart';
+import 'package:crabsensemobile/features/water_quality/domain/usecases/get_historical_data_usecase.dart';
 import 'package:crabsensemobile/features/water_quality/presentation/bloc/water_quality_bloc.dart';
 import 'package:crabsensemobile/features/water_quality/presentation/bloc/water_quality_event.dart';
 import 'package:crabsensemobile/features/water_quality/presentation/bloc/water_quality_state.dart';
@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 class MockWaterQualityRepository implements WaterQualityRepository {
   Either<Failure, List<WaterQuality>>? readingsResult;
+  Either<Failure, List<WaterQuality>>? historicalResult;
   Either<Failure, bool>? deviceStatusResult;
 
   @override
@@ -37,35 +38,41 @@ class MockWaterQualityRepository implements WaterQualityRepository {
   }
 
   @override
+  Future<Either<Failure, List<WaterQuality>>> getHistoricalData({
+    required String farmId,
+    required HistoricalPeriod period,
+    String? pondId,
+  }) async {
+    return historicalResult ?? const Right([]);
+  }
+
+  @override
   Future<Either<Failure, bool>> checkDeviceStatus({required String sensorId}) async {
     return deviceStatusResult ?? const Right(true);
   }
 
   @override
-  Future<Either<Failure, List<WaterQuality>>> getHistoricalReadings({
+  Stream<List<WaterQuality>> watchCurrentReadings({
     required String farmId,
-    required DateTime startDate,
-    required DateTime endDate,
     String? pondId,
-  }) async =>
-      const Right([]);
-
-  @override
-  Stream<WaterQuality> watchWaterQuality({required String farmId, String? pondId}) =>
+  }) =>
       const Stream.empty();
 }
 
 void main() {
   late MockWaterQualityRepository mockRepo;
   late GetCurrentReadingsUseCase getCurrentReadings;
+  late GetHistoricalDataUseCase getHistoricalData;
 
   setUp(() {
     mockRepo = MockWaterQualityRepository();
     getCurrentReadings = GetCurrentReadingsUseCase(mockRepo);
+    getHistoricalData = GetHistoricalDataUseCase(mockRepo);
   });
 
   WaterQualityBloc buildBloc() => WaterQualityBloc(
         getCurrentReadings: getCurrentReadings,
+        getHistoricalData: getHistoricalData,
         repository: mockRepo,
       );
 
@@ -77,18 +84,13 @@ void main() {
     blocTest<WaterQualityBloc, WaterQualityState>(
       'emits [WaterQualityLoading, WaterQualityLoaded] with mock sensor data on WaterQualityLoadRequested',
       build: buildBloc,
-      act: (bloc) => bloc.add(const WaterQualityLoadRequested(farmId: 'farm-1', pondId: 'pond-1')),
+      act: (bloc) =>
+          bloc.add(const WaterQualityLoadRequested(farmId: 'farm-1', pondId: 'pond-1')),
       expect: () => [
         isA<WaterQualityLoading>(),
-        isA<WaterQualityLoaded>().having(
-          (s) => s.readings.first.ph,
-          'ph',
-          8.0,
-        ).having(
-          (s) => s.isDeviceOffline,
-          'isDeviceOffline',
-          false,
-        ),
+        isA<WaterQualityLoaded>()
+            .having((s) => s.readings.first.ph, 'ph', 8.0)
+            .having((s) => s.isDeviceOffline, 'isDeviceOffline', false),
       ],
     );
 
@@ -112,18 +114,13 @@ void main() {
     blocTest<WaterQualityBloc, WaterQualityState>(
       'handles WaterQualityFarmChanged event',
       build: buildBloc,
-      act: (bloc) => bloc.add(const WaterQualityFarmChanged(farmId: 'farm-2', pondId: 'pond-2')),
+      act: (bloc) =>
+          bloc.add(const WaterQualityFarmChanged(farmId: 'farm-2', pondId: 'pond-2')),
       expect: () => [
         isA<WaterQualityLoading>(),
-        isA<WaterQualityLoaded>().having(
-          (s) => s.farmId,
-          'farmId',
-          'farm-2',
-        ).having(
-          (s) => s.pondId,
-          'pondId',
-          'pond-2',
-        ),
+        isA<WaterQualityLoaded>()
+            .having((s) => s.farmId, 'farmId', 'farm-2')
+            .having((s) => s.pondId, 'pondId', 'pond-2'),
       ],
     );
 

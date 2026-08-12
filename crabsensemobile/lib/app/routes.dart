@@ -42,6 +42,12 @@ class RouteNames {
   /// Camera feed for a box.
   static const String boxCamera = 'boxCamera';
 
+  /// Crab list for a box.
+  static const String boxCrabs = 'boxCrabs';
+
+  /// Single crab details.
+  static const String crabDetails = 'crabDetails';
+
   /// AI results for a video.
   static const String aiResults = 'aiResults';
 
@@ -146,6 +152,12 @@ class RoutePaths {
   /// `/box/:id/camera` — Box camera feed.
   static const String boxCameraTemplate = '/box/:id/camera';
 
+  /// `/box/:id/crabs` — Crab list for a box.
+  static const String boxCrabsTemplate = '/box/:id/crabs';
+
+  /// `/crab/:crabId` — Crab detail.
+  static const String crabDetailsTemplate = '/crab/:crabId';
+
   /// `/ai-results/:videoId` — AI detection results.
   static const String aiResultsTemplate = '/ai-results/:videoId';
 
@@ -231,6 +243,15 @@ class RoutePaths {
   /// Returns `/box/<id>/camera`.
   static String boxCamera(String id) => '/box/$id/camera';
 
+  /// Returns `/box/<id>/crabs`.
+  static String boxCrabs(String id) => '/box/$id/crabs';
+
+  /// Returns `/crab/<crabId>` with optional boxId query.
+  static String crabDetails(String crabId, {String? boxId}) {
+    if (boxId == null || boxId.isEmpty) return '/crab/$crabId';
+    return '/crab/$crabId?boxId=${Uri.encodeQueryComponent(boxId)}';
+  }
+
   /// Water quality scoped to a farming area.
   static String waterQualityForFarm(String farmId) =>
       '/water-quality?farmingAreaId=${Uri.encodeQueryComponent(farmId)}';
@@ -266,6 +287,9 @@ class RouteParams {
 
   /// Path parameter key for box id (`/box/:id`).
   static const String boxId = 'id';
+
+  /// Path parameter key for crab id (`/crab/:crabId`).
+  static const String crabId = 'crabId';
 
   /// Path parameter key for video id (`/ai-results/:videoId`).
   static const String videoId = 'videoId';

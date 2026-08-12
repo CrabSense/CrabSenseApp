@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/selected_farm_provider.dart';
 import '../../data/repositories/alerts_command_repository_impl.dart';
 import '../../domain/models/alerts_models.dart';
 import '../../domain/repositories/alerts_command_repository.dart';
@@ -57,9 +58,9 @@ class AlertsPermissionFlags {
 
 final alertsStateProvider =
     StateNotifierProvider<AlertsNotifier, AsyncValue<AlertsStateData>>((ref) {
-      final repository = ref.watch(alertsRepositoryProvider);
-      return AlertsNotifier(repository);
-    });
+  final repository = ref.watch(alertsRepositoryProvider);
+  return AlertsNotifier(repository, ref);
+});
 
 /// Unread/open badge for Bottom Navigation (99+ capped in UI).
 final alertsBadgeCountProvider = Provider<int>((ref) {
@@ -71,11 +72,18 @@ final alertsBadgeCountProvider = Provider<int>((ref) {
 });
 
 class AlertsNotifier extends StateNotifier<AsyncValue<AlertsStateData>> {
-  AlertsNotifier(this._repository) : super(const AsyncValue.loading()) {
+  AlertsNotifier(this._repository, this._ref) : super(const AsyncValue.loading()) {
+    _ref.listen<SelectedFarm>(selectedFarmProvider, (prev, next) {
+      if (next.id == null || next.id!.isEmpty) return;
+      if (!state.hasValue) return;
+      if (state.value!.selectedFarmId == next.id) return;
+      switchFarm(next.id!);
+    });
     loadData();
   }
 
   final AlertsCommandRepository _repository;
+  final Ref _ref;
   Timer? _searchDebounce;
   AlertsPermissionFlags _permissions = AlertsPermissionFlags.viewer;
   String _userId = 'current-user';
@@ -103,7 +111,9 @@ class AlertsNotifier extends StateNotifier<AsyncValue<AlertsStateData>> {
   }
 
   Future<void> loadData({bool forceRefresh = false}) async {
+    await _ref.read(selectedFarmProvider.notifier).ready;
     final current = state.hasValue ? state.value : null;
+    final sharedId = _ref.read(selectedFarmProvider).id;
 
     if (!state.hasValue) {
       state = const AsyncValue.loading();
@@ -113,7 +123,7 @@ class AlertsNotifier extends StateNotifier<AsyncValue<AlertsStateData>> {
 
     try {
       final data = await _repository.getAlertsSummary(
-        farmingAreaId: current?.selectedFarmId,
+        farmingAreaId: sharedId ?? current?.selectedFarmId,
         forceRefresh: forceRefresh,
         searchQuery: current?.searchQuery ?? '',
         quickFilters: current?.quickFilters ?? {AlertQuickFilter.all},
@@ -129,6 +139,10 @@ class AlertsNotifier extends StateNotifier<AsyncValue<AlertsStateData>> {
         canMarkAllRead: _permissions.canMarkAllRead,
       );
       state = AsyncValue.data(data.copyWith(isRefreshing: false));
+      await _ref.read(selectedFarmProvider.notifier).select(
+            data.selectedFarmId,
+            name: data.selectedFarmName,
+          );
     } catch (error, stackTrace) {
       if (current != null) {
         state = AsyncValue.data(
@@ -157,6 +171,7 @@ class AlertsNotifier extends StateNotifier<AsyncValue<AlertsStateData>> {
         .map((f) => f.name)
         .firstOrNull;
 
+    // Local trước, global sau — tránh listen gọi lại switchFarm.
     state = AsyncValue.data(
       current.copyWith(
         selectedFarmId: farmId,
@@ -164,6 +179,11 @@ class AlertsNotifier extends StateNotifier<AsyncValue<AlertsStateData>> {
         isRefreshing: true,
       ),
     );
+
+    await _ref.read(selectedFarmProvider.notifier).select(
+          farmId,
+          name: farmName,
+        );
 
     try {
       final updated = await _repository.switchFarm(farmId);
@@ -178,6 +198,10 @@ class AlertsNotifier extends StateNotifier<AsyncValue<AlertsStateData>> {
           isRefreshing: false,
         ),
       );
+      await _ref.read(selectedFarmProvider.notifier).select(
+            updated.selectedFarmId,
+            name: updated.selectedFarmName,
+          );
     } catch (_) {
       state = AsyncValue.data(current.copyWith(isRefreshing: false));
     }

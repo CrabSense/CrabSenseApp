@@ -447,6 +447,24 @@ class _CrabStatsCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: () => context.push(
+                '${RoutePaths.boxCrabs(box.id)}?boxCode=${Uri.encodeQueryComponent(box.qrCode.isNotEmpty ? box.qrCode : box.id)}',
+              ),
+              icon: const Icon(Icons.list_alt_rounded, size: 18),
+              label: const Text('Xem danh sách cua'),
+              style: FilledButton.styleFrom(
+                foregroundColor: kHomeBlueLight,
+                backgroundColor: kHomeNavyLift,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(

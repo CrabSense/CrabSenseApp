@@ -84,15 +84,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   /// Handles the logout request event.
   ///
   /// Clears the user session and stored credentials.
-  /// Emits:
-  /// - AuthLoading: while logout is in progress
-  /// - Unauthenticated: after successful logout
-  /// - AuthError: if logout fails (though local data is still cleared)
+  ///
+  /// Emits [Unauthenticated] directly (no [AuthLoading]) to avoid racing
+  /// GoRouter redirect with open dialogs/overlays → Duplicate GlobalKey.
   ///
   /// Requirements: 1.3
   Future<void> _onLogoutRequested(LogoutRequested event, Emitter<AuthState> emit) async {
-    emit(const AuthLoading());
-
     final result = await logoutUseCase();
 
     result.fold(

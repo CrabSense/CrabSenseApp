@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../home/presentation/widgets/crab_hologram_painter.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
+import '../../../notifications/presentation/providers/unread_notifications_provider.dart';
 import '../../domain/models/boxes_models.dart';
 
 /// Header tab Boxes — đồng bộ phong cách hologram trang home.
-class BoxesHeader extends StatelessWidget {
+class BoxesHeader extends ConsumerWidget {
   const BoxesHeader({
     required this.data,
     required this.onFarmSwitched,
@@ -196,7 +198,10 @@ class BoxesHeader extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread =
+        ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -278,6 +283,9 @@ class BoxesHeader extends StatelessWidget {
                 icon: Icons.notifications_none_rounded,
                 tooltip: 'Thông báo',
                 onPressed: onNotificationPressed!,
+                countBadge: unread > 0
+                    ? (unread > 99 ? '99+' : '$unread')
+                    : null,
               ),
           ],
         ),
@@ -567,12 +575,14 @@ class _HeaderIconButton extends StatelessWidget {
     required this.tooltip,
     required this.onPressed,
     this.badge = false,
+    this.countBadge,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback onPressed;
   final bool badge;
+  final String? countBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -599,7 +609,36 @@ class _HeaderIconButton extends StatelessWidget {
               elevation: 2,
             ),
           ),
-          if (badge)
+          if (countBadge != null)
+            Positioned(
+              right: 2,
+              top: 2,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.redAccent.withValues(alpha: 0.55),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  countBadge!,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    height: 1.1,
+                  ),
+                ),
+              ),
+            )
+          else if (badge)
             Positioned(
               right: 8,
               top: 8,

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../../core/di/injection.dart';
+import '../../../../core/providers/selected_farm_provider.dart';
 import '../../data/repositories/boxes_repository_impl.dart';
 import '../../domain/models/boxes_models.dart';
 import '../../domain/repositories/boxes_repository.dart';
@@ -33,16 +34,23 @@ class BoxesPermissionFlags {
 
 final boxesStateProvider =
     StateNotifierProvider<BoxesNotifier, AsyncValue<BoxesStateData>>((ref) {
-      final repository = ref.watch(boxesRepositoryProvider);
-      return BoxesNotifier(repository);
-    });
+  final repository = ref.watch(boxesRepositoryProvider);
+  return BoxesNotifier(repository, ref);
+});
 
 class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
-  BoxesNotifier(this._repository) : super(const AsyncValue.loading()) {
+  BoxesNotifier(this._repository, this._ref) : super(const AsyncValue.loading()) {
+    _ref.listen<SelectedFarm>(selectedFarmProvider, (prev, next) {
+      if (next.id == null || next.id!.isEmpty) return;
+      if (!state.hasValue) return;
+      if (state.value!.selectedFarmId == next.id) return;
+      switchFarm(next.id!);
+    });
     loadData();
   }
 
   final BoxesRepository _repository;
+  final Ref _ref;
   Timer? _searchDebounce;
   BoxesPermissionFlags _permissions = BoxesPermissionFlags.viewer;
 
@@ -60,7 +68,9 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
   }
 
   Future<void> loadData({bool forceRefresh = false}) async {
+    await _ref.read(selectedFarmProvider.notifier).ready;
     final current = state.hasValue ? state.value : null;
+    final sharedId = _ref.read(selectedFarmProvider).id;
 
     if (!state.hasValue) {
       state = const AsyncValue.loading();
@@ -70,7 +80,7 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
 
     try {
       final data = await _repository.getBoxesSummary(
-        farmingAreaId: current?.selectedFarmId,
+        farmingAreaId: sharedId ?? current?.selectedFarmId,
         forceRefresh: forceRefresh,
         viewMode: current?.viewMode ?? _repository.savedViewMode,
         searchQuery: current?.searchQuery ?? '',
@@ -81,6 +91,10 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
         canPerformActions: _permissions.canPerformActions,
       );
       state = AsyncValue.data(data.copyWith(isRefreshing: false));
+      await _ref.read(selectedFarmProvider.notifier).select(
+            data.selectedFarmId,
+            name: data.selectedFarmName,
+          );
     } catch (error, stackTrace) {
       if (current != null) {
         state = AsyncValue.data(
@@ -109,6 +123,7 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
         .map((f) => f.name)
         .firstOrNull;
 
+    // Local trước, global sau — tránh listen gọi lại switchFarm.
     state = AsyncValue.data(
       current.copyWith(
         selectedFarmId: farmId,
@@ -116,6 +131,11 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
         isRefreshing: true,
       ),
     );
+
+    await _ref.read(selectedFarmProvider.notifier).select(
+          farmId,
+          name: farmName,
+        );
 
     try {
       final updated = await _repository.switchFarm(farmId);
@@ -127,6 +147,10 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
           isRefreshing: false,
         ),
       );
+      await _ref.read(selectedFarmProvider.notifier).select(
+            updated.selectedFarmId,
+            name: updated.selectedFarmName,
+          );
     } catch (_) {
       state = AsyncValue.data(current.copyWith(isRefreshing: false));
     }

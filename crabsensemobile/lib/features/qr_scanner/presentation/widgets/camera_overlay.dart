@@ -16,7 +16,7 @@ class CameraOverlay extends StatefulWidget {
   final bool isProcessing;
   final String hint;
 
-  /// Fixed size; when null, sized from [LayoutBuilder] (min of width/height).
+  /// Fixed size; when null, sized from [LayoutBuilder].
   final double? frameSize;
 
   @override
@@ -49,11 +49,18 @@ class _CameraOverlayState extends State<CameraOverlay>
         : widget.isProcessing
             ? kHomeOrange
             : kHomeCyan;
+    final topInset = MediaQuery.paddingOf(context).top + 96;
+    final bottomInset = MediaQuery.paddingOf(context).bottom + 88;
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final maxSide = constraints.biggest.shortestSide;
-        final side = (widget.frameSize ?? (maxSide * 0.62)).clamp(180.0, 280.0);
+        final usableH =
+            (constraints.maxHeight - topInset - bottomInset).clamp(160.0, 9999.0);
+        final usableW = constraints.maxWidth;
+        final maxSide = usableH < usableW ? usableH : usableW;
+        final side =
+            (widget.frameSize ?? (maxSide * 0.72)).clamp(200.0, 280.0);
+        final frameCenterY = topInset + usableH / 2;
 
         return Stack(
           fit: StackFit.expand,
@@ -61,61 +68,68 @@ class _CameraOverlayState extends State<CameraOverlay>
             CustomPaint(
               painter: _CutoutPainter(
                 frameSide: side,
+                frameCenter: Offset(constraints.maxWidth / 2, frameCenterY),
                 overlayColor: Colors.black.withValues(alpha: 0.58),
               ),
             ),
-            Center(
-              child: SizedBox(
-                width: side,
-                height: side,
-                child: Stack(
-                  children: [
-                    CustomPaint(painter: _CornerGlowPainter(color: accent)),
-                    AnimatedBuilder(
-                      animation: _line,
-                      builder: (context, _) {
-                        return Positioned(
-                          left: 12,
-                          right: 12,
-                          top: 12 + (side - 36) * _line.value,
-                          child: Container(
-                            height: 2,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  accent.withValues(alpha: 0),
-                                  accent,
-                                  accent.withValues(alpha: 0),
-                                ],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: accent.withValues(alpha: 0.55),
-                                  blurRadius: 10,
-                                  spreadRadius: 1,
-                                ),
-                              ],
-                            ),
+            Positioned(
+              left: (constraints.maxWidth - side) / 2,
+              top: frameCenterY - side / 2,
+              width: side,
+              height: side,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CustomPaint(
+                    size: Size(side, side),
+                    painter: _CornerGlowPainter(color: accent),
+                  ),
+                  AnimatedBuilder(
+                    animation: _line,
+                    builder: (context, child) {
+                      return Align(
+                        alignment: Alignment(0, -0.85 + 1.7 * _line.value),
+                        child: child,
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Container(
+                        height: 2,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              accent.withValues(alpha: 0),
+                              accent,
+                              accent.withValues(alpha: 0),
+                            ],
                           ),
-                        );
-                      },
-                    ),
-                    if (widget.isSuccess)
-                      const Center(
-                        child: Icon(
-                          Icons.check_circle_rounded,
-                          color: kHomeGreen,
-                          size: 56,
+                          boxShadow: [
+                            BoxShadow(
+                              color: accent.withValues(alpha: 0.55),
+                              blurRadius: 10,
+                              spreadRadius: 1,
+                            ),
+                          ],
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                  ),
+                  if (widget.isSuccess)
+                    const Center(
+                      child: Icon(
+                        Icons.check_circle_rounded,
+                        color: kHomeGreen,
+                        size: 56,
+                      ),
+                    ),
+                ],
               ),
             ),
             Positioned(
               left: 24,
               right: 24,
-              bottom: constraints.maxHeight * 0.28,
+              top: frameCenterY + side / 2 + 20,
               child: Text(
                 widget.hint,
                 textAlign: TextAlign.center,
@@ -140,9 +154,14 @@ class _CameraOverlayState extends State<CameraOverlay>
 }
 
 class _CutoutPainter extends CustomPainter {
-  _CutoutPainter({required this.frameSide, required this.overlayColor});
+  _CutoutPainter({
+    required this.frameSide,
+    required this.frameCenter,
+    required this.overlayColor,
+  });
 
   final double frameSide;
+  final Offset frameCenter;
   final Color overlayColor;
 
   @override
@@ -150,7 +169,7 @@ class _CutoutPainter extends CustomPainter {
     final path = Path()..addRect(Offset.zero & size);
     final cut = RRect.fromRectAndRadius(
       Rect.fromCenter(
-        center: Offset(size.width / 2, size.height / 2),
+        center: frameCenter,
         width: frameSide,
         height: frameSide,
       ),
@@ -164,6 +183,7 @@ class _CutoutPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _CutoutPainter oldDelegate) =>
       oldDelegate.frameSide != frameSide ||
+      oldDelegate.frameCenter != frameCenter ||
       oldDelegate.overlayColor != overlayColor;
 }
 
@@ -183,8 +203,16 @@ class _CornerGlowPainter extends CustomPainter {
     const len = 28.0;
     const inset = 4.0;
 
-    canvas.drawLine(const Offset(inset, inset + len), const Offset(inset, inset), paint);
-    canvas.drawLine(const Offset(inset, inset), const Offset(inset + len, inset), paint);
+    canvas.drawLine(
+      const Offset(inset, inset + len),
+      const Offset(inset, inset),
+      paint,
+    );
+    canvas.drawLine(
+      const Offset(inset, inset),
+      const Offset(inset + len, inset),
+      paint,
+    );
     canvas.drawLine(
       Offset(size.width - inset - len, inset),
       Offset(size.width - inset, inset),

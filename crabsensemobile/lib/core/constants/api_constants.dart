@@ -11,14 +11,14 @@ class ApiConstants {
   // Base URL Configuration
   // ===========================================================================
 
-  /// Override full base, e.g. --dart-define=API_BASE_URL=http://10.104.7.225:5080
+  /// Override full base, e.g. --dart-define=API_BASE_URL=http://10.33.248.225:5080
   static const String _envBaseUrl = String.fromEnvironment('API_BASE_URL');
 
   /// PC LAN IP for physical Android devices (same Wi‑Fi as the phone).
   /// Update when your Wi‑Fi IP changes, or pass via --dart-define=DEV_HOST_LAN=x.x.x.x
   static const String _devHostLan = String.fromEnvironment(
     'DEV_HOST_LAN',
-    defaultValue: '10.104.7.225',
+    defaultValue: '10.33.248.225',
   );
 
   /// Resolves API host for the current platform:
@@ -132,6 +132,7 @@ class ApiConstants {
   // ===========================================================================
 
   static const String crabs = '/crabs';
+  static String crabDetails(String crabId) => '/crabs/$crabId';
   static const String crabLots = '/crab-lots';
   static const String cropBatches = '/crop-batches';
   static const String allocations = '/allocations';
@@ -162,7 +163,7 @@ class ApiConstants {
 
   static const String waterQuality = '/sensors';
   static const String waterQualityLatest = '/iot/live';
-  static const String waterQualityHistorical = '/iot/sensor-data';
+  static const String waterQualityHistorical = '/iot/history';
   static String waterQualityForFarm(String farmId) => '/sensors';
   static String waterQualityForPond(String pondId) => '/sensors';
   static const String waterQualityThresholds = '/alert-thresholds';

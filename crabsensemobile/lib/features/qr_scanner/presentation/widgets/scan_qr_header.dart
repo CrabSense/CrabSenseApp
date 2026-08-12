@@ -30,82 +30,28 @@ class ScanQRHeader extends StatelessWidget {
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+        padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'QUÉT QR',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: kHomeBlueLight,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.2,
-                              shadows: [
-                                Shadow(
-                                  color: kHomeCyan.withValues(alpha: 0.55),
-                                  blurRadius: 12,
-                                ),
-                              ],
-                            ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: kHomeNavyDeep.withValues(alpha: 0.72),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: kHomeBorderBlue.withValues(alpha: 0.55),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: kHomeBlue.withValues(alpha: 0.2),
-                              blurRadius: 10,
+                  child: Text(
+                    'QUÉT QR',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: kHomeBlueLight,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                          shadows: [
+                            Shadow(
+                              color: kHomeCyan.withValues(alpha: 0.55),
+                              blurRadius: 12,
                             ),
                           ],
                         ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Stack(
-                          children: [
-                            const HomeCrabWatermark(alpha: 0.08, trayExtent: 16),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 5,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.location_on_rounded,
-                                    size: 14,
-                                    color: kHomeCyan,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Flexible(
-                                    child: Text(
-                                      farmLabel,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ),
                 ),
                 _IconBtn(
@@ -133,33 +79,122 @@ class ScanQRHeader extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: FilterChip(
-                selected: continuousScan,
-                onSelected: (_) => onToggleContinuous(),
-                label: Text(
-                  continuousScan ? 'Quét liên tục' : 'Quét một lần',
-                  style: TextStyle(
-                    color: continuousScan ? Colors.white : Colors.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Flexible(
+                  child: _FarmChip(label: farmLabel),
                 ),
-                selectedColor: kHomeBlue.withValues(alpha: 0.45),
-                backgroundColor: kHomeNavyDeep.withValues(alpha: 0.72),
-                side: BorderSide(
-                  color: continuousScan
-                      ? kHomeCyan.withValues(alpha: 0.8)
-                      : kHomeBorderBlue.withValues(alpha: 0.45),
+                const SizedBox(width: 8),
+                _ModeChip(
+                  continuousScan: continuousScan,
+                  onTap: onToggleContinuous,
                 ),
-                showCheckmark: false,
-                visualDensity: VisualDensity.compact,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
+              ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FarmChip extends StatelessWidget {
+  const _FarmChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: kHomeNavyDeep.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: kHomeBorderBlue.withValues(alpha: 0.55),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: kHomeBlue.withValues(alpha: 0.2),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          const HomeCrabWatermark(alpha: 0.08, trayExtent: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.location_on_rounded,
+                  size: 14,
+                  color: kHomeCyan,
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModeChip extends StatelessWidget {
+  const _ModeChip({
+    required this.continuousScan,
+    required this.onTap,
+  });
+
+  final bool continuousScan;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: continuousScan
+                ? kHomeBlue.withValues(alpha: 0.45)
+                : kHomeNavyDeep.withValues(alpha: 0.72),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: continuousScan
+                  ? kHomeCyan.withValues(alpha: 0.8)
+                  : kHomeBorderBlue.withValues(alpha: 0.45),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Text(
+              continuousScan ? 'Quét liên tục' : 'Quét một lần',
+              style: TextStyle(
+                color: continuousScan ? Colors.white : Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ),
       ),
     );

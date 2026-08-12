@@ -54,6 +54,9 @@ abstract class BoxRemoteDataSource {
   /// Requirements: 16.1
   Future<List<CrabModel>> getCrabsByBox(String boxId);
 
+  /// Retrieves a single crab by id.
+  Future<CrabModel> getCrabById(String crabId);
+
   /// Deletes a crab record by ID.
   ///
   /// Requirements: 16.10
@@ -200,6 +203,17 @@ class BoxRemoteDataSourceImpl implements BoxRemoteDataSource {
     final raw = result.data.data;
     final items = _extractList(raw, 'getCrabsByBox');
     return items.map((e) => CrabModel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  @override
+  Future<CrabModel> getCrabById(String crabId) async {
+    _logger.d('BoxRemoteDataSource: getCrabById($crabId)');
+    final result = await _apiClient.safeGet<Map<String, dynamic>>(
+      ApiConstants.crabDetails(crabId),
+    );
+    _checkFailure(result.failure, 'crab by id');
+    final data = _extractData(result.data.data, 'getCrabById');
+    return CrabModel.fromJson(data);
   }
 
   @override

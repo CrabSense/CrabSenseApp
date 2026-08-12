@@ -7,18 +7,17 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'drive_folder_config.dart';
 
-/// Upload file báo cáo vào folder Drive cố định.
+/// Upload file báo cáo vào folder Drive cố định (CRAB).
 class DriveReportUploader {
   DriveReportUploader._();
 
   static const _driveScope = 'https://www.googleapis.com/auth/drive.file';
   static bool _initialized = false;
 
-  /// Bật Google Sign-In upload: --dart-define=ENABLE_DRIVE_GOOGLE_SIGNIN=true
-  /// (cần SHA-1 debug trên Firebase / Google Cloud, nếu không sẽ bị "Account reauth failed").
+  /// Tắt Sign-In: --dart-define=ENABLE_DRIVE_GOOGLE_SIGNIN=false
   static const bool enableGoogleSignIn = bool.fromEnvironment(
     'ENABLE_DRIVE_GOOGLE_SIGNIN',
-    defaultValue: false,
+    defaultValue: true,
   );
 
   static Future<void> _ensureGoogleSignIn() async {
@@ -29,10 +28,9 @@ class DriveReportUploader {
     _initialized = true;
   }
 
-  /// Upload [file] → folder [DriveFolderConfig.folderId].
-  /// 1) Webhook Apps Script (im lặng)
-  /// 2) Google Sign-In (chỉ khi ENABLE_DRIVE_GOOGLE_SIGNIN=true)
-  /// 3) Không thì trả về needsManualShare để app mở share + folder.
+  /// 1) Webhook Apps Script (nếu có URL + secret)
+  /// 2) Google Sign-In + Drive API → folder cố định
+  /// 3) Fallback manual share
   static Future<DriveUploadResult> uploadFile(File file) async {
     final name = file.uri.pathSegments.isNotEmpty
         ? file.uri.pathSegments.last
@@ -41,11 +39,12 @@ class DriveReportUploader {
     final mime = name.endsWith('.json') ? 'application/json' : 'text/csv';
 
     if (DriveFolderConfig.hasWebhook) {
-      return _uploadViaWebhook(
+      final webhook = await _uploadViaWebhook(
         filename: name,
         mimeType: mime,
         bytes: bytes,
       );
+      if (webhook.success) return webhook;
     }
 
     if (enableGoogleSignIn) {
@@ -56,12 +55,32 @@ class DriveReportUploader {
           bytes: bytes,
         );
       } on GoogleSignInException catch (e) {
+        // Thử sign-out rồi đăng nhập lại 1 lần (reauth failed thường hết sau đó).
+        if (e.code == GoogleSignInExceptionCode.canceled ||
+            e.code == GoogleSignInExceptionCode.interrupted) {
+          try {
+            await GoogleSignIn.instance.signOut();
+            return await _uploadViaGoogleSignIn(
+              filename: name,
+              mimeType: mime,
+              bytes: bytes,
+            );
+          } catch (e2) {
+            return DriveUploadResult(
+              success: false,
+              needsManualShare: true,
+              message:
+                  'Google Sign-In thất bại ($e2). '
+                  'Tài khoản phải có quyền Sửa folder CRAB; '
+                  'đã thêm SHA-1 thì tải lại google-services.json rồi full rebuild.',
+              via: 'google_sign_in',
+            );
+          }
+        }
         return DriveUploadResult(
           success: false,
           needsManualShare: true,
-          message:
-              'Google Sign-In thất bại (${e.code.name}). '
-              'Dùng chia sẻ → Drive / folder CRAB.',
+          message: 'Google Sign-In thất bại (${e.code.name}).',
           via: 'google_sign_in',
         );
       } catch (e) {
@@ -77,8 +96,7 @@ class DriveReportUploader {
     return const DriveUploadResult(
       success: false,
       needsManualShare: true,
-      message:
-          'Chưa cấu hình webhook Drive. Mở chia sẻ → chọn Google Drive / folder CRAB.',
+      message: 'Chưa bật auto-upload Drive.',
       via: 'manual',
     );
   }
@@ -91,21 +109,13 @@ class DriveReportUploader {
       );
     }
 
-    // Webhook / Sign-In: upload từng file. Manual: không gọi API.
-    if (!DriveFolderConfig.hasWebhook && !enableGoogleSignIn) {
-      return const DriveUploadResult(
-        success: false,
-        needsManualShare: true,
-        message:
-            'Chọn Google Drive trên sheet chia sẻ, lưu vào folder CRAB đã mở.',
-        via: 'manual',
-      );
-    }
-
     DriveUploadResult? last;
     for (final f in files) {
       last = await uploadFile(f);
-      if (last.success != true && last.needsManualShare) return last;
+      if (!last.success && last.needsManualShare) {
+        // Vẫn thử các file còn lại không — trả ngay để UI mở share.
+        return last;
+      }
     }
     return last!;
   }
@@ -140,18 +150,19 @@ class DriveReportUploader {
 
     if (res.statusCode >= 200 &&
         res.statusCode < 300 &&
-        (body == null || body['success'] != false)) {
+        body != null &&
+        body['success'] == true) {
       return DriveUploadResult(
         success: true,
-        message: 'Đã lưu lên Google Drive',
-        fileUrl: body?['url']?.toString(),
+        message: 'Đã lưu lên Google Drive (webhook)',
+        fileUrl: body['url']?.toString(),
         via: 'webhook',
       );
     }
 
     return DriveUploadResult(
       success: false,
-      needsManualShare: true,
+      needsManualShare: false,
       message: body?['message']?.toString() ??
           'Upload webhook thất bại (${res.statusCode})',
       via: 'webhook',
@@ -222,10 +233,15 @@ class DriveReportUploader {
       );
     }
 
+    // 403 thường = account không có quyền viết folder
+    final hint = res.statusCode == 403
+        ? ' Tài khoản Google không có quyền Sửa folder CRAB — share folder cho email đó (Editor).'
+        : '';
+
     return DriveUploadResult(
       success: false,
       needsManualShare: true,
-      message: 'Drive API lỗi ${res.statusCode}: ${res.body}',
+      message: 'Drive API ${res.statusCode}.$hint',
       via: 'google_sign_in',
     );
   }

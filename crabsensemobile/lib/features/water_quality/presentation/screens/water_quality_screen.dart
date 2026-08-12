@@ -329,7 +329,11 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
     final thresholds = widget.state.thresholds;
     final latestTimestamp =
         readings.isNotEmpty ? readings.first.timestamp : null;
-    final historicalReadings = _filterByPeriod(readings, _selectedPeriod);
+    final historicalSource = widget.state.historicalReadings.isNotEmpty
+        ? widget.state.historicalReadings
+        : readings;
+    final historicalReadings =
+        _filterByPeriod(historicalSource, _selectedPeriod);
     final resolvedFarmId = _resolvedFarmId();
 
     return ListView(

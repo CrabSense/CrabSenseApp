@@ -969,8 +969,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         // SECTION 12: LOGOUT
                         LogoutButton(
                           onLogoutConfirmed: () {
-                            ref.read(profileStateProvider.notifier).logout();
-                            _showToast('Đã đăng xuất tài khoản an toàn.');
+                            // AuthBloc đã clear session + redirect login.
                           },
                         ),
                       ],

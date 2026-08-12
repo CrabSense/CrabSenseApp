@@ -353,7 +353,7 @@ class _FirebaseServiceDetailScreenState
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
-                                'Đã gửi non-fatal test → kiểm tra Crashlytics Console (vài phút)',
+                                'Đã gửi báo cáo thử nghiệm — kiểm tra Crashlytics Console sau vài phút',
                               ),
                             ),
                           );

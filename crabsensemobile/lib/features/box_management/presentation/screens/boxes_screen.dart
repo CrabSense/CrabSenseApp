@@ -22,6 +22,7 @@ import '../widgets/boxes_search_bar.dart';
 import '../widgets/boxes_skeleton.dart';
 import '../widgets/farm_digital_twin.dart';
 import '../widgets/farm_overview_summary.dart';
+import '../../../notifications/presentation/providers/unread_notifications_provider.dart';
 
 /// Boxes tab — Farm Digital Twin command surface.
 class BoxesScreen extends ConsumerStatefulWidget {
@@ -387,25 +388,7 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
       floatingActionButton: asyncState.maybeWhen(
         data: (data) {
           if (!data.canCreateBox) return null;
-          return Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: kHomeBlue.withValues(alpha: 0.55),
-                  blurRadius: 18,
-                  spreadRadius: 1,
-                ),
-              ],
-            ),
-            child: FloatingActionButton.extended(
-              onPressed: () => _showCreateBoxSheet(data),
-              backgroundColor: kHomeBlue,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Thêm Box'),
-            ),
-          );
+          return _AddBoxFab(onPressed: () => _showCreateBoxSheet(data));
         },
         orElse: () => null,
       ),
@@ -441,93 +424,116 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
   }
 
   Widget _buildContent(BoxesStateData data, int columns) {
+    final isMap = data.viewMode == BoxesViewMode.farmMap;
+    final gap = isMap ? 8.0 : 12.0;
+
     return RefreshIndicator(
       onRefresh: () => ref.read(boxesStateProvider.notifier).refresh(),
       color: kHomeBlue,
       backgroundColor: kHomeNavy,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (data.isOfflineCached || !data.isOnline)
-              BoxesOfflineBanner(
-                lastSyncedAt: data.lastSyncedAt,
-                onRetry: () => ref.read(boxesStateProvider.notifier).refresh(),
-              ),
-            if (data.sectionError != null)
-              BoxesSectionErrorCard(
-                message: data.sectionError!,
-                onRetry: () => ref.read(boxesStateProvider.notifier).refresh(),
-              ),
-            BoxesHeader(
-              data: data,
-              onFarmSwitched: (id) {
-                ref.read(boxesStateProvider.notifier).switchFarm(id);
-                final name = data.availableFarms
-                    .where((f) => f.id == id)
-                    .map((f) => f.name)
-                    .firstOrNull;
-                _snack('Đã chuyển sang ${name ?? id}');
-              },
-              onSearchPressed: () => setState(() => _showSearch = !_showSearch),
-              onFilterPressed: () => _openAdvancedFilter(data),
-              onViewModePressed: () => _openViewModeSheet(data.viewMode),
-              onNotificationPressed: () =>
-                  context.push(RoutePaths.notificationHistory),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Màn thấp: ẩn overview để Column + Expanded không overflow.
+          final hideOverview =
+              isMap || constraints.maxHeight < 520;
+
+          return Padding(
+            padding: EdgeInsets.fromLTRB(16, isMap ? 8 : 12, 16, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (data.isOfflineCached || !data.isOnline)
+                  BoxesOfflineBanner(
+                    lastSyncedAt: data.lastSyncedAt,
+                    onRetry: () =>
+                        ref.read(boxesStateProvider.notifier).refresh(),
+                  ),
+                if (data.sectionError != null)
+                  BoxesSectionErrorCard(
+                    message: data.sectionError!,
+                    onRetry: () =>
+                        ref.read(boxesStateProvider.notifier).refresh(),
+                  ),
+                BoxesHeader(
+                  data: data,
+                  onFarmSwitched: (id) {
+                    ref.read(boxesStateProvider.notifier).switchFarm(id);
+                    final name = data.availableFarms
+                        .where((f) => f.id == id)
+                        .map((f) => f.name)
+                        .firstOrNull;
+                    _snack('Đã chuyển sang ${name ?? id}');
+                  },
+                  onSearchPressed: () =>
+                      setState(() => _showSearch = !_showSearch),
+                  onFilterPressed: () => _openAdvancedFilter(data),
+                  onViewModePressed: () => _openViewModeSheet(data.viewMode),
+                  onNotificationPressed: () async {
+                    await context.push(RoutePaths.alerts);
+                    if (mounted) {
+                      ref.invalidate(unreadNotificationsCountProvider);
+                    }
+                  },
+                ),
+                SizedBox(height: gap),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  child: _showSearch || data.searchQuery.isNotEmpty
+                      ? BoxesSearchBar(
+                          key: const ValueKey('search-on'),
+                          initialQuery: data.searchQuery,
+                          recentSearches: data.recentSearches,
+                          autofocus: _showSearch,
+                          onChanged: (q) => ref
+                              .read(boxesStateProvider.notifier)
+                              .setSearchQuery(q),
+                          onClear: () => ref
+                              .read(boxesStateProvider.notifier)
+                              .clearSearch(),
+                          onRecentSelected: (q) => ref
+                              .read(boxesStateProvider.notifier)
+                              .setSearchQuery(q),
+                        )
+                      : const SizedBox.shrink(key: ValueKey('search-off')),
+                ),
+                if (_showSearch || data.searchQuery.isNotEmpty)
+                  SizedBox(height: gap),
+                if (!hideOverview) ...[
+                  FarmOverviewSummary(
+                    overview: data.overview,
+                    onStatusTap: (chip) => ref
+                        .read(boxesStateProvider.notifier)
+                        .toggleQuickFilter(chip),
+                  ),
+                  SizedBox(height: gap),
+                ],
+                BoxFilterChips(
+                  activeFilters: data.quickFilters,
+                  onToggle: (f) => ref
+                      .read(boxesStateProvider.notifier)
+                      .toggleQuickFilter(f),
+                  onClear: () =>
+                      ref.read(boxesStateProvider.notifier).clearFilters(),
+                ),
+                SizedBox(height: isMap ? 6 : 8),
+                ViewModeSwitcher(
+                  mode: data.viewMode,
+                  onChanged: (m) =>
+                      ref.read(boxesStateProvider.notifier).setViewMode(m),
+                ),
+                SizedBox(height: gap),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 280),
+                    switchInCurve: Curves.easeOut,
+                    switchOutCurve: Curves.easeIn,
+                    child: _buildBody(data, columns),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              child: _showSearch || data.searchQuery.isNotEmpty
-                  ? BoxesSearchBar(
-                      key: const ValueKey('search-on'),
-                      initialQuery: data.searchQuery,
-                      recentSearches: data.recentSearches,
-                      autofocus: _showSearch,
-                      onChanged: (q) => ref
-                          .read(boxesStateProvider.notifier)
-                          .setSearchQuery(q),
-                      onClear: () =>
-                          ref.read(boxesStateProvider.notifier).clearSearch(),
-                      onRecentSelected: (q) => ref
-                          .read(boxesStateProvider.notifier)
-                          .setSearchQuery(q),
-                    )
-                  : const SizedBox.shrink(key: ValueKey('search-off')),
-            ),
-            if (_showSearch || data.searchQuery.isNotEmpty)
-              const SizedBox(height: 12),
-            FarmOverviewSummary(
-              overview: data.overview,
-              onStatusTap: (chip) =>
-                  ref.read(boxesStateProvider.notifier).toggleQuickFilter(chip),
-            ),
-            const SizedBox(height: 12),
-            BoxFilterChips(
-              activeFilters: data.quickFilters,
-              onToggle: (f) =>
-                  ref.read(boxesStateProvider.notifier).toggleQuickFilter(f),
-              onClear: () =>
-                  ref.read(boxesStateProvider.notifier).clearFilters(),
-            ),
-            const SizedBox(height: 8),
-            ViewModeSwitcher(
-              mode: data.viewMode,
-              onChanged: (m) =>
-                  ref.read(boxesStateProvider.notifier).setViewMode(m),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 280),
-                switchInCurve: Curves.easeOut,
-                switchOutCurve: Curves.easeIn,
-                child: _buildBody(data, columns),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -592,5 +598,81 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
           },
         );
     }
+  }
+}
+
+/// FAB “Thêm hộp” — phong cách hologram navy/cyan (không dùng Material FAB mặc định).
+class _AddBoxFab extends StatelessWidget {
+  const _AddBoxFab({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      elevation: 0,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          height: 52,
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+            ),
+            border: Border.all(
+              color: kHomeCyan.withValues(alpha: 0.55),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: kHomeCyan.withValues(alpha: 0.28),
+                blurRadius: 18,
+                offset: const Offset(0, 4),
+              ),
+              BoxShadow(
+                color: kHomeBlue.withValues(alpha: 0.2),
+                blurRadius: 10,
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: kHomeCyan.withValues(alpha: 0.14),
+                  border: Border.all(
+                    color: kHomeCyan.withValues(alpha: 0.45),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.add_rounded,
+                  size: 18,
+                  color: kHomeCyan,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Thêm hộp',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

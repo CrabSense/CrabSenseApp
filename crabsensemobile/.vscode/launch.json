@@ -7,7 +7,7 @@
       "type": "dart",
       "program": "lib/main.dart",
       "toolArgs": [
-        "--dart-define=API_BASE_URL=http://192.168.1.192:5080"
+        "--dart-define=API_BASE_URL=http://10.33.248.225:5080"
       ]
     },
     {

@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/errors/failures.dart';
+import '../../domain/entities/water_quality.dart';
 import '../../domain/entities/water_quality_thresholds.dart';
 import '../../domain/repositories/water_quality_repository.dart';
 import '../../domain/usecases/get_current_readings_usecase.dart';
+import '../../domain/usecases/get_historical_data_usecase.dart';
 import 'water_quality_event.dart';
 import 'water_quality_state.dart';
 
@@ -25,14 +27,18 @@ import 'water_quality_state.dart';
 ///
 /// Requirements: 8.1, 8.7, 8.8, 8.9, 8.10
 class WaterQualityBloc extends Bloc<WaterQualityEvent, WaterQualityState> {
-  WaterQualityBloc({required this.getCurrentReadings, required this.repository})
-    : super(const WaterQualityInitial()) {
+  WaterQualityBloc({
+    required this.getCurrentReadings,
+    required this.getHistoricalData,
+    required this.repository,
+  }) : super(const WaterQualityInitial()) {
     on<WaterQualityLoadRequested>(_onLoadRequested);
     on<WaterQualityRefreshRequested>(_onRefreshRequested);
     on<WaterQualityFarmChanged>(_onFarmChanged);
   }
 
   final GetCurrentReadingsUseCase getCurrentReadings;
+  final GetHistoricalDataUseCase getHistoricalData;
   final WaterQualityRepository repository;
 
   /// Default thresholds used for all readings (const, no network fetch).
@@ -102,8 +108,7 @@ class WaterQualityBloc extends Bloc<WaterQualityEvent, WaterQualityState> {
 
   // ── Shared fetch helper ────────────────────────────────────────────────
 
-  /// Fetches current readings and checks device status, then emits
-  /// the appropriate loaded or error state.
+  /// Fetches current + historical readings and checks device status.
   Future<void> _fetchAndEmit(
     Emitter<WaterQualityState> emit, {
     required String farmId,
@@ -113,15 +118,32 @@ class WaterQualityBloc extends Bloc<WaterQualityEvent, WaterQualityState> {
       GetCurrentReadingsParams(farmId: farmId, pondId: pondId),
     );
 
+    // History for charts — load 30d once; UI filters by selected period.
+    final historyResult = await getHistoricalData(
+      GetHistoricalDataParams(
+        farmId: farmId,
+        pondId: pondId,
+        period: HistoricalPeriod.last30Days,
+      ),
+    );
+    final historical = historyResult.fold<List<WaterQuality>>(
+      (_) => const <WaterQuality>[],
+      (list) => list,
+    );
+
     await result.fold(
-      (failure) async =>
-          emit(WaterQualityError(message: failure.message, isOffline: failure is NetworkFailure)),
+      (failure) async => emit(
+        WaterQualityError(
+          message: failure.message,
+          isOffline: failure is NetworkFailure,
+        ),
+      ),
       (readings) async {
         // Check device status for the first sensor found (Req 8.8).
         // Default to false if no readings (device is unknown, not offline).
         // ignore: omit_local_variable_types
         var isDeviceOffline = false;
-        if (readings.isNotEmpty) {
+        if (readings.isNotEmpty && readings.first.sensorId.isNotEmpty) {
           final statusResult = await repository.checkDeviceStatus(
             sensorId: readings.first.sensorId,
           );
@@ -134,6 +156,7 @@ class WaterQualityBloc extends Bloc<WaterQualityEvent, WaterQualityState> {
         emit(
           WaterQualityLoaded(
             readings: readings,
+            historicalReadings: historical,
             thresholds: _thresholds,
             farmId: farmId,
             pondId: pondId,

@@ -201,21 +201,16 @@ class WaterQualityRemoteDataSourceImpl implements WaterQualityRemoteDataSource {
       queryParams['pondId'] = pondId;
     }
 
-    // Prefer sensor-scoped history when pondId looks like a sensor id; else live aggregate fallback.
-    final path = (pondId != null && RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(pondId))
-        ? ApiConstants.sensorData(pondId)
-        : ApiConstants.waterQualityHistorical;
-
     final result = await _apiClient.safeGet<Map<String, dynamic>>(
-      path,
+      ApiConstants.waterQualityHistorical,
       queryParameters: queryParams,
     );
 
     _checkFailure(result.failure, 'historical water quality data');
 
-    final items = _extractList(result.data.data, 'getHistoricalData');
+    final items = _extractListPayload(result.data.data, 'getHistoricalData');
     return items
-        .map((e) => WaterQualityModel.fromJson(e as Map<String, dynamic>))
+        .map((e) => WaterQualityModel.fromJson(_asStringKeyedMap(e)))
         .toList(growable: false);
   }
 
@@ -291,6 +286,20 @@ class WaterQualityRemoteDataSourceImpl implements WaterQualityRemoteDataSource {
     }
 
     // Body might be a list at the root in some API shapes.
+    _logger.w('WaterQualityRemote: unexpected shape in $operationName');
+    return [];
+  }
+
+  /// Like [_extractList] but also accepts a raw [List] payload.
+  List<dynamic> _extractListPayload(dynamic body, String operationName) {
+    if (body is List) return body;
+    if (body is Map<String, dynamic>) return _extractList(body, operationName);
+    if (body is Map) {
+      return _extractList(
+        body.map((k, v) => MapEntry(k.toString(), v)),
+        operationName,
+      );
+    }
     _logger.w('WaterQualityRemote: unexpected shape in $operationName');
     return [];
   }

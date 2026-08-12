@@ -20,6 +20,7 @@ import '../widgets/home_skeleton.dart';
 import '../widgets/home_palette.dart';
 import '../widgets/offline_banner.dart';
 import '../widgets/section_error_card.dart';
+import '../../../notifications/presentation/providers/unread_notifications_provider.dart';
 
 /// Farm Command Center — Main Home Screen (Material 3 Dark Tech Blue)
 class HomeScreen extends ConsumerStatefulWidget {
@@ -92,8 +93,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ref.read(homeStateProvider.notifier).switchFarm(farmId);
                             _showSnackBar('Đã chuyển sang ${name ?? farmId}');
                           },
-                          onNotificationPressed: () {
-                            context.push(RoutePaths.notificationHistory);
+                          onNotificationPressed: () async {
+                            await context.push(RoutePaths.alerts);
+                            if (context.mounted) {
+                              ref.invalidate(unreadNotificationsCountProvider);
+                            }
                           },
                         ),
                         const SizedBox(height: 14),

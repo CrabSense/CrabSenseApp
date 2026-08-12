@@ -50,6 +50,7 @@ class WaterQualityLoaded extends WaterQualityState {
     required this.readings,
     required this.thresholds,
     required this.farmId,
+    this.historicalReadings = const [],
     this.pondId,
     this.isOffline = false,
     this.isDeviceOffline = false,
@@ -59,6 +60,9 @@ class WaterQualityLoaded extends WaterQualityState {
 
   /// The most recent sensor readings to display.
   final List<WaterQuality> readings;
+
+  /// Time-series points for the history chart (Requirement 8.5).
+  final List<WaterQuality> historicalReadings;
 
   /// Threshold values used to determine if readings are out of range.
   final WaterQualityThresholds thresholds;
@@ -91,6 +95,7 @@ class WaterQualityLoaded extends WaterQualityState {
   /// Returns a copy of this state with selected fields replaced.
   WaterQualityLoaded copyWith({
     List<WaterQuality>? readings,
+    List<WaterQuality>? historicalReadings,
     WaterQualityThresholds? thresholds,
     String? farmId,
     String? pondId,
@@ -98,28 +103,31 @@ class WaterQualityLoaded extends WaterQualityState {
     bool? isDeviceOffline,
     bool? isRefreshing,
     DateTime? lastRefreshedAt,
-  }) => WaterQualityLoaded(
-    readings: readings ?? this.readings,
-    thresholds: thresholds ?? this.thresholds,
-    farmId: farmId ?? this.farmId,
-    pondId: pondId ?? this.pondId,
-    isOffline: isOffline ?? this.isOffline,
-    isDeviceOffline: isDeviceOffline ?? this.isDeviceOffline,
-    isRefreshing: isRefreshing ?? this.isRefreshing,
-    lastRefreshedAt: lastRefreshedAt ?? this.lastRefreshedAt,
-  );
+  }) =>
+      WaterQualityLoaded(
+        readings: readings ?? this.readings,
+        historicalReadings: historicalReadings ?? this.historicalReadings,
+        thresholds: thresholds ?? this.thresholds,
+        farmId: farmId ?? this.farmId,
+        pondId: pondId ?? this.pondId,
+        isOffline: isOffline ?? this.isOffline,
+        isDeviceOffline: isDeviceOffline ?? this.isDeviceOffline,
+        isRefreshing: isRefreshing ?? this.isRefreshing,
+        lastRefreshedAt: lastRefreshedAt ?? this.lastRefreshedAt,
+      );
 
   @override
   List<Object?> get props => [
-    readings,
-    thresholds,
-    farmId,
-    pondId,
-    isOffline,
-    isDeviceOffline,
-    isRefreshing,
-    lastRefreshedAt,
-  ];
+        readings,
+        historicalReadings,
+        thresholds,
+        farmId,
+        pondId,
+        isOffline,
+        isDeviceOffline,
+        isRefreshing,
+        lastRefreshedAt,
+      ];
 }
 
 /// State emitted when loading water quality data fails.

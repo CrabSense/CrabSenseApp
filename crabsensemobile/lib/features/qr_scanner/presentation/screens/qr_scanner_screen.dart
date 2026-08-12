@@ -12,6 +12,7 @@ import '../../../../app/routes.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/providers/selected_farm_provider.dart';
 import '../../../box_management/presentation/providers/boxes_provider.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 import '../bloc/bloc.dart';
@@ -374,6 +375,8 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
   }
 
   String _farmLabel(ScannerState state) {
+    final shared = ref.watch(selectedFarmProvider);
+    if (shared.name.isNotEmpty) return shared.name;
     final boxes = ref.watch(boxesStateProvider).valueOrNull;
     final selected = boxes?.selectedFarmName;
     if (selected != null && selected.isNotEmpty) return selected;
@@ -500,13 +503,6 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                     .add(const ContinuousScanModeToggled()),
               ),
             ),
-            if (state is ScannerActive && state.history.isEmpty)
-              const Positioned(
-                left: 24,
-                right: 24,
-                bottom: 120,
-                child: _EmptyHint(),
-              ),
             if (!isTabletLandscape && state is BoxFetchInProgress)
               const Align(
                 alignment: Alignment.bottomCenter,
@@ -554,36 +550,6 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
 
         return ColoredBox(color: kHomeNavyDeep, child: camera);
       },
-    );
-  }
-}
-
-class _EmptyHint extends StatelessWidget {
-  const _EmptyHint();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.qr_code_2_rounded,
-          size: 48,
-          color: kHomeCyan.withValues(alpha: 0.75),
-          shadows: [
-            Shadow(color: kHomeCyan.withValues(alpha: 0.55), blurRadius: 16),
-          ],
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Đưa QR vào giữa khung',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white70,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
     );
   }
 }

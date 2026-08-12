@@ -575,7 +575,13 @@ Future<void> init() async {
   sl.registerLazySingleton(() => GetHistoricalDataUseCase(sl()));
 
   // BLoC — registered in task 13.3
-  sl.registerFactory(() => WaterQualityBloc(getCurrentReadings: sl(), repository: sl()));
+  sl.registerFactory(
+    () => WaterQualityBloc(
+      getCurrentReadings: sl(),
+      getHistoricalData: sl(),
+      repository: sl(),
+    ),
+  );
 
   //! ============================================================================
   //! Features - Alerts Module

@@ -1,8 +1,10 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../notifications/presentation/providers/unread_notifications_provider.dart';
 import '../../domain/models/home_models.dart';
 import 'crab_hologram_painter.dart';
 
@@ -14,7 +16,7 @@ const Color _kNavy = Color(0xFF0C2348);
 const Color _kNavyLift = Color(0xFF123061);
 const Color _kBorderBlue = Color(0xFF3E6FB8);
 
-class HomeHeader extends StatelessWidget {
+class HomeHeader extends ConsumerWidget {
   const HomeHeader({
     required this.data,
     required this.onFarmSwitched,
@@ -220,7 +222,10 @@ class HomeHeader extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final apiUnread = ref.watch(unreadNotificationsCountProvider).valueOrNull;
+    final unread = apiUnread ?? data.unreadNotificationsCount;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -236,7 +241,7 @@ class HomeHeader extends StatelessWidget {
                 ),
               ),
             ),
-            _buildTopRow(context),
+            _buildTopRow(context, unreadCount: unread),
           ],
         ),
         const SizedBox(height: 14),
@@ -249,7 +254,7 @@ class HomeHeader extends StatelessWidget {
     );
   }
 
-  Widget _buildTopRow(BuildContext context) {
+  Widget _buildTopRow(BuildContext context, {required int unreadCount}) {
     final greeting = _getGreeting();
     final isOnline = data.isOnline && !data.isOfflineCached;
     final onlineColor =
@@ -385,8 +390,8 @@ class HomeHeader extends StatelessWidget {
             const SizedBox(width: 8),
             _HeaderActionButton(
               icon: Icons.notifications_outlined,
-              badge: data.unreadNotificationsCount > 0
-                  ? '${data.unreadNotificationsCount > 99 ? '99+' : data.unreadNotificationsCount}'
+              badge: unreadCount > 0
+                  ? '${unreadCount > 99 ? '99+' : unreadCount}'
                   : null,
               onPressed: onNotificationPressed,
             ),

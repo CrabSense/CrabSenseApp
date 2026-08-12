@@ -84,6 +84,7 @@ class HomeRepositoryImpl implements HomeRepository {
         _fetchAiRecommendation(areaId),
         _fetchTodayTasks(areaId),
         _fetchRecentActivities(areaId),
+        _fetchUnreadNotificationsCount(),
       ].map((p) => p.catchError((_) => null)));
 
       final boxInfo = results[0] as Map<String, int>?;
@@ -95,13 +96,15 @@ class HomeRepositoryImpl implements HomeRepository {
       final aiRecommendation = results[6] as AiRecommendation?;
       final todayTasks = results[7] as List<TodayTaskItem>?;
       final recentActivities = results[8] as List<RecentActivityItem>?;
+      final unreadFromApi = results[9] as int?;
 
       final operatorName = userInfo?['fullName']?.toString() ??
           userInfo?['name']?.toString() ??
           userInfo?['username']?.toString() ??
           'Cán bộ vận hành';
       final alertsList = alertsData?['items'] as List<AlertSummaryItem>? ?? const [];
-      final openAlertsCount = overview?.openAlerts ??
+      final openAlertsCount = unreadFromApi ??
+          overview?.openAlerts ??
           alertsData?['openCount'] as int? ??
           alertsList.length;
 
@@ -355,6 +358,26 @@ class HomeRepositoryImpl implements HomeRepository {
       }
     }
     return null;
+  }
+
+  Future<int?> _fetchUnreadNotificationsCount() async {
+    final res = await _dio.get(ApiConstants.unreadAlertCount);
+    if (res.statusCode != 200 || res.data == null) return null;
+    final raw = res.data;
+    Map<String, dynamic>? body;
+    if (raw is Map<String, dynamic>) {
+      body = raw;
+    } else if (raw is Map) {
+      body = raw.map((k, v) => MapEntry(k.toString(), v));
+    }
+    if (body == null) return null;
+    final data = body['data'] is Map
+        ? Map<String, dynamic>.from(body['data'] as Map)
+        : body;
+    final count = data['count'] ?? data['unreadCount'] ?? data['unread_count'];
+    if (count is int) return count;
+    if (count is num) return count.toInt();
+    return int.tryParse('$count');
   }
 
   Future<List<WaterMetricItem>?> _fetchWaterMetrics(String? farmingAreaId) async {

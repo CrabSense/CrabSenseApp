@@ -24,6 +24,8 @@ import '../features/box/domain/usecases/get_box_details_usecase.dart';
 import '../features/box/presentation/bloc/box_bloc.dart';
 import '../features/box/presentation/screens/box_details_screen.dart';
 import '../features/box/presentation/screens/box_camera_screen.dart';
+import '../features/box/presentation/screens/crab_list_screen.dart';
+import '../features/box/data/models/crab_model.dart';
 import '../features/box_management/presentation/screens/boxes_screen.dart';
 import '../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../features/manual_inspection/domain/repositories/inspection_repository.dart';
@@ -62,6 +64,7 @@ import '../features/operation_logs/presentation/screens/operation_history_screen
 import '../features/operation_logs/presentation/screens/operation_log_screen.dart';
 import 'scaffold_with_navbar.dart';
 import 'routes.dart';
+import '../widgets/branded_loading_screen.dart';
 
 // ── Placeholder helper ────────────────────────────────────────────────────────
 
@@ -355,7 +358,34 @@ GoRouter createRouter(AuthBloc authBloc) {
               return BoxCameraScreen(boxId: id);
             },
           ),
+          GoRoute(
+            path: 'crabs',
+            name: RouteNames.boxCrabs,
+            builder: (context, state) {
+              final id = state.pathParameters[RouteParams.boxId] ?? '';
+              final boxCode = state.uri.queryParameters['boxCode'] ??
+                  (state.extra is String ? state.extra as String? : null);
+              return CrabListScreen(boxId: id, boxCode: boxCode);
+            },
+          ),
         ],
+      ),
+
+      // ── /crab/:crabId ────────────────────────────────────────────────
+      GoRoute(
+        path: RoutePaths.crabDetailsTemplate,
+        name: RouteNames.crabDetails,
+        builder: (context, state) {
+          final crabId = state.pathParameters[RouteParams.crabId] ?? '';
+          final boxId = state.uri.queryParameters['boxId'];
+          final extra = state.extra;
+          final initial = extra is CrabModel ? extra : null;
+          return CrabDetailScreen(
+            crabId: crabId,
+            boxId: boxId,
+            initial: initial,
+          );
+        },
       ),
 
       // ── /profile/edit|change-password|notifications + /devices ──────
@@ -567,35 +597,10 @@ class _SplashScreenState extends State<_SplashScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => const Scaffold(
-    backgroundColor: Color(0xFF081528),
-    body: Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.waves_rounded, size: 80, color: Color(0xFF00C8FF)),
-          SizedBox(height: 24),
-          Text(
-            'CrabSense',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 16),
-          SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00C8FF)),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
+  Widget build(BuildContext context) => const BrandedLoadingScreen(
+        message: 'Đang khởi động…',
+        subtitle: 'Kiểm tra phiên đăng nhập',
+      );
 }
 
 class CrabSenseNavigationObserver extends NavigatorObserver {

@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../../core/di/injection.dart';
+import '../../../../core/providers/selected_farm_provider.dart';
+import '../../../notifications/presentation/providers/unread_notifications_provider.dart';
 import '../../data/repositories/home_repository_impl.dart';
 import '../../domain/models/home_models.dart';
 import '../../domain/repositories/home_repository.dart';
@@ -13,21 +15,32 @@ final homeRepositoryProvider = Provider<HomeRepository>(
 );
 
 /// Provider cho Trang chủ Home Command Center State
-final homeStateProvider = StateNotifierProvider<HomeNotifier, AsyncValue<HomeStateData>>((ref) {
+final homeStateProvider =
+    StateNotifierProvider<HomeNotifier, AsyncValue<HomeStateData>>((ref) {
   final repository = ref.watch(homeRepositoryProvider);
-  return HomeNotifier(repository);
+  return HomeNotifier(repository, ref);
 });
 
 class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
-  final HomeRepository _repository;
-
-  HomeNotifier(this._repository) : super(const AsyncValue.loading()) {
+  HomeNotifier(this._repository, this._ref) : super(const AsyncValue.loading()) {
+    _ref.listen<SelectedFarm>(selectedFarmProvider, (prev, next) {
+      if (next.id == null || next.id!.isEmpty) return;
+      if (!state.hasValue) return;
+      if (state.value!.selectedFarmId == next.id) return;
+      switchFarm(next.id!);
+    });
     loadData();
   }
 
-  /// Nạp dữ liệu ban đầu hoặc nạp lại (giữ khu đang chọn nếu có).
+  final HomeRepository _repository;
+  final Ref _ref;
+
+  /// Nạp dữ liệu — ưu tiên trại đang điều hành global.
   Future<void> loadData({bool forceRefresh = false}) async {
+    await _ref.read(selectedFarmProvider.notifier).ready;
+    final sharedId = _ref.read(selectedFarmProvider).id;
     final currentId = state.hasValue ? state.value!.selectedFarmId : null;
+    final farmingAreaId = sharedId ?? currentId;
 
     if (state.hasValue && !forceRefresh) {
       state = AsyncValue.data(state.value!);
@@ -38,9 +51,13 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
     try {
       final data = await _repository.getHomeSummary(
         forceRefresh: forceRefresh,
-        farmingAreaId: currentId,
+        farmingAreaId: farmingAreaId,
       );
       state = AsyncValue.data(data);
+      await _ref.read(selectedFarmProvider.notifier).select(
+            data.selectedFarmId,
+            name: data.selectedFarmName,
+          );
     } catch (error, stackTrace) {
       state = AsyncValue.error(error, stackTrace);
     }
@@ -48,13 +65,21 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
 
   /// Pull-to-refresh — giữ farm đang chọn
   Future<void> refresh() async {
+    await _ref.read(selectedFarmProvider.notifier).ready;
+    final sharedId = _ref.read(selectedFarmProvider).id;
     final currentId = state.hasValue ? state.value!.selectedFarmId : null;
+    final farmingAreaId = sharedId ?? currentId;
+    _ref.invalidate(unreadNotificationsCountProvider);
     try {
       final data = await _repository.getHomeSummary(
         forceRefresh: true,
-        farmingAreaId: currentId,
+        farmingAreaId: farmingAreaId,
       );
       state = AsyncValue.data(data);
+      await _ref.read(selectedFarmProvider.notifier).select(
+            data.selectedFarmId,
+            name: data.selectedFarmName,
+          );
     } catch (error, stackTrace) {
       if (state.hasValue) {
         final oldData = state.value!;
@@ -82,7 +107,7 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
     }
   }
 
-  /// Đổi khu nuôi — refetch overview/metrics/tasks theo farmId
+  /// Đổi khu nuôi — cập nhật global + refetch
   Future<void> switchFarm(String farmId) async {
     if (!state.hasValue) return;
     final current = state.value!;
@@ -92,7 +117,8 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
         .where((f) => f.id == farmId)
         .map((f) => f.name)
         .firstOrNull;
-    // Optimistic label while loading scoped data
+
+    // Cập nhật local trước rồi mới broadcast global — tránh listen gọi lại.
     state = AsyncValue.data(HomeStateData(
       operatorName: current.operatorName,
       selectedFarmId: farmId,
@@ -112,15 +138,23 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
       lastSyncedAt: current.lastSyncedAt,
     ));
 
+    await _ref.read(selectedFarmProvider.notifier).select(
+          farmId,
+          name: farmName,
+        );
+
     try {
       final updated = await _repository.switchFarm(farmId);
       state = AsyncValue.data(updated);
+      await _ref.read(selectedFarmProvider.notifier).select(
+            updated.selectedFarmId,
+            name: updated.selectedFarmName,
+          );
     } catch (_) {
       state = AsyncValue.data(current);
     }
   }
 
-  /// Bỏ qua khuyến nghị AI
   Future<void> dismissRecommendation(String id) async {
     if (!state.hasValue) return;
     final current = state.value!;

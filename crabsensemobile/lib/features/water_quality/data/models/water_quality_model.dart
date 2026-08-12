@@ -35,20 +35,32 @@ class WaterQualityModel extends WaterQuality {
   /// Accepts both camelCase and snake_case field names for compatibility
   /// with different API response shapes.
   factory WaterQualityModel.fromJson(Map<String, dynamic> json) => WaterQualityModel(
-    id: json['id'] as String,
-    sensorId: json['sensorId'] as String? ?? json['sensor_id'] as String? ?? '',
-    farmId: json['farmId'] as String? ?? json['farm_id'] as String? ?? '',
-    pondId: json['pondId'] as String? ?? json['pond_id'] as String?,
-    temperature: (json['temperature'] as num?)?.toDouble() ?? 0.0,
-    ph: (json['ph'] as num?)?.toDouble() ?? 0.0,
+    id: (json['id'] ?? json['Id'] ?? '').toString(),
+    sensorId: (json['sensorId'] ?? json['SensorId'] ?? json['sensor_id'] ?? '').toString(),
+    farmId: (json['farmId'] ?? json['FarmId'] ?? json['farm_id'] ?? '').toString(),
+    pondId: json['pondId']?.toString() ?? json['PondId']?.toString() ?? json['pond_id']?.toString(),
+    temperature: (json['temperature'] as num?)?.toDouble() ??
+        (json['Temperature'] as num?)?.toDouble() ??
+        0.0,
+    ph: (json['ph'] as num?)?.toDouble() ??
+        (json['Ph'] as num?)?.toDouble() ??
+        0.0,
     dissolvedOxygen:
         (json['dissolvedOxygen'] as num?)?.toDouble() ??
+        (json['DissolvedOxygen'] as num?)?.toDouble() ??
         (json['dissolved_oxygen'] as num?)?.toDouble() ??
         0.0,
-    salinity: (json['salinity'] as num?)?.toDouble() ?? 0.0,
-    timestamp: _parseDateTime(json['timestamp'] as String? ?? json['recorded_at'] as String?),
+    salinity: (json['salinity'] as num?)?.toDouble() ??
+        (json['Salinity'] as num?)?.toDouble() ??
+        0.0,
+    timestamp: _parseDateTime(
+      (json['timestamp'] ?? json['Timestamp'] ?? json['recorded_at'])?.toString(),
+    ),
     isAlertTriggered:
-        json['isAlertTriggered'] as bool? ?? json['is_alert_triggered'] as bool? ?? false,
+        json['isAlertTriggered'] as bool? ??
+        json['IsAlertTriggered'] as bool? ??
+        json['is_alert_triggered'] as bool? ??
+        false,
   );
 
   /// Creates a [WaterQualityModel] from a Drift database row.
