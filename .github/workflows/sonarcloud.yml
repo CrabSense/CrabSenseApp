@@ -1,0 +1,47 @@
+name: SonarCloud
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: sonar-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sonarcloud:
+    name: SonarCloud Scan (Flutter/Dart)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        working-directory: crabsensemobile
+        run: flutter pub get
+
+      - name: Analyze (dart)
+        working-directory: crabsensemobile
+        run: dart analyze || true
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: crabsensemobile
+          args: >
+            -Dsonar.projectKey=CrabSense_CrabSenseApp
+            -Dsonar.organization=crabsense
+            -Dsonar.sources=lib
+            -Dsonar.tests=test
+            -Dsonar.exclusions=**/*.g.dart,**/*.freezed.dart,**/generated/**
