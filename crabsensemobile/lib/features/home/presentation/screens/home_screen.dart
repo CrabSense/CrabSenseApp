@@ -35,7 +35,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: kHomeNavyLift,
+        backgroundColor: kHomePrimaryDark,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
@@ -49,7 +49,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isTablet = screenWidth >= 600;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF071426),
+      backgroundColor: const Color(0xFFF5F7FA),
       body: SafeArea(
         child: homeAsyncState.when(
           loading: () => const HomeSkeleton(),
@@ -63,8 +63,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           data: (data) {
             return RefreshIndicator(
               onRefresh: () => ref.read(homeStateProvider.notifier).refresh(),
-              color: kHomeBlue,
-              backgroundColor: kHomeNavy,
+              color: kHomePrimary,
+              backgroundColor: kHomeSurface,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -81,6 +81,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             onRetryPressed: () =>
                                 ref.read(homeStateProvider.notifier).refresh(),
                           ),
+                        if (data.isOfflineCached || !data.isOnline)
+                          const SizedBox(height: 12),
 
                         // Header (Greeting, Farm Switcher, Avatar, Bell)
                         HomeHeader(
@@ -100,11 +102,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             }
                           },
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 16),
 
                         // Farm Overview Hero Card
                         FarmOverviewHeroCard(summary: data.farmSummary),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 16),
 
                         // 3 MANDATORY KEY HIGHLIGHTS
                         if (isTablet)
@@ -161,7 +163,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               farmName: data.selectedFarmName,
                             ),
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 16),
 
                           // Highlight #2: AI Recommendation
                           AiRecommendationCard(
@@ -196,9 +198,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         QuickActionsGrid(
                           onScanQrPressed: () => context.push(RoutePaths.scanner),
                           onRecordVideoPressed: () {
-                            // Video capture requires a box — scan QR first.
-                            context.push(RoutePaths.scanner);
-                            _showSnackBar('Quét QR box để mở quay video AI');
+                            context.push(RoutePaths.boxes);
                           },
                           onWaterTestPressed: () {
                             final areaId = data.selectedFarmId;
@@ -212,6 +212,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           },
                           onHarvestPressed: () =>
                               context.push(RoutePaths.harvest),
+                          onTrackingPressed: () =>
+                              context.push(RoutePaths.crabTracking),
                         ),
                         const SizedBox(height: 24),
 

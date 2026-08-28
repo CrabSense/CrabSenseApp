@@ -14,6 +14,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/di/injection.dart';
+import '../core/theme/app_colors.dart';
+import '../features/home/presentation/widgets/home_palette.dart';
 import '../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../features/authentication/presentation/bloc/auth_event.dart';
 import '../features/authentication/presentation/bloc/auth_state.dart';
@@ -25,6 +27,7 @@ import '../features/box/presentation/bloc/box_bloc.dart';
 import '../features/box/presentation/screens/box_details_screen.dart';
 import '../features/box/presentation/screens/box_camera_screen.dart';
 import '../features/box/presentation/screens/crab_list_screen.dart';
+import '../features/box/presentation/screens/crab_detail_screen.dart';
 import '../features/box/data/models/crab_model.dart';
 import '../features/box_management/presentation/screens/boxes_screen.dart';
 import '../features/dashboard/presentation/screens/dashboard_screen.dart';
@@ -59,6 +62,8 @@ import '../features/harvest/presentation/screens/harvest_screen.dart';
 import '../features/notifications/presentation/screens/notification_history_screen.dart';
 import '../features/water_quality/presentation/screens/water_quality_screen.dart';
 import '../features/sales/presentation/screens/sales_screen.dart';
+import '../features/stock_management/presentation/screens/add_crab_screen.dart';
+import '../features/stock_management/presentation/screens/crab_tracking_screen.dart';
 import '../features/operation_logs/domain/entities/operation_log.dart';
 import '../features/operation_logs/presentation/screens/operation_history_screen.dart';
 import '../features/operation_logs/presentation/screens/operation_log_screen.dart';
@@ -70,10 +75,10 @@ import '../widgets/branded_loading_screen.dart';
 
 /// Returns a minimal placeholder [Scaffold] for screens not yet implemented.
 Widget _placeholder(String title) => Scaffold(
-  backgroundColor: const Color(0xFF081528),
+  backgroundColor: const Color(0xFFF5F7FA),
   appBar: AppBar(
     title: Text(title),
-    backgroundColor: const Color(0xFF0F1F3D),
+    backgroundColor: const Color(0xFFFFFFFF),
     foregroundColor: Colors.white,
   ),
   body: Center(
@@ -89,7 +94,7 @@ Widget _placeholder(String title) => Scaffold(
         Text(
           title,
           style: const TextStyle(
-            color: Colors.white,
+            color: kHomeTextMain,
             fontSize: 20,
             fontWeight: FontWeight.w600,
           ),
@@ -161,10 +166,10 @@ GoRouter createRouter(AuthBloc authBloc) {
       return null;
     },
     errorBuilder: (context, state) => Scaffold(
-      backgroundColor: const Color(0xFF081528),
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         title: const Text('Page Not Found'),
-        backgroundColor: const Color(0xFF0F1F3D),
+        backgroundColor: const Color(0xFFFFFFFF),
         foregroundColor: Colors.white,
       ),
       body: Center(
@@ -180,7 +185,7 @@ GoRouter createRouter(AuthBloc authBloc) {
             const Text(
               '404 — Page Not Found',
               style: TextStyle(
-                color: Colors.white,
+                color: kHomeTextMain,
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
               ),
@@ -194,8 +199,8 @@ GoRouter createRouter(AuthBloc authBloc) {
             ElevatedButton(
               onPressed: () => context.go(RoutePaths.dashboard),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00C8FF),
-                foregroundColor: Colors.black,
+                backgroundColor: const Color(0xFF2ECC71),
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -539,6 +544,20 @@ GoRouter createRouter(AuthBloc authBloc) {
         path: RoutePaths.notificationHistory,
         name: RouteNames.notificationHistory,
         builder: (context, state) => const NotificationHistoryScreen(),
+      ),
+
+      // ── /add-crab ─────────────────────────────────────────────────────
+      GoRoute(
+        path: RoutePaths.addCrab,
+        name: RouteNames.addCrab,
+        builder: (context, state) => const AddCrabScreen(),
+      ),
+
+      // ── /crab-tracking ────────────────────────────────────────────────
+      GoRoute(
+        path: RoutePaths.crabTracking,
+        name: RouteNames.crabTracking,
+        builder: (context, state) => const CrabTrackingScreen(),
       ),
 
       // ── /ai-results/:videoId ─────────────────────────────────────────

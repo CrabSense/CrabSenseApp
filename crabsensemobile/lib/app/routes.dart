@@ -116,6 +116,12 @@ class RouteNames {
 
   /// In-app notification history / notification centre.
   static const String notificationHistory = 'notificationHistory';
+
+  /// Stock management — add crab to box.
+  static const String addCrab = 'addCrab';
+
+  /// Crab tracking — daily monitoring of crabs in a box.
+  static const String crabTracking = 'crabTracking';
 }
 
 /// Route paths (used with GoRouter.go / push when a full path is needed,
@@ -224,6 +230,12 @@ class RoutePaths {
   /// `/notifications` — Notification history / notification centre.
   static const String notificationHistory = '/notifications';
 
+  /// `/add-crab` — Stock management: add crab to a box.
+  static const String addCrab = '/add-crab';
+
+  /// `/crab-tracking` — Daily crab tracking / monitoring.
+  static const String crabTracking = '/crab-tracking';
+
   /// `/traceability/:productId` — Product traceability (public).
   ///
   /// Use [traceability] to generate with a concrete productId.
@@ -244,7 +256,12 @@ class RoutePaths {
   static String boxCamera(String id) => '/box/$id/camera';
 
   /// Returns `/box/<id>/crabs`.
-  static String boxCrabs(String id) => '/box/$id/crabs';
+  static String boxCrabs(String id, {String? boxCode}) {
+    final query = boxCode == null || boxCode.isEmpty
+        ? ''
+        : '?boxCode=${Uri.encodeQueryComponent(boxCode)}';
+    return '/box/$id/crabs$query';
+  }
 
   /// Returns `/crab/<crabId>` with optional boxId query.
   static String crabDetails(String crabId, {String? boxId}) {
