@@ -167,7 +167,13 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
           );
       if (mounted) _snack('Đã tạo hộp nuôi');
     } catch (error) {
-      if (mounted) _snack('Không thể tạo hộp: $error');
+      if (mounted) {
+        final message = error.toString().contains('409') ||
+                error.toString().toLowerCase().contains('full')
+            ? 'Dãy nuôi đã đầy. Hãy chọn dãy khác hoặc tăng sức chứa.'
+            : 'Không thể tạo hộp. Vui lòng kiểm tra lại dữ liệu.';
+        _snack(message);
+      }
     }
   }
 

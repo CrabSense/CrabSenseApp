@@ -1,5 +1,8 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html show window;
 
 import '../../../../core/constants/api_constants.dart';
 import '../../domain/models/boxes_models.dart';
@@ -35,7 +38,13 @@ class BoxesRepositoryImpl implements BoxesRepository {
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           try {
-            final token = await _secureStorage.read(key: 'auth_access_token');
+            String? token;
+            if (kIsWeb) {
+              // Web: đọc từ localStorage
+              token = html.window.localStorage['auth_access_token'];
+            } else {
+              token = await _secureStorage.read(key: 'auth_access_token');
+            }
             if (token != null && token.isNotEmpty) {
               options.headers['Authorization'] = 'Bearer $token';
             }
@@ -636,7 +645,10 @@ class BoxesRepositoryImpl implements BoxesRepository {
       _ => BoxTrend.stable,
     };
 
-    final healthStatus = _parseHealthStatus(map['healthStatus']?.toString());
+    final crabCount = (map['crabCount'] as num?)?.toInt() ?? 0;
+    final healthStatus = crabCount == 0
+      ? BoxHealthStatus.healthy
+      : _parseHealthStatus(map['healthStatus']?.toString());
     final priorityStr = map['priority']?.toString().toLowerCase() ?? 'low';
     final priority = switch (priorityStr) {
       'high' => ActionPriorityLevel.high,
@@ -673,7 +685,7 @@ class BoxesRepositoryImpl implements BoxesRepository {
         explanation: healthMap?['explanation']?.toString() ??
             'Điểm sức khỏe tổng hợp từ nước, cua và thiết bị.',
       ),
-      crabCount: (map['crabCount'] as num?)?.toInt() ?? 0,
+      crabCount: crabCount,
       crabType: map['crabType']?.toString(),
       batch: map['batch']?.toString(),
       water: BoxWaterSnapshot(
