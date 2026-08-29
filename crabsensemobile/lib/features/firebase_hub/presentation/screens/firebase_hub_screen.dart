@@ -75,7 +75,7 @@ class FirebaseHubScreen extends ConsumerWidget {
                               ? 'Firebase Core đã khởi tạo'
                               : 'Firebase Core chưa sẵn sàng',
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: kHomeTextMain,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -86,7 +86,7 @@ class FirebaseHubScreen extends ConsumerWidget {
                   Text(
                     'Project: ${snap.projectId}',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.65),
+                      color: const Color(0xFF5A7184),
                       fontSize: 13,
                     ),
                   ),
@@ -94,7 +94,7 @@ class FirebaseHubScreen extends ConsumerWidget {
                   Text(
                     'Package: ${FirebaseSetupGuides.packageName}',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.55),
+                      color: const Color(0xFF5A7184),
                       fontSize: 12,
                     ),
                   ),
@@ -145,7 +145,7 @@ class FirebaseHubScreen extends ConsumerWidget {
                 'Chạm từng mục để xem hướng dẫn bật trên Console và kiểm tra trong app. '
                 'Sau khi thêm plugin mới cần full rebuild (flutter run).',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.65),
+                  color: const Color(0xFF5A7184),
                   height: 1.4,
                   fontSize: 13,
                 ),
@@ -216,7 +216,7 @@ class _FirebaseServiceDetailScreenState
                   Text(
                     status!.detail!,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.65),
+                      color: const Color(0xFF5A7184),
                       fontSize: 13,
                       height: 1.35,
                     ),
@@ -226,7 +226,7 @@ class _FirebaseServiceDetailScreenState
                 Text(
                   kind.subtitleVi,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.55),
+                    color: const Color(0xFF5A7184),
                     fontSize: 12,
                   ),
                 ),
@@ -241,7 +241,7 @@ class _FirebaseServiceDetailScreenState
                 const Text(
                   'HƯỚNG DẪN SETUP',
                   style: TextStyle(
-                    color: kHomeBlueLight,
+                    color: kHomePrimaryDark,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.6,
                     fontSize: 13,
@@ -252,7 +252,7 @@ class _FirebaseServiceDetailScreenState
                   Text(
                     steps[i].title,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: kHomeTextMain,
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
                     ),
@@ -261,7 +261,7 @@ class _FirebaseServiceDetailScreenState
                   Text(
                     steps[i].detail,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.68),
+                      color: const Color(0xFF5A7184),
                       fontSize: 13,
                       height: 1.4,
                     ),
@@ -286,7 +286,7 @@ class _FirebaseServiceDetailScreenState
                   const Text(
                     'FCM TOKEN',
                     style: TextStyle(
-                      color: kHomeBlueLight,
+                      color: kHomePrimaryDark,
                       fontWeight: FontWeight.w800,
                       fontSize: 13,
                     ),
@@ -297,7 +297,7 @@ class _FirebaseServiceDetailScreenState
                         ? fcmToken
                         : _maskToken(fcmToken),
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.75),
+                      color: const Color(0xFF5A7184),
                       fontSize: 11,
                       height: 1.35,
                     ),
@@ -318,7 +318,7 @@ class _FirebaseServiceDetailScreenState
                       label: const Text('Copy token (debug)'),
                       style: FilledButton.styleFrom(
                         backgroundColor: kHomeCyan,
-                        foregroundColor: kHomeNavyDeep,
+                        foregroundColor: kHomeBg,
                       ),
                     ),
                   ] else ...[
@@ -326,7 +326,7 @@ class _FirebaseServiceDetailScreenState
                     Text(
                       'Token đã che ở bản release. Dùng debug build để copy đầy đủ.',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
+                        color: const Color(0xFF5A7184),
                         fontSize: 12,
                       ),
                     ),
@@ -370,7 +370,7 @@ class _FirebaseServiceDetailScreenState
                 label: Text(_busy ? 'Đang gửi…' : 'Gửi lỗi thử nghiệm'),
                 style: FilledButton.styleFrom(
                   backgroundColor: kHomeCyan,
-                  foregroundColor: kHomeNavyDeep,
+                  foregroundColor: kHomeBg,
                 ),
               ),
             ),

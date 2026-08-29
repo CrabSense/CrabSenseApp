@@ -19,7 +19,7 @@ class ScanSkeleton extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+          colors: [kHomeSurface, kHomeBg, kHomeBg],
         ),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),

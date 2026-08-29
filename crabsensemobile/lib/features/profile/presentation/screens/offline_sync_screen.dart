@@ -62,7 +62,7 @@ class OfflineSyncScreen extends ConsumerWidget {
                           Text(
                             status,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: kHomeTextMain,
                               fontWeight: FontWeight.w800,
                               fontSize: 16,
                             ),
@@ -73,7 +73,7 @@ class OfflineSyncScreen extends ConsumerWidget {
                                 ? 'Đã kết nối mạng'
                                 : 'Không có kết nối — dữ liệu lưu trên máy',
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.6),
+                              color: const Color(0xFF5A7184),
                               fontSize: 12,
                             ),
                           ),
@@ -160,7 +160,7 @@ class OfflineSyncScreen extends ConsumerWidget {
                   ),
                   style: FilledButton.styleFrom(
                     backgroundColor: kHomeCyan,
-                    foregroundColor: kHomeNavyDeep,
+                    foregroundColor: kHomeBg,
                   ),
                 ),
               ),

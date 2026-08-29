@@ -73,7 +73,7 @@ class AIHealthBadge extends StatelessWidget {
             vertical: compact ? 6 : 8,
           ),
           decoration: BoxDecoration(
-            color: kHomeNavyDeep.withValues(alpha: 0.75),
+            color: kHomeBg.withValues(alpha: 0.75),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.4)),
           ),
@@ -101,7 +101,7 @@ class AIHealthBadge extends StatelessWidget {
                 child: Text(
                   '${healthScore.score}',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: kHomeTextMain,
                     fontWeight: FontWeight.w800,
                     fontSize: compact ? 12 : 13,
                   ),
@@ -115,7 +115,7 @@ class AIHealthBadge extends StatelessWidget {
                     Text(
                       'Health Score',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.45),
+                        color: const Color(0xFF5A7184),
                         fontSize: compact ? 9 : 10,
                       ),
                     ),
@@ -125,7 +125,7 @@ class AIHealthBadge extends StatelessWidget {
                         Text(
                           'AI ${healthScore.aiConfidence.round()}%',
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.75),
+                            color: const Color(0xFF5A7184),
                             fontSize: compact ? 10 : 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -157,7 +157,7 @@ class AIHealthBadge extends StatelessWidget {
                 Icon(
                   Icons.info_outline_rounded,
                   size: 16,
-                  color: Colors.white.withValues(alpha: 0.4),
+                  color: const Color(0xFF5A7184),
                 ),
             ],
           ),

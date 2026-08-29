@@ -40,7 +40,7 @@ class _HistoricalChartState extends State<HistoricalChart> {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+            colors: [kHomeSurface, kHomeBg, kHomeBg],
           ),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
@@ -164,7 +164,7 @@ class _GlowChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: isSelected
                 ? kHomeBlue.withValues(alpha: 0.2)
-                : kHomeNavyDeep.withValues(alpha: 0.65),
+                : kHomeBg.withValues(alpha: 0.65),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isSelected
@@ -187,7 +187,7 @@ class _GlowChip extends StatelessWidget {
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
               color: isSelected
                   ? kHomeBlueLight
-                  : Colors.white.withValues(alpha: 0.55),
+                  : const Color(0xFF5A7184),
             ),
           ),
         ),
@@ -262,7 +262,7 @@ class _ChartEmpty extends StatelessWidget {
               Text(
                 'Chưa có dữ liệu lịch sử',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: const Color(0xFF5A7184),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -399,7 +399,7 @@ class _ChartContent extends StatelessWidget {
         extraLinesData: ExtraLinesData(horizontalLines: _buildThresholdLines()),
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
-            tooltipBgColor: kHomeNavy.withValues(alpha: 0.95),
+            tooltipBgColor: kHomeBg.withValues(alpha: 0.95),
             tooltipRoundedRadius: 10,
             getTooltipItems: (touchedSpots) => touchedSpots.map((spot) {
               final idx = sorted.indexWhere(
@@ -476,7 +476,7 @@ class _ChartContent extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.4),
+          color: const Color(0xFF5A7184),
           fontSize: 9,
         ),
       ),
@@ -489,7 +489,7 @@ class _ChartContent extends StatelessWidget {
         child: Text(
           value.toStringAsFixed(1),
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.4),
+            color: const Color(0xFF5A7184),
             fontSize: 9,
           ),
         ),

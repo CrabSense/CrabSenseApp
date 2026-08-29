@@ -90,7 +90,7 @@ class DeviceStatusSection extends StatelessWidget {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+            colors: [kHomeSurface, kHomeBg, kHomeBg],
           ),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
@@ -131,7 +131,7 @@ class DeviceStatusSection extends StatelessWidget {
                   Text(
                     title,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: kHomeTextMain,
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                     ),

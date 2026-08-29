@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logger/logger.dart';
@@ -360,7 +361,7 @@ class NotificationServiceImpl implements NotificationService {
     );
 
     // Create per-category channels on Android.
-    if (Platform.isAndroid) {
+    if (!kIsWeb && Platform.isAndroid) {
       await _createAndroidChannels();
     }
   }
@@ -434,7 +435,7 @@ class NotificationServiceImpl implements NotificationService {
     if (_messaging == null) return;
     try {
       // iOS: ensure APNS token is available before requesting FCM token.
-      if (Platform.isIOS) {
+      if (!kIsWeb && Platform.isIOS) {
         final apnsToken = await _messaging!.getAPNSToken();
         _logger.d(
           'NotificationService: APNS token available = '
@@ -469,7 +470,7 @@ class NotificationServiceImpl implements NotificationService {
   /// Requirements: 14.2
   Future<void> _registerTokenWithServer(String token) async {
     try {
-      final platform = Platform.isIOS ? 'ios' : 'android';
+      final platform = (!kIsWeb && Platform.isIOS) ? 'ios' : 'android';
       final body = {'token': token, 'platform': platform};
 
       final result = await _apiClient.safePost<Map<String, dynamic>>(

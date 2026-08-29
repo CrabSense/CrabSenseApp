@@ -76,7 +76,13 @@ class ApiClient {
     // ── Certificate pinning ───────────────────────────────────────────────
     // Requirements 23.2 (TLS 1.2+) & 23.3 (cert pinning).
     // Active in profile + release builds; bypassed with a warning in debug.
-    dio.httpClientAdapter = CertificatePinning.buildAdapter(logger: logger);
+    // Not available on web — browser handles TLS natively.
+    if (!kIsWeb) {
+      final adapter = CertificatePinning.buildAdapter(logger: logger);
+      if (adapter != null) {
+        dio.httpClientAdapter = adapter;
+      }
+    }
 
     return dio;
   }

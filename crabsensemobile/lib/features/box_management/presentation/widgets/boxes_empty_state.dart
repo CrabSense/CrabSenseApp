@@ -95,7 +95,7 @@ class BoxesEmptyState extends StatelessWidget {
                 title,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: kHomeTextMain,
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
                 ),
@@ -105,7 +105,7 @@ class BoxesEmptyState extends StatelessWidget {
                 message,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.55),
+                  color: const Color(0xFF5A7184),
                   fontSize: 13,
                 ),
               ),
@@ -117,7 +117,7 @@ class BoxesEmptyState extends StatelessWidget {
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+                      colors: [kHomeSurface, kHomeBg, kHomeBg],
                     ),
                     border: Border.all(
                       color: kHomeCyan.withValues(alpha: 0.5),
@@ -141,7 +141,7 @@ class BoxesEmptyState extends StatelessWidget {
                           child: Text(
                             primaryLabel!,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: kHomeTextMain,
                               fontWeight: FontWeight.w800,
                               fontSize: 14,
                             ),

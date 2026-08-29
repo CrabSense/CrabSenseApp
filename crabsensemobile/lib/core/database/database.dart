@@ -1,11 +1,8 @@
 // ignore_for_file: lines_longer_than_80_chars
 
-import 'dart:io';
-
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+import 'package:drift_flutter/drift_flutter.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../../features/video_capture/domain/entities/ai_detection.dart' show AIDetection;
 import 'migrations/database_migration_manager.dart';
@@ -664,12 +661,98 @@ class AppDatabase extends _$AppDatabase {
 // DATABASE CONNECTION
 // ============================================================================
 
-/// Opens a persistent [NativeDatabase] stored in the app's documents folder.
+/// Opens the database connection.
 ///
-/// The file is named `crabsense.db`. [NativeDatabase.createInBackground]
-/// is used so the initial schema creation does not block the UI thread.
-LazyDatabase _openConnection() => LazyDatabase(() async {
-  final dbFolder = await getApplicationDocumentsDirectory();
-  final file = File(p.join(dbFolder.path, 'crabsense.db'));
-  return NativeDatabase.createInBackground(file);
-});
+/// - **Web**: uses drift's in-memory executor (no FFI/sqlite3 needed).
+/// - **Native**: persistent SQLite file via drift_flutter.
+QueryExecutor _openConnection() {
+  if (kIsWeb) {
+    // Web: in-memory only — no sqlite3 FFI, data resets on page reload.
+    return LazyDatabase(() async => DatabaseConnection.delayed(
+      Future.value(DatabaseConnection(NullExecutor())),
+    ).executor);
+  }
+  return driftDatabase(name: 'crabsense');
+}
+
+/// A no-op [QueryExecutor] used on web where SQLite is unavailable.
+class NullExecutor extends QueryExecutor {
+  @override
+  Future<bool> ensureOpen(QueryExecutorUser user) async => true;
+
+  @override
+  Future<List<Map<String, Object?>>> runSelect(
+      String statement, List<Object?> args) async => [];
+
+  @override
+  Future<int> runInsert(String statement, List<Object?> args) async => 0;
+
+  @override
+  Future<int> runUpdate(String statement, List<Object?> args) async => 0;
+
+  @override
+  Future<int> runDelete(String statement, List<Object?> args) async => 0;
+
+  @override
+  Future<void> runCustom(String statement, [List<Object?>? args]) async {}
+
+  @override
+  Future<int> runBatched(BatchedStatements statements) async => 0;
+
+  @override
+  Future<void> close() async {}
+
+  @override
+  SqlDialect get dialect => SqlDialect.sqlite;
+
+  @override
+  TransactionExecutor beginTransaction() => _NullTransaction();
+
+  @override
+  QueryExecutor beginExclusive() => _NullTransaction();
+}
+
+class _NullTransaction extends TransactionExecutor {
+  @override
+  Future<bool> ensureOpen(QueryExecutorUser user) async => true;
+
+  @override
+  Future<List<Map<String, Object?>>> runSelect(
+      String statement, List<Object?> args) async => [];
+
+  @override
+  Future<int> runInsert(String statement, List<Object?> args) async => 0;
+
+  @override
+  Future<int> runUpdate(String statement, List<Object?> args) async => 0;
+
+  @override
+  Future<int> runDelete(String statement, List<Object?> args) async => 0;
+
+  @override
+  Future<void> runCustom(String statement, [List<Object?>? args]) async {}
+
+  @override
+  Future<int> runBatched(BatchedStatements statements) async => 0;
+
+  @override
+  Future<void> close() async {}
+
+  @override
+  SqlDialect get dialect => SqlDialect.sqlite;
+
+  @override
+  TransactionExecutor beginTransaction() => _NullTransaction();
+
+  @override
+  Future<void> send() async {}
+
+  @override
+  Future<void> rollback() async {}
+
+  @override
+  bool get supportsNestedTransactions => false;
+
+  @override
+  QueryExecutor beginExclusive() => _NullTransaction();
+}

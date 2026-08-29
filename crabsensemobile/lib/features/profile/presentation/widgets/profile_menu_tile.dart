@@ -49,7 +49,7 @@ class ProfileMenuTile extends StatelessWidget {
           child: InkWell(
             onTap: onTap,
             splashColor: kHomeCyan.withValues(alpha: 0.12),
-            highlightColor: kHomeNavyLift.withValues(alpha: 0.4),
+            highlightColor: kHomeSurface.withValues(alpha: 0.4),
             child: Container(
               constraints: const BoxConstraints(minHeight: 48),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -79,7 +79,7 @@ class ProfileMenuTile extends StatelessWidget {
                           Text(
                             subtitle!,
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.5),
+                              color: const Color(0xFF5A7184),
                               fontSize: 12,
                               height: 1.35,
                             ),
@@ -110,7 +110,7 @@ class ProfileMenuTile extends StatelessWidget {
                       child: Icon(
                         Icons.chevron_right_rounded,
                         size: 20,
-                        color: Colors.white.withValues(alpha: 0.35),
+                        color: const Color(0xFF5A7184),
                       ),
                     ),
                   ],

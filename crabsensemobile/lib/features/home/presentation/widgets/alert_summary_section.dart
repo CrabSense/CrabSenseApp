@@ -98,7 +98,7 @@ class AlertSummarySection extends StatelessWidget {
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+                    colors: [kHomeSurface, kHomeBg, kHomeBg],
                   ),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: color.withValues(alpha: 0.5)),

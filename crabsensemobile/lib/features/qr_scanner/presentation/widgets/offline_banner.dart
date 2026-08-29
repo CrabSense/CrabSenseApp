@@ -31,7 +31,7 @@ class OfflineBanner extends StatelessWidget {
             child: Text(
               message,
               style: const TextStyle(
-                color: Colors.white,
+                color: kHomeTextMain,
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
               ),

@@ -55,7 +55,7 @@ class AlertTimeline extends StatelessWidget {
                       Text(
                         sorted[i].title,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: kHomeTextMain,
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
                         ),
@@ -117,7 +117,7 @@ Future<void> showAlertQuickActionsSheet({
 }) {
   return showModalBottomSheet<void>(
     context: context,
-    backgroundColor: kHomeNavyLift,
+    backgroundColor: kHomeSurface,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -149,7 +149,7 @@ Future<void> showAlertQuickActionsSheet({
                     Text(
                       alert.title,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: kHomeTextMain,
                         fontWeight: FontWeight.w800,
                         fontSize: 16,
                       ),
@@ -212,7 +212,7 @@ Future<void> showAlertQuickActionsSheet({
                           title: const Text(
                             'Xác nhận',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: kHomeTextMain,
                             ),
                           ),
                           content: Text(
@@ -257,7 +257,7 @@ Widget _sheetTile(IconData icon, String label, VoidCallback onTap) {
     title: Text(
       label,
       style: const TextStyle(
-        color: Colors.white,
+        color: kHomeTextMain,
         fontWeight: FontWeight.w600,
       ),
     ),
@@ -283,7 +283,7 @@ Future<void> showAlertAssignmentSheet({
 
   return showModalBottomSheet<void>(
     context: context,
-    backgroundColor: kHomeNavyLift,
+    backgroundColor: kHomeSurface,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -310,7 +310,7 @@ Future<void> showAlertAssignmentSheet({
                       const Text(
                         'Giao cảnh báo',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: kHomeTextMain,
                           fontWeight: FontWeight.w800,
                           fontSize: 17,
                         ),
@@ -326,7 +326,7 @@ Future<void> showAlertAssignmentSheet({
                       const SizedBox(height: 14),
                       DropdownButtonFormField<String>(
                   initialValue: role,
-                  dropdownColor: kHomeNavyLift,
+                  dropdownColor: kHomeSurface,
                   decoration: const InputDecoration(
                     labelText: 'Vai trò',
                     labelStyle: TextStyle(color: Colors.white54),
@@ -351,7 +351,7 @@ Future<void> showAlertAssignmentSheet({
                 const SizedBox(height: 10),
                 TextField(
                   controller: nameCtrl,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: kHomeTextMain),
                   decoration: const InputDecoration(
                     labelText: 'Tên người nhận',
                     labelStyle: TextStyle(color: Colors.white54),
@@ -360,7 +360,7 @@ Future<void> showAlertAssignmentSheet({
                 const SizedBox(height: 10),
                 TextField(
                   controller: noteCtrl,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: kHomeTextMain),
                   decoration: const InputDecoration(
                     labelText: 'Ghi chú',
                     labelStyle: TextStyle(color: Colors.white54),
@@ -385,7 +385,7 @@ Future<void> showAlertAssignmentSheet({
                     },
                     style: FilledButton.styleFrom(
                       backgroundColor: kHomeCyan,
-                      foregroundColor: kHomeNavyDeep,
+                      foregroundColor: kHomeBg,
                       minimumSize: const Size.fromHeight(48),
                     ),
                     child: const Text('Giao việc'),
@@ -414,7 +414,7 @@ Future<void> showAlertDetailSheet({
 }) {
   return showModalBottomSheet<void>(
     context: context,
-    backgroundColor: kHomeNavyLift,
+    backgroundColor: kHomeSurface,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -458,7 +458,7 @@ Future<void> showAlertDetailSheet({
                     Text(
                       alert.title,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: kHomeTextMain,
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                       ),
@@ -518,7 +518,7 @@ Future<void> showAlertDetailSheet({
                 const Text(
                   'Người phụ trách',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: kHomeTextMain,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -532,7 +532,7 @@ Future<void> showAlertDetailSheet({
               const Text(
                 'Timeline xử lý',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: kHomeTextMain,
                   fontWeight: FontWeight.w800,
                 ),
               ),

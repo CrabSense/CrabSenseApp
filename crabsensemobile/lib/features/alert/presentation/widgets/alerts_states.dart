@@ -54,7 +54,7 @@ class AlertsEmptyState extends StatelessWidget {
                   'Hiện không có cảnh báo nào',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Colors.white,
+                    color: kHomeTextMain,
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                   ),
@@ -78,7 +78,7 @@ class AlertsEmptyState extends StatelessWidget {
                       label: const Text('Làm mới'),
                       style: FilledButton.styleFrom(
                         backgroundColor: kHomeCyan,
-                        foregroundColor: kHomeNavyDeep,
+                        foregroundColor: kHomeBg,
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -120,7 +120,7 @@ class AlertsFilterEmptyState extends StatelessWidget {
               'Không có cảnh báo phù hợp với bộ lọc',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.white,
+                color: kHomeTextMain,
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
               ),
@@ -275,7 +275,7 @@ class AlertsNoPermissionState extends StatelessWidget {
               'Bạn chỉ có quyền xem cảnh báo',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.white,
+                color: kHomeTextMain,
                 fontWeight: FontWeight.w700,
               ),
             ),

@@ -21,7 +21,7 @@ class LogoutButton extends StatelessWidget {
       useRootNavigator: true,
       barrierColor: Colors.black.withValues(alpha: 0.65),
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: kHomeNavyLift,
+        backgroundColor: kHomeSurface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
           side: BorderSide(color: kHomeBorderBlue.withValues(alpha: 0.55)),
@@ -49,7 +49,7 @@ class LogoutButton extends StatelessWidget {
               child: Text(
                 'Xác nhận đăng xuất',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: kHomeTextMain,
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
                 ),
@@ -60,7 +60,7 @@ class LogoutButton extends StatelessWidget {
         content: Text(
           'Bạn có chắc muốn đăng xuất? Dữ liệu ngoại tuyến chưa đồng bộ vẫn được lưu trên máy.',
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.7),
+            color: const Color(0xFF5A7184),
             fontSize: 13.5,
             height: 1.4,
           ),
@@ -120,7 +120,7 @@ class LogoutButton extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             const Color(0xFF3A1520),
-            kHomeNavyDeep,
+            kHomeBg,
             const Color(0xFF2A1018),
           ],
         ),
@@ -148,7 +148,7 @@ class LogoutButton extends StatelessWidget {
               Text(
                 'ĐĂNG XUẤT',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: kHomeTextMain,
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
                   letterSpacing: 0.6,

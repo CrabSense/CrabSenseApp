@@ -45,7 +45,7 @@ class _FarmPondFilterWidgetState extends State<FarmPondFilterWidget> {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+            colors: [kHomeSurface, kHomeBg, kHomeBg],
           ),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.45)),
@@ -134,7 +134,7 @@ class _FilterDropdown<T> extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
               decoration: BoxDecoration(
-                color: kHomeNavyDeep.withValues(alpha: 0.75),
+                color: kHomeBg.withValues(alpha: 0.75),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: kHomeBorderBlue.withValues(alpha: 0.4),
@@ -149,11 +149,11 @@ class _FilterDropdown<T> extends StatelessWidget {
                   size: 18,
                   color: kHomeBlueLight,
                 ),
-                dropdownColor: kHomeNavy,
+                dropdownColor: kHomeBg,
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white,
+                  color: kHomeTextMain,
                 ),
                 onChanged: isLoading ? null : onChanged,
                 items: items

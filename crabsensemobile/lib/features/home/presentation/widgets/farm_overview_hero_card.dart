@@ -8,10 +8,10 @@ import 'crab_hologram_painter.dart';
 const Color _kBlue = Color(0xFF2F80FF);
 const Color _kBlueLight = Color(0xFF6FB0FF);
 const Color _kCyan = Color(0xFF3DDCFF);
-const Color _kNavyDeep = Color(0xFF081A36);
-const Color _kNavy = Color(0xFF0C2348);
-const Color _kNavyLift = Color(0xFF123061);
-const Color _kBorderBlue = Color(0xFF3E6FB8);
+const Color _kNavyDeep = Color(0xFF1A2E3B);
+const Color _kNavy = Color(0xFF27AE60);
+const Color _kNavyLift = Color(0xFF2ECC71);
+const Color _kBorderBlue = Color(0xFF27AE60);
 
 class FarmOverviewHeroCard extends StatelessWidget {
   const FarmOverviewHeroCard({required this.summary, super.key});
@@ -37,7 +37,7 @@ class FarmOverviewHeroCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [_kNavyLift, _kNavy, _kNavyDeep],
+          colors: [Color(0xFF27AE60), Color(0xFF1E8449)],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
@@ -55,16 +55,7 @@ class FarmOverviewHeroCard extends StatelessWidget {
       child: Stack(
         children: [
           // Họa tiết lưới khay nuôi + cua (giống bộ chọn khu) làm nền
-          Positioned.fill(
-            child: IgnorePointer(
-              child: CustomPaint(
-                painter: CrabHologramPainter(
-                  color: _kBlueLight.withValues(alpha: 0.1),
-                  trayExtent: 26,
-                ),
-              ),
-            ),
-          ),
+          // hologram removed
           // Vệt sáng nhẹ ở cạnh trên
           Positioned(
             top: 0,
@@ -95,10 +86,7 @@ class FarmOverviewHeroCard extends StatelessWidget {
                       child: Text(
                         'TỔNG QUAN VẬN HÀNH',
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              color: _kBlueLight,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.0,
-                              fontSize: 13,
+                              color: Colors.white, fontWeight: FontWeight.w800, letterSpacing: 0.5, fontSize: 13,
                             ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -107,8 +95,7 @@ class FarmOverviewHeroCard extends StatelessWidget {
                     Text(
                       'Cập nhật: ${_formatTime(summary.lastUpdated)}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: CrabSenseColors.hintText,
-                            fontSize: 11,
+                            color: Colors.white70, fontSize: 11,
                           ),
                     ),
                     const SizedBox(width: 6),
@@ -193,17 +180,7 @@ class FarmOverviewHeroCard extends StatelessWidget {
       height: 76,
       width: 1,
       margin: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.transparent,
-            _kBorderBlue.withValues(alpha: 0.45),
-            Colors.transparent,
-          ],
-        ),
-      ),
+      color: Colors.white.withValues(alpha: 0.25),
     );
   }
 }
@@ -230,14 +207,14 @@ class _StatTile extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.14),
+              color: Colors.white.withValues(alpha: 0.20),
               borderRadius: BorderRadius.circular(13),
               border: Border.all(
-                color: iconColor.withValues(alpha: 0.45),
+                color: Colors.white.withValues(alpha: 0.50),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: iconColor.withValues(alpha: 0.3),
+                  color: Colors.white.withValues(alpha: 0.25),
                   blurRadius: 12,
                 ),
               ],
@@ -246,7 +223,8 @@ class _StatTile extends StatelessWidget {
               child: SizedBox(
                 width: 26,
                 height: 26,
-                child: Center(child: iconBuilder(iconColor)),
+                // Icon luôn trắng trên nền xanh lá
+                child: Center(child: iconBuilder(Colors.white)),
               ),
             ),
           ),
@@ -255,9 +233,7 @@ class _StatTile extends StatelessWidget {
             value,
             style: const TextStyle(
               fontWeight: FontWeight.w800,
-              color: Colors.white,
-              height: 1.05,
-              fontSize: 24,
+              color: Colors.white, height: 1.05, fontSize: 24,
               letterSpacing: -0.3,
             ),
           ),
@@ -265,8 +241,7 @@ class _StatTile extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              color: CrabSenseColors.textSecondary,
-              fontSize: 10,
+              color: Colors.white70, fontSize: 10,
               height: 1.25,
               fontWeight: FontWeight.w500,
             ),

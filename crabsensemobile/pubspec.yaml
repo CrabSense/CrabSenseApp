@@ -14,7 +14,7 @@ publish_to: 'none' # Private package
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ^3.12.2
@@ -47,7 +47,7 @@ dependencies:
   
   # Local Storage - SQLite
   drift: ^2.14.0
-  sqlite3_flutter_libs: ^0.5.18
+  # sqlite3_flutter_libs excluded from web build — use conditional in pubspec
   path_provider: ^2.1.1
   path: ^1.8.3
   
@@ -71,9 +71,9 @@ dependencies:
   image_picker: ^1.0.4
   
   # Push Notifications
-  firebase_messaging: ^14.7.6
+  firebase_messaging: ^15.2.10
   flutter_local_notifications: ^17.2.1
-  firebase_core: ^2.24.0
+  firebase_core: ^3.0.0
   
   # Permissions
   permission_handler: ^11.2.0
@@ -117,9 +117,10 @@ dependencies:
   share_plus: ^12.0.2
   google_sign_in: ^7.2.0
   url_launcher: ^6.3.2
-  firebase_auth: ^4.16.0
-  firebase_storage: ^11.6.5
-  firebase_crashlytics: ^3.5.7
+  firebase_auth: ^5.0.0
+  firebase_storage: ^12.0.0
+  firebase_crashlytics: ^4.0.0
+  drift_flutter: ^0.2.8
   
   # Error Tracking (optional)
   # sentry_flutter: ^7.13.2

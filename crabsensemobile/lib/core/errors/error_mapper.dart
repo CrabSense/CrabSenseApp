@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'exceptions.dart';
 import 'failures.dart';
@@ -71,14 +72,14 @@ class ErrorMapper {
     }
 
     // Handle platform exceptions
-    if (exception is SocketException) {
+    if (!kIsWeb && exception is SocketException) {
       return const NetworkFailure(
         'Unable to connect to server. Please check your internet connection.',
         'SOCKET_ERROR',
       );
     }
 
-    if (exception is HttpException) {
+    if (!kIsWeb && exception is HttpException) {
       return ServerFailure(exception.message, code: 'HTTP_ERROR');
     }
 
@@ -134,7 +135,7 @@ class ErrorMapper {
 
       case DioExceptionType.unknown:
         // Check if it's a socket exception (no internet)
-        if (exception.error is SocketException) {
+        if (!kIsWeb && exception.error is SocketException) {
           return const NetworkFailure();
         }
         return UnexpectedFailure(

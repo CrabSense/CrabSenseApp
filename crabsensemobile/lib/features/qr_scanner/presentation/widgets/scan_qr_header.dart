@@ -108,7 +108,7 @@ class _FarmChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: kHomeNavyDeep.withValues(alpha: 0.72),
+        color: kHomeBg.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: kHomeBorderBlue.withValues(alpha: 0.55),
@@ -176,7 +176,7 @@ class _ModeChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: continuousScan
                 ? kHomeBlue.withValues(alpha: 0.45)
-                : kHomeNavyDeep.withValues(alpha: 0.72),
+                : kHomeBg.withValues(alpha: 0.72),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: continuousScan
@@ -225,7 +225,7 @@ class _IconBtn extends StatelessWidget {
         style: IconButton.styleFrom(
           backgroundColor: active
               ? kHomeBlue.withValues(alpha: 0.28)
-              : kHomeNavyDeep.withValues(alpha: 0.65),
+              : kHomeBg.withValues(alpha: 0.65),
           foregroundColor: active ? kHomeCyan : kHomeBlueLight,
           side: BorderSide(
             color: active

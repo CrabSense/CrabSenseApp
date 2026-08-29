@@ -1,8 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html show window;
 
 import '../../../../core/constants/api_constants.dart';
 import '../../domain/models/boxes_models.dart';
@@ -39,12 +36,7 @@ class BoxesRepositoryImpl implements BoxesRepository {
         onRequest: (options, handler) async {
           try {
             String? token;
-            if (kIsWeb) {
-              // Web: đọc từ localStorage
-              token = html.window.localStorage['auth_access_token'];
-            } else {
-              token = await _secureStorage.read(key: 'auth_access_token');
-            }
+            token = await _secureStorage.read(key: 'auth_access_token');
             if (token != null && token.isNotEmpty) {
               options.headers['Authorization'] = 'Bearer $token';
             }
@@ -506,9 +498,9 @@ class BoxesRepositoryImpl implements BoxesRepository {
       final rowName = map['rowName']?.toString();
       final apiStatus = map['status']?.toString();
       final occupied = map['isOccupied'] == true;
-      final crabCount = occupied
-          ? (map['currentCrabId'] != null ? 1 : 0)
-          : 0;
+        final crabCount = (map['currentCrabCount'] as num?)?.toInt() ??
+          (map['crabCount'] as num?)?.toInt() ??
+          (map['currentCrabId'] != null ? 1 : 0);
 
       final healthStatus = _statusFromApi(apiStatus, devices.isOnline);
       final score = _scoreFromStatus(healthStatus, openAlerts, devices);

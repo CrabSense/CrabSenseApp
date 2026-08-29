@@ -47,7 +47,7 @@ class _AlertSearchBarState extends State<AlertSearchBar> {
     return TextField(
       controller: _controller,
       onChanged: widget.onChanged,
-      style: const TextStyle(color: Colors.white),
+      style: const TextStyle(color: kHomeTextMain),
       decoration: InputDecoration(
         hintText: 'Tìm cảnh báo, Box hoặc thiết bị',
         hintStyle: const TextStyle(color: Colors.white54),
@@ -68,7 +68,7 @@ class _AlertSearchBarState extends State<AlertSearchBar> {
                 ),
               ),
         filled: true,
-        fillColor: kHomeNavyLift,
+        fillColor: kHomeSurface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 12,

@@ -31,7 +31,7 @@ class OfflineBanner extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [kHomeNavy, kHomeNavyDeep],
+          colors: [kHomeBg, kHomeBg],
         ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(

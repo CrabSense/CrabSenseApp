@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:local_auth/local_auth.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
@@ -128,6 +129,11 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<Either<Failure, User>> loginWithBiometric() async {
+    if (kIsWeb) {
+      return const Left(
+        AuthenticationFailure('Biometric authentication is not available on web.'),
+      );
+    }
     final isEnabled = await localDataSource.isBiometricEnabled();
     if (!isEnabled) {
       return const Left(
@@ -223,6 +229,11 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<Either<Failure, void>> setBiometricEnabled(bool enabled) async {
+    if (kIsWeb && enabled) {
+      return const Left(
+        PermissionFailure('Biometric not available on web.', permissionType: 'biometric'),
+      );
+    }
     try {
       if (enabled) {
         final canCheck = await localAuth.canCheckBiometrics;

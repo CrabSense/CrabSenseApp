@@ -49,7 +49,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
     final notifier = ref.read(devicesStateProvider.notifier);
 
     return Scaffold(
-      backgroundColor: kHomeNavyDeep,
+      backgroundColor: kHomeBg,
       body: Stack(
         children: [
           Positioned.fill(
@@ -81,7 +81,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                         child: Text(
                           'THIẾT BỊ & IOT',
                           style: TextStyle(
-                            color: kHomeBlueLight,
+                            color: kHomePrimaryDark,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.8,
                             fontSize: 16,
@@ -228,7 +228,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
               Text(
                 'Không tải được thiết bị',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
+                  color: const Color(0xFF5A7184),
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -237,7 +237,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                 state.error!,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
+                  color: const Color(0xFF5A7184),
                   fontSize: 12,
                 ),
               ),
@@ -246,7 +246,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                 onPressed: () => ref.read(devicesStateProvider.notifier).load(),
                 style: FilledButton.styleFrom(
                   backgroundColor: kHomeCyan,
-                  foregroundColor: kHomeNavyDeep,
+                  foregroundColor: kHomeBg,
                 ),
                 child: const Text('Thử lại'),
               ),
@@ -261,14 +261,14 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
       return Center(
         child: Text(
           'Không có thiết bị phù hợp bộ lọc',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.55)),
+          style: TextStyle(color: const Color(0xFF5A7184)),
         ),
       );
     }
 
     return RefreshIndicator(
       color: kHomeCyan,
-      backgroundColor: kHomeNavyLift,
+      backgroundColor: kHomeSurface,
       onRefresh: () => ref.read(devicesStateProvider.notifier).load(),
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -311,7 +311,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+              colors: [kHomeSurface, kHomeBg, kHomeBg],
             ),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
@@ -341,7 +341,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                       Text(
                         detail.deviceCode,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: kHomeTextMain,
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
                         ),
@@ -395,7 +395,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                           onPressed: () => Navigator.pop(ctx),
                           style: FilledButton.styleFrom(
                             backgroundColor: kHomeCyan,
-                            foregroundColor: kHomeNavyDeep,
+                            foregroundColor: kHomeBg,
                           ),
                           child: const Text(
                             'Đóng',
@@ -443,7 +443,7 @@ class _StatChip extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.5),
+              color: const Color(0xFF5A7184),
               fontSize: 12,
             ),
           ),
@@ -480,7 +480,7 @@ class _FilterChip extends StatelessWidget {
           ),
         ),
         selectedColor: kHomeBlue.withValues(alpha: 0.45),
-        backgroundColor: kHomeNavyDeep.withValues(alpha: 0.72),
+        backgroundColor: kHomeBg.withValues(alpha: 0.72),
         side: BorderSide(
           color: selected
               ? kHomeCyan.withValues(alpha: 0.8)
@@ -555,7 +555,7 @@ class _DeviceCard extends StatelessWidget {
                           Text(
                             device.deviceCode,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: kHomeTextMain,
                               fontWeight: FontWeight.w800,
                               fontSize: 15,
                               height: 1.3,
@@ -565,7 +565,7 @@ class _DeviceCard extends StatelessWidget {
                           Text(
                             device.typeLabel,
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.55),
+                              color: const Color(0xFF5A7184),
                               fontSize: 12,
                               height: 1.35,
                             ),
@@ -588,7 +588,7 @@ class _DeviceCard extends StatelessWidget {
                                 Text(
                                   '${device.sensorCount} sensor',
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.45),
+                                    color: const Color(0xFF5A7184),
                                     fontSize: 11,
                                   ),
                                 ),
@@ -596,7 +596,7 @@ class _DeviceCard extends StatelessWidget {
                                 Text(
                                   'Seen ${DateFormat('HH:mm dd/MM').format(device.lastSeenAt!.toLocal())}',
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.4),
+                                    color: const Color(0xFF5A7184),
                                     fontSize: 11,
                                   ),
                                 ),
@@ -609,7 +609,7 @@ class _DeviceCard extends StatelessWidget {
                     Icon(
                       Icons.chevron_right_rounded,
                       size: 20,
-                      color: Colors.white.withValues(alpha: 0.35),
+                      color: const Color(0xFF5A7184),
                     ),
                   ],
                 ),
@@ -667,7 +667,7 @@ class _DetailRow extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
+                color: const Color(0xFF5A7184),
                 fontSize: 13,
               ),
             ),

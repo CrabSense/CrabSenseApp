@@ -23,7 +23,7 @@ class ProfileHubScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final content = body;
     return Scaffold(
-      backgroundColor: kHomeNavyDeep,
+      backgroundColor: kHomeBg,
       body: Stack(
         children: [
           Positioned.fill(
@@ -55,7 +55,7 @@ class ProfileHubScaffold extends StatelessWidget {
                         child: Text(
                           title,
                           style: const TextStyle(
-                            color: kHomeBlueLight,
+                            color: kHomePrimaryDark,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.8,
                             fontSize: 16,
@@ -71,7 +71,7 @@ class ProfileHubScaffold extends StatelessWidget {
                       ? content
                       : RefreshIndicator(
                           color: kHomeCyan,
-                          backgroundColor: kHomeNavyLift,
+                          backgroundColor: kHomeSurface,
                           onRefresh: onRefresh!,
                           child: content,
                         ),
@@ -154,7 +154,7 @@ class HubTile extends StatelessWidget {
                         Text(
                           title,
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: kHomeTextMain,
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
                           ),
@@ -164,7 +164,7 @@ class HubTile extends StatelessWidget {
                           Text(
                             subtitle!,
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.55),
+                              color: const Color(0xFF5A7184),
                               fontSize: 12,
                               height: 1.3,
                             ),
@@ -189,7 +189,7 @@ class HubTile extends StatelessWidget {
                   else if (onTap != null)
                     Icon(
                       Icons.chevron_right_rounded,
-                      color: Colors.white.withValues(alpha: 0.35),
+                      color: const Color(0xFF5A7184),
                     ),
                 ],
               ),

@@ -37,7 +37,7 @@ class AlertFilterChips extends StatelessWidget {
                         activeFilters.contains(AlertQuickFilter.all)),
                 onSelected: (_) => onToggle(f),
                 selectedColor: kHomeCyan.withValues(alpha: 0.22),
-                backgroundColor: kHomeNavyDeep,
+                backgroundColor: kHomeBg,
                 checkmarkColor: kHomeCyan,
                 labelStyle: TextStyle(
                   color: activeFilters.contains(f)

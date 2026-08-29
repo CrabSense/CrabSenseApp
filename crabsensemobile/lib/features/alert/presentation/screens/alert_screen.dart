@@ -55,7 +55,7 @@ class _AlertView extends StatelessWidget {
       final activeFilters = _activeFilters(state);
 
       return Scaffold(
-        backgroundColor: kHomeNavyDeep,
+        backgroundColor: kHomeBg,
         appBar: _buildAppBar(context, unreadCount),
         body: Column(
           children: [
@@ -77,7 +77,7 @@ class _AlertView extends StatelessWidget {
         const Text(
           'CẢNH BÁO',
           style: TextStyle(
-            color: kHomeBlueLight,
+            color: kHomePrimaryDark,
             fontWeight: FontWeight.w800,
             letterSpacing: 1,
           ),
@@ -88,7 +88,7 @@ class _AlertView extends StatelessWidget {
         ],
       ],
     ),
-    backgroundColor: kHomeNavy,
+    backgroundColor: kHomeBg,
     foregroundColor: kHomeBlueLight,
     elevation: 0,
   );
@@ -161,7 +161,7 @@ class _UnreadBadge extends StatelessWidget {
     child: Text(
       count > 99 ? '99+' : '$count',
       style: const TextStyle(
-        color: Colors.white,
+        color: kHomeTextMain,
         fontSize: 11,
         fontWeight: FontWeight.w700,
         fontFamily: 'Inter',
@@ -182,7 +182,7 @@ class _FilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    color: kHomeNavy,
+    color: kHomeBg,
     padding: const EdgeInsets.symmetric(vertical: 8),
     child: SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -337,7 +337,7 @@ class _FilterChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: selected
             ? color.withValues(alpha: 0.2)
-            : kHomeNavyLift,
+            : kHomeSurface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: selected ? color : kHomeBorderBlue,
@@ -375,7 +375,7 @@ class _AlertListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) => RefreshIndicator(
     color: kHomeCyan,
-    backgroundColor: kHomeNavy,
+    backgroundColor: kHomeBg,
     onRefresh: () async {
       context.read<AlertBloc>().add(const AlertRefreshRequested());
       await context.read<AlertBloc>().stream.firstWhere(

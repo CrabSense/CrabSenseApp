@@ -57,7 +57,7 @@ class BoxCard extends StatelessWidget {
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+                colors: [kHomeSurface, kHomeBg, kHomeBg],
               ),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
@@ -87,7 +87,7 @@ class BoxCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                color: Colors.white,
+                                color: kHomeTextMain,
                                 fontWeight: FontWeight.w800,
                                 fontSize: 15,
                               ),
@@ -96,7 +96,7 @@ class BoxCard extends StatelessWidget {
                             Text(
                               box.location.areaName,
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.45),
+                                color: const Color(0xFF5A7184),
                                 fontSize: 11,
                               ),
                             ),
@@ -106,7 +106,7 @@ class BoxCard extends StatelessWidget {
                       BoxStatusBadge(status: box.status, compact: true),
                       PopupMenuButton<String>(
                         tooltip: 'Thao tác nhanh',
-                        color: kHomeNavy,
+                        color: kHomeBg,
                         onSelected: onMenuSelected,
                         itemBuilder: (_) => [
                           PopupMenuItem(
@@ -114,7 +114,7 @@ class BoxCard extends StatelessWidget {
                             child: Text(
                               'Quét QR',
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
+                                color: const Color(0xFF5A7184),
                               ),
                             ),
                           ),
@@ -123,7 +123,7 @@ class BoxCard extends StatelessWidget {
                             child: Text(
                               'Phát hiện AI',
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
+                                color: const Color(0xFF5A7184),
                               ),
                             ),
                           ),
@@ -132,7 +132,7 @@ class BoxCard extends StatelessWidget {
                             child: Text(
                               'Kiểm tra nước',
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
+                                color: const Color(0xFF5A7184),
                               ),
                             ),
                           ),
@@ -141,7 +141,7 @@ class BoxCard extends StatelessWidget {
                             child: Text(
                               'Thu hoạch',
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
+                                color: const Color(0xFF5A7184),
                               ),
                             ),
                           ),
@@ -150,14 +150,14 @@ class BoxCard extends StatelessWidget {
                             child: Text(
                               'Xem chi tiết',
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
+                                color: const Color(0xFF5A7184),
                               ),
                             ),
                           ),
                         ],
                         icon: Icon(
                           Icons.more_vert_rounded,
-                          color: Colors.white.withValues(alpha: 0.45),
+                          color: const Color(0xFF5A7184),
                           size: 20,
                         ),
                       ),
@@ -207,7 +207,7 @@ class BoxCard extends StatelessWidget {
                         size: 14,
                         color: box.devices.isOnline
                             ? kHomeGreen
-                            : Colors.white.withValues(alpha: 0.4),
+                            : const Color(0xFF5A7184),
                       ),
                       const SizedBox(width: 4),
                       Text(
@@ -215,7 +215,7 @@ class BoxCard extends StatelessWidget {
                         style: TextStyle(
                           color: box.devices.isOnline
                               ? kHomeGreen
-                              : Colors.white.withValues(alpha: 0.4),
+                              : const Color(0xFF5A7184),
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                         ),
@@ -249,7 +249,7 @@ class BoxCard extends StatelessWidget {
                   Text(
                     'Cập nhật ${formatRelativeTime(box.lastUpdated)}',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.4),
+                      color: const Color(0xFF5A7184),
                       fontSize: 10,
                     ),
                   ),
@@ -274,7 +274,7 @@ class _MetricChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
-        color: kHomeNavyDeep.withValues(alpha: 0.7),
+        color: kHomeBg.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.35)),
       ),
@@ -286,7 +286,7 @@ class _MetricChip extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
+              color: const Color(0xFF5A7184),
               fontSize: 10,
             ),
           ),

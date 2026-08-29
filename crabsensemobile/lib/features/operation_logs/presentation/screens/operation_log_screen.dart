@@ -102,7 +102,7 @@ class _OperationLogView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFF071426),
+    backgroundColor: const Color(0xFFF5F7FA),
     appBar: AppBar(
       backgroundColor: Colors.transparent,
       foregroundColor: CrabSenseColors.textPrimary,
@@ -112,7 +112,7 @@ class _OperationLogView extends StatelessWidget {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+            colors: [kHomeSurface, kHomeBg, kHomeBg],
           ),
           border: Border(
             bottom: BorderSide(
@@ -139,7 +139,7 @@ class _OperationLogView extends StatelessWidget {
           const Text(
             'NHẬT KÝ VẬN HÀNH',
             style: TextStyle(
-              color: kHomeBlueLight,
+              color: kHomePrimaryDark,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.0,
               fontSize: 14,
@@ -308,7 +308,7 @@ class _PermissionBanner extends StatelessWidget {
       gradient: const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [kHomeNavy, kHomeNavyDeep],
+        colors: [kHomeBg, kHomeBg],
       ),
       borderRadius: BorderRadius.circular(12),
       border: Border.all(color: CrabSenseColors.error.withValues(alpha: 0.5)),
@@ -467,7 +467,7 @@ class _OperationLogFormState extends State<_OperationLogForm> {
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
                 ),
-                dropdownColor: kHomeNavy,
+                dropdownColor: kHomeBg,
                 style: const TextStyle(color: CrabSenseColors.textPrimary),
                 items: OperationType.values
                     .map(
@@ -613,7 +613,7 @@ InputDecoration _fieldDecoration({
     errorText: errorText,
     hintStyle: const TextStyle(color: CrabSenseColors.textDisabled, fontSize: 13),
     filled: true,
-    fillColor: kHomeNavyDeep.withValues(alpha: 0.75),
+    fillColor: kHomeBg.withValues(alpha: 0.75),
     suffixIcon: suffixIcon,
     enabledBorder: border(kHomeBorderBlue.withValues(alpha: 0.4)),
     focusedBorder: border(kHomeBlue),
@@ -635,7 +635,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) => Text(
     label,
     style: const TextStyle(
-      color: kHomeBlueLight,
+      color: kHomePrimaryDark,
       fontSize: 12.5,
       fontWeight: FontWeight.w700,
       letterSpacing: 0.6,
@@ -655,7 +655,7 @@ class _GlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DecoratedBox(
     decoration: BoxDecoration(
-      color: kHomeNavyDeep.withValues(alpha: 0.75),
+      color: kHomeBg.withValues(alpha: 0.75),
       borderRadius: BorderRadius.circular(14),
       border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.4)),
     ),
@@ -675,7 +675,7 @@ class _OfflineBanner extends StatelessWidget {
       gradient: const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [kHomeNavy, kHomeNavyDeep],
+        colors: [kHomeBg, kHomeBg],
       ),
       borderRadius: BorderRadius.circular(12),
       border: Border.all(color: CrabSenseColors.warning.withValues(alpha: 0.5)),
@@ -731,7 +731,7 @@ class _PhotoSection extends StatelessWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: kHomeNavyDeep.withValues(alpha: 0.75),
+                  color: kHomeBg.withValues(alpha: 0.75),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: kHomeBlue.withValues(alpha: 0.5)),
                   boxShadow: [
@@ -748,7 +748,7 @@ class _PhotoSection extends StatelessWidget {
                     SizedBox(height: 4),
                     Text(
                       'Thêm ảnh',
-                      style: TextStyle(color: kHomeBlueLight, fontSize: 10),
+                      style: TextStyle(color: kHomePrimaryDark, fontSize: 10),
                     ),
                   ],
                 ),
@@ -781,7 +781,7 @@ class _PhotoThumbnail extends StatelessWidget {
             errorBuilder: (_, _, _) => Container(
               width: 80,
               height: 80,
-              color: kHomeNavyLift,
+              color: kHomeSurface,
               child: const Icon(Icons.broken_image_outlined, color: CrabSenseColors.textSecondary),
             ),
           ),
@@ -847,7 +847,7 @@ class _SubmitButton extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             backgroundColor: kHomeBlue,
             foregroundColor: Colors.white,
-            disabledBackgroundColor: kHomeNavyLift,
+            disabledBackgroundColor: kHomeSurface,
             disabledForegroundColor: CrabSenseColors.textDisabled,
             elevation: 6,
             shadowColor: kHomeBlue.withValues(alpha: 0.6),

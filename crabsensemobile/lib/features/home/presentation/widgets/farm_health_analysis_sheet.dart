@@ -36,7 +36,7 @@ void showFarmHealthAnalysisSheet(
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+            colors: [kHomeSurface, kHomeBg, kHomeBg],
           ),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           border: Border.all(
@@ -149,7 +149,7 @@ void showFarmHealthAnalysisSheet(
                               const Text(
                                 'PHÂN TÍCH FARM HEALTH',
                                 style: TextStyle(
-                                  color: kHomeBlueLight,
+                                  color: kHomePrimaryDark,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 1.0,
                                   fontSize: 13,
@@ -321,7 +321,7 @@ void showFarmHealthAnalysisSheet(
                                     ? healthScore.explanation
                                     : 'Chưa có giải thích từ hệ thống.',
                                 style: const TextStyle(
-                                  color: Colors.white,
+                                  color: kHomeTextMain,
                                   height: 1.45,
                                   fontSize: 12.5,
                                   fontWeight: FontWeight.w500,
@@ -458,7 +458,7 @@ class _SectionLabel extends StatelessWidget {
           child: Text(
             label,
             style: const TextStyle(
-              color: kHomeBlueLight,
+              color: kHomePrimaryDark,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.0,
               fontSize: 12,
@@ -490,7 +490,7 @@ class _SheetCloseButton extends StatelessWidget {
           height: 34,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: kHomeNavy.withValues(alpha: 0.9),
+            color: kHomeBg.withValues(alpha: 0.9),
             border: Border.all(
               color: kHomeBorderBlue.withValues(alpha: 0.45),
             ),
@@ -556,7 +556,7 @@ class _FactorBar extends StatelessWidget {
                 child: Text(
                   label,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: kHomeTextMain,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -586,7 +586,7 @@ class _FactorBar extends StatelessWidget {
             child: LinearProgressIndicator(
               value: (score.clamp(0, 100)) / 100.0,
               minHeight: 6,
-              backgroundColor: kHomeNavyLift,
+              backgroundColor: kHomeSurface,
               color: color,
             ),
           ),

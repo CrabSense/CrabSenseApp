@@ -50,7 +50,7 @@ class AlertSummaryCard extends StatelessWidget {
                     child: Text(
                       a.title,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: kHomeTextMain,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),

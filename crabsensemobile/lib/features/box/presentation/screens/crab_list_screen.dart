@@ -7,6 +7,8 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
 import '../../data/datasources/box_remote_data_source.dart';
 import '../../data/models/crab_model.dart';
+import '../../domain/entities/crab.dart';
+import '../../domain/entities/box_enums.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const _primary    = Color(0xFF27AE60);
@@ -225,36 +227,8 @@ class _CrabList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Stats header
-    final alive = crabs.length;
-    final avgWeight = crabs.isEmpty
-        ? 0
-        : (crabs.fold(0.0, (s, c) => s + c.weight) / crabs.length).round();
-
     return Column(
       children: [
-        // Stats bar
-        Container(
-          margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF1E8449), Color(0xFF27AE60)],
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              _statItem('Tổng cua', '$alive con'),
-              Container(width: 1, height: 32, color: Colors.white30),
-              _statItem('Còn sống', '$alive con'),
-              Container(width: 1, height: 32, color: Colors.white30),
-              _statItem('TB cân nặng', '${avgWeight}g'),
-            ],
-          ),
-        ),
-        const SizedBox(height: 4),
-        // List
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
@@ -272,15 +246,6 @@ class _CrabList extends StatelessWidget {
     );
   }
 
-  Widget _statItem(String label, String value) => Expanded(
-    child: Column(
-      children: [
-        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
-        const SizedBox(height: 2),
-        Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 11)),
-      ],
-    ),
-  );
 }
 
 // ── Crab tile ──────────────────────────────────────────────────────────────────
@@ -355,6 +320,13 @@ class _CrabTile extends StatelessWidget {
                           child: Text(statusLabel, style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.w600)),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      '${crab.species.displayName} • ${crab.moltingStatus.displayName} • ${crab.source.value}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: _textSub, fontSize: 11),
                     ),
                   ],
                 ),
@@ -470,7 +442,6 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
   final _api = sl<ApiClient>();
   final _formKey = GlobalKey<FormState>();
   final _weightCtrl = TextEditingController();
-  final _tagCtrl = TextEditingController();
   final _lengthCtrl = TextEditingController();
   final _widthCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
@@ -482,27 +453,20 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
   @override
   void dispose() {
     _weightCtrl.dispose();
-    _tagCtrl.dispose();
     _lengthCtrl.dispose();
     _widthCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
   }
 
-  void _generateTag() {
-    if (_tagCtrl.text.isEmpty) {
-      _tagCtrl.text = 'CRAB-${DateTime.now().millisecondsSinceEpoch}';
-    }
-  }
-
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    _generateTag();
+    final crabTag = 'CRAB-${DateTime.now().millisecondsSinceEpoch}';
     setState(() => _submitting = true);
     try {
       await _api.post<dynamic>('/boxes/${widget.boxId}/crabs', data: {
         'weightGram': int.parse(_weightCtrl.text.trim()),
-        'tag': _tagCtrl.text.trim(),
+        'tag': crabTag,
         'moltingStage': _shell,
       });
       if (!mounted) return;
@@ -544,9 +508,14 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
               children: [
                 const Icon(Icons.add_circle_rounded, color: _primary),
                 const SizedBox(width: 8),
-                Text('Thêm cua vào hộp ${widget.boxCode}',
+                Text('Nhập cua vào hộp ${widget.boxCode}',
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _textMain)),
               ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Nhập các thông tin cơ bản để theo dõi từng con cua.',
+              style: TextStyle(fontSize: 12, color: _textSub),
             ),
             const SizedBox(height: 20),
 
@@ -568,14 +537,6 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
                       if ((int.tryParse(v.trim()) ?? 0) <= 0) return 'Không hợp lệ';
                       return null;
                     },
-                  ),
-                  const SizedBox(height: 12),
-                  const Text('Mã cua (tự sinh)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _textMain)),
-                  const SizedBox(height: 6),
-                  TextFormField(
-                    controller: _tagCtrl,
-                    readOnly: true,
-                    decoration: _deco('Tự sinh khi lưu'),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -600,9 +561,9 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(child: _choiceField('Vỏ lúc nhập', _shell, const {'hard': 'Cứng', 'soft': 'Mềm'}, (v) => setState(() => _shell = v))),
+                      Expanded(child: _choiceField('Tình trạng vỏ', _shell, const {'hard': 'Vỏ cứng', 'soft': 'Vỏ mềm'}, (v) => setState(() => _shell = v))),
                       const SizedBox(width: 10),
-                      Expanded(child: _choiceField('Gạch', _spots, const {'few': 'Ít', 'many': 'Nhiều'}, (v) => setState(() => _spots = v))),
+                      Expanded(child: _choiceField('Gạch cua', _spots, const {'few': 'Ít gạch', 'many': 'Nhiều gạch'}, (v) => setState(() => _spots = v))),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -633,7 +594,7 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
                 child: _submitting
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : Text(
-                        'Nhập 1 con cua vào hộp',
+                        'Lưu thông tin con cua',
                         style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
                       ),
               ),
@@ -709,15 +670,32 @@ class _MoveCrabSheetState extends State<_MoveCrabSheet> {
 
   Future<void> _loadBoxes() async {
     try {
-      final r = await _api.get<dynamic>('/boxes');
+      final r = await _api.get<dynamic>('/boxes/available');
       final data = r.data;
       List<dynamic> items = [];
-      if (data is Map) items = (data['items'] as List? ?? []);
-      else if (data is List) items = data;
+      if (data is List) {
+        items = data;
+      } else if (data is Map) {
+        final nested = data['data'];
+        if (nested is Map) {
+          items = (nested['emptyBoxes'] as List?) ??
+              (nested['items'] as List?) ??
+              (nested['data'] as List?) ??
+              const [];
+        } else {
+          items = (data['emptyBoxes'] as List?) ??
+              (data['items'] as List?) ?? const [];
+        }
+      }
       setState(() {
         _boxes = items
-            .where((b) => b['id'] != widget.currentBoxId)
-            .map((b) => {'id': b['id'] as String, 'code': (b['code'] ?? b['id']) as String})
+            .where((b) => b is Map && b['id'] != widget.currentBoxId)
+            .map((b) => {
+                  'id': b['id'] as String,
+                  'code': (b['code'] ?? b['id']) as String,
+                  'rowName': b['rowName']?.toString(),
+                  'areaName': b['areaName']?.toString(),
+                })
             .toList();
         _loading = false;
       });
@@ -801,7 +779,11 @@ class _MoveCrabSheetState extends State<_MoveCrabSheet> {
               ),
               items: _boxes.map((b) => DropdownMenuItem(
                 value: b,
-                child: Text(b['code'] as String),
+                child: Text(
+                  [b['code'], b['rowName'], b['areaName']]
+                  .whereType<String>()
+                  .join(' • '),
+                ),
               )).toList(),
               onChanged: (v) => setState(() => _selectedBox = v),
             ),

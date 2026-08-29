@@ -33,7 +33,8 @@ class NotificationPreferencesRepositoryImpl
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           try {
-            final token = await _secureStorage.read(key: 'auth_access_token');
+            String? token;
+            token = await _secureStorage.read(key: 'auth_access_token');
             if (token != null && token.isNotEmpty) {
               options.headers['Authorization'] = 'Bearer $token';
             }

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -43,6 +44,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
       detectionSpeed: DetectionSpeed.normal,
       facing: CameraFacing.back,
       formats: const [BarcodeFormat.qrCode],
+      torchEnabled: kIsWeb ? false : false, // Torch not available on web
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -124,7 +126,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+            colors: [kHomeSurface, kHomeBg, kHomeBg],
           ),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
@@ -283,7 +285,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+            colors: [kHomeSurface, kHomeBg, kHomeBg],
           ),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
@@ -322,7 +324,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                   : 'QR không thuộc hệ thống CrabSense.',
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: Colors.white,
+                color: kHomeTextMain,
                 fontWeight: FontWeight.w600,
                 height: 1.35,
               ),
@@ -359,7 +361,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                       child: Text(
                         'Quét lại',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: kHomeTextMain,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -464,7 +466,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
 
         if (state is ScannerPermissionChecking || state is ScannerInitial) {
           return const ColoredBox(
-            color: kHomeNavyDeep,
+            color: kHomeBg,
             child: Center(child: ScanSkeleton()),
           );
         }
@@ -518,7 +520,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
 
         if (isTabletLandscape) {
           return ColoredBox(
-            color: kHomeNavyDeep,
+            color: kHomeBg,
             child: Row(
               children: [
                 Expanded(flex: 55, child: camera),
@@ -528,16 +530,16 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                       ? _resultPanel(state, embedded: true)
                       : state is BoxFetchInProgress
                           ? const ColoredBox(
-                              color: kHomeNavy,
+                              color: kHomeBg,
                               child: ScanSkeleton(),
                             )
                           : ColoredBox(
-                              color: kHomeNavy,
+                              color: kHomeBg,
                               child: Center(
                                 child: Text(
                                   'Quét QR để xem thông tin hộp',
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.55),
+                                    color: const Color(0xFF5A7184),
                                   ),
                                 ),
                               ),
@@ -548,7 +550,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
           );
         }
 
-        return ColoredBox(color: kHomeNavyDeep, child: camera);
+        return ColoredBox(color: kHomeBg, child: camera);
       },
     );
   }

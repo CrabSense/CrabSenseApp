@@ -52,7 +52,7 @@ class AlertCard extends StatelessWidget {
       onTap: () => _handleTap(context),
       child: Container(
         decoration: BoxDecoration(
-          color: kHomeNavy.withValues(alpha: 0.9),
+          color: kHomeBg.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: kHomeCyan.withValues(alpha: 0.12),

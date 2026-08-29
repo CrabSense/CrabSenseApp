@@ -78,7 +78,7 @@ class QuickActionsGrid extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: kHomeTextMain,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         height: 1.2,

@@ -60,7 +60,7 @@ class AlertPriorityBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: kHomeNavyDeep,
+          color: kHomeBg,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: kHomeBorderBlue),
         ),

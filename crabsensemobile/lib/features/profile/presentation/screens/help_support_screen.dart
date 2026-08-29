@@ -47,7 +47,7 @@ class HelpSupportScreen extends StatelessWidget {
                 const Text(
                   'Câu hỏi thường gặp',
                   style: TextStyle(
-                    color: kHomeBlueLight,
+                    color: kHomePrimaryDark,
                     fontWeight: FontWeight.w800,
                     fontSize: 13,
                   ),
@@ -62,7 +62,7 @@ class HelpSupportScreen extends StatelessWidget {
                     title: Text(
                       _faqs[i].$1,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: kHomeTextMain,
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -73,7 +73,7 @@ class HelpSupportScreen extends StatelessWidget {
                         child: Text(
                           _faqs[i].$2,
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.65),
+                            color: const Color(0xFF5A7184),
                             height: 1.4,
                             fontSize: 13,
                           ),
@@ -152,7 +152,7 @@ class HelpSupportScreen extends StatelessWidget {
   void _guideSheet(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: kHomeNavyLift,
+      backgroundColor: kHomeSurface,
       isScrollControlled: true,
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
@@ -165,7 +165,7 @@ class HelpSupportScreen extends StatelessWidget {
             Text(
               'Hướng dẫn nhanh',
               style: TextStyle(
-                color: Colors.white,
+                color: kHomeTextMain,
                 fontWeight: FontWeight.w800,
                 fontSize: 16,
               ),
@@ -190,20 +190,20 @@ class HelpSupportScreen extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: kHomeNavyLift,
+        backgroundColor: kHomeSurface,
         title: Text(
           isBug ? 'Báo lỗi' : 'Góp ý',
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: kHomeTextMain),
         ),
         content: TextField(
           controller: controller,
           maxLines: 5,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: kHomeTextMain),
           decoration: InputDecoration(
             hintText: isBug
                 ? 'Mô tả lỗi, màn hình, bước tái hiện…'
                 : 'Ý kiến của bạn…',
-            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+            hintStyle: TextStyle(color: const Color(0xFF5A7184)),
             enabledBorder: OutlineInputBorder(
               borderSide: BorderSide(color: kHomeBorderBlue.withValues(alpha: 0.5)),
             ),
@@ -221,7 +221,7 @@ class HelpSupportScreen extends StatelessWidget {
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: kHomeCyan,
-              foregroundColor: kHomeNavyDeep,
+              foregroundColor: kHomeBg,
             ),
             child: const Text('Gửi'),
           ),

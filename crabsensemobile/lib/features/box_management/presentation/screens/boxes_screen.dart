@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -32,38 +33,106 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
 
   Future<void> _showCreateStructure(String type) async {
     final controller = TextEditingController();
-    final name = await showDialog<String>(
+    final capacityController = TextEditingController(text: '1');
+    final formKey = GlobalKey<FormState>();
+    String? selectedAreaId = _selectedFarmId;
+    final state = ref.read(boxesStateProvider);
+    if (selectedAreaId == null && state.hasValue) {
+      selectedAreaId = state.value?.selectedFarmId ??
+          (state.value?.availableFarms.isNotEmpty == true
+              ? state.value!.availableFarms.first.id
+              : null);
+    }
+    final result = await showDialog<({String name, int capacity})>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('Tạo ${type.toLowerCase()}'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: 'Tên $type',
-            hintText: type == 'Khu' ? 'Ví dụ: Khu A' : 'Ví dụ: Dãy A1',
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: controller,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Tên $type',
+                  hintText: type == 'Khu' ? 'Ví dụ: Khu A' : 'Ví dụ: Dãy A1',
+                ),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Vui lòng nhập tên $type'
+                    : null,
+                onFieldSubmitted: (_) {
+                  if (formKey.currentState?.validate() ?? false) {
+                    Navigator.pop(dialogContext, (
+                      name: controller.text.trim(),
+                      capacity: type == 'Dãy'
+                          ? int.parse(capacityController.text.trim())
+                          : 0,
+                    ));
+                  }
+                },
+              ),
+              if (type == 'Dãy') ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: capacityController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(
+                    labelText: 'Số hộp trong dãy',
+                    hintText: 'Ví dụ: 20',
+                    helperText: 'Hệ thống sẽ tạo sẵn đúng số hộp này',
+                  ),
+                  validator: (value) {
+                    final count = int.tryParse(value?.trim() ?? '');
+                    if (count == null || count < 1 || count > 500) {
+                      return 'Nhập số hộp từ 1 đến 500';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ],
           ),
-          onSubmitted: (value) => Navigator.pop(dialogContext, value.trim()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Hủy'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
-            child: const Text('Lưu'),
+          FilledButton.icon(
+            icon: const Icon(Icons.check_rounded),
+            onPressed: () {
+              if (!(formKey.currentState?.validate() ?? false)) return;
+              Navigator.pop(dialogContext, (
+                name: controller.text.trim(),
+                capacity: type == 'Dãy'
+                    ? int.parse(capacityController.text.trim())
+                    : 0,
+              ));
+            },
+            label: const Text('Lưu'),
           ),
         ],
       ),
     );
     controller.dispose();
-    if (!mounted || name == null || name.isEmpty) return;
+    capacityController.dispose();
+    if (!mounted || result == null) return;
+    final name = result.name;
 
     try {
-      final payload = <String, dynamic>{'name': name};
-      if (type == 'Dãy' && _selectedFarmId != null) {
-        payload['farmingAreaId'] = _selectedFarmId;
+      final payload = <String, dynamic>{
+        'name': name,
+      };
+      if (type == 'Dãy') {
+        if (selectedAreaId == null) {
+          _snack('Hãy tạo hoặc chọn khu nuôi trước khi tạo dãy');
+          return;
+        }
+        payload['farmingAreaId'] = selectedAreaId;
+        payload['capacity'] = result.capacity;
       }
       await _api.post<dynamic>(
         type == 'Khu' ? '/farming-areas' : '/farming-rows',
@@ -202,8 +271,10 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
     );
   }
 
-  void _handleBoxTap(BoxSummary box) {
-    context.push(RoutePaths.boxCrabs(box.id, boxCode: box.code));
+  Future<void> _handleBoxTap(BoxSummary box) async {
+    await context.push(RoutePaths.boxCrabs(box.id, boxCode: box.code));
+    if (!mounted) return;
+    await ref.read(boxesStateProvider.notifier).refresh();
   }
 
   @override
@@ -316,6 +387,7 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
               totalBoxes: boxes.length,
               activeBoxes: activeCount,
               onFarmChanged: (id) {
+                _selectedFarmId = id;
                 ref.read(boxesStateProvider.notifier).switchFarm(id);
               },
             ),

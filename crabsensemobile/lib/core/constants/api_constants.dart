@@ -18,7 +18,7 @@ class ApiConstants {
   /// Update when your Wi‑Fi IP changes, or pass via --dart-define=DEV_HOST_LAN=x.x.x.x
   static const String _devHostLan = String.fromEnvironment(
     'DEV_HOST_LAN',
-    defaultValue: '10.33.248.225',
+    defaultValue: '103.69.96.143',
   );
 
   /// Resolves API host for the current platform:

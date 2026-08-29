@@ -85,8 +85,9 @@ class _CrabSenseAppState extends State<CrabSenseApp> {
       debugShowCheckedModeBanner: false,
 
       // ── Theme (Req 20.1-20.3) ──────────────────────────────────────
-      // Dark theme is the default as specified in Requirement 20.3.
-      theme: CrabSenseTheme.darkTheme,
+      // Light theme is the default (friendly aquaculture design).
+      theme: CrabSenseTheme.lightTheme,
+      themeMode: ThemeMode.light,
 
       // ── Router ────────────────────────────────────────────────────
       routerConfig: _router,

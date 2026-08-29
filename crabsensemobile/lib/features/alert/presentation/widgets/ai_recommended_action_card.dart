@@ -48,7 +48,7 @@ class AIRecommendedActionCard extends StatelessWidget {
                     const Text(
                       'GỢI Ý AI',
                       style: TextStyle(
-                        color: kHomeBlueLight,
+                        color: kHomePrimaryDark,
                         fontWeight: FontWeight.w800,
                         fontSize: 12,
                         letterSpacing: 0.8,
@@ -69,7 +69,7 @@ class AIRecommendedActionCard extends StatelessWidget {
                 Text(
                   recommendation.action,
                   style: TextStyle(
-                    color: Colors.white,
+                    color: kHomeTextMain,
                     fontSize: compact ? 13 : 14,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
@@ -92,7 +92,7 @@ class AIRecommendedActionCard extends StatelessWidget {
                             onPressed: onExecute,
                             style: FilledButton.styleFrom(
                               backgroundColor: kHomeCyan,
-                              foregroundColor: kHomeNavyDeep,
+                              foregroundColor: kHomeBg,
                               minimumSize: const Size(48, 40),
                             ),
                             child: const Text('Thực hiện ngay'),

@@ -24,7 +24,7 @@ class PermissionView extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+          colors: [kHomeSurface, kHomeBg, kHomeBg],
         ),
       ),
       child: Stack(
@@ -124,7 +124,7 @@ class PermissionView extends StatelessWidget {
                                   ? 'Mở Cài đặt'
                                   : 'Cho phép Camera',
                               style: const TextStyle(
-                                color: Colors.white,
+                                color: kHomeTextMain,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 15,
                               ),

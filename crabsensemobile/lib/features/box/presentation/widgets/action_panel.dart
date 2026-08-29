@@ -47,7 +47,7 @@ class BoxActionPanel extends StatelessWidget {
             const Text(
               'THAO TÁC NHANH',
               style: TextStyle(
-                color: kHomeBlueLight,
+                color: kHomePrimaryDark,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.0,
                 fontSize: 12.5,
@@ -141,7 +141,7 @@ class _ActionTile extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+              colors: [kHomeSurface, kHomeBg, kHomeBg],
             ),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(

@@ -1,530 +1,269 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/theme/app_colors.dart';
 
-/// CrabSense Material Design 3 Theme Configuration
-/// Implements brand colors, typography, and component themes
-/// Requirements: 20.1-20.10
+export '../core/theme/app_colors.dart';
 
-/// Brand color palette for CrabSense
-class CrabSenseColors {
-  // Primary brand color
-  static const primary = Color(0xFF00C8FF); // Cyan blue
-  static const secondary = Color(0xFF00A8E8); // Accent blue/cyan
-
-  // Background and surfaces
-  static const background = Color(0xFF081528); // Dark blue
-  static const surface = Color(0xFF0F1F3D);
-  static const surfaceVariant = Color(0xFF1A2F4D);
-
-  // Status colors
-  static const success = Color(0xFF4CAF50);
-  static const warning = Color(0xFFFFA726);
-  static const error = Color(0xFFEF5350);
-  static const info = Color(0xFF29B6F6);
-
-  // Text colors
-  static const textPrimary = Color(0xFFFFFFFF);
-  static const textSecondary = Color(0xFFB0BEC5);
-  static const textDisabled = Color(0xFF607D8B);
-
-  // Border and outline colors
-  static const outline = Color(0xFF37474F);
-  static const outlineVariant = Color(0xFF263238);
-}
-
-/// Typography configuration using Inter font family
-class CrabSenseTypography {
-  static const String fontFamily = 'Inter';
-
-  // Display styles
-  static const displayLarge = TextStyle(
-    fontSize: 57,
-    fontWeight: FontWeight.w700,
-    letterSpacing: -0.25,
-    height: 1.12,
-    fontFamily: fontFamily,
-  );
-
-  static const displayMedium = TextStyle(
-    fontSize: 45,
-    fontWeight: FontWeight.w700,
-    letterSpacing: 0,
-    height: 1.16,
-    fontFamily: fontFamily,
-  );
-
-  static const displaySmall = TextStyle(
-    fontSize: 36,
-    fontWeight: FontWeight.w600,
-    letterSpacing: 0,
-    height: 1.22,
-    fontFamily: fontFamily,
-  );
-
-  // Headline styles
-  static const headlineLarge = TextStyle(
-    fontSize: 32,
-    fontWeight: FontWeight.w600,
-    letterSpacing: 0,
-    height: 1.25,
-    fontFamily: fontFamily,
-  );
-
-  static const headlineMedium = TextStyle(
-    fontSize: 28,
-    fontWeight: FontWeight.w600,
-    letterSpacing: 0,
-    height: 1.29,
-    fontFamily: fontFamily,
-  );
-
-  static const headlineSmall = TextStyle(
-    fontSize: 24,
-    fontWeight: FontWeight.w600,
-    letterSpacing: 0,
-    height: 1.33,
-    fontFamily: fontFamily,
-  );
-
-  // Title styles
-  static const titleLarge = TextStyle(
-    fontSize: 22,
-    fontWeight: FontWeight.w600,
-    letterSpacing: 0,
-    height: 1.27,
-    fontFamily: fontFamily,
-  );
-
-  static const titleMedium = TextStyle(
-    fontSize: 16,
-    fontWeight: FontWeight.w600,
-    letterSpacing: 0.15,
-    height: 1.50,
-    fontFamily: fontFamily,
-  );
-
-  static const titleSmall = TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.w600,
-    letterSpacing: 0.1,
-    height: 1.43,
-    fontFamily: fontFamily,
-  );
-
-  // Body styles
-  static const bodyLarge = TextStyle(
-    fontSize: 16,
-    fontWeight: FontWeight.w400,
-    letterSpacing: 0.5,
-    height: 1.50,
-    fontFamily: fontFamily,
-  );
-
-  static const bodyMedium = TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.w400,
-    letterSpacing: 0.25,
-    height: 1.43,
-    fontFamily: fontFamily,
-  );
-
-  static const bodySmall = TextStyle(
-    fontSize: 12,
-    fontWeight: FontWeight.w400,
-    letterSpacing: 0.4,
-    height: 1.33,
-    fontFamily: fontFamily,
-  );
-
-  // Label styles
-  static const labelLarge = TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 0.1,
-    height: 1.43,
-    fontFamily: fontFamily,
-  );
-
-  static const labelMedium = TextStyle(
-    fontSize: 12,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 0.5,
-    height: 1.33,
-    fontFamily: fontFamily,
-  );
-
-  static const labelSmall = TextStyle(
-    fontSize: 11,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 0.5,
-    height: 1.45,
-    fontFamily: fontFamily,
-  );
-}
-
-/// CrabSense Dark Theme Configuration (Default)
+/// CrabSense Theme — Thân thiện với nông dân, sáng sủa, dễ dùng
+/// Light mode là mặc định theo thiết kế mới
 class CrabSenseTheme {
-  /// Dark theme implementation (default)
-  static ThemeData get darkTheme {
-    final colorScheme = ColorScheme.dark(
-      primary: CrabSenseColors.primary,
-      secondary: CrabSenseColors.primary.withValues(alpha: 0.7),
-      error: CrabSenseColors.error,
-      onError: Colors.white,
-      surface: CrabSenseColors.surface,
-      surfaceContainerHighest: CrabSenseColors.surfaceVariant,
-      outline: CrabSenseColors.outline,
-      outlineVariant: CrabSenseColors.outlineVariant,
-    );
+  static ThemeData get darkTheme => lightTheme; // redirect về light
+
+  static ThemeData get lightTheme {
+    final base = GoogleFonts.nunitoTextTheme();
 
     return ThemeData(
       useMaterial3: true,
-      colorScheme: colorScheme,
+      brightness: Brightness.light,
       scaffoldBackgroundColor: CrabSenseColors.background,
 
-      // Typography theme with Inter font family from Google Fonts
-      textTheme: GoogleFonts.interTextTheme(
-        TextTheme(
-          displayLarge: CrabSenseTypography.displayLarge.copyWith(
-            color: CrabSenseColors.textPrimary,
-          ),
-          displayMedium: CrabSenseTypography.displayMedium.copyWith(
-            color: CrabSenseColors.textPrimary,
-          ),
-          displaySmall: CrabSenseTypography.displaySmall.copyWith(
-            color: CrabSenseColors.textPrimary,
-          ),
-          headlineLarge: CrabSenseTypography.headlineLarge.copyWith(
-            color: CrabSenseColors.textPrimary,
-          ),
-          headlineMedium: CrabSenseTypography.headlineMedium.copyWith(
-            color: CrabSenseColors.textPrimary,
-          ),
-          headlineSmall: CrabSenseTypography.headlineSmall.copyWith(
-            color: CrabSenseColors.textPrimary,
-          ),
-          titleLarge: CrabSenseTypography.titleLarge.copyWith(color: CrabSenseColors.textPrimary),
-          titleMedium: CrabSenseTypography.titleMedium.copyWith(color: CrabSenseColors.textPrimary),
-          titleSmall: CrabSenseTypography.titleSmall.copyWith(color: CrabSenseColors.textSecondary),
-          bodyLarge: CrabSenseTypography.bodyLarge.copyWith(color: CrabSenseColors.textPrimary),
-          bodyMedium: CrabSenseTypography.bodyMedium.copyWith(color: CrabSenseColors.textSecondary),
-          bodySmall: CrabSenseTypography.bodySmall.copyWith(color: CrabSenseColors.textSecondary),
-          labelLarge: CrabSenseTypography.labelLarge.copyWith(color: CrabSenseColors.textPrimary),
-          labelMedium: CrabSenseTypography.labelMedium.copyWith(
-            color: CrabSenseColors.textSecondary,
-          ),
-          labelSmall: CrabSenseTypography.labelSmall.copyWith(color: CrabSenseColors.textDisabled),
-        ),
+      colorScheme: const ColorScheme.light(
+        primary: CrabSenseColors.primary,
+        onPrimary: CrabSenseColors.textOnPrimary,
+        secondary: CrabSenseColors.secondary,
+        onSecondary: Colors.white,
+        error: CrabSenseColors.danger,
+        onError: Colors.white,
+        surface: CrabSenseColors.surface,
+        onSurface: CrabSenseColors.textPrimary,
+        outline: CrabSenseColors.border,
+        outlineVariant: CrabSenseColors.divider,
       ),
 
-      // AppBar theme
+      // ── Typography — Nunito: tròn, thân thiện, dễ đọc ───────────────
+      textTheme: base.copyWith(
+        // Tiêu đề lớn
+        headlineLarge: GoogleFonts.nunito(fontSize: 24, fontWeight: FontWeight.w800, color: CrabSenseColors.textPrimary),
+        headlineMedium: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w700, color: CrabSenseColors.textPrimary),
+        headlineSmall: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w700, color: CrabSenseColors.textPrimary),
+        // Tiêu đề section
+        titleLarge: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w700, color: CrabSenseColors.textPrimary),
+        titleMedium: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w600, color: CrabSenseColors.textPrimary),
+        titleSmall: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w600, color: CrabSenseColors.textSecondary),
+        // Nội dung
+        bodyLarge: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w400, color: CrabSenseColors.textPrimary),
+        bodyMedium: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w400, color: CrabSenseColors.textSecondary),
+        bodySmall: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w400, color: CrabSenseColors.textHint),
+        // Label
+        labelLarge: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w600, color: CrabSenseColors.textPrimary),
+        labelMedium: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w600, color: CrabSenseColors.textSecondary),
+        labelSmall: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w500, color: CrabSenseColors.textHint),
+      ),
+
+      // ── AppBar ───────────────────────────────────────────────────────
       appBarTheme: AppBarTheme(
-        centerTitle: true,
+        backgroundColor: CrabSenseColors.primary,
+        foregroundColor: Colors.white,
         elevation: 0,
+        centerTitle: false,
         scrolledUnderElevation: 2,
-        backgroundColor: CrabSenseColors.surface,
-        foregroundColor: CrabSenseColors.textPrimary,
-        surfaceTintColor: Colors.transparent,
         systemOverlayStyle: const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.light,
-          statusBarBrightness: Brightness.dark,
         ),
-        titleTextStyle: CrabSenseTypography.titleLarge.copyWith(color: CrabSenseColors.textPrimary),
-        iconTheme: const IconThemeData(color: CrabSenseColors.textPrimary, size: 24),
+        titleTextStyle: GoogleFonts.nunito(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+        iconTheme: const IconThemeData(color: Colors.white, size: 24),
       ),
 
-      // Card theme - 16dp border radius
+      // ── Cards ────────────────────────────────────────────────────────
       cardTheme: CardThemeData(
-        elevation: 2,
         color: CrabSenseColors.surface,
+        elevation: 0,
+        shadowColor: CrabSenseColors.shadow,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: CrabSenseColors.primary.withValues(alpha: 0.2)),
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: CrabSenseColors.border, width: 1),
         ),
         clipBehavior: Clip.antiAlias,
-        margin: const EdgeInsets.all(8),
+        margin: EdgeInsets.zero,
       ),
 
-      // Elevated button theme - 14dp border radius
+      // ── Buttons ──────────────────────────────────────────────────────
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: CrabSenseColors.primary,
-          foregroundColor: Colors.black,
-          elevation: 2,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          textStyle: CrabSenseTypography.labelLarge.copyWith(color: Colors.black),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          textStyle: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w700),
+          minimumSize: const Size(double.infinity, 50),
         ),
       ),
 
-      // Outlined button theme - 14dp border radius
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: CrabSenseColors.primary,
           side: const BorderSide(color: CrabSenseColors.primary, width: 1.5),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          textStyle: CrabSenseTypography.labelLarge.copyWith(color: CrabSenseColors.primary),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          textStyle: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w600),
+          minimumSize: const Size(double.infinity, 50),
         ),
       ),
 
-      // Text button theme
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: CrabSenseColors.primary,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          textStyle: CrabSenseTypography.labelLarge.copyWith(color: CrabSenseColors.primary),
+          textStyle: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
 
-      // Icon button theme
-      iconButtonTheme: IconButtonThemeData(
-        style: IconButton.styleFrom(foregroundColor: CrabSenseColors.textPrimary, iconSize: 24),
-      ),
-
-      // Floating action button theme - 16dp border radius
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
+      // ── FAB ──────────────────────────────────────────────────────────
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: CrabSenseColors.primary,
-        foregroundColor: Colors.black,
+        foregroundColor: Colors.white,
         elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: CircleBorder(),
       ),
 
-      // Input decoration theme - outlined style
+      // ── Input Fields ─────────────────────────────────────────────────
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: CrabSenseColors.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: CrabSenseColors.outline),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: CrabSenseColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: CrabSenseColors.outline),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: CrabSenseColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: CrabSenseColors.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: CrabSenseColors.error),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: CrabSenseColors.danger),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: CrabSenseColors.error, width: 2),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: CrabSenseColors.danger, width: 2),
         ),
-        labelStyle: CrabSenseTypography.bodyMedium.copyWith(color: CrabSenseColors.textSecondary),
-        hintStyle: CrabSenseTypography.bodyMedium.copyWith(color: CrabSenseColors.textDisabled),
-        errorStyle: CrabSenseTypography.bodySmall.copyWith(color: CrabSenseColors.error),
+        hintStyle: GoogleFonts.nunito(fontSize: 14, color: CrabSenseColors.textHint),
+        labelStyle: GoogleFonts.nunito(fontSize: 14, color: CrabSenseColors.textSecondary),
+        prefixIconColor: CrabSenseColors.textHint,
+        suffixIconColor: CrabSenseColors.textHint,
       ),
 
-      // Bottom navigation bar theme
+      // ── Bottom Navigation Bar ─────────────────────────────────────────
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: CrabSenseColors.surface,
-        selectedItemColor: CrabSenseColors.primary,
-        unselectedItemColor: CrabSenseColors.textSecondary,
-        elevation: 8,
+        backgroundColor: CrabSenseColors.navBackground,
+        selectedItemColor: CrabSenseColors.navActive,
+        unselectedItemColor: CrabSenseColors.navInactive,
+        elevation: 12,
         type: BottomNavigationBarType.fixed,
-        selectedLabelStyle: CrabSenseTypography.labelSmall.copyWith(color: CrabSenseColors.primary),
-        unselectedLabelStyle: CrabSenseTypography.labelSmall.copyWith(
-          color: CrabSenseColors.textSecondary,
-        ),
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        selectedLabelStyle: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700),
+        unselectedLabelStyle: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w500),
+        selectedIconTheme: const IconThemeData(size: 24),
+        unselectedIconTheme: const IconThemeData(size: 22),
       ),
 
-      // Dialog theme - 16dp border radius
+      // ── Chips ────────────────────────────────────────────────────────
+      chipTheme: ChipThemeData(
+        backgroundColor: CrabSenseColors.surfaceAlt,
+        selectedColor: CrabSenseColors.primaryLight,
+        labelStyle: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w600),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: CrabSenseColors.border),
+        ),
+        side: const BorderSide(color: CrabSenseColors.border),
+      ),
+
+      // ── Divider ──────────────────────────────────────────────────────
+      dividerTheme: const DividerThemeData(
+        color: CrabSenseColors.divider,
+        thickness: 1,
+        space: 1,
+      ),
+
+      // ── Dialog ───────────────────────────────────────────────────────
       dialogTheme: DialogThemeData(
         backgroundColor: CrabSenseColors.surface,
         elevation: 8,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        titleTextStyle: CrabSenseTypography.headlineSmall.copyWith(
-          color: CrabSenseColors.textPrimary,
-        ),
-        contentTextStyle: CrabSenseTypography.bodyMedium.copyWith(
-          color: CrabSenseColors.textSecondary,
-        ),
+        titleTextStyle: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w700, color: CrabSenseColors.textPrimary),
+        contentTextStyle: GoogleFonts.nunito(fontSize: 14, color: CrabSenseColors.textSecondary),
       ),
 
-      // Bottom sheet theme - 16dp border radius (top corners)
+      // ── Bottom Sheet ─────────────────────────────────────────────────
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: CrabSenseColors.surface,
         elevation: 8,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         clipBehavior: Clip.antiAlias,
       ),
 
-      // Chip theme - 14dp border radius
-      chipTheme: ChipThemeData(
-        backgroundColor: CrabSenseColors.surfaceVariant,
-        deleteIconColor: CrabSenseColors.textPrimary,
-        disabledColor: CrabSenseColors.surfaceVariant.withValues(alpha: 0.5),
-        selectedColor: CrabSenseColors.primary.withValues(alpha: 0.3),
-        secondarySelectedColor: CrabSenseColors.primary.withValues(alpha: 0.3),
-        labelPadding: const EdgeInsets.symmetric(horizontal: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: CrabSenseColors.outline),
-        ),
-        labelStyle: CrabSenseTypography.labelMedium.copyWith(color: CrabSenseColors.textPrimary),
-        secondaryLabelStyle: CrabSenseTypography.labelMedium.copyWith(
-          color: CrabSenseColors.textPrimary,
-        ),
-        brightness: Brightness.dark,
-      ),
-
-      // Snackbar theme - 14dp border radius
+      // ── Snackbar ─────────────────────────────────────────────────────
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: CrabSenseColors.surfaceVariant,
-        contentTextStyle: CrabSenseTypography.bodyMedium.copyWith(
-          color: CrabSenseColors.textPrimary,
-        ),
+        backgroundColor: CrabSenseColors.textPrimary,
+        contentTextStyle: GoogleFonts.nunito(fontSize: 14, color: Colors.white),
         actionTextColor: CrabSenseColors.primary,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         elevation: 4,
       ),
 
-      // Divider theme
-      dividerTheme: const DividerThemeData(color: CrabSenseColors.outline, thickness: 1, space: 1),
-
-      // Progress indicator theme
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: CrabSenseColors.primary,
-        circularTrackColor: CrabSenseColors.surfaceVariant,
-        linearTrackColor: CrabSenseColors.surfaceVariant,
+      // ── List Tile ────────────────────────────────────────────────────
+      listTileTheme: ListTileThemeData(
+        tileColor: Colors.transparent,
+        selectedTileColor: CrabSenseColors.primaryLight,
+        iconColor: CrabSenseColors.textSecondary,
+        textColor: CrabSenseColors.textPrimary,
+        titleTextStyle: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w600, color: CrabSenseColors.textPrimary),
+        subtitleTextStyle: GoogleFonts.nunito(fontSize: 13, color: CrabSenseColors.textSecondary),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
 
-      // Switch theme
+      // ── Tab Bar ──────────────────────────────────────────────────────
+      tabBarTheme: TabBarThemeData(
+        labelColor: CrabSenseColors.primary,
+        unselectedLabelColor: CrabSenseColors.textHint,
+        indicatorColor: CrabSenseColors.primary,
+        indicatorSize: TabBarIndicatorSize.tab,
+        dividerColor: CrabSenseColors.divider,
+        labelStyle: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700),
+        unselectedLabelStyle: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w500),
+      ),
+
+      // ── Switch ───────────────────────────────────────────────────────
       switchTheme: SwitchThemeData(
-        thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return Colors.black;
-          }
-          return CrabSenseColors.textSecondary;
-        }),
-        trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return CrabSenseColors.primary;
-          }
-          return CrabSenseColors.outline;
-        }),
+        thumbColor: WidgetStateProperty.resolveWith((s) =>
+            s.contains(WidgetState.selected) ? Colors.white : Colors.white),
+        trackColor: WidgetStateProperty.resolveWith((s) =>
+            s.contains(WidgetState.selected) ? CrabSenseColors.primary : CrabSenseColors.border),
+        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
       ),
 
-      // Checkbox theme
+      // ── Checkbox ─────────────────────────────────────────────────────
       checkboxTheme: CheckboxThemeData(
-        fillColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return CrabSenseColors.primary;
-          }
-          return Colors.transparent;
-        }),
-        checkColor: const WidgetStatePropertyAll(Colors.black),
-        side: const BorderSide(color: CrabSenseColors.outline, width: 2),
+        fillColor: WidgetStateProperty.resolveWith((s) =>
+            s.contains(WidgetState.selected) ? CrabSenseColors.primary : Colors.transparent),
+        checkColor: const WidgetStatePropertyAll(Colors.white),
+        side: const BorderSide(color: CrabSenseColors.border, width: 1.5),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
 
-      // Radio button theme
-      radioTheme: RadioThemeData(
-        fillColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return CrabSenseColors.primary;
-          }
-          return CrabSenseColors.outline;
-        }),
-      ),
-
-      // Slider theme
-      sliderTheme: SliderThemeData(
-        activeTrackColor: CrabSenseColors.primary,
-        inactiveTrackColor: CrabSenseColors.outline,
-        thumbColor: CrabSenseColors.primary,
-        overlayColor: CrabSenseColors.primary.withValues(alpha: 0.2),
-        valueIndicatorColor: CrabSenseColors.primary,
-        valueIndicatorTextStyle: CrabSenseTypography.labelSmall.copyWith(color: Colors.black),
-      ),
-
-      // List tile theme
-      listTileTheme: ListTileThemeData(
-        tileColor: Colors.transparent,
-        selectedTileColor: CrabSenseColors.primary.withValues(alpha: 0.1),
-        iconColor: CrabSenseColors.textSecondary,
-        textColor: CrabSenseColors.textPrimary,
-        titleTextStyle: CrabSenseTypography.bodyLarge.copyWith(color: CrabSenseColors.textPrimary),
-        subtitleTextStyle: CrabSenseTypography.bodyMedium.copyWith(
-          color: CrabSenseColors.textSecondary,
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      ),
-
-      // Tab bar theme
-      tabBarTheme: TabBarThemeData(
-        labelColor: CrabSenseColors.primary,
-        unselectedLabelColor: CrabSenseColors.textSecondary,
-        indicator: const UnderlineTabIndicator(
-          borderSide: BorderSide(color: CrabSenseColors.primary, width: 2),
-        ),
-        labelStyle: CrabSenseTypography.labelLarge.copyWith(color: CrabSenseColors.primary),
-        unselectedLabelStyle: CrabSenseTypography.labelLarge.copyWith(
-          color: CrabSenseColors.textSecondary,
-        ),
-      ),
-
-      // Tooltip theme
-      tooltipTheme: TooltipThemeData(
-        decoration: BoxDecoration(
-          color: CrabSenseColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        textStyle: CrabSenseTypography.bodySmall.copyWith(color: CrabSenseColors.textPrimary),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      ),
-    );
-  }
-
-  /// Light theme implementation (optional fallback)
-  static ThemeData get lightTheme {
-    final colorScheme = ColorScheme.light(
-      primary: CrabSenseColors.primary,
-      secondary: CrabSenseColors.primary.withValues(alpha: 0.7),
-      onSecondary: Colors.white,
-      error: CrabSenseColors.error,
-      onSurface: Colors.black87,
-      surfaceContainerHighest: const Color(0xFFF5F5F5),
-      outline: const Color(0xFFE0E0E0),
-      outlineVariant: const Color(0xFFF5F5F5),
-    );
-
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: colorScheme,
-      scaffoldBackgroundColor: Colors.white,
-      // Light theme uses similar structure to dark theme
-      // with adjusted colors for light mode
-      textTheme: GoogleFonts.interTextTheme(
-        TextTheme(
-          displayLarge: CrabSenseTypography.displayLarge.copyWith(color: Colors.black87),
-          displayMedium: CrabSenseTypography.displayMedium.copyWith(color: Colors.black87),
-          displaySmall: CrabSenseTypography.displaySmall.copyWith(color: Colors.black87),
-          headlineLarge: CrabSenseTypography.headlineLarge.copyWith(color: Colors.black87),
-          headlineMedium: CrabSenseTypography.headlineMedium.copyWith(color: Colors.black87),
-          headlineSmall: CrabSenseTypography.headlineSmall.copyWith(color: Colors.black87),
-          titleLarge: CrabSenseTypography.titleLarge.copyWith(color: Colors.black87),
-          titleMedium: CrabSenseTypography.titleMedium.copyWith(color: Colors.black87),
-          titleSmall: CrabSenseTypography.titleSmall.copyWith(color: Colors.black54),
-          bodyLarge: CrabSenseTypography.bodyLarge.copyWith(color: Colors.black87),
-          bodyMedium: CrabSenseTypography.bodyMedium.copyWith(color: Colors.black54),
-          bodySmall: CrabSenseTypography.bodySmall.copyWith(color: Colors.black54),
-          labelLarge: CrabSenseTypography.labelLarge.copyWith(color: Colors.black87),
-          labelMedium: CrabSenseTypography.labelMedium.copyWith(color: Colors.black54),
-          labelSmall: CrabSenseTypography.labelSmall.copyWith(color: Colors.black38),
-        ),
+      // ── Progress Indicator ───────────────────────────────────────────
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: CrabSenseColors.primary,
+        circularTrackColor: CrabSenseColors.primaryLight,
+        linearTrackColor: CrabSenseColors.primaryLight,
       ),
     );
   }

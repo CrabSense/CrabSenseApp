@@ -79,7 +79,7 @@ class RecentActivitySection extends StatelessWidget {
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+                  colors: [kHomeSurface, kHomeBg, kHomeBg],
                 ),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
@@ -120,7 +120,7 @@ class RecentActivitySection extends StatelessWidget {
                         Text(
                           activity.title,
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: kHomeTextMain,
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
                           ),

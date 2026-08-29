@@ -71,16 +71,16 @@ class _BoxesSearchBarState extends State<BoxesSearchBar> {
             widget.onChanged(v);
             setState(() {});
           },
-          style: const TextStyle(color: Colors.white, fontSize: 14),
+          style: const TextStyle(color: kHomeTextMain, fontSize: 14),
           cursorColor: kHomeBlueLight,
           decoration: InputDecoration(
             hintText: 'Tìm theo tên Box, mã QR hoặc khu vực',
             hintStyle: TextStyle(
-              color: Colors.white.withValues(alpha: 0.4),
+              color: const Color(0xFF5A7184),
               fontSize: 13,
             ),
             filled: true,
-            fillColor: kHomeNavyDeep.withValues(alpha: 0.75),
+            fillColor: kHomeBg.withValues(alpha: 0.75),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 14,
               vertical: 14,
@@ -132,13 +132,13 @@ class _BoxesSearchBarState extends State<BoxesSearchBar> {
             children: widget.recentSearches.take(5).map((q) {
               return ActionChip(
                 label: Text(q, style: const TextStyle(fontSize: 11)),
-                backgroundColor: kHomeNavyDeep.withValues(alpha: 0.75),
+                backgroundColor: kHomeBg.withValues(alpha: 0.75),
                 side: BorderSide(
                   color: kHomeBorderBlue.withValues(alpha: 0.4),
                 ),
                 onPressed: () => widget.onRecentSelected?.call(q),
                 labelStyle: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: const Color(0xFF5A7184),
                 ),
               );
             }).toList(),
