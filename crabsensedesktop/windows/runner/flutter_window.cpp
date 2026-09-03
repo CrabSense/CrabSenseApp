@@ -10,8 +10,9 @@ FlutterWindow::FlutterWindow(const flutter::DartProject& project)
 FlutterWindow::~FlutterWindow() {}
 
 bool FlutterWindow::OnCreate() {
-  if (!Win32Window::OnCreate()) {
-    return false;
+  const bool parent_created = Win32Window::OnCreate();
+  if (!parent_created) {
+    return parent_created;
   }
 
   RECT frame = GetClientArea();
@@ -20,14 +21,18 @@ bool FlutterWindow::OnCreate() {
   // creation / destruction in the startup path.
   flutter_controller_ = std::make_unique<flutter::FlutterViewController>(
       frame.right - frame.left, frame.bottom - frame.top, project_);
-  // Ensure that basic setup of the controller was successful.
-  if (!flutter_controller_->engine() || !flutter_controller_->view()) {
-    return false;
-  }
-  RegisterPlugins(flutter_controller_->engine());
-  SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
-  flutter_controller_->engine()->SetNextFrameCallback([&]() {
+  auto* const engine = flutter_controller_->engine();
+  auto* const view = flutter_controller_->view();
+  const bool controller_ready = engine != nullptr && view != nullptr;
+  if (!controller_ready) {
+    return controller_ready;
+  }
+
+  RegisterPlugins(engine);
+  SetChildContent(view->GetNativeWindow());
+
+  engine->SetNextFrameCallback([&]() {
     this->Show();
   });
 
@@ -36,7 +41,7 @@ bool FlutterWindow::OnCreate() {
   // window is shown. It is a no-op if the first frame hasn't completed yet.
   flutter_controller_->ForceRedraw();
 
-  return true;
+  return controller_ready;
 }
 
 void FlutterWindow::OnDestroy() {
