@@ -16,18 +16,21 @@ namespace {
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
 #endif
 
-constexpr const wchar_t kWindowClassName[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
+constexpr const wchar_t* kWindowClassName = L"FLUTTER_RUNNER_WIN32_WINDOW";
 
 /// Registry key for app theme preference.
 ///
 /// A value of 0 indicates apps should use dark mode. A non-zero or missing
 /// value indicates apps should use light mode.
-constexpr const wchar_t kGetPreferredBrightnessRegKey[] =
-  L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
-constexpr const wchar_t kGetPreferredBrightnessRegValue[] = L"AppsUseLightTheme";
+constexpr const wchar_t* kGetPreferredBrightnessRegKey =
+    L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
+constexpr const wchar_t* kGetPreferredBrightnessRegValue = L"AppsUseLightTheme";
 
-// The number of Win32Window objects that currently exist.
-static int g_active_window_count = 0;
+// Returns the number of Win32Window objects that currently exist.
+int& ActiveWindowCount() {
+  static int count = 0;
+  return count;
+}
 
 using EnableNonClientDpiScaling = BOOL __stdcall(HWND hwnd);
 
@@ -60,12 +63,11 @@ class WindowClassRegistrar {
  public:
   ~WindowClassRegistrar() = default;
 
-  // Returns the singleton registrar instance.
-  static WindowClassRegistrar* GetInstance() {
-    if (!instance_) {
-      instance_ = new WindowClassRegistrar();
-    }
-    return instance_;
+  // Returns the singleton registrar instance (function-local static, not a
+  // file-scope global).
+  static WindowClassRegistrar& GetInstance() {
+    static WindowClassRegistrar registrar;
+    return registrar;
   }
 
   // Returns the name of the window class, registering the class if it hasn't
@@ -79,12 +81,8 @@ class WindowClassRegistrar {
  private:
   WindowClassRegistrar() = default;
 
-  static WindowClassRegistrar* instance_;
-
   bool class_registered_ = false;
 };
-
-WindowClassRegistrar* WindowClassRegistrar::instance_ = nullptr;
 
 const wchar_t* WindowClassRegistrar::GetWindowClass() {
   if (!class_registered_) {
@@ -112,11 +110,11 @@ void WindowClassRegistrar::UnregisterWindowClass() {
 }
 
 Win32Window::Win32Window() {
-  ++g_active_window_count;
+  ++ActiveWindowCount();
 }
 
 Win32Window::~Win32Window() {
-  --g_active_window_count;
+  --ActiveWindowCount();
   Destroy();
 }
 
@@ -126,7 +124,7 @@ bool Win32Window::Create(const std::wstring& title,
   Destroy();
 
   const wchar_t* window_class =
-      WindowClassRegistrar::GetInstance()->GetWindowClass();
+      WindowClassRegistrar::GetInstance().GetWindowClass();
 
   const POINT target_point = {static_cast<LONG>(origin.x),
                               static_cast<LONG>(origin.y)};
@@ -154,7 +152,7 @@ bool Win32Window::Show() {
 }
 
 // static
-LRESULT CALLBACK Win32Window::WndProc(HWND const window,
+LRESULT __stdcall Win32Window::WndProc(HWND const window,
                                       UINT const message,
                                       WPARAM const wparam,
                                       LPARAM const lparam) noexcept {
@@ -228,8 +226,8 @@ void Win32Window::Destroy() {
     DestroyWindow(window_handle_);
     window_handle_ = nullptr;
   }
-  if (g_active_window_count == 0) {
-    WindowClassRegistrar::GetInstance()->UnregisterWindowClass();
+  if (ActiveWindowCount() == 0) {
+    WindowClassRegistrar::GetInstance().UnregisterWindowClass();
   }
 }
 

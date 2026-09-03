@@ -1,0 +1,167 @@
+import '../models/farm_activity_log.dart';
+
+abstract final class MockFarmActivityLogData {
+  static const kpi = FarmLogKpi(
+    totalToday: 45,
+    feeding: 12,
+    molting: 6,
+    weighing: 8,
+    treatment: 2,
+    maintenance: 3,
+    harvest: 1,
+  );
+
+  static const aiSummary = FarmLogAiSummary(
+    feeding7d: 35,
+    molting7d: 12,
+    disease7d: 2,
+    maintenance7d: 5,
+    recommendation:
+        'Tăng tần suất kiểm tra cua sau lột xác tại khu B.',
+  );
+
+  static const timeFilters = ['Hôm nay', '7 ngày', '30 ngày', 'Tùy chọn'];
+  static const typeFilters = [
+    'Tất cả',
+    'Cho ăn',
+    'Thay nước',
+    'Cân cua',
+    'Lột xác',
+    'Điều trị',
+    'Bảo trì',
+    'Thu hoạch',
+  ];
+  static const performerFilters = [
+    'Tất cả',
+    'Nguyễn Văn A',
+    'Nguyễn Văn B',
+    'Admin',
+    'Kỹ thuật viên',
+  ];
+  static const areaFilters = ['Tất cả', 'Khu A', 'Khu B', 'Khu C'];
+  static const batchFilters = ['Tất cả', 'CFM-2026-001', 'CFM-2026-002'];
+
+  static const logTypeOptions = [
+    'Cho ăn',
+    'Thay nước',
+    'Cân cua',
+    'Lột xác',
+    'Điều trị bệnh',
+    'Bảo trì',
+    'Thu hoạch',
+    'Quan sát',
+    'Khác',
+  ];
+
+  static List<FarmActivityLogEntry> entries() => [
+        const FarmActivityLogEntry(
+          id: 'log-001',
+          logCode: 'LOG-20260301-001',
+          time: '08:00',
+          logDate: '01/03/2026',
+          type: FarmLogType.feeding,
+          content: 'Cấp 120g thức ăn khu A',
+          performer: 'Nguyễn Văn A',
+          area: 'Khu A',
+          batchId: 'CFM-2026-001',
+          subjectDetail: 'Pellet Feeding - Khu A',
+          note: 'Cua ăn tốt.',
+          evidenceType: EvidenceType.photo,
+          evidenceLabel: 'Xem ảnh',
+          imageUrls: ['IMG_001.jpg', 'IMG_002.jpg'],
+        ),
+        const FarmActivityLogEntry(
+          id: 'log-002',
+          logCode: 'LOG-20260301-002',
+          time: '09:15',
+          logDate: '01/03/2026',
+          type: FarmLogType.molting,
+          content: 'CRAB-A01-001 lột xác lần 3',
+          performer: 'Admin',
+          area: 'Khu A',
+          crabId: 'CRAB-A01-001',
+          subjectDetail: 'CRAB-A01-001 · Lần 3 · Bình thường',
+          evidenceType: EvidenceType.photo,
+          evidenceLabel: 'Xem ảnh',
+          imageUrls: ['IMG_molt_01.jpg'],
+        ),
+        const FarmActivityLogEntry(
+          id: 'log-003',
+          logCode: 'LOG-20260301-003',
+          time: '10:30',
+          logDate: '01/03/2026',
+          type: FarmLogType.maintenance,
+          content: 'Vệ sinh Drum Filter',
+          performer: 'Kỹ thuật viên',
+          area: 'Khu A',
+          subjectDetail: 'Drum Filter-01 · Vệ sinh cánh bơm',
+          evidenceType: EvidenceType.none,
+        ),
+        const FarmActivityLogEntry(
+          id: 'log-004',
+          logCode: 'LOG-20260301-004',
+          time: '13:00',
+          logDate: '01/03/2026',
+          type: FarmLogType.weightUpdate,
+          content: 'CRAB-B01-002 đạt 145g',
+          performer: 'Admin',
+          area: 'Khu B',
+          crabId: 'CRAB-B01-002',
+          subjectDetail: 'Trọng lượng: 145g',
+          evidenceType: EvidenceType.photo,
+          evidenceLabel: 'Xem ảnh',
+        ),
+        const FarmActivityLogEntry(
+          id: 'log-005',
+          logCode: 'LOG-20260301-005',
+          time: '15:20',
+          logDate: '01/03/2026',
+          type: FarmLogType.disease,
+          content: 'Xử lý đốm đen CRAB-C03-004',
+          performer: 'Nguyễn Văn B',
+          area: 'Khu C',
+          crabId: 'CRAB-C03-004',
+          subjectDetail: 'Bệnh: Đốm đen · Thuốc: ABC',
+          note: 'Đang theo dõi',
+          evidenceType: EvidenceType.video,
+          evidenceLabel: 'Xem clip',
+        ),
+        const FarmActivityLogEntry(
+          id: 'log-006',
+          logCode: 'LOG-20260301-006',
+          time: '07:30',
+          logDate: '01/03/2026',
+          type: FarmLogType.waterChange,
+          content: 'Thay 20% nước khu B',
+          performer: 'Nguyễn Văn B',
+          area: 'Khu B',
+          subjectDetail: 'Tỷ lệ thay: 20%',
+        ),
+        const FarmActivityLogEntry(
+          id: 'log-007',
+          logCode: 'LOG-20260301-007',
+          time: '16:45',
+          logDate: '01/03/2026',
+          type: FarmLogType.harvest,
+          content: 'Thu hoạch lứa CFM-2026-001',
+          performer: 'Admin',
+          area: 'Khu A',
+          batchId: 'CFM-2026-001',
+          subjectDetail: 'Sản lượng: 250kg · 45 triệu',
+          evidenceType: EvidenceType.photo,
+          evidenceLabel: 'Xem ảnh',
+          imageUrls: ['harvest_01.jpg'],
+        ),
+        const FarmActivityLogEntry(
+          id: 'log-008',
+          logCode: 'LOG-20260301-008',
+          time: '11:00',
+          logDate: '01/03/2026',
+          type: FarmLogType.maintenance,
+          content: 'Bảo trì Pump-01',
+          performer: 'Kỹ thuật viên',
+          area: 'Khu A',
+          subjectDetail: 'Pump-01 · Vệ sinh cánh bơm',
+        ),
+      ];
+}
