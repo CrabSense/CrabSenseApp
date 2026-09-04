@@ -7,22 +7,21 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../notifications/presentation/providers/unread_notifications_provider.dart';
 import '../../domain/models/home_models.dart';
 
-// Light theme palette ó xanh l· tuoi, n?n tr?ng/x·m nh?t
-const Color _kPrimary    = Color(0xFF2ECC71);
-const Color _kPrimaryDk  = Color(0xFF27AE60);
-const Color _kPrimaryBg  = Color(0xFFE8F8F0);
-const Color _kSecondary  = Color(0xFF1A9CD8);
-const Color _kBorder     = Color(0xFFDDE4EB);
+// Light theme palette ‚Äî xanh l√° tuoi, n?n tr?ng/x√°m nh?t
+const Color _kPrimary    = Color(0xFF6DC22E);
+const Color _kPrimaryDk  = Color(0xFF0A3323);
+const Color _kPrimaryBg  = Color(0xFFC8E86A);
+const Color _kSecondary  = Color(0xFF4F7A62);
+const Color _kBorder     = Color(0xFFD5E0D0);
 const Color _kSurface    = Color(0xFFFFFFFF);
-const Color _kBg         = Color(0xFFF5F7FA);
+const Color _kBg         = Color(0xFFF3F6EC);
 const Color _kShadow     = Color(0x14000000);
-// Keep old names as aliases to avoid any missed references
-const Color _kBlue       = Color(0xFF1A9CD8);
-const Color _kBlueLight  = Color(0xFF1A9CD8);
-const Color _kNavyDeep   = Color(0xFF1A2E3B);
-const Color _kNavy       = Color(0xFF1A2E3B);
-const Color _kNavyLift   = Color(0xFF2ECC71);
-const Color _kBorderBlue = Color(0xFFDDE4EB);
+const Color _kBlue       = Color(0xFF4F7A62);
+const Color _kBlueLight  = Color(0xFF3D8B6E);
+const Color _kNavyDeep   = Color(0xFF0A3323);
+const Color _kNavy       = Color(0xFF0A3323);
+const Color _kNavyLift   = Color(0xFF6DC22E);
+const Color _kBorderBlue = Color(0xFFD5E0D0);
 
 class HomeHeader extends ConsumerWidget {
   const HomeHeader({
@@ -43,12 +42,26 @@ class HomeHeader extends ConsumerWidget {
   String _getGreeting() {
     final hour = DateTime.now().hour;
     if (hour >= 5 && hour < 12) {
-      return 'Ch‡o bu?i s·ng!';
+      return 'Ch√†o bu·ªïi s√°ng!';
     }
     if (hour >= 12 && hour < 18) {
-      return 'Ch‡o bu?i chi?u!';
+      return 'Ch√†o bu·ªïi chi·ªÅu!';
     }
-    return 'Ch‡o bu?i t?i!';
+    return 'Ch√†o bu·ªïi t·ªëi!';
+  }
+
+  String _initials(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return 'CS';
+    if (parts.length == 1) {
+      final s = parts.first;
+      return (s.length >= 2 ? s.substring(0, 2) : s).toUpperCase();
+    }
+    return (parts.first[0] + parts.last[0]).toUpperCase();
   }
 
   void _showFarmSelector(BuildContext context) {
@@ -83,7 +96,7 @@ class HomeHeader extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Thanh kÈo
+                      // Thanh k√©o
                       Center(
                         child: Container(
                           width: 42,
@@ -120,7 +133,7 @@ class HomeHeader extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'CH?N TRANG TR?I –I?U H¿NH',
+                                  'CH·ªåN TRANG TR·∫†I ƒêI·ªÄU H√ÄNH',
                                   style: TextStyle(
                                     color: _kPrimaryDk,
                                     fontWeight: FontWeight.w800,
@@ -132,7 +145,7 @@ class HomeHeader extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '${data.availableFarms.length} khu v?c kh? d?ng',
+                                  '${data.availableFarms.length} khu v·ª±c kh·∫£ d·ª•ng',
                                   style: const TextStyle(
                                     color: CrabSenseColors.textSecondary,
                                     fontSize: 11.5,
@@ -186,7 +199,7 @@ class HomeHeader extends ConsumerWidget {
       children: [
         _buildTopRow(context, unreadCount: unread),
         const SizedBox(height: 14),
-        // Farm selector ó neon left-edge + wireframe (matches design ref)
+        // Farm selector ‚Äî neon left-edge + wireframe (matches design ref)
         _FarmSelectorBar(
           farmName: data.selectedFarmName,
           onTap: () => _showFarmSelector(context),
@@ -227,7 +240,11 @@ class HomeHeader extends ConsumerWidget {
                   child: CircleAvatar(
                     backgroundColor: _kPrimaryBg,
                     child: Text(
-                      'OP',
+                      _initials(
+                        data.operatorName.isNotEmpty
+                            ? data.operatorName
+                            : 'CS',
+                      ),
                       style: TextStyle(
                         color: _kPrimaryDk,
                         fontWeight: FontWeight.w800,
@@ -280,7 +297,7 @@ class HomeHeader extends ConsumerWidget {
                         child: Text(
                           data.operatorName.isNotEmpty
                               ? data.operatorName
-                              : 'Ch? tr?i',
+                              : 'Ch·ªß tr·∫°i',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -323,7 +340,7 @@ class HomeHeader extends ConsumerWidget {
               onPressed: onSearchPressed ??
                   () => ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('TÏm ki?m s? s?m cÛ m?t'),
+                          content: Text('T√¨m ki·∫øm s·∫Ω s·ªõm c√≥ m·∫∑t'),
                           behavior: SnackBarBehavior.floating,
                         ),
                       ),
@@ -347,8 +364,8 @@ class HomeHeader extends ConsumerWidget {
   }
 }
 
-/// Item ch?n tr?i trong bottom sheet: pin ph·t s·ng + tÍn tr?i,
-/// item dang ch?n cÛ vi?n + glow xanh v‡ nh„n "–ang di?u h‡nh".
+/// Item ch?n tr?i trong bottom sheet: pin ph√°t s√°ng + t√™n tr?i,
+/// item dang ch?n c√≥ vi?n + glow xanh v√† nh√£n "√êang di?u h√†nh".
 class _FarmOptionTile extends StatelessWidget {
   const _FarmOptionTile({
     required this.name,
@@ -437,7 +454,7 @@ class _FarmOptionTile extends StatelessWidget {
                       if (isSelected) ...[
                         const SizedBox(height: 2),
                         const Text(
-                          '–ang di?u h‡nh',
+                          'ƒêang ƒëi·ªÅu h√†nh',
                           style: TextStyle(
                             color: _kPrimaryDk,
                             fontSize: 11,
@@ -469,7 +486,7 @@ class _FarmOptionTile extends StatelessWidget {
   }
 }
 
-/// N˙t dÛng trÚn nh? trong bottom sheet.
+/// N√∫t d√≥ng tr√≤n nh? trong bottom sheet.
 class _SheetCloseButton extends StatelessWidget {
   const _SheetCloseButton({required this.onTap});
 
@@ -503,8 +520,8 @@ class _SheetCloseButton extends StatelessWidget {
   }
 }
 
-/// Pill ch?n tr?i theo ?nh: n?n navy gradient, vi?n xanh duong s·ng nh?,
-/// pin d?nh v? xanh ph·t s·ng + watermark cua m? bÍn ph?i.
+/// Pill ch?n tr?i theo ?nh: n?n navy gradient, vi?n xanh duong s√°ng nh?,
+/// pin d?nh v? xanh ph√°t s√°ng + watermark cua m? b√™n ph?i.
 class _FarmSelectorBar extends StatelessWidget {
   const _FarmSelectorBar({
     required this.farmName,
@@ -545,7 +562,7 @@ class _FarmSelectorBar extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           child: Stack(
             children: [
-              // Pin + tÍn tr?i + chevron
+              // Pin + t√™n tr?i + chevron
               Positioned.fill(
                 child: Padding(
                   padding: const EdgeInsets.only(left: 12, right: 16),

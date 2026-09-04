@@ -1,5 +1,5 @@
 // ignore_for_file: lines_longer_than_80_chars
-import 'dart:io';
+import 'package:crabsensemobile/core/platform/io_export.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:logger/logger.dart';
 
+import '../../../../shared/widgets/local_file_image.dart';
 import '../../../../app/routes.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 import '../../../../core/di/injection.dart';
@@ -606,8 +607,8 @@ class _PhotoThumbnail extends StatelessWidget {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: Image.file(
-            File(path),
+          child: LocalFileImage(
+            path: path,
             width: 80,
             height: 80,
             fit: BoxFit.cover,

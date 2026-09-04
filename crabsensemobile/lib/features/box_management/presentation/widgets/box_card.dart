@@ -54,26 +54,26 @@ class BoxCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Ink(
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [kHomeSurface, kHomeBg, kHomeBg],
-              ),
+              color: kHomeSurface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: _accent.withValues(alpha: 0.5),
-              ),
-              boxShadow: [
+              border: Border.all(color: kHomeBorder),
+              boxShadow: const [
                 BoxShadow(
-                  color: _accent.withValues(alpha: 0.16),
-                  blurRadius: 14,
-                  offset: const Offset(0, 4),
+                  color: kHomeShadow,
+                  blurRadius: 8,
+                  offset: Offset(0, 3),
                 ),
               ],
             ),
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(0),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(height: 4, color: _accent),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
@@ -95,9 +95,10 @@ class BoxCard extends StatelessWidget {
                             const SizedBox(height: 2),
                             Text(
                               box.location.areaName,
-                              style: TextStyle(
-                                color: const Color(0xFF5A7184),
+                              style: const TextStyle(
+                                color: kHomeTextSub,
                                 fontSize: 11,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
@@ -248,15 +249,18 @@ class BoxCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     'Cập nhật ${formatRelativeTime(box.lastUpdated)}',
-                    style: TextStyle(
-                      color: const Color(0xFF5A7184),
+                    style: const TextStyle(
+                      color: kHomeTextSub,
                       fontSize: 10,
                     ),
                   ),
                 ],
               ),
             ),
-          ),
+          ],
+        ),
+      ),
+    ),
         ),
       ),
     );
@@ -285,8 +289,8 @@ class _MetricChip extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(
-              color: const Color(0xFF5A7184),
+            style: const TextStyle(
+              color: kHomeTextSub,
               fontSize: 10,
             ),
           ),

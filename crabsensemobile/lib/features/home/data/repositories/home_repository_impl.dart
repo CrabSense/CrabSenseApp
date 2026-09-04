@@ -1,50 +1,16 @@
 import 'dart:async';
-import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/network/api_client.dart';
 import '../../domain/models/home_models.dart';
 import '../../domain/repositories/home_repository.dart';
 
 /// Production Implementation of HomeRepository wired to CrabSense Backend APIs.
 /// Scopes dashboard / boxes / ops by selected [farmingAreaId].
 class HomeRepositoryImpl implements HomeRepository {
-  HomeRepositoryImpl({Dio? dio, FlutterSecureStorage? secureStorage})
-      : _secureStorage = secureStorage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-              iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
-            ),
-        _dio = dio ??
-            Dio(
-              BaseOptions(
-                baseUrl: ApiConstants.apiBaseUrl,
-                connectTimeout: ApiConstants.connectTimeout,
-                receiveTimeout: ApiConstants.receiveTimeout,
-                headers: const {
-                  'Content-Type': 'application/json',
-                  'Accept': 'application/json',
-                },
-              ),
-            ) {
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          try {
-            String? token;
-            token = await _secureStorage.read(key: 'auth_access_token');
-            if (token != null && token.isNotEmpty) {
-              options.headers['Authorization'] = 'Bearer $token';
-            }
-          } catch (_) {}
-          return handler.next(options);
-        },
-      ),
-    );
-  }
+  HomeRepositoryImpl({required ApiClient api}) : _api = api;
 
-  final Dio _dio;
-  final FlutterSecureStorage _secureStorage;
+  final ApiClient _api;
   HomeStateData? _cachedData;
 
   Map<String, dynamic>? _areaQuery(String? farmingAreaId) {
@@ -167,7 +133,7 @@ class HomeRepositoryImpl implements HomeRepository {
 
       _cachedData = summary;
       return summary;
-    } catch (_) {
+    } catch (e) {
       if (_cachedData != null) {
         return HomeStateData(
           operatorName: _cachedData!.operatorName,
@@ -188,7 +154,7 @@ class HomeRepositoryImpl implements HomeRepository {
           lastSyncedAt: _cachedData!.lastSyncedAt ?? DateTime.now(),
         );
       }
-      return _emptyDataState();
+      rethrow;
     }
   }
 
@@ -245,20 +211,23 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   Future<Map<String, dynamic>?> _fetchUserInfo() async {
-    final res = await _dio.get(ApiConstants.currentUser);
-    if (res.statusCode == 200 && res.data != null) {
-      final root = _asStringKeyedMap(res.data);
-      final raw = root?['data'] ?? res.data;
-      return _asStringKeyedMap(raw);
-    }
+    try {
+      final res = await _api.get(ApiConstants.currentUser);
+      if (res.statusCode == 200 && res.data != null) {
+        final root = _asStringKeyedMap(res.data);
+        final raw = root?['data'] ?? res.data;
+        return _asStringKeyedMap(raw);
+      }
+    } catch (_) {}
     return null;
   }
 
   Future<List<FarmOption>> _fetchFarms([String? ownerId]) async {
     Future<List<FarmOption>> request(Map<String, dynamic>? query) async {
-      final res = await _dio.get(
+      final merged = <String, dynamic>{'page': 1, 'pageSize': 200, ...?query};
+      final res = await _api.get(
         ApiConstants.farmingAreas,
-        queryParameters: query,
+        queryParameters: merged,
       );
       if (res.statusCode == 200 && res.data != null) {
         final list = _extractList(res.data);
@@ -283,7 +252,7 @@ class HomeRepositoryImpl implements HomeRepository {
 
   Future<Map<String, int>?> _fetchBoxes(String? farmingAreaId) async {
     try {
-      final res = await _dio.get(
+      final res = await _api.get(
         ApiConstants.boxes,
         queryParameters: _areaQuery(farmingAreaId),
       );
@@ -317,7 +286,7 @@ class HomeRepositoryImpl implements HomeRepository {
     final area = _areaQuery(farmingAreaId);
     if (area != null) query.addAll(area);
 
-    final res = await _dio.get(
+    final res = await _api.get(
       ApiConstants.alerts,
       queryParameters: query,
     );
@@ -362,7 +331,7 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   Future<int?> _fetchUnreadNotificationsCount() async {
-    final res = await _dio.get(ApiConstants.unreadAlertCount);
+    final res = await _api.get(ApiConstants.unreadAlertCount);
     if (res.statusCode != 200 || res.data == null) return null;
     final raw = res.data;
     Map<String, dynamic>? body;
@@ -382,7 +351,7 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   Future<List<WaterMetricItem>?> _fetchWaterMetrics(String? farmingAreaId) async {
-    final res = await _dio.get(
+    final res = await _api.get(
       ApiConstants.waterQualityLatest,
       queryParameters: _areaQuery(farmingAreaId),
     );
@@ -459,7 +428,7 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   Future<DeviceSummary?> _fetchDevices(String? farmingAreaId) async {
-    final res = await _dio.get(
+    final res = await _api.get(
       ApiConstants.devices,
       queryParameters: _areaQuery(farmingAreaId),
     );
@@ -509,7 +478,7 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   Future<FarmSummary?> _fetchOverview(String? farmingAreaId) async {
-    final res = await _dio.get(
+    final res = await _api.get(
       ApiConstants.dashboardOverview,
       queryParameters: _areaQuery(farmingAreaId),
     );
@@ -531,7 +500,7 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   Future<FarmHealthScore?> _fetchHealthMetrics(String? farmingAreaId) async {
-    final res = await _dio.get(
+    final res = await _api.get(
       ApiConstants.dashboardMetrics,
       queryParameters: _areaQuery(farmingAreaId),
     );
@@ -565,7 +534,7 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   Future<AiRecommendation?> _fetchAiRecommendation(String? farmingAreaId) async {
-    final res = await _dio.get(
+    final res = await _api.get(
       ApiConstants.aiRecommendations,
       queryParameters: _areaQuery(farmingAreaId),
     );
@@ -609,7 +578,7 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   Future<List<TodayTaskItem>?> _fetchTodayTasks(String? farmingAreaId) async {
-    final res = await _dio.get(
+    final res = await _api.get(
       ApiConstants.operationsToday,
       queryParameters: _areaQuery(farmingAreaId),
     );
@@ -640,7 +609,7 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   Future<List<RecentActivityItem>?> _fetchRecentActivities(String? farmingAreaId) async {
-    final res = await _dio.get(
+    final res = await _api.get(
       ApiConstants.operationsRecent,
       queryParameters: _areaQuery(farmingAreaId),
     );

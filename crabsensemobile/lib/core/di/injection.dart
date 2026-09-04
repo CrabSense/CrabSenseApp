@@ -777,7 +777,7 @@ Future<void> init() async {
   );
 
   sl.registerLazySingleton<NotificationPreferencesRepository>(
-    () => NotificationPreferencesRepositoryImpl(localDataSource: sl()),
+    () => NotificationPreferencesRepositoryImpl(localDataSource: sl(), api: sl()),
   );
 
   //! ============================================================================

@@ -218,7 +218,7 @@ class AiRecommendationCard extends StatelessWidget {
                                       .titleMedium
                                       ?.copyWith(
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                        color: kHomeTextMain,
                                         fontSize: 14,
                                       ),
                                   maxLines: 1,
@@ -367,7 +367,7 @@ class AiRecommendationCard extends StatelessWidget {
                                 .titleMedium
                                 ?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: kHomeTextMain,
                                 ),
                           ),
                           const SizedBox(height: 2),

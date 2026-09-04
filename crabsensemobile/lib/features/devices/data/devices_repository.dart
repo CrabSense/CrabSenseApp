@@ -1,7 +1,5 @@
-import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
 import '../../../core/constants/api_constants.dart';
+import '../../../core/network/api_client.dart';
 import 'models/iot_device.dart';
 
 abstract class DevicesRepository {
@@ -10,43 +8,13 @@ abstract class DevicesRepository {
 }
 
 class DevicesRepositoryImpl implements DevicesRepository {
-  DevicesRepositoryImpl({Dio? dio, FlutterSecureStorage? secureStorage})
-      : _secureStorage = secureStorage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-              iOptions: IOSOptions(
-                accessibility: KeychainAccessibility.first_unlock,
-              ),
-            ),
-        _dio = dio ??
-            Dio(
-              BaseOptions(
-                baseUrl: ApiConstants.apiBaseUrl,
-                connectTimeout: ApiConstants.connectTimeout,
-                receiveTimeout: ApiConstants.receiveTimeout,
-              ),
-            ) {
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          try {
-            final token = await _secureStorage.read(key: 'auth_access_token');
-            if (token != null && token.isNotEmpty) {
-              options.headers['Authorization'] = 'Bearer $token';
-            }
-          } catch (_) {}
-          return handler.next(options);
-        },
-      ),
-    );
-  }
+  DevicesRepositoryImpl({required ApiClient api}) : _api = api;
 
-  final Dio _dio;
-  final FlutterSecureStorage _secureStorage;
+  final ApiClient _api;
 
   @override
   Future<List<IotDevice>> getDevices({String? farmingAreaId}) async {
-    final res = await _dio.get(
+    final res = await _api.get(
       ApiConstants.devices,
       queryParameters: farmingAreaId != null && farmingAreaId.isNotEmpty
           ? {'farmingAreaId': farmingAreaId}
@@ -66,7 +34,7 @@ class DevicesRepositoryImpl implements DevicesRepository {
 
   @override
   Future<IotDevice> getDevice(String id) async {
-    final res = await _dio.get('${ApiConstants.devices}/$id');
+    final res = await _api.get('${ApiConstants.devices}/$id');
     if (res.statusCode != 200 || res.data == null) {
       throw Exception('Không tải được chi tiết thiết bị');
     }

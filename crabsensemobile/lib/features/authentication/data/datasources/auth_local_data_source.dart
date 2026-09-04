@@ -123,6 +123,11 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   AuthLocalDataSourceImpl({required this.secureStorage});
   final FlutterSecureStorage secureStorage;
 
+  // Web IndexedDB can lag behind writes; keep tokens in RAM so Dio
+  // attaches JWT immediately after login.
+  String? _memAccessToken;
+  String? _memRefreshToken;
+
   // Storage keys
   static const String _keyUser = 'auth_user';
   static const String _keyAccessToken = 'auth_access_token';
@@ -172,6 +177,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
 
   @override
   Future<void> saveAccessToken(String token) async {
+    _memAccessToken = token;
     try {
       await _write(_keyAccessToken, token);
     } catch (e) {
@@ -181,11 +187,14 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
 
   @override
   Future<String> getAccessToken() async {
+    final mem = _memAccessToken;
+    if (mem != null && mem.isNotEmpty) return mem;
     try {
       final token = await _read(_keyAccessToken);
-      if (token == null) {
+      if (token == null || token.isEmpty) {
         throw const CacheException(message: 'No access token found');
       }
+      _memAccessToken = token;
       return token;
     } catch (e) {
       if (e is CacheException) rethrow;
@@ -195,6 +204,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
 
   @override
   Future<void> saveRefreshToken(String token) async {
+    _memRefreshToken = token;
     try {
       await _write(_keyRefreshToken, token);
     } catch (e) {
@@ -204,11 +214,14 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
 
   @override
   Future<String> getRefreshToken() async {
+    final mem = _memRefreshToken;
+    if (mem != null && mem.isNotEmpty) return mem;
     try {
       final token = await _read(_keyRefreshToken);
-      if (token == null) {
+      if (token == null || token.isEmpty) {
         throw const CacheException(message: 'No refresh token found');
       }
+      _memRefreshToken = token;
       return token;
     } catch (e) {
       if (e is CacheException) rethrow;
@@ -264,6 +277,8 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
 
   @override
   Future<void> clearAuthData() async {
+    _memAccessToken = null;
+    _memRefreshToken = null;
     try {
       await Future.wait([
         _delete(_keyUser),

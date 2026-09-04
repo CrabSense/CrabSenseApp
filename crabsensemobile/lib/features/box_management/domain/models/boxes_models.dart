@@ -282,6 +282,32 @@ class FarmAreaOption {
   const FarmAreaOption({required this.id, required this.name});
 }
 
+class FarmRowOption {
+  final String id;
+  final String name;
+  final String farmingAreaId;
+  final String? areaName;
+  final int capacity;
+  final int boxCount;
+  final bool isActive;
+
+  const FarmRowOption({
+    required this.id,
+    required this.name,
+    required this.farmingAreaId,
+    this.areaName,
+    this.capacity = 0,
+    this.boxCount = 0,
+    this.isActive = true,
+  });
+
+  @override
+  bool operator ==(Object other) => other is FarmRowOption && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
+}
+
 /// Advanced filter state for the Boxes tab.
 class BoxFilterState {
   final String? farmId;

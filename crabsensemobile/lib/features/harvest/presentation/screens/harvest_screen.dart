@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:crabsensemobile/core/platform/io_export.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../shared/widgets/local_file_image.dart';
 import '../../../../app/theme.dart';
 import '../../../../core/di/injection.dart';
 import '../../../authentication/domain/entities/user.dart';
@@ -749,8 +750,8 @@ class _PhotoThumbnail extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.file(
-              File(path),
+            child: LocalFileImage(
+              path: path,
               width: 80,
               height: 80,
               fit: BoxFit.cover,

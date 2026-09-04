@@ -1,54 +1,17 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/network/api_client.dart';
 import '../../domain/models/alerts_models.dart';
 import '../../domain/repositories/alerts_command_repository.dart';
 
 /// Production Alerts repository — GET /alerts, /alerts/history, acknowledge, resolve.
 /// No mock seed data.
 class AlertsCommandRepositoryImpl implements AlertsCommandRepository {
-  AlertsCommandRepositoryImpl({Dio? dio, FlutterSecureStorage? secureStorage})
-    : _secureStorage =
-          secureStorage ??
-          const FlutterSecureStorage(
-            aOptions: AndroidOptions(encryptedSharedPreferences: true),
-            iOptions: IOSOptions(
-              accessibility: KeychainAccessibility.first_unlock,
-            ),
-          ),
-      _dio =
-          dio ??
-          Dio(
-            BaseOptions(
-              baseUrl: ApiConstants.apiBaseUrl,
-              connectTimeout: ApiConstants.connectTimeout,
-              receiveTimeout: ApiConstants.receiveTimeout,
-              headers: const {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-              },
-            ),
-          ) {
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          try {
-            String? token;
-            token = await _secureStorage.read(key: 'auth_access_token');
-            if (token != null && token.isNotEmpty) {
-              options.headers['Authorization'] = 'Bearer $token';
-            }
-          } catch (_) {}
-          return handler.next(options);
-        },
-      ),
-    );
-  }
+  AlertsCommandRepositoryImpl({required ApiClient api}) : _api = api;
 
-  final Dio _dio;
-  final FlutterSecureStorage _secureStorage;
+  final ApiClient _api;
 
   AlertsStateData? _cached;
   final List<_PendingOp> _pending = [];
@@ -269,7 +232,7 @@ class AlertsCommandRepositoryImpl implements AlertsCommandRepository {
     required String userName,
   }) async {
     try {
-      final res = await _dio.patch(
+      final res = await _api.patch(
         ApiConstants.acknowledgeAlert(alertId),
         data: {'userId': userId},
       );
@@ -313,7 +276,7 @@ class AlertsCommandRepositoryImpl implements AlertsCommandRepository {
     String? note,
   }) async {
     try {
-      final res = await _dio.patch(ApiConstants.resolveAlert(alertId));
+      final res = await _api.patch(ApiConstants.resolveAlert(alertId));
       final map = _asMap(_unwrapData(res.data));
       if (map == null) return null;
       final updated = _mapAlert(map).copyWith(
@@ -363,7 +326,7 @@ class AlertsCommandRepositoryImpl implements AlertsCommandRepository {
         .toList();
     for (final a in actives) {
       try {
-        await _dio.patch(ApiConstants.acknowledgeAlert(a.id), data: const {});
+        await _api.patch(ApiConstants.acknowledgeAlert(a.id), data: const {});
       } catch (_) {}
     }
   }
@@ -408,13 +371,13 @@ class AlertsCommandRepositoryImpl implements AlertsCommandRepository {
     for (final op in ops) {
       try {
         if (op.type == 'acknowledge') {
-          await _dio.patch(
+          await _api.patch(
             ApiConstants.acknowledgeAlert(op.alertId),
             data: op.payload,
           );
           synced++;
         } else if (op.type == 'resolve') {
-          await _dio.patch(ApiConstants.resolveAlert(op.alertId));
+          await _api.patch(ApiConstants.resolveAlert(op.alertId));
           synced++;
         }
       } catch (_) {
@@ -444,7 +407,7 @@ class AlertsCommandRepositoryImpl implements AlertsCommandRepository {
   @override
   Future<AlertItem?> getAlertById(String alertId) async {
     try {
-      final res = await _dio.get(ApiConstants.alertDetails(alertId));
+      final res = await _api.get(ApiConstants.alertDetails(alertId));
       final map = _asMap(_unwrapData(res.data));
       if (map == null) return null;
       return _mapAlert(map);
@@ -460,7 +423,7 @@ class AlertsCommandRepositoryImpl implements AlertsCommandRepository {
   // ── Network helpers ───────────────────────────────────────────────────────
 
   Future<List<AlertFarmOption>> _fetchFarms() async {
-    final res = await _dio.get(ApiConstants.farmingAreas);
+    final res = await _api.get(ApiConstants.farmingAreas);
     final list = _extractList(res.data) ?? const [];
     final farms = <AlertFarmOption>[];
     for (final item in list) {
@@ -477,7 +440,7 @@ class AlertsCommandRepositoryImpl implements AlertsCommandRepository {
   Future<List<AlertItem>> _fetchActive(String farmId) async {
     final query = <String, dynamic>{'activeOnly': true};
     if (farmId.isNotEmpty) query['farmingAreaId'] = farmId;
-    final res = await _dio.get(ApiConstants.alerts, queryParameters: query);
+    final res = await _api.get(ApiConstants.alerts, queryParameters: query);
     return _parseAlertList(res.data);
   }
 
@@ -495,7 +458,7 @@ class AlertsCommandRepositoryImpl implements AlertsCommandRepository {
     if (farmId.isNotEmpty) query['farmingAreaId'] = farmId;
 
     try {
-      final res = await _dio.get(
+      final res = await _api.get(
         ApiConstants.alertHistory,
         queryParameters: query,
       );
@@ -505,7 +468,7 @@ class AlertsCommandRepositoryImpl implements AlertsCommandRepository {
         // Fallback: full list then filter resolved locally.
         final queryAll = <String, dynamic>{'activeOnly': false};
         if (farmId.isNotEmpty) queryAll['farmingAreaId'] = farmId;
-        final res = await _dio.get(
+        final res = await _api.get(
           ApiConstants.alerts,
           queryParameters: queryAll,
         );

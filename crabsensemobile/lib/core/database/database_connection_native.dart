@@ -1,16 +1,5 @@
-import 'dart:io';
-
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+import 'package:drift_flutter/drift_flutter.dart';
 
-/// Opens a persistent SQLite database on native platforms (Android/iOS/desktop).
-///
-/// Uses [NativeDatabase.createInBackground] so schema creation does not
-/// block the UI thread.
-Future<QueryExecutor> openDatabaseConnection() async {
-  final dbFolder = await getApplicationDocumentsDirectory();
-  final file = File(p.join(dbFolder.path, 'crabsense.db'));
-  return NativeDatabase.createInBackground(file);
-}
+/// Persistent SQLite via drift_flutter (not compiled for web).
+QueryExecutor openAppConnection() => driftDatabase(name: 'crabsense');

@@ -1,7 +1,5 @@
-import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
 import '../../../core/constants/api_constants.dart';
+import '../../../core/network/api_client.dart';
 import 'models/ai_center_models.dart';
 
 abstract class AiCenterRepository {
@@ -15,43 +13,13 @@ abstract class AiCenterRepository {
 }
 
 class AiCenterRepositoryImpl implements AiCenterRepository {
-  AiCenterRepositoryImpl({Dio? dio, FlutterSecureStorage? secureStorage})
-      : _secureStorage = secureStorage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-              iOptions: IOSOptions(
-                accessibility: KeychainAccessibility.first_unlock,
-              ),
-            ),
-        _dio = dio ??
-            Dio(
-              BaseOptions(
-                baseUrl: ApiConstants.apiBaseUrl,
-                connectTimeout: ApiConstants.connectTimeout,
-                receiveTimeout: ApiConstants.receiveTimeout,
-              ),
-            ) {
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          try {
-            final token = await _secureStorage.read(key: 'auth_access_token');
-            if (token != null && token.isNotEmpty) {
-              options.headers['Authorization'] = 'Bearer $token';
-            }
-          } catch (_) {}
-          return handler.next(options);
-        },
-      ),
-    );
-  }
+  AiCenterRepositoryImpl({required ApiClient api}) : _api = api;
 
-  final Dio _dio;
-  final FlutterSecureStorage _secureStorage;
+  final ApiClient _api;
 
   @override
   Future<List<AiDetectionItem>> getDetections() async {
-    final res = await _dio.get(ApiConstants.aiDetections);
+    final res = await _api.get(ApiConstants.aiDetections);
     if (res.statusCode != 200 || res.data == null) {
       throw Exception('Không tải được lịch sử phát hiện AI');
     }
@@ -66,7 +34,7 @@ class AiCenterRepositoryImpl implements AiCenterRepository {
 
   @override
   Future<List<AiRecommendationItem>> getRecommendations() async {
-    final res = await _dio.get(ApiConstants.aiRecommendations);
+    final res = await _api.get(ApiConstants.aiRecommendations);
     if (res.statusCode != 200 || res.data == null) {
       throw Exception('Không tải được khuyến nghị AI');
     }
@@ -84,7 +52,7 @@ class AiCenterRepositoryImpl implements AiCenterRepository {
     required bool isCorrect,
     String? comment,
   }) async {
-    final res = await _dio.post(
+    final res = await _api.post(
       ApiConstants.submitFeedback,
       data: {
         'aiDetectionId': detectionId,

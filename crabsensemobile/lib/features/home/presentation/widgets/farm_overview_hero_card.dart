@@ -4,14 +4,14 @@ import '../../../../core/theme/app_colors.dart';
 import '../../domain/models/home_models.dart';
 import 'crab_hologram_painter.dart';
 
-// Palette đồng bộ với header: xanh dương (azure) trên nền navy đậm.
-const Color _kBlue = Color(0xFF2F80FF);
-const Color _kBlueLight = Color(0xFF6FB0FF);
-const Color _kCyan = Color(0xFF3DDCFF);
-const Color _kNavyDeep = Color(0xFF1A2E3B);
-const Color _kNavy = Color(0xFF27AE60);
-const Color _kNavyLift = Color(0xFF2ECC71);
-const Color _kBorderBlue = Color(0xFF27AE60);
+// Palette Neofarm: forest hero, lime accent — cùng 4 chỉ số cũ.
+const Color _kBlue = Color(0xFF6DC22E);
+const Color _kBlueLight = Color(0xFFC8E86A);
+const Color _kCyan = Color(0xFFC5E08A);
+const Color _kNavyDeep = Color(0xFF0A3323);
+const Color _kNavy = Color(0xFF0A3323);
+const Color _kNavyLift = Color(0xFF164332);
+const Color _kBorderBlue = Color(0xFF6DC22E);
 
 class FarmOverviewHeroCard extends StatelessWidget {
   const FarmOverviewHeroCard({required this.summary, super.key});
@@ -34,18 +34,17 @@ class FarmOverviewHeroCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF27AE60), Color(0xFF1E8449)],
+        image: const DecorationImage(
+          image: AssetImage('assets/images/farm_hero.jpg'),
+          fit: BoxFit.cover,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(28),
         border: Border.all(
           color: _kBorderBlue.withValues(alpha: 0.5),
         ),
         boxShadow: [
           BoxShadow(
-            color: _kBlue.withValues(alpha: 0.2),
+            color: const Color(0xFF6DC22E).withValues(alpha: 0.35),
             blurRadius: 18,
             offset: const Offset(0, 4),
           ),
@@ -54,6 +53,17 @@ class FarmOverviewHeroCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
+          const Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0x66164332), Color(0xE60A3323)],
+                ),
+              ),
+            ),
+          ),
           // Họa tiết lưới khay nuôi + cua (giống bộ chọn khu) làm nền
           // hologram removed
           // Vệt sáng nhẹ ở cạnh trên

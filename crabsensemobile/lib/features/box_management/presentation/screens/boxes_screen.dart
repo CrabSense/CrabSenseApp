@@ -5,8 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routes.dart';
-import '../../../../core/di/injection.dart';
-import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../authentication/domain/entities/user.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
@@ -17,6 +15,7 @@ import '../../domain/models/boxes_models.dart';
 import '../providers/boxes_provider.dart';
 import '../widgets/box_quick_sheets.dart';
 import '../widgets/boxes_skeleton.dart';
+import '../widgets/farm_structure_manage_sheet.dart';
 
 /// Boxes tab — Farm map view, light theme.
 class BoxesScreen extends ConsumerStatefulWidget {
@@ -29,7 +28,6 @@ class BoxesScreen extends ConsumerStatefulWidget {
 class _BoxesScreenState extends ConsumerState<BoxesScreen> {
   UserRole? _lastRole;
   String? _selectedFarmId;
-  final ApiClient _api = sl<ApiClient>();
 
   Future<void> _showCreateStructure(String type) async {
     final controller = TextEditingController();
@@ -45,6 +43,7 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
     }
     final result = await showDialog<({String name, int capacity})>(
       context: context,
+      useRootNavigator: true,
       builder: (dialogContext) => AlertDialog(
         title: Text('Tạo ${type.toLowerCase()}'),
         content: Form(
@@ -117,32 +116,39 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
         ],
       ),
     );
-    controller.dispose();
-    capacityController.dispose();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.dispose();
+      capacityController.dispose();
+    });
     if (!mounted || result == null) return;
     final name = result.name;
 
     try {
-      final payload = <String, dynamic>{
-        'name': name,
-      };
       if (type == 'Dãy') {
         if (selectedAreaId == null) {
           _snack('Hãy tạo hoặc chọn khu nuôi trước khi tạo dãy');
           return;
         }
-        payload['farmingAreaId'] = selectedAreaId;
-        payload['capacity'] = result.capacity;
+        await ref.read(boxesStateProvider.notifier).createRow(
+              farmingAreaId: selectedAreaId,
+              name: name,
+              capacity: result.capacity,
+            );
+      } else {
+        await ref.read(boxesStateProvider.notifier).createArea(name: name);
       }
-      await _api.post<dynamic>(
-        type == 'Khu' ? '/farming-areas' : '/farming-rows',
-        data: payload,
-      );
-      await ref.read(boxesStateProvider.notifier).refresh();
       if (mounted) _snack('Đã tạo $type $name');
     } catch (error) {
-      if (mounted) _snack('Không thể tạo $type: $error');
+      if (mounted) _snack(farmApiMessage(error));
     }
+  }
+
+  void _closeSheetThen(BuildContext sheetContext, VoidCallback next) {
+    Navigator.pop(sheetContext);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      next();
+    });
   }
 
   void _showStructureActions() {
@@ -156,28 +162,33 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
               subtitle: Text('Khu → Dãy → Hộp'),
             ),
             ListTile(
+              leading: const Icon(Icons.account_tree_outlined),
+              title: const Text('Quản lý khu / dãy / hộp'),
+              subtitle: const Text('Xem, sửa, xóa'),
+              onTap: () => _closeSheetThen(sheetContext, () {
+                showFarmStructureManageSheet(context);
+              }),
+            ),
+            ListTile(
               leading: const Icon(Icons.add_business_rounded),
               title: const Text('Tạo khu nuôi'),
-              onTap: () {
-                Navigator.pop(sheetContext);
+              onTap: () => _closeSheetThen(sheetContext, () {
                 _showCreateStructure('Khu');
-              },
+              }),
             ),
             ListTile(
               leading: const Icon(Icons.view_stream_rounded),
               title: const Text('Tạo dãy nuôi'),
-              onTap: () {
-                Navigator.pop(sheetContext);
+              onTap: () => _closeSheetThen(sheetContext, () {
                 _showCreateStructure('Dãy');
-              },
+              }),
             ),
             ListTile(
               leading: const Icon(Icons.inventory_2_outlined),
               title: const Text('Tạo hộp nuôi'),
-              onTap: () {
-                Navigator.pop(sheetContext);
+              onTap: () => _closeSheetThen(sheetContext, () {
                 _showCreateBox();
-              },
+              }),
             ),
           ],
         ),
@@ -260,6 +271,20 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
     });
   }
 
+  String _boxesErrorMessage(Object error) {
+    final text = error.toString();
+    if (text.contains('401') ||
+        text.toLowerCase().contains('unauthorized') ||
+        text.toLowerCase().contains('refresh token') ||
+        text.toLowerCase().contains('access token')) {
+      return 'Phiên đăng nhập hết hạn hoặc chưa gửi token. Đăng nhập lại rồi thử lại.';
+    }
+    if (text.contains('403') || text.toLowerCase().contains('forbidden')) {
+      return 'Tài khoản không có quyền xem sơ đồ hộp nuôi.';
+    }
+    return farmApiMessage(error);
+  }
+
   void _snack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -277,6 +302,96 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
     await ref.read(boxesStateProvider.notifier).refresh();
   }
 
+  Future<void> _handleBoxManage(BoxSummary box) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(title: Text('Hộp ${box.code}')),
+            ListTile(
+              leading: const Icon(Icons.set_meal_outlined),
+              title: const Text('Xem cua trong hộp'),
+              onTap: () => Navigator.pop(ctx, 'crabs'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Sửa mã hộp'),
+              onTap: () => Navigator.pop(ctx, 'edit'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: kHomeDanger),
+              title: const Text('Xóa hộp', style: TextStyle(color: kHomeDanger)),
+              onTap: () => Navigator.pop(ctx, 'delete'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == 'crabs') {
+      await _handleBoxTap(box);
+      return;
+    }
+    if (action == 'edit') {
+      final controller = TextEditingController(text: box.code);
+      final code = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Sửa mã hộp'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(labelText: 'Mã hộp'),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+              child: const Text('Lưu'),
+            ),
+          ],
+        ),
+      );
+      controller.dispose();
+      if (code == null || code.isEmpty || !mounted) return;
+      try {
+        await ref.read(boxesStateProvider.notifier).updateBox(
+              id: box.id,
+              code: code,
+              isOccupied: box.crabCount > 0,
+            );
+        if (mounted) _snack('Đã cập nhật hộp $code');
+      } catch (error) {
+        if (mounted) _snack(farmApiMessage(error));
+      }
+      return;
+    }
+    if (action == 'delete') {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('Xóa hộp ${box.code}?'),
+          content: const Text('Chỉ xóa được khi hộp không còn cua sống.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: kHomeDanger),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Xóa'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+      try {
+        await ref.read(boxesStateProvider.notifier).deleteBox(box.id);
+        if (mounted) _snack('Đã xóa hộp ${box.code}');
+      } catch (error) {
+        if (mounted) _snack(farmApiMessage(error));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = context.watch<AuthBloc>().state;
@@ -291,11 +406,7 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
         preferredSize: const Size.fromHeight(56),
         child: Container(
           decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [kHomePrimary, kHomePrimaryDark],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            gradient: CrabSenseColors.headerGradient,
           ),
           child: SafeArea(
             child: Padding(
@@ -306,9 +417,9 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
                     child: Text(
                       'Sơ đồ trang trại',
                       style: TextStyle(
-                        color: kHomeTextMain,
+                        color: Colors.white,
                         fontSize: 18,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
@@ -321,9 +432,9 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
                   ),
                   const SizedBox(width: 12),
                   IconButton(
-                    icon: const Icon(Icons.filter_list_rounded, color: Colors.white),
-                    onPressed: () {},
-                    tooltip: 'Lọc',
+                    icon: const Icon(Icons.account_tree_outlined, color: Colors.white),
+                    onPressed: () => showFarmStructureManageSheet(context),
+                    tooltip: 'Quản lý khu, dãy, hộp',
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -344,19 +455,26 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
       body: asyncState.when(
         loading: () => const BoxesSkeleton(gridColumns: 4),
         error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, color: kHomeDanger, size: 48),
-              const SizedBox(height: 12),
-              Text(e.toString(), style: const TextStyle(color: kHomeTextSub)),
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: () => ref.read(boxesStateProvider.notifier).loadData(forceRefresh: true),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Thử lại'),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, color: kHomeDanger, size: 48),
+                const SizedBox(height: 12),
+                Text(
+                  _boxesErrorMessage(e),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: kHomeTextSub),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: () => ref.read(boxesStateProvider.notifier).loadData(forceRefresh: true),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Thử lại'),
+                ),
+              ],
+            ),
           ),
         ),
         data: (data) => _buildContent(data),
@@ -408,12 +526,13 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
             if (boxes.isEmpty)
               _EmptyBoxState(
                 canCreate: data.canCreateBox,
-                onCreate: () {},
+                onCreate: _showStructureActions,
               )
             else
               _BoxFarmGrid(
                 boxes: boxes,
                 onBoxTap: _handleBoxTap,
+                onBoxLongPress: data.canEditBox ? _handleBoxManage : null,
               ),
 
             const SizedBox(height: 16),
@@ -429,7 +548,7 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
               child: ElevatedButton.icon(
                 onPressed: () => context.push(RoutePaths.reports),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: kHomePrimary,
+                  backgroundColor: kHomePrimaryDark,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -601,10 +720,15 @@ class _StatItem extends StatelessWidget {
 // ─── Box Farm Grid ─────────────────────────────────────────────────────────────
 
 class _BoxFarmGrid extends StatelessWidget {
-  const _BoxFarmGrid({required this.boxes, required this.onBoxTap});
+  const _BoxFarmGrid({
+    required this.boxes,
+    required this.onBoxTap,
+    this.onBoxLongPress,
+  });
 
   final List<BoxSummary> boxes;
   final void Function(BoxSummary) onBoxTap;
+  final void Function(BoxSummary)? onBoxLongPress;
 
   Color _bgColor(BoxSummary box) {
     if (box.alerts.hasAlerts || box.status == BoxHealthStatus.critical) {
@@ -682,15 +806,21 @@ class _BoxFarmGrid extends StatelessWidget {
 
         return GestureDetector(
           onTap: () => onBoxTap(box),
+          onLongPress: onBoxLongPress == null ? null : () => onBoxLongPress!(box),
           child: Container(
             decoration: BoxDecoration(
               color: bg,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: border, width: 1.5),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
                 if (emoji != null)
                   Text(emoji, style: const TextStyle(fontSize: 14))
                 else
@@ -721,7 +851,9 @@ class _BoxFarmGrid extends StatelessWidget {
                     color: box.crabCount > 0 ? textC : kHomeTextHint,
                   ),
                 ),
-              ],
+                  ],
+                ),
+              ),
             ),
           ),
         );
@@ -812,9 +944,17 @@ class _EmptyBoxState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Tạo hộp nuôi để bắt đầu quản lý',
+              'Tạo khu, dãy rồi hộp để bắt đầu quản lý',
               style: TextStyle(fontSize: 13, color: kHomeTextSub),
             ),
+            if (canCreate) ...[
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: onCreate,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Tạo khu / dãy / hộp'),
+              ),
+            ],
           ],
         ),
       ),

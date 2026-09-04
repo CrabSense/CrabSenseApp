@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/errors/error_mapper.dart';
 import '../../../../app/routes.dart';
 import '../../../authentication/domain/entities/user.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
@@ -219,7 +220,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen>
       body: async.when(
         loading: () => const AlertsSkeleton(),
         error: (e, _) => Center(
-          child: SectionErrorCard(message: e.toString(),
+          child: SectionErrorCard(message: ErrorMapper.userFacingMessage(e),
             onRetry: () =>
                 ref.read(alertsStateProvider.notifier).refresh(),
           ),

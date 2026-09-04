@@ -53,7 +53,7 @@ class CrabSenseTheme {
 
       // ── AppBar ───────────────────────────────────────────────────────
       appBarTheme: AppBarTheme(
-        backgroundColor: CrabSenseColors.primary,
+        backgroundColor: CrabSenseColors.headerBg,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
@@ -77,7 +77,7 @@ class CrabSenseTheme {
         shadowColor: CrabSenseColors.shadow,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: CrabSenseColors.border, width: 1),
         ),
         clipBehavior: Clip.antiAlias,
@@ -88,10 +88,10 @@ class CrabSenseTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: CrabSenseColors.primary,
-          foregroundColor: Colors.white,
+          foregroundColor: CrabSenseColors.textOnPrimary,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
           textStyle: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w700),
           minimumSize: const Size(double.infinity, 50),
         ),
@@ -99,10 +99,10 @@ class CrabSenseTheme {
 
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: CrabSenseColors.primary,
-          side: const BorderSide(color: CrabSenseColors.primary, width: 1.5),
+          foregroundColor: CrabSenseColors.primaryDark,
+          side: const BorderSide(color: CrabSenseColors.primaryDark, width: 1.5),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
           textStyle: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w600),
           minimumSize: const Size(double.infinity, 50),
         ),
@@ -110,7 +110,7 @@ class CrabSenseTheme {
 
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: CrabSenseColors.primary,
+          foregroundColor: CrabSenseColors.primaryDark,
           textStyle: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
@@ -118,7 +118,7 @@ class CrabSenseTheme {
       // ── FAB ──────────────────────────────────────────────────────────
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: CrabSenseColors.primary,
-        foregroundColor: Colors.white,
+        foregroundColor: CrabSenseColors.primaryDark,
         elevation: 4,
         shape: CircleBorder(),
       ),
@@ -129,23 +129,23 @@ class CrabSenseTheme {
         fillColor: CrabSenseColors.surface,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: CrabSenseColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: CrabSenseColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: CrabSenseColors.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: CrabSenseColors.danger),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: CrabSenseColors.danger, width: 2),
         ),
         hintStyle: GoogleFonts.nunito(fontSize: 14, color: CrabSenseColors.textHint),
@@ -254,7 +254,7 @@ class CrabSenseTheme {
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith((s) =>
             s.contains(WidgetState.selected) ? CrabSenseColors.primary : Colors.transparent),
-        checkColor: const WidgetStatePropertyAll(Colors.white),
+        checkColor: const WidgetStatePropertyAll(CrabSenseColors.primaryDark),
         side: const BorderSide(color: CrabSenseColors.border, width: 1.5),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),

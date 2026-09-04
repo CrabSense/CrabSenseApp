@@ -1,7 +1,4 @@
-import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
-import '../../../core/constants/api_constants.dart';
+import '../../../core/network/api_client.dart';
 import 'models/report_models.dart';
 
 abstract class ReportsRepository {
@@ -9,43 +6,13 @@ abstract class ReportsRepository {
 }
 
 class ReportsRepositoryImpl implements ReportsRepository {
-  ReportsRepositoryImpl({Dio? dio, FlutterSecureStorage? secureStorage})
-      : _secureStorage = secureStorage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-              iOptions: IOSOptions(
-                accessibility: KeychainAccessibility.first_unlock,
-              ),
-            ),
-        _dio = dio ??
-            Dio(
-              BaseOptions(
-                baseUrl: ApiConstants.apiBaseUrl,
-                connectTimeout: ApiConstants.connectTimeout,
-                receiveTimeout: ApiConstants.receiveTimeout,
-              ),
-            ) {
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          try {
-            final token = await _secureStorage.read(key: 'auth_access_token');
-            if (token != null && token.isNotEmpty) {
-              options.headers['Authorization'] = 'Bearer $token';
-            }
-          } catch (_) {}
-          return handler.next(options);
-        },
-      ),
-    );
-  }
+  ReportsRepositoryImpl({required ApiClient api}) : _api = api;
 
-  final Dio _dio;
-  final FlutterSecureStorage _secureStorage;
+  final ApiClient _api;
 
   @override
   Future<ReportDetailData> getReport(ReportKind kind) async {
-    final res = await _dio.get(kind.apiPath);
+    final res = await _api.get(kind.apiPath);
     if (res.statusCode != 200 || res.data == null) {
       throw Exception('Không tải được ${kind.titleVi}');
     }

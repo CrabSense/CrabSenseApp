@@ -1,47 +1,17 @@
 import 'dart:async';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/network/api_client.dart';
 import '../../domain/repositories/profile_repository.dart';
 import '../models/profile_models.dart';
 
 /// Production Implementation of ProfileRepository wired 100% to CrabSense Backend APIs.
 /// Filters areas owned/managed by the logged-in user (ownerId).
 class ProfileRepositoryImpl implements ProfileRepository {
-  ProfileRepositoryImpl({Dio? dio, FlutterSecureStorage? secureStorage})
-      : _secureStorage = secureStorage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-              iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
-            ),
-        _dio = dio ??
-            Dio(
-              BaseOptions(
-                baseUrl: ApiConstants.apiBaseUrl,
-                connectTimeout: ApiConstants.connectTimeout,
-                receiveTimeout: ApiConstants.receiveTimeout,
-              ),
-            ) {
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          try {
-            String? token;
-            token = await _secureStorage.read(key: 'auth_access_token');
-            if (token != null && token.isNotEmpty) {
-              options.headers['Authorization'] = 'Bearer $token';
-            }
-          } catch (_) {}
-          return handler.next(options);
-        },
-      ),
-    );
-  }
+  ProfileRepositoryImpl({required ApiClient api}) : _api = api;
 
-  final Dio _dio;
-  final FlutterSecureStorage _secureStorage;
+  final ApiClient _api;
   ProfileStateData? _cachedData;
 
   @override
@@ -267,7 +237,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
   @override
   Future<void> logout() async {
     try {
-      await _dio.post('${ApiConstants.apiBaseUrl}${ApiConstants.logout}');
+      await _api.post('${ApiConstants.apiBaseUrl}${ApiConstants.logout}');
     } catch (_) {}
   }
 
@@ -287,7 +257,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }
 
   Future<Map<String, dynamic>?> _fetchUserInfo() async {
-    final res = await _dio.get('${ApiConstants.apiBaseUrl}${ApiConstants.currentUser}');
+    final res = await _api.get('${ApiConstants.apiBaseUrl}${ApiConstants.currentUser}');
     if (res.statusCode == 200 && res.data != null) {
       final raw = res.data is Map<String, dynamic> ? res.data['data'] ?? res.data : null;
       return raw is Map<String, dynamic> ? raw : null;
@@ -303,7 +273,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
     String? employeeId,
     String? avatarUrl,
   }) async {
-    final res = await _dio.put(
+    final res = await _api.put(
       '${ApiConstants.apiBaseUrl}${ApiConstants.updateProfile}',
       data: {
         'fullName': fullName,
@@ -359,7 +329,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
   Future<List<FarmSummaryItem>?> _fetchFarms([String? ownerId]) async {
     final queryParams = ownerId != null && ownerId.isNotEmpty ? {'ownerId': ownerId} : null;
-    final res = await _dio.get('${ApiConstants.apiBaseUrl}${ApiConstants.farmingAreas}', queryParameters: queryParams);
+    final res = await _api.get('${ApiConstants.apiBaseUrl}${ApiConstants.farmingAreas}', queryParameters: queryParams);
     if (res.statusCode == 200 && res.data != null) {
       final list = _extractList(res.data);
       if (list != null && list.isNotEmpty) {
@@ -383,7 +353,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }
 
   Future<DeviceSummary?> _fetchDevices() async {
-    final res = await _dio.get('${ApiConstants.apiBaseUrl}${ApiConstants.devices}');
+    final res = await _api.get('${ApiConstants.apiBaseUrl}${ApiConstants.devices}');
     if (res.statusCode == 200 && res.data != null) {
       final list = _extractList(res.data);
       if (list != null) {
@@ -481,7 +451,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
   Future<Map<String, int>?> _fetchBoxes() async {
     try {
-      final res = await _dio.get('${ApiConstants.apiBaseUrl}${ApiConstants.boxes}');
+      final res = await _api.get('${ApiConstants.apiBaseUrl}${ApiConstants.boxes}');
       if (res.statusCode == 200 && res.data != null) {
         final raw = res.data is Map<String, dynamic> ? res.data['data'] ?? res.data : res.data;
         if (raw is Map<String, dynamic>) {
@@ -498,8 +468,8 @@ class ProfileRepositoryImpl implements ProfileRepository {
   Future<AISummary?> _fetchAiSummary() async {
     try {
       final results = await Future.wait([
-        _dio.get('${ApiConstants.apiBaseUrl}${ApiConstants.aiDetections}'),
-        _dio.get('${ApiConstants.apiBaseUrl}${ApiConstants.aiRecommendations}'),
+        _api.get('${ApiConstants.apiBaseUrl}${ApiConstants.aiDetections}'),
+        _api.get('${ApiConstants.apiBaseUrl}${ApiConstants.aiRecommendations}'),
       ]);
 
       final detList = _extractList(results[0].data) ?? const [];

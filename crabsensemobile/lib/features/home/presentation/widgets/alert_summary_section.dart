@@ -90,39 +90,34 @@ class AlertSummarySection extends StatelessWidget {
               final color = _getSeverityColor(item.severity);
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [kHomeSurface, kHomeBg, kHomeBg],
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: color.withValues(alpha: 0.5)),
-                  boxShadow: [
+                  color: kHomeSurface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: kHomeBorder),
+                  boxShadow: const [
                     BoxShadow(
-                      color: color.withValues(alpha: 0.18),
-                      blurRadius: 12,
-                      offset: const Offset(0, 3),
+                      color: kHomeShadow,
+                      blurRadius: 8,
+                      offset: Offset(0, 3),
                     ),
                   ],
                 ),
-                child: Row(
-                  children: [
+                clipBehavior: Clip.antiAlias,
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(width: 4, color: color),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
+                          child: Row(
+                            children: [
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.14),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: color.withValues(alpha: 0.35),
-                            blurRadius: 10,
-                          ),
-                        ],
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
                         Icons.warning_amber_rounded,
@@ -141,14 +136,14 @@ class AlertSummarySection extends StatelessWidget {
                               Expanded(
                                 child: Text(
                                   item.title,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                        fontSize: 13,
-                                      ),
+                                  style: const TextStyle(
+                                    inherit: false,
+                                    fontFamily: 'Nunito',
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF0A3323),
+                                    fontSize: 13.5,
+                                    height: 1.3,
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -191,7 +186,7 @@ class AlertSummarySection extends StatelessWidget {
                               Text(
                                 _formatTimeAgo(item.timestamp),
                                 style: const TextStyle(
-                                  color: CrabSenseColors.hintText,
+                                  color: kHomeTextHint,
                                   fontSize: 11,
                                 ),
                               ),
@@ -200,7 +195,12 @@ class AlertSummarySection extends StatelessWidget {
                         ],
                       ),
                     ),
-                  ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }).toList(),

@@ -263,10 +263,13 @@ class RoutePaths {
     return '/box/$id/crabs$query';
   }
 
-  /// Returns `/crab/<crabId>` with optional boxId query.
-  static String crabDetails(String crabId, {String? boxId}) {
-    if (boxId == null || boxId.isEmpty) return '/crab/$crabId';
-    return '/crab/$crabId?boxId=${Uri.encodeQueryComponent(boxId)}';
+  /// Returns `/crab/<crabId>` with optional boxId / boxCode query.
+  static String crabDetails(String crabId, {String? boxId, String? boxCode}) {
+    final params = <String, String>{};
+    if (boxId != null && boxId.isNotEmpty) params['boxId'] = boxId;
+    if (boxCode != null && boxCode.isNotEmpty) params['boxCode'] = boxCode;
+    if (params.isEmpty) return '/crab/$crabId';
+    return '/crab/$crabId?${Uri(queryParameters: params).query}';
   }
 
   /// Water quality scoped to a farming area.

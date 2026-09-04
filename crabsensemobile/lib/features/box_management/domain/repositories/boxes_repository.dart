@@ -37,6 +37,43 @@ abstract class BoxesRepository {
     String? code,
   });
 
+  Future<BoxesStateData> updateBox({
+    required String id,
+    required String code,
+    String? status,
+    required bool isOccupied,
+  });
+
+  Future<BoxesStateData> deleteBox(String id);
+
+  Future<BoxesStateData> createArea({required String name, String? description});
+
+  Future<BoxesStateData> updateArea({
+    required String id,
+    required String name,
+    String? description,
+    bool isActive = true,
+  });
+
+  Future<BoxesStateData> deleteArea(String id);
+
+  Future<BoxesStateData> createRow({
+    required String farmingAreaId,
+    required String name,
+    required int capacity,
+  });
+
+  Future<BoxesStateData> updateRow({
+    required String id,
+    required String name,
+    required int capacity,
+    bool isActive = true,
+  });
+
+  Future<BoxesStateData> deleteRow(String id);
+
   /// Farming rows for create-box picker.
   Future<List<({String id, String name})>> fetchRows(String? farmingAreaId);
+
+  Future<List<FarmRowOption>> fetchRowDetails(String? farmingAreaId);
 }

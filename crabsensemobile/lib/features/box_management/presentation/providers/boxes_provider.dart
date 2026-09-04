@@ -1,16 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../../core/di/injection.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../core/providers/selected_farm_provider.dart';
 import '../../data/repositories/boxes_repository_impl.dart';
 import '../../domain/models/boxes_models.dart';
 import '../../domain/repositories/boxes_repository.dart';
 
 final boxesRepositoryProvider = Provider<BoxesRepository>(
-  (ref) => BoxesRepositoryImpl(secureStorage: sl<FlutterSecureStorage>()),
+  (ref) => BoxesRepositoryImpl(api: sl<ApiClient>()),
 );
 
 /// Permissions snapshot applied into Boxes state (from AuthBloc via UI).
@@ -257,12 +257,15 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
     return _repository.fetchRows(farmId);
   }
 
-  Future<void> createBox({required String farmingRowId, String? code}) async {
+  Future<List<FarmRowOption>> fetchRowDetails() {
+    final farmId = state.hasValue ? state.value!.selectedFarmId : null;
+    return _repository.fetchRowDetails(farmId);
+  }
+
+  Future<void> _applyMutation(Future<BoxesStateData> Function() action) async {
     try {
-      final updated = await _repository.createBox(
-        farmingRowId: farmingRowId,
-        code: code,
-      );
+      final updated = await action();
+      if (!mounted) return;
       state = AsyncValue.data(
         updated.copyWith(
           canCreateBox: _permissions.canCreateBox,
@@ -281,6 +284,81 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
       rethrow;
     }
   }
+
+  Future<void> createArea({required String name, String? description}) =>
+      _applyMutation(() => _repository.createArea(name: name, description: description));
+
+  Future<void> updateArea({
+    required String id,
+    required String name,
+    String? description,
+    bool isActive = true,
+  }) =>
+      _applyMutation(
+        () => _repository.updateArea(
+          id: id,
+          name: name,
+          description: description,
+          isActive: isActive,
+        ),
+      );
+
+  Future<void> deleteArea(String id) =>
+      _applyMutation(() => _repository.deleteArea(id));
+
+  Future<void> createRow({
+    required String farmingAreaId,
+    required String name,
+    required int capacity,
+  }) =>
+      _applyMutation(
+        () => _repository.createRow(
+          farmingAreaId: farmingAreaId,
+          name: name,
+          capacity: capacity,
+        ),
+      );
+
+  Future<void> updateRow({
+    required String id,
+    required String name,
+    required int capacity,
+    bool isActive = true,
+  }) =>
+      _applyMutation(
+        () => _repository.updateRow(
+          id: id,
+          name: name,
+          capacity: capacity,
+          isActive: isActive,
+        ),
+      );
+
+  Future<void> deleteRow(String id) =>
+      _applyMutation(() => _repository.deleteRow(id));
+
+  Future<void> updateBox({
+    required String id,
+    required String code,
+    String? status,
+    required bool isOccupied,
+  }) =>
+      _applyMutation(
+        () => _repository.updateBox(
+          id: id,
+          code: code,
+          status: status,
+          isOccupied: isOccupied,
+        ),
+      );
+
+  Future<void> deleteBox(String id) =>
+      _applyMutation(() => _repository.deleteBox(id));
+
+  Future<void> createBox({required String farmingRowId, String? code}) =>
+      _applyMutation(
+        () => _repository.createBox(farmingRowId: farmingRowId, code: code),
+      );
 
   @override
   void dispose() {

@@ -1,7 +1,5 @@
-import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/network/api_client.dart';
 import '../../domain/entities/notification_preferences.dart';
 import '../../domain/repositories/notification_preferences_repository.dart';
 import '../datasources/notification_preferences_local_data_source.dart';
@@ -11,48 +9,17 @@ class NotificationPreferencesRepositoryImpl
     implements NotificationPreferencesRepository {
   NotificationPreferencesRepositoryImpl({
     required NotificationPreferencesLocalDataSource localDataSource,
-    Dio? dio,
-    FlutterSecureStorage? secureStorage,
+    required ApiClient api,
   })  : _localDataSource = localDataSource,
-        _secureStorage = secureStorage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-              iOptions: IOSOptions(
-                accessibility: KeychainAccessibility.first_unlock,
-              ),
-            ),
-        _dio = dio ??
-            Dio(
-              BaseOptions(
-                baseUrl: ApiConstants.apiBaseUrl,
-                connectTimeout: ApiConstants.connectTimeout,
-                receiveTimeout: ApiConstants.receiveTimeout,
-              ),
-            ) {
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          try {
-            String? token;
-            token = await _secureStorage.read(key: 'auth_access_token');
-            if (token != null && token.isNotEmpty) {
-              options.headers['Authorization'] = 'Bearer $token';
-            }
-          } catch (_) {}
-          return handler.next(options);
-        },
-      ),
-    );
-  }
+        _api = api;
 
   final NotificationPreferencesLocalDataSource _localDataSource;
-  final Dio _dio;
-  final FlutterSecureStorage _secureStorage;
+  final ApiClient _api;
 
   @override
   Future<NotificationPreferences> getPreferences() async {
     try {
-      final res = await _dio.get(ApiConstants.notificationPreferences);
+      final res = await _api.get(ApiConstants.notificationPreferences);
       if (res.statusCode == 200 && res.data != null) {
         final raw = res.data is Map<String, dynamic>
             ? res.data['data'] ?? res.data
@@ -71,7 +38,7 @@ class NotificationPreferencesRepositoryImpl
   Future<void> savePreferences(NotificationPreferences prefs) async {
     await _localDataSource.savePreferences(prefs);
     try {
-      await _dio.put(
+      await _api.put(
         ApiConstants.notificationPreferences,
         data: {
           'warningsEnabled': prefs.warningsEnabled,

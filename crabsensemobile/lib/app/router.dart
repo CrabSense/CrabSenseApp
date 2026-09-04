@@ -383,11 +383,13 @@ GoRouter createRouter(AuthBloc authBloc) {
         builder: (context, state) {
           final crabId = state.pathParameters[RouteParams.crabId] ?? '';
           final boxId = state.uri.queryParameters['boxId'];
+          final boxCode = state.uri.queryParameters['boxCode'];
           final extra = state.extra;
           final initial = extra is CrabModel ? extra : null;
           return CrabDetailScreen(
             crabId: crabId,
             boxId: boxId,
+            boxCode: boxCode,
             initial: initial,
           );
         },

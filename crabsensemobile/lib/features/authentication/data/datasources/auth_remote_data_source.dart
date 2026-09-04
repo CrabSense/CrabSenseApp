@@ -78,7 +78,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<AuthResponse> login({required String email, required String password}) async {
     try {
       final response = await dio.post(
-        '${ApiConstants.apiBaseUrl}${ApiConstants.login}',
+        ApiConstants.login,
         data: {'email': email, 'username': email, 'password': password},
       );
 
@@ -192,15 +192,16 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         return const NetworkException(message: 'Connection timeout. Please try again.');
       case DioExceptionType.connectionError:
         return const NetworkException(
-          message: 'No internet connection. Please check your network.',
+          message: 'Không kết nối được máy chủ. Thử lại hoặc đổi cổng preview.',
         );
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode;
         final data = e.response?.data;
 
         var message = 'An error occurred';
-        if (data is Map<String, dynamic>) {
-          message = data['message'] as String? ?? data['error'] as String? ?? message;
+        if (data is Map) {
+          final map = Map<String, dynamic>.from(data);
+          message = map['message']?.toString() ?? map['error']?.toString() ?? message;
         }
 
         switch (statusCode) {

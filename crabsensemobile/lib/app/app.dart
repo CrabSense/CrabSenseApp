@@ -25,6 +25,7 @@ import '../shared/services/notification_navigation_service.dart';
 
 import '../shared/services/notification_service.dart';
 import '../shared/widgets/notifications/notification_listener_widget.dart';
+import '../shared/widgets/phone_web_shell.dart';
 import 'router.dart';
 import 'theme.dart';
 
@@ -115,10 +116,12 @@ class _CrabSenseAppState extends State<CrabSenseApp> {
       //     (Req 14.5).
       //   - The initial message (terminated-state tap) is checked
       //     on startup.
-      builder: (context, child) => NotificationListenerWidget(
-        notificationService: sl<NotificationService>(),
-        navigationService: _notificationNavService,
-        child: child ?? const SizedBox.shrink(),
+      builder: (context, child) => PhoneWebShell(
+        child: NotificationListenerWidget(
+          notificationService: sl<NotificationService>(),
+          navigationService: _notificationNavService,
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
     ),
   );

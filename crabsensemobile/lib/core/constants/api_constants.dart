@@ -1,4 +1,4 @@
-import 'dart:io' show Platform;
+import 'package:crabsensemobile/core/platform/io_export.dart';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 
@@ -27,7 +27,9 @@ class ApiConstants {
   /// - iOS Simulator / desktop / web → http://localhost:5080
   static String get baseUrl {
     if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
-    if (!kIsWeb && Platform.isAndroid) return 'http://$_devHostLan:5080';
+    if (kIsWeb || (!kIsWeb && Platform.isAndroid)) {
+      return 'http://$_devHostLan:5080';
+    }
     return 'http://localhost:5080';
   }
 
