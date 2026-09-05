@@ -104,7 +104,7 @@ class AreaManagementService extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      final result = await _api.fetchAreasWithSummary(token, farmId);
+      final result = await _api.fetchAreasWithSummary(token, '');
       areas = result.areas;
       summary = result.summary;
       if (areas.isNotEmpty && summary.total == 0) {

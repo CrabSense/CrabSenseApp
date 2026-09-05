@@ -17,6 +17,9 @@ class RasFlowService extends ChangeNotifier {
 
   void updateSession(AuthSession session) {
     _session = session;
+    stopLiveRefresh(notify: false);
+    _diagram = null;
+    _error = null;
     _notifyDeferred();
   }
 

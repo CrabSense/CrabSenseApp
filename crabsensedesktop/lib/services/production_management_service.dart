@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/auth_models.dart';
+import '../models/farm_record.dart';
 import '../models/production_models.dart';
 import 'cloud_api_client.dart';
 
@@ -331,18 +332,45 @@ class ProductionManagementService extends ChangeNotifier {
   }
 
   // ── Row CRUD ──
-  Future<RowRecord> createRow({required String rowName}) async {
+  Future<RowRecord> createRow({
+    required String rowName,
+    String? location,
+    int capacity = 0,
+    String? description,
+    FarmStatus status = FarmStatus.active,
+  }) async {
     final areaId = selectedAreaId!;
-    final r = await _api.createRow(token, areaId, rowName: rowName);
+    final r = await _api.createRow(
+      token,
+      areaId,
+      rowName: rowName,
+      location: location,
+      capacity: capacity,
+      description: description,
+      status: status,
+    );
     rows = [...rows, r]..sort((x, y) => x.rowCode.compareTo(y.rowCode));
     notifyListeners();
     return r;
   }
 
-  Future<RowRecord> updateRow(RowRecord item,
-      {required String rowCode, required String rowName}) async {
-    final r = await _api.updateRow(token, item.id,
-        rowCode: rowCode, rowName: rowName);
+  Future<RowRecord> updateRow(
+    RowRecord item, {
+    required String rowName,
+    String? location,
+    int? capacity,
+    String? description,
+    FarmStatus status = FarmStatus.active,
+  }) async {
+    final r = await _api.updateRow(
+      token,
+      item.id,
+      rowName: rowName,
+      location: location,
+      capacity: capacity,
+      description: description,
+      status: status,
+    );
     rows = rows.map((x) => x.id == r.id ? r : x).toList()
       ..sort((x, y) => x.rowCode.compareTo(y.rowCode));
     notifyListeners();

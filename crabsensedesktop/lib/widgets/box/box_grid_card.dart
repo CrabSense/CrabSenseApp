@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/production_models.dart';
-import '../../services/box_management_service.dart';
 import '../../theme/dashboard_theme.dart';
 
 class BoxGridCard extends StatelessWidget {
@@ -22,9 +21,13 @@ class BoxGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final empty = BoxManagementService.isEmptyBox(box);
-    final attention = BoxManagementService.needsAttention(box);
-    final farming = BoxManagementService.isFarming(box);
+    final status = box.status.toLowerCase();
+    final empty = status == 'empty' || status == 'deceased' || !box.hasCrab;
+    final attention = box.alertCount > 0 ||
+        status == 'maintenance' ||
+        status == 'alert' ||
+        status == 'warning' ||
+        status == 'quarantine';
 
     final Color accent;
     final String statusLabel;

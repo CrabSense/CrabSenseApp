@@ -75,6 +75,48 @@ class CloudApiClient {
     );
   }
 
+  Future<({String token, String? refreshToken, AuthUser? user})> refresh(
+    String refreshToken,
+  ) async {
+    final uri = Uri.parse('$_base/api/auth/refresh');
+    final res = await _client.post(
+      uri,
+      headers: const {'Content-Type': 'application/json'},
+      body: jsonEncode({'refreshToken': refreshToken}),
+    );
+    final body = _decode(res);
+    if (res.statusCode == 401 || _isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Phiên đăng nhập hết hạn.',
+        statusCode: res.statusCode == 0 ? 401 : res.statusCode,
+      );
+    }
+    final data = _asMap(_dataOf(body) ?? body);
+    final token = (data['accessToken'] ??
+            data['AccessToken'] ??
+            data['token'] ??
+            data['Token'])
+        ?.toString();
+    if (token == null || token.isEmpty) {
+      throw CloudApiException('Phản hồi refresh thiếu accessToken', statusCode: 401);
+    }
+    final userRaw = data['user'] ?? data['User'];
+    return (
+      token: token,
+      refreshToken: (data['refreshToken'] ?? data['RefreshToken'])?.toString(),
+      user: userRaw is Map
+          ? AuthUser.fromJson(Map<String, dynamic>.from(userRaw))
+          : null,
+    );
+  }
+
+  Future<void> logout(String token) async {
+    final uri = Uri.parse('$_base/api/auth/logout');
+    try {
+      await _client.post(uri, headers: authHeaders(token));
+    } catch (_) {}
+  }
+
   Map<String, String> authHeaders(String token, {String? farmId}) => {
         'Authorization': 'Bearer $token',
         if (farmId != null && farmId.isNotEmpty) 'X-Farm-Id': farmId,
@@ -105,20 +147,34 @@ class CloudApiClient {
   }
 
   Future<String> fetchNextFarmCode(String token) async {
-    final farms = await fetchFarmRecords(token);
-    return 'Khu ${farms.length + 1}';
+    final uri = Uri.parse('$_base/api/farming-areas/next-code');
+    final res = await _client.get(uri, headers: authHeaders(token));
+    final body = _decode(res);
+    if (res.statusCode == 401) {
+      throw CloudApiException('Phiên đăng nhập hết hạn', statusCode: 401);
+    }
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không lấy được mã khu',
+        statusCode: res.statusCode,
+      );
+    }
+    final data = _dataOf(body);
+    if (data is Map) {
+      final code = (data['code'] ?? data['Code'])?.toString();
+      if (code != null && code.isNotEmpty) return code;
+    }
+    return 'AREA-A01';
   }
 
   Future<FarmRecord> createFarm(
     String token, {
     required String name,
-    String? address,
+    String? location,
+    double? areaSquareMeters,
     String? description,
+    FarmStatus status = FarmStatus.active,
   }) async {
-    final descParts = [
-      if (address != null && address.trim().isNotEmpty) address.trim(),
-      if (description != null && description.trim().isNotEmpty) description.trim(),
-    ];
     final uri = Uri.parse('$_base/api/farming-areas');
     final res = await _client.post(
       uri,
@@ -128,7 +184,10 @@ class CloudApiClient {
       },
       body: jsonEncode({
         'name': name,
-        'description': descParts.isEmpty ? null : descParts.join(' — '),
+        if (location != null && location.isNotEmpty) 'location': location,
+        if (areaSquareMeters != null) 'areaSquareMeters': areaSquareMeters,
+        if (description != null && description.isNotEmpty) 'description': description,
+        'status': status.apiValue,
       }),
     );
     return _parseFarmMutation(res);
@@ -138,8 +197,10 @@ class CloudApiClient {
     String token,
     String farmId, {
     required String name,
-    String? address,
+    String? location,
+    double? areaSquareMeters,
     String? description,
+    FarmStatus status = FarmStatus.active,
   }) async {
     final uri = Uri.parse('$_base/api/farming-areas/$farmId');
     final res = await _client.put(
@@ -150,8 +211,10 @@ class CloudApiClient {
       },
       body: jsonEncode({
         'name': name,
-        'description': description ?? address,
-        'isActive': true,
+        'location': location ?? '',
+        if (areaSquareMeters != null) 'areaSquareMeters': areaSquareMeters,
+        'description': description ?? '',
+        'status': status.apiValue,
       }),
     );
     return _parseFarmMutation(res);
@@ -167,7 +230,7 @@ class CloudApiClient {
     final body = _decode(res);
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw CloudApiException(
-        _errorMessage(body) ?? 'Không xóa được trại (${res.statusCode})',
+        _errorMessage(body) ?? 'Không xóa được khu (${res.statusCode})',
         statusCode: res.statusCode,
       );
     }
@@ -361,7 +424,10 @@ class CloudApiClient {
         ...extraQuery,
       });
     }
-    final res = await _client.get(uri, headers: authHeaders(token));
+    final res = await _client.get(
+      uri,
+      headers: authHeaders(token, farmId: farmingAreaId),
+    );
     final body = _decode(res);
     if (res.statusCode == 401) {
       throw CloudApiException('Phiên đăng nhập hết hạn', statusCode: 401);
@@ -412,8 +478,15 @@ class CloudApiClient {
     return _asMap(_dataOf(body) ?? body);
   }
 
-  Future<List<Map<String, dynamic>>> fetchHarvestVouchers(String token) =>
-      _getDataList(token, '/api/harvest-vouchers');
+  Future<List<Map<String, dynamic>>> fetchHarvestVouchers(
+    String token, {
+    String? farmingAreaId,
+  }) =>
+      _getDataList(
+        token,
+        '/api/harvest-vouchers',
+        farmingAreaId: farmingAreaId,
+      );
 
   Future<Map<String, dynamic>> createHarvestVoucher(
     String token, {
@@ -449,8 +522,19 @@ class CloudApiClient {
     return _asMap(_dataOf(body) ?? body);
   }
 
-  Future<List<Map<String, dynamic>>> fetchSalesHistory(String token) =>
-      _getDataList(token, '/api/sales/history');
+  Future<List<Map<String, dynamic>>> fetchSalesHistory(
+    String token, {
+    String? farmingAreaId,
+  }) =>
+      _getDataList(
+        token,
+        '/api/sales/history',
+        farmingAreaId: farmingAreaId,
+        extraQuery: {
+          if (farmingAreaId != null && farmingAreaId.isNotEmpty)
+            'farmId': farmingAreaId,
+        },
+      );
 
   Future<Map<String, dynamic>> fetchSalesSummary(
     String token, {

@@ -6,12 +6,13 @@ String areaDisplayLabel(CrabManagementListItem item) =>
     '${item.areaCode} — ${item.areaName}';
 
 CrabGender mapGender(String api) => switch (api.toLowerCase()) {
-      'male' || 'đực' => CrabGender.male,
-      'female' || 'cái' => CrabGender.female,
-      _ => CrabGender.male,
+      'male' || 'đực' || 'm' => CrabGender.male,
+      'female' || 'cái' || 'f' => CrabGender.female,
+      _ => CrabGender.unknown,
     };
 
 String genderToApi(CrabGender g) => switch (g) {
+      CrabGender.unknown => 'unknown',
       CrabGender.male => 'male',
       CrabGender.female => 'female',
     };
@@ -99,6 +100,7 @@ CrabIndividual crabFromListItem(CrabManagementListItem item) {
     gender: mapGender(item.gender),
     weightGram: item.weight ?? 0,
     shellSizeCm: item.shellWidth ?? 0,
+    carapaceLengthMm: item.shellLength ?? 0,
     releaseDate: release,
     moltCount: item.moltCount,
     lastMoltDate: parseApiDate(item.lastMoltDate),

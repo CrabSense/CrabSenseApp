@@ -42,7 +42,7 @@ class DashboardSidebar extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'CrabFarm\nManagement Portal',
+                    'CrabSense\nManagement Portal',
                     style: GoogleFonts.notoSans(
                       color: DashboardColors.textPrimary,
                       fontSize: 11,

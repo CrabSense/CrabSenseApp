@@ -3,16 +3,15 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/production_models.dart';
 import '../../models/row_list_item.dart';
-import '../../models/row_status.dart';
 import '../../navigation/app_route.dart';
 import '../../services/production_management_service.dart';
 import '../../services/row_management_service.dart';
 import '../../theme/dashboard_theme.dart';
 import '../../widgets/area/area_list_toolbar.dart';
-import '../../widgets/dashboard/glass_card.dart';
 import '../../widgets/production/production_dialogs.dart';
+import '../../widgets/row/row_cards.dart';
+import '../../widgets/row/row_dialogs.dart';
 import '../../widgets/row/row_list_toolbar.dart';
-import '../../widgets/row/row_table.dart';
 
 class RowManagementPage extends StatefulWidget {
   const RowManagementPage({
@@ -52,20 +51,8 @@ class _RowManagementPageState extends State<RowManagementPage> {
 
   void _onUpdate() => setState(() {});
 
-  String _formatCount(int n) {
-    if (n < 1000) return '$n';
-    final s = n.toString();
-    final buf = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
-
   Future<void> _onAdd() async {
     final svc = widget.service;
-    final prod = widget.productionService;
     if (svc.areas.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Chưa có khu — thêm khu trước')),
@@ -82,8 +69,7 @@ class _RowManagementPageState extends State<RowManagementPage> {
       areaId = picked;
     }
 
-    prod.selectArea(areaId);
-    await showRowFormDialog(context, prod);
+    await showCreateRowDialog(context, svc, areaId: areaId);
     if (mounted) await svc.load();
   }
 
@@ -128,15 +114,13 @@ class _RowManagementPageState extends State<RowManagementPage> {
     );
   }
 
-  Future<void> _onAction(RowListItem item, RowTableActionType type) async {
+  Future<void> _onAction(RowListItem item, _RowAction type) async {
     final svc = widget.service;
-    final prod = widget.productionService;
     switch (type) {
-      case RowTableActionType.edit:
-        prod.selectArea(item.areaId);
-        await showRowFormDialog(context, prod, existing: item.row);
+      case _RowAction.edit:
+        await showEditRowDialog(context, svc, item);
         if (mounted) await svc.load();
-      case RowTableActionType.delete:
+      case _RowAction.delete:
         if (!await confirmDelete(
           context,
           title: 'Xóa dãy?',
@@ -174,89 +158,33 @@ class _RowManagementPageState extends State<RowManagementPage> {
         children: [
           _Breadcrumb(
             onDashboard: () => widget.onNavigate?.call(AppRoute.dashboard),
-            onArea: () => widget.onNavigate?.call(AppRoute.areaManagement),
+            onArea: () => widget.onNavigate?.call(AppRoute.farmManagement),
           ),
           const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  'Quản lý Dãy',
-                  style: GoogleFonts.notoSans(
-                    color: DashboardColors.textPrimary,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              FilledButton.icon(
-                onPressed: svc.loading ? null : _onAdd,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Thêm Dãy Mới'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: DashboardColors.purple,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 14,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
+          Text(
+            'Quản lý Dãy',
+            style: GoogleFonts.notoSans(
+              color: DashboardColors.textPrimary,
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          const SizedBox(height: 24),
-          LayoutBuilder(
-            builder: (context, c) {
-              final cols = c.maxWidth > 1100
-                  ? 4
-                  : c.maxWidth > 600
-                      ? 2
-                      : 1;
-              return GridView.count(
-                crossAxisCount: cols,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: cols == 1 ? 2.4 : 1.85,
-                children: [
-                  _StatCard(
-                    title: 'TỔNG SỐ DÃY',
-                    value: '${svc.summary.total}',
-                    tag: 'HỆ THỐNG',
-                    accent: DashboardColors.purple,
-                    icon: Icons.grid_view_rounded,
-                  ),
-                  _StatCard(
-                    title: 'DÃY ĐANG HOẠT ĐỘNG',
-                    value: '${svc.summary.active}',
-                    tag: 'LIVE',
-                    accent: DashboardColors.seaGreen,
-                    icon: Icons.check_circle_outline,
-                  ),
-                  _StatCard(
-                    title: 'DÃY BẢO TRÌ',
-                    value: '${svc.summary.maintenance}',
-                    tag: 'MAINTENANCE',
-                    accent: DashboardColors.oceanBlue,
-                    icon: Icons.build_circle_outlined,
-                  ),
-                  _StatCard(
-                    title: 'TỔNG SỐ HỘP NUÔI',
-                    value: _formatCount(svc.summary.totalBoxes),
-                    tag: 'CAPACITY',
-                    accent: const Color(0xFFE879F9),
-                    icon: Icons.inventory_2_outlined,
-                  ),
-                ],
-              );
+          const SizedBox(height: 16),
+          RowListToolbar(
+            searchController: _searchCtrl,
+            areas: svc.areas,
+            areaFilterId: svc.areaFilterId,
+            statusFilter: svc.statusFilter,
+            loading: svc.loading,
+            onSearchChanged: svc.setSearch,
+            onAreaChanged: svc.setAreaFilter,
+            onStatusChanged: (f) {
+              if (f != null) svc.setStatusFilter(f);
             },
+            onRefresh: svc.load,
+            onAdd: _onAdd,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           if (svc.error != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -265,50 +193,78 @@ class _RowManagementPageState extends State<RowManagementPage> {
                 style: GoogleFonts.notoSans(color: DashboardColors.risk),
               ),
             ),
-          GlassCard(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                RowListToolbar(
-                  searchController: _searchCtrl,
-                  areas: svc.areas,
-                  areaFilterId: svc.areaFilterId,
-                  statusFilter: svc.statusFilter,
-                  loading: svc.loading,
-                  onSearchChanged: svc.setSearch,
-                  onAreaChanged: svc.setAreaFilter,
-                  onStatusChanged: (f) {
-                    if (f != null) svc.setStatusFilter(f);
-                  },
-                  onRefresh: svc.load,
-                ),
-                const SizedBox(height: 20),
-                if (svc.loading)
-                  const Padding(
-                    padding: EdgeInsets.all(40),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else
-                  RowDataTable(
-                    items: paged,
-                    onAction: _onAction,
-                  ),
-                const SizedBox(height: 16),
-                AreaListPagination(
-                  page: svc.page,
-                  pageSize: RowManagementService.pageSize,
-                  itemCount: paged.length,
-                  totalItems: filtered.length,
-                  totalPages: svc.totalPages,
-                  onPageChanged: svc.setPage,
-                  itemLabel: 'dãy',
-                ),
-              ],
+          if (svc.loading)
+            const Padding(
+              padding: EdgeInsets.all(40),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (paged.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Chưa có dãy phù hợp bộ lọc.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.notoSans(color: DashboardColors.textMuted),
+              ),
+            )
+          else ...[
+            _RowCardGrid(
+              items: paged,
+              onAction: _onAction,
             ),
-          ),
+            const SizedBox(height: 16),
+            AreaListPagination(
+              page: svc.page,
+              pageSize: RowManagementService.pageSize,
+              itemCount: paged.length,
+              totalItems: filtered.length,
+              totalPages: svc.totalPages,
+              onPageChanged: svc.setPage,
+              itemLabel: 'dãy',
+            ),
+          ],
         ],
       ),
+    );
+  }
+}
+
+enum _RowAction { edit, delete }
+
+class _RowCardGrid extends StatelessWidget {
+  const _RowCardGrid({required this.items, required this.onAction});
+
+  final List<RowListItem> items;
+  final void Function(RowListItem item, _RowAction type) onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final columns = width >= 960 ? 3 : width >= 640 ? 2 : 1;
+        final cardWidth = (width - 16 * (columns - 1)) / columns;
+        return Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: items.map((item) {
+            return SizedBox(
+              width: cardWidth,
+              child: RowOverviewCard(
+                item: item,
+                onOpen: () => showRowDetailDialog(
+                  context,
+                  item: item,
+                  onEdit: () => onAction(item, _RowAction.edit),
+                  onDelete: () => onAction(item, _RowAction.delete),
+                ),
+                onEdit: () => onAction(item, _RowAction.edit),
+                onDelete: () => onAction(item, _RowAction.delete),
+              ),
+            );
+          }).toList(),
+        );
+      },
     );
   }
 }
@@ -345,77 +301,3 @@ class _Breadcrumb extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.title,
-    required this.value,
-    required this.tag,
-    required this.accent,
-    required this.icon,
-  });
-
-  final String title;
-  final String value;
-  final String tag;
-  final Color accent;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      borderColor: accent.withValues(alpha: 0.35),
-      child: Row(
-        children: [
-          Expanded(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.notoSans(
-                    color: DashboardColors.textMuted,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  value,
-                  style: GoogleFonts.notoSans(
-                    color: DashboardColors.textPrimary,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    tag,
-                    style: GoogleFonts.notoSans(
-                      color: accent,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            ),
-          ),
-          Icon(icon, color: accent.withValues(alpha: 0.85), size: 32),
-        ],
-      ),
-    );
-  }
-}

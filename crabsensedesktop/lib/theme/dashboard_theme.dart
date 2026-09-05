@@ -64,7 +64,7 @@ class DashboardPalette {
 }
 
 abstract final class DashboardColors {
-  static DashboardPalette _palette = DashboardPalette.dark();
+  static DashboardPalette _palette = DashboardPalette.light();
 
   static void applyPalette(DashboardPalette palette) {
     _palette = palette;

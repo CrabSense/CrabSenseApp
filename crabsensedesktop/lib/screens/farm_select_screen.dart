@@ -5,10 +5,7 @@ import '../config/app_env.dart';
 import '../models/auth_models.dart';
 import '../services/cloud_api_client.dart';
 import '../services/cloud_auth_service.dart';
-import '../services/theme_mode_service.dart';
 import '../theme/dashboard_theme.dart';
-import '../widgets/dashboard/wave_background.dart';
-import '../widgets/shared/theme_mode_toggle.dart';
 import 'main_shell_screen.dart';
 
 class FarmSelectScreen extends StatefulWidget {
@@ -16,10 +13,16 @@ class FarmSelectScreen extends StatefulWidget {
     super.key,
     required this.token,
     required this.user,
+    this.refreshToken,
+    this.persistSession = true,
+    this.username,
   });
 
   final String token;
+  final String? refreshToken;
   final AuthUser user;
+  final bool persistSession;
+  final String? username;
 
   @override
   State<FarmSelectScreen> createState() => _FarmSelectScreenState();
@@ -87,19 +90,30 @@ class _FarmSelectScreenState extends State<FarmSelectScreen> {
     }
   }
 
-  void _continue() {
+  Future<void> _continue() async {
     final me = _me;
     final farm = _selected;
     if (me == null || farm == null) return;
 
     final session = AuthSession(
       token: widget.token,
+      refreshToken: widget.refreshToken,
       user: me.user,
       farms: me.farms,
       selectedFarm: farm,
       isOrgAdmin: me.isOrgAdmin,
     );
 
+    if (widget.persistSession) {
+      await _auth.persistSession(
+        session,
+        username: widget.username ?? me.user.username ?? me.user.email,
+      );
+    } else {
+      await _auth.clearSession(keepUsername: false);
+    }
+
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => MainShellScreen(session: session)),
     );
@@ -107,81 +121,103 @@ class _FarmSelectScreenState extends State<FarmSelectScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: appThemeMode,
-      builder: (context, _) {
-        return Scaffold(
-          backgroundColor: DashboardColors.darkNavy,
-          body: Stack(
-            fit: StackFit.expand,
-            children: [
-              const WaveBackground(),
-              SafeArea(
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 16, 0),
-                      child: Row(
-                        children: [
-                          IconButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            icon: Icon(
-                              Icons.arrow_back_rounded,
-                              color: DashboardColors.textPrimary,
-                            ),
-                            tooltip: 'Quay lại',
-                          ),
-                          Image.asset(
-                            'assets/images/logo.png',
-                            height: 36,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Chọn trại',
-                              style: GoogleFonts.notoSans(
-                                color: DashboardColors.textPrimary,
-                                fontSize: 17,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          const ThemeModeToggle(),
-                        ],
+    return Scaffold(
+      backgroundColor: const Color(0xFFF1F5F9),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            'assets/images/login_background.png',
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+            filterQuality: FilterQuality.high,
+          ),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0x40FFFFFF),
+                  Color(0x14FFFFFF),
+                  Color(0x59FFFFFF),
+                ],
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 16, 0),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(
+                          Icons.arrow_back_rounded,
+                          color: Color(0xFF12262E),
+                        ),
+                        tooltip: 'Quay lại',
                       ),
-                    ),
-                    Expanded(
-                      child: Center(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 20,
-                          ),
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 440),
-                            child: _FarmSelectCard(
-                              loading: _loading,
-                              error: _error,
-                              user: widget.user,
-                              me: _me,
-                              selected: _selected,
-                              onRetry: _loadMe,
-                              onBack: () => Navigator.of(context).pop(),
-                              onFarmChanged: (v) =>
-                                  setState(() => _selected = v),
-                              onContinue: _continue,
-                            ),
+                      Image.asset(
+                        'assets/images/logo.png',
+                        height: 36,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Chọn khu nuôi',
+                          style: GoogleFonts.notoSans(
+                            color: const Color(0xFF12262E),
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            shadows: [
+                              Shadow(
+                                color: Colors.white.withValues(alpha: 0.92),
+                                blurRadius: 10,
+                              ),
+                              Shadow(
+                                color: Colors.white.withValues(alpha: 0.7),
+                                blurRadius: 18,
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 20,
+                      ),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 440),
+                        child: _FarmSelectCard(
+                          loading: _loading,
+                          error: _error,
+                          user: widget.user,
+                          me: _me,
+                          selected: _selected,
+                          onRetry: _loadMe,
+                          onBack: () => Navigator.of(context).pop(),
+                          onFarmChanged: (v) =>
+                              setState(() => _selected = v),
+                          onContinue: _continue,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
@@ -213,15 +249,19 @@ class _FarmSelectCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: DashboardColors.card.withValues(alpha: 0.94),
+        color: const Color(0xF7FFFCF7),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: DashboardColors.purple.withValues(alpha: 0.35),
+          color: const Color(0xFFC5B79A).withValues(alpha: 0.55),
         ),
         boxShadow: [
-          DashboardColors.glowShadow,
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
+            color: const Color(0xFF2B6F9A).withValues(alpha: 0.14),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 28,
             offset: const Offset(0, 12),
           ),

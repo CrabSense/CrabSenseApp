@@ -86,6 +86,7 @@ class CrabIndividual {
     required this.gender,
     required this.weightGram,
     required this.shellSizeCm,
+    this.carapaceLengthMm = 0,
     required this.releaseDate,
     required this.moltCount,
     required this.healthStatus,
@@ -122,7 +123,10 @@ class CrabIndividual {
   final DateTime? updatedAt;
   final CrabGender gender;
   final double weightGram;
+  /// Bề rộng mai (mm). Tên cũ shellSizeCm — đơn vị thực tế là mm.
   final double shellSizeCm;
+  /// Bề ngang mai (mm).
+  final double carapaceLengthMm;
   final DateTime releaseDate;
   final int moltCount;
   final DateTime? lastMoltDate;
@@ -238,6 +242,7 @@ class CrabIndividual {
     CrabGender? gender,
     double? weightGram,
     double? shellSizeCm,
+    double? carapaceLengthMm,
     DateTime? releaseDate,
     int? moltCount,
     DateTime? lastMoltDate,
@@ -269,6 +274,7 @@ class CrabIndividual {
       gender: gender ?? this.gender,
       weightGram: weightGram ?? this.weightGram,
       shellSizeCm: shellSizeCm ?? this.shellSizeCm,
+      carapaceLengthMm: carapaceLengthMm ?? this.carapaceLengthMm,
       releaseDate: releaseDate ?? this.releaseDate,
       moltCount: moltCount ?? this.moltCount,
       lastMoltDate: lastMoltDate ?? this.lastMoltDate,

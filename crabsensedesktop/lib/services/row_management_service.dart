@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/auth_models.dart';
+import '../models/farm_record.dart';
 import '../models/production_models.dart';
 import '../models/row_list_item.dart';
 import '../models/row_status.dart';
@@ -10,15 +11,15 @@ class RowSummaryStats {
   const RowSummaryStats({
     required this.total,
     required this.active,
-    required this.maintenance,
-    required this.disabled,
+    required this.suspended,
+    required this.closed,
     required this.totalBoxes,
   });
 
   final int total;
   final int active;
-  final int maintenance;
-  final int disabled;
+  final int suspended;
+  final int closed;
   final int totalBoxes;
 }
 
@@ -37,8 +38,8 @@ class RowManagementService extends ChangeNotifier {
   RowSummaryStats summary = const RowSummaryStats(
     total: 0,
     active: 0,
-    maintenance: 0,
-    disabled: 0,
+    suspended: 0,
+    closed: 0,
     totalBoxes: 0,
   );
 
@@ -48,10 +49,9 @@ class RowManagementService extends ChangeNotifier {
   String? areaFilterId;
   RowStatusFilter statusFilter = RowStatusFilter.all;
   int page = 0;
-  static const int pageSize = 10;
+  static const int pageSize = 6;
 
   AuthSession get session => _session;
-  String get farmId => _session.selectedFarm.id;
   String get token => _session.token;
 
   void updateSession(AuthSession session) {
@@ -61,11 +61,11 @@ class RowManagementService extends ChangeNotifier {
     summary = const RowSummaryStats(
       total: 0,
       active: 0,
-      maintenance: 0,
-      disabled: 0,
+      suspended: 0,
+      closed: 0,
       totalBoxes: 0,
     );
-    areaFilterId = null;
+    areaFilterId = session.selectedFarm.id.isEmpty ? null : session.selectedFarm.id;
     page = 0;
     notifyListeners();
   }
@@ -77,9 +77,10 @@ class RowManagementService extends ChangeNotifier {
   }
 
   void setAreaFilter(String? areaId) {
+    if (areaFilterId == areaId) return;
     areaFilterId = areaId;
     page = 0;
-    notifyListeners();
+    load();
   }
 
   void setStatusFilter(RowStatusFilter filter) {
@@ -101,15 +102,14 @@ class RowManagementService extends ChangeNotifier {
           .where((r) =>
               r.rowCode.toLowerCase().contains(q) ||
               r.rowName.toLowerCase().contains(q) ||
-              r.areaCode.toLowerCase().contains(q) ||
-              r.areaName.toLowerCase().contains(q))
+              (r.row.location?.toLowerCase().contains(q) ?? false))
           .toList();
     }
     if (areaFilterId != null) {
       list = list.where((r) => r.areaId == areaFilterId).toList();
     }
-    final status = statusFilter.apiValue;
-    if (status.isNotEmpty) {
+    final status = statusFilter.farmStatus;
+    if (status != null) {
       list = list.where((r) => r.status == status).toList();
     }
     return list;
@@ -130,50 +130,32 @@ class RowManagementService extends ChangeNotifier {
     return list.sublist(start, end);
   }
 
-  static String deriveRowStatus(AreaRecord area, List<BoxRecord> rowBoxes) {
-    if (area.status == 'maintenance') return 'maintenance';
-    if (area.status == 'disabled') return 'disabled';
-    if (rowBoxes.isEmpty) return 'active';
-    final inUse = rowBoxes.where((b) {
-      final s = b.status.toLowerCase();
-      return s != 'empty' && s != 'deceased';
-    }).length;
-    if (inUse == 0) return 'disabled';
-    return 'active';
-  }
+  Future<String> fetchNextCode() => _api.fetchNextDayCode(token);
 
   Future<void> load() async {
     loading = true;
     error = null;
     notifyListeners();
     try {
-      areas = await _api.fetchAreas(token, farmId);
-      final merged = <RowListItem>[];
-      for (final area in areas) {
-        final detail = await _api.fetchAreaDetail(token, area.id);
-        for (final row in detail.rows) {
-          final rowBoxes =
-              detail.boxes.where((b) => b.rowId == row.id).toList();
-          merged.add(
-            RowListItem(
-              row: row,
-              areaId: area.id,
-              areaCode: area.areaCode,
-              areaName: area.areaName,
-              boxCount: rowBoxes.length,
-              status: deriveRowStatus(area, rowBoxes),
-              esp32Count: area.esp32Count > 0 ? 1 : 0,
-              cameraCount: area.cameraCount > 0 ? 1 : 0,
-            ),
-          );
-        }
+      areas = await _api.fetchAreas(token, '');
+      if (areaFilterId != null && !areas.any((a) => a.id == areaFilterId)) {
+        final selected = _session.selectedFarm.id;
+        areaFilterId = areas.any((a) => a.id == selected) ? selected : null;
       }
-      items = merged;
+      final areaById = {for (final a in areas) a.id: a};
+      final rows = await _api.fetchAllRows(token, areaId: areaFilterId);
+      items = rows
+          .map((r) => RowListItem(
+                row: r,
+                areaCode: areaById[r.areaId]?.areaCode ?? '',
+              ))
+          .toList()
+        ..sort((a, b) => a.rowCode.compareTo(b.rowCode));
       summary = RowSummaryStats(
         total: items.length,
-        active: items.where((r) => r.status == 'active').length,
-        maintenance: items.where((r) => r.status == 'maintenance').length,
-        disabled: items.where((r) => r.status == 'disabled').length,
+        active: items.where((r) => r.status == FarmStatus.active).length,
+        suspended: items.where((r) => r.status == FarmStatus.suspended).length,
+        closed: items.where((r) => r.status == FarmStatus.closed).length,
         totalBoxes: items.fold(0, (s, r) => s + r.boxCount),
       );
       error = null;
@@ -185,6 +167,48 @@ class RowManagementService extends ChangeNotifier {
       loading = false;
       notifyListeners();
     }
+  }
+
+  Future<RowRecord> create({
+    required String areaId,
+    required String name,
+    String? location,
+    int capacity = 0,
+    String? description,
+    FarmStatus status = FarmStatus.active,
+  }) async {
+    final row = await _api.createRow(
+      token,
+      areaId,
+      rowName: name,
+      location: location,
+      capacity: capacity,
+      description: description,
+      status: status,
+    );
+    await load();
+    return row;
+  }
+
+  Future<RowRecord> update(
+    RowRecord existing, {
+    required String name,
+    String? location,
+    int? capacity,
+    String? description,
+    FarmStatus status = FarmStatus.active,
+  }) async {
+    final row = await _api.updateRow(
+      token,
+      existing.id,
+      rowName: name,
+      location: location,
+      capacity: capacity,
+      description: description,
+      status: status,
+    );
+    await load();
+    return row;
   }
 
   Future<void> deleteRow(RowListItem item) async {

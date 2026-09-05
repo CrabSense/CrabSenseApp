@@ -3,11 +3,30 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../config/app_env.dart';
 import '../services/cloud_auth_service.dart';
-import '../services/theme_mode_service.dart';
 import '../theme/dashboard_theme.dart';
-import '../widgets/dashboard/wave_background.dart';
-import '../widgets/shared/theme_mode_toggle.dart';
 import 'farm_select_screen.dart';
+
+/// Màu chữ / accent lấy từ nền trại: gỗ, hộp cua xanh, mặt nước.
+abstract final class _LoginInk {
+  static const primary = Color(0xFF16333F);
+  static const secondary = Color(0xFF4A5D52);
+  static const onImage = Color(0xFF12262E);
+  static const accent = Color(0xFF2B6F9A);
+  static const accentDeep = Color(0xFF1A5478);
+  static const fieldFill = Color(0xFFF3F0E8);
+  static const card = Color(0xF7FFFCF7);
+
+  static List<Shadow> get onImageGlow => [
+        Shadow(
+          color: Colors.white.withValues(alpha: 0.92),
+          blurRadius: 10,
+        ),
+        Shadow(
+          color: Colors.white.withValues(alpha: 0.7),
+          blurRadius: 18,
+        ),
+      ];
+}
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,9 +41,22 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _authService = CloudAuthService();
 
-  bool _rememberMe = false;
+  bool _rememberMe = true;
   bool _obscurePassword = true;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefillRememberedUsername();
+  }
+
+  Future<void> _prefillRememberedUsername() async {
+    final username = await _authService.loadRememberedUsername();
+    if (!mounted || username == null) return;
+    _usernameController.text = username;
+    setState(() => _rememberMe = true);
+  }
 
   @override
   void dispose() {
@@ -47,11 +79,18 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (result.success) {
+      if (!_rememberMe) {
+        await _authService.clearSession(keepUsername: false);
+      }
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => FarmSelectScreen(
             token: result.token!,
+            refreshToken: result.refreshToken,
             user: result.user!,
+            persistSession: _rememberMe,
+            username: _usernameController.text.trim(),
           ),
         ),
       );
@@ -69,89 +108,104 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: appThemeMode,
-      builder: (context, _) {
-        return Scaffold(
-          backgroundColor: DashboardColors.darkNavy,
-          body: Stack(
-            fit: StackFit.expand,
-            children: [
-              const WaveBackground(),
-              SafeArea(
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 16, 0),
-                      child: Row(
-                        children: [
-                          Image.asset(
-                            'assets/images/logo.png',
-                            height: 40,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'CrabFarm Monitor',
-                                  style: GoogleFonts.notoSans(
-                                    color: DashboardColors.textPrimary,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  'PRECISION AQUACULTURE',
-                                  style: GoogleFonts.notoSans(
-                                    color: DashboardColors.textMuted,
-                                    fontSize: 9,
-                                    letterSpacing: 0.9,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const ThemeModeToggle(),
-                        ],
+    return Scaffold(
+      backgroundColor: const Color(0xFFF1F5F9),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            'assets/images/login_background.png',
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+            filterQuality: FilterQuality.high,
+          ),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0x40FFFFFF),
+                  Color(0x14FFFFFF),
+                  Color(0x59FFFFFF),
+                ],
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 16, 0),
+                  child: Row(
+                    children: [
+                      Image.asset(
+                        'assets/images/logo.png',
+                        height: 40,
                       ),
-                    ),
-                    Expanded(
-                      child: Center(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 20,
-                          ),
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 440),
-                            child: _LoginCard(
-                              formKey: _formKey,
-                              usernameController: _usernameController,
-                              passwordController: _passwordController,
-                              rememberMe: _rememberMe,
-                              obscurePassword: _obscurePassword,
-                              isLoading: _isLoading,
-                              onRememberMeChanged: (v) =>
-                                  setState(() => _rememberMe = v ?? false),
-                              onTogglePassword: () => setState(
-                                () => _obscurePassword = !_obscurePassword,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'CrabSense',
+                              style: GoogleFonts.notoSans(
+                                color: _LoginInk.onImage,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                shadows: _LoginInk.onImageGlow,
                               ),
-                              onLogin: _handleLogin,
                             ),
+                            Text(
+                              'TRẠI NUÔI CUA LỘT',
+                              style: GoogleFonts.notoSans(
+                                color: _LoginInk.accentDeep,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.1,
+                                shadows: _LoginInk.onImageGlow,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 20,
+                      ),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 440),
+                        child: _LoginCard(
+                          formKey: _formKey,
+                          usernameController: _usernameController,
+                          passwordController: _passwordController,
+                          rememberMe: _rememberMe,
+                          obscurePassword: _obscurePassword,
+                          isLoading: _isLoading,
+                          onRememberMeChanged: (v) =>
+                              setState(() => _rememberMe = v ?? false),
+                          onTogglePassword: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
                           ),
+                          onLogin: _handleLogin,
                         ),
                       ),
                     ),
-                    const _LoginFooter(),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+                const _LoginFooter(),
+              ],
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
@@ -183,15 +237,19 @@ class _LoginCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: DashboardColors.card.withValues(alpha: 0.94),
+        color: _LoginInk.card,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: DashboardColors.purple.withValues(alpha: 0.35),
+          color: const Color(0xFFC5B79A).withValues(alpha: 0.55),
         ),
         boxShadow: [
-          DashboardColors.glowShadow,
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
+            color: const Color(0xFF2B6F9A).withValues(alpha: 0.14),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 28,
             offset: const Offset(0, 12),
           ),
@@ -218,17 +276,17 @@ class _LoginCard extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: GoogleFonts.notoSans(
                   fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: DashboardColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  color: _LoginInk.primary,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Theo dõi trại nuôi cua — CrabSenseBE',
+                'Theo dõi hộp nuôi cua ngay tại trại',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.notoSans(
                   fontSize: 13,
-                  color: DashboardColors.textMuted,
+                  color: _LoginInk.secondary,
                   height: 1.45,
                 ),
               ),
@@ -240,10 +298,10 @@ class _LoginCard extends StatelessWidget {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: DashboardColors.purple.withValues(alpha: 0.1),
+                  color: _LoginInk.accent.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: DashboardColors.cardBorder.withValues(alpha: 0.6),
+                    color: _LoginInk.accent.withValues(alpha: 0.22),
                   ),
                 ),
                 child: Text(
@@ -251,8 +309,9 @@ class _LoginCard extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: GoogleFonts.notoSans(
                     fontSize: 10,
-                    color: DashboardColors.cyan.withValues(alpha: 0.9),
+                    color: _LoginInk.accentDeep,
                     height: 1.4,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
@@ -261,7 +320,7 @@ class _LoginCard extends StatelessWidget {
               const SizedBox(height: 6),
               _AuthTextField(
                 controller: usernameController,
-                hint: 'username hoặc email',
+                hint: 'Tên tài khoản chủ trại',
                 icon: Icons.person_outline,
                 keyboardType: TextInputType.text,
                 validator: (v) {
@@ -284,7 +343,7 @@ class _LoginCard extends StatelessWidget {
                     obscurePassword
                         ? Icons.visibility_outlined
                         : Icons.visibility_off_outlined,
-                    color: DashboardColors.textMuted,
+                    color: _LoginInk.secondary,
                     size: 20,
                   ),
                   onPressed: onTogglePassword,
@@ -305,8 +364,8 @@ class _LoginCard extends StatelessWidget {
                     child: Checkbox(
                       value: rememberMe,
                       onChanged: onRememberMeChanged,
-                      activeColor: DashboardColors.purple,
-                      side: BorderSide(color: DashboardColors.cardBorder),
+                      activeColor: _LoginInk.accent,
+                      side: const BorderSide(color: Color(0xFFC5B79A)),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
@@ -314,14 +373,14 @@ class _LoginCard extends StatelessWidget {
                     'Ghi nhớ đăng nhập',
                     style: GoogleFonts.notoSans(
                       fontSize: 12,
-                      color: DashboardColors.textMuted,
+                      color: _LoginInk.secondary,
                     ),
                   ),
                   const Spacer(),
                   TextButton(
                     onPressed: () {},
                     style: TextButton.styleFrom(
-                      foregroundColor: DashboardColors.cyan,
+                      foregroundColor: _LoginInk.accentDeep,
                       padding: EdgeInsets.zero,
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -347,7 +406,7 @@ class _LoginCard extends StatelessWidget {
                     'Chưa có tài khoản? ',
                     style: GoogleFonts.notoSans(
                       fontSize: 13,
-                      color: DashboardColors.textMuted,
+                      color: _LoginInk.secondary,
                     ),
                   ),
                   GestureDetector(
@@ -356,8 +415,8 @@ class _LoginCard extends StatelessWidget {
                       'Đăng ký',
                       style: GoogleFonts.notoSans(
                         fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: DashboardColors.purple,
+                        fontWeight: FontWeight.w700,
+                        color: _LoginInk.accentDeep,
                       ),
                     ),
                   ),
@@ -384,8 +443,8 @@ class _FieldLabel extends StatelessWidget {
         text,
         style: GoogleFonts.notoSans(
           fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: DashboardColors.textPrimary,
+          fontWeight: FontWeight.w700,
+          color: _LoginInk.primary,
         ),
       ),
     );
@@ -420,29 +479,30 @@ class _AuthTextField extends StatelessWidget {
       validator: validator,
       style: GoogleFonts.notoSans(
         fontSize: 14,
-        color: DashboardColors.textPrimary,
+        color: _LoginInk.primary,
+        fontWeight: FontWeight.w500,
       ),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: GoogleFonts.notoSans(
-          color: DashboardColors.textMuted.withValues(alpha: 0.75),
+          color: _LoginInk.secondary.withValues(alpha: 0.7),
         ),
         filled: true,
-        fillColor: DashboardColors.darkNavy.withValues(alpha: 0.45),
+        fillColor: _LoginInk.fieldFill,
         contentPadding: const EdgeInsets.symmetric(vertical: 14),
-        prefixIcon: Icon(icon, color: DashboardColors.textMuted, size: 20),
+        prefixIcon: Icon(icon, color: _LoginInk.accent, size: 20),
         suffixIcon: suffix,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: DashboardColors.cardBorder),
+          borderSide: const BorderSide(color: Color(0xFFD4C7A8)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: DashboardColors.cardBorder),
+          borderSide: const BorderSide(color: Color(0xFFD4C7A8)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: DashboardColors.purple, width: 1.5),
+          borderSide: const BorderSide(color: _LoginInk.accent, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -469,11 +529,13 @@ class _LoginButton extends StatelessWidget {
       height: 52,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          gradient: DashboardColors.accentGradient,
+          gradient: const LinearGradient(
+            colors: [_LoginInk.accentDeep, _LoginInk.accent, Color(0xFF3D8A6E)],
+          ),
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: DashboardColors.purple.withValues(alpha: 0.4),
+              color: _LoginInk.accent.withValues(alpha: 0.38),
               blurRadius: 14,
               offset: const Offset(0, 4),
             ),
@@ -516,9 +578,12 @@ class _LoginFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final linkStyle = GoogleFonts.notoSans(
-      color: DashboardColors.textMuted,
+      color: _LoginInk.onImage,
       fontSize: 11,
+      fontWeight: FontWeight.w600,
       decoration: TextDecoration.underline,
+      decorationColor: _LoginInk.accentDeep,
+      shadows: _LoginInk.onImageGlow,
     );
 
     return Padding(
@@ -537,10 +602,12 @@ class _LoginFooter extends StatelessWidget {
             return Column(
               children: [
                 Text(
-                  '© 2024 CrabFarm Monitor · Precision Aquaculture',
+                  '© 2024 CrabSense · Trại nuôi cua lột',
                   style: GoogleFonts.notoSans(
-                    color: DashboardColors.textMuted,
+                    color: _LoginInk.onImage,
                     fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    shadows: _LoginInk.onImageGlow,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -558,10 +625,12 @@ class _LoginFooter extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  '© 2024 CrabFarm Monitor · Precision Aquaculture',
+                  '© 2024 CrabSense · Trại nuôi cua lột',
                   style: GoogleFonts.notoSans(
-                    color: DashboardColors.textMuted,
+                    color: _LoginInk.onImage,
                     fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    shadows: _LoginInk.onImageGlow,
                   ),
                 ),
               ),

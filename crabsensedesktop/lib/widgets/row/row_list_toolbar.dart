@@ -17,6 +17,7 @@ class RowListToolbar extends StatelessWidget {
     required this.onAreaChanged,
     required this.onStatusChanged,
     required this.onRefresh,
+    this.onAdd,
   });
 
   final TextEditingController searchController;
@@ -28,119 +29,105 @@ class RowListToolbar extends StatelessWidget {
   final ValueChanged<String?> onAreaChanged;
   final ValueChanged<RowStatusFilter?> onStatusChanged;
   final VoidCallback onRefresh;
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, c) {
-        final stacked = c.maxWidth < 800;
-        final search = Expanded(
-          child: TextField(
-            controller: searchController,
-            onChanged: onSearchChanged,
-            decoration: InputDecoration(
-              hintText: 'Tìm tên dãy hoặc mã dãy...',
-              hintStyle: GoogleFonts.notoSans(
-                color: DashboardColors.textMuted,
-                fontSize: 13,
-              ),
-              prefixIcon: Icon(
-                Icons.search,
-                color: DashboardColors.textMuted,
-                size: 20,
-              ),
-              filled: true,
-              fillColor: DashboardColors.darkNavy,
-              isDense: true,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: DashboardColors.cardBorder),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: DashboardColors.cardBorder),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 12,
-              ),
-            ),
-            style: GoogleFonts.notoSans(color: DashboardColors.textPrimary),
+    final showKhu = areas.length > 1;
+    final search = Expanded(
+      child: TextField(
+        controller: searchController,
+        onChanged: onSearchChanged,
+        style: GoogleFonts.notoSans(
+          color: DashboardColors.textPrimary,
+          fontSize: 14,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Tìm kiếm dãy...',
+          hintStyle: GoogleFonts.notoSans(
+            color: DashboardColors.textMuted,
+            fontSize: 13,
           ),
-        );
+          prefixIcon: Icon(Icons.search, color: DashboardColors.textMuted),
+          filled: true,
+          fillColor: DashboardColors.card,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: DashboardColors.cardBorder),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: DashboardColors.cardBorder),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: DashboardColors.purple, width: 1.2),
+          ),
+        ),
+      ),
+    );
 
-        final areaDrop = _FilterDropdown<String?>(
-          value: areaFilterId,
-          hint: 'Tất cả khu',
-          items: [
-            const DropdownMenuItem(value: null, child: Text('Tất cả khu')),
-            ...areas.map(
-              (a) => DropdownMenuItem(
-                value: a.id,
-                child: Text(
-                  '${a.areaCode} — ${a.areaName}',
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
+    final khuDrop = showKhu
+        ? SizedBox(
+            width: 200,
+            child: _FilterDropdown<String?>(
+              value: areaFilterId,
+              items: [
+                const DropdownMenuItem(value: null, child: Text('Khu: Tất cả')),
+                ...areas.map(
+                  (a) => DropdownMenuItem(
+                    value: a.id,
+                    child: Text(
+                      a.areaName,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ),
-              ),
+              ],
+              onChanged: loading ? null : onAreaChanged,
             ),
-          ],
-          onChanged: loading ? null : onAreaChanged,
-        );
+          )
+        : null;
 
-        final statusDrop = _FilterDropdown<RowStatusFilter?>(
-          value: statusFilter,
-          hint: RowStatusFilter.all.label,
-          items: RowStatusFilter.values
-              .map(
-                (f) => DropdownMenuItem(
-                  value: f,
-                  child: Text(f.label),
-                ),
-              )
-              .toList(),
-          onChanged: loading
-              ? null
-              : (v) {
-                  if (v != null) onStatusChanged(v);
-                },
-        );
+    final statusDrop = SizedBox(
+      width: 200,
+      child: _FilterDropdown<RowStatusFilter?>(
+        value: statusFilter,
+        items: RowStatusFilter.values
+            .map((f) => DropdownMenuItem(value: f, child: Text(f.label)))
+            .toList(),
+        onChanged: loading
+            ? null
+            : (v) {
+                if (v != null) onStatusChanged(v);
+              },
+      ),
+    );
 
-        final filterBtn = IconButton(
+    return Row(
+      children: [
+        if (khuDrop != null) ...[khuDrop, const SizedBox(width: 12)],
+        statusDrop,
+        const SizedBox(width: 12),
+        search,
+        const SizedBox(width: 12),
+        if (onAdd != null)
+          FilledButton.icon(
+            onPressed: loading ? null : onAdd,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Thêm dãy'),
+            style: FilledButton.styleFrom(
+              backgroundColor: DashboardColors.purple,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            ),
+          ),
+        IconButton(
           onPressed: loading ? null : onRefresh,
           tooltip: 'Tải lại',
-          icon: Icon(Icons.filter_list, color: DashboardColors.textMuted),
-        );
-
-        if (stacked) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              search,
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(child: areaDrop),
-                  const SizedBox(width: 8),
-                  Expanded(child: statusDrop),
-                  filterBtn,
-                ],
-              ),
-            ],
-          );
-        }
-
-        return Row(
-          children: [
-            search,
-            const SizedBox(width: 12),
-            SizedBox(width: 180, child: areaDrop),
-            const SizedBox(width: 8),
-            SizedBox(width: 180, child: statusDrop),
-            filterBtn,
-          ],
-        );
-      },
+          icon: Icon(Icons.refresh, color: DashboardColors.textMuted),
+        ),
+      ],
     );
   }
 }
@@ -148,13 +135,11 @@ class RowListToolbar extends StatelessWidget {
 class _FilterDropdown<T> extends StatelessWidget {
   const _FilterDropdown({
     required this.value,
-    required this.hint,
     required this.items,
     this.onChanged,
   });
 
   final T value;
-  final String hint;
   final List<DropdownMenuItem<T>> items;
   final ValueChanged<T?>? onChanged;
 
@@ -173,9 +158,9 @@ class _FilterDropdown<T> extends StatelessWidget {
       value: resolved,
       decoration: InputDecoration(
         filled: true,
-        fillColor: DashboardColors.darkNavy,
+        fillColor: DashboardColors.card,
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: DashboardColors.cardBorder),

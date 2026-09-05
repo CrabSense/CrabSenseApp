@@ -23,6 +23,9 @@ class AlertService extends ChangeNotifier {
 
   void updateSession(AuthSession session) {
     _session = session;
+    _alerts = [];
+    _history = [];
+    _selectedId = null;
   }
 
   AlertKpi get kpi {

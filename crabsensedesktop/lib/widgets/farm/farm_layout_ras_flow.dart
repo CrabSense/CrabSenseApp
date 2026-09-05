@@ -18,12 +18,16 @@ class FarmLayoutRasFlow extends StatefulWidget {
     required this.areaService,
     this.farmLayoutService,
     this.zoneFilter,
+    this.areaId,
   });
 
   final RasFlowService rasFlowService;
   final AreaManagementService areaService;
   final FarmLayoutService? farmLayoutService;
+  /// Mã khu cũ (AREA-A01). Ưu tiên [areaId] nếu có.
   final String? zoneFilter;
+  /// Id FarmingArea đang xem trên bản đồ / header.
+  final String? areaId;
 
   @override
   State<FarmLayoutRasFlow> createState() => _FarmLayoutRasFlowState();
@@ -45,6 +49,7 @@ class _FarmLayoutRasFlowState extends State<FarmLayoutRasFlow> {
   void didUpdateWidget(FarmLayoutRasFlow oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.zoneFilter != widget.zoneFilter ||
+        oldWidget.areaId != widget.areaId ||
         oldWidget.farmLayoutService != widget.farmLayoutService) {
       _syncLiveRefresh();
     }
@@ -96,18 +101,27 @@ class _FarmLayoutRasFlowState extends State<FarmLayoutRasFlow> {
 
   String? _resolveAreaId() {
     final areas = _areas;
+    final explicit = widget.areaId?.trim();
+    if (explicit != null && explicit.isNotEmpty) {
+      if (areas.any((a) => a.id == explicit)) return explicit;
+      return explicit;
+    }
+
     if (areas.isEmpty) return null;
 
     final zone = widget.zoneFilter?.trim();
     if (zone != null && zone.isNotEmpty) {
       final z = zone.toUpperCase();
       for (final a in areas) {
+        if (a.id == zone) return a.id;
         final code = a.areaCode.toUpperCase();
         if (code == z || code.endsWith(z) || code.contains(z)) {
           return a.id;
         }
       }
     }
+    final fromLayout = widget.farmLayoutService?.selectedAreaId;
+    if (fromLayout != null && fromLayout.isNotEmpty) return fromLayout;
     return areas.first.id;
   }
 

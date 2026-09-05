@@ -53,6 +53,8 @@ class AiAssistantService extends ChangeNotifier {
 
   void updateSession(AuthSession session) {
     _session = session;
+    _recommendations = [];
+    _messages.clear();
   }
 
   Future<void> load() async {

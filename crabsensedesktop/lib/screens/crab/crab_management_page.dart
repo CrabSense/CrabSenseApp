@@ -8,6 +8,8 @@ import '../../navigation/app_route.dart';
 import '../../services/crab_service.dart';
 import '../../theme/dashboard_theme.dart';
 import '../../widgets/area/area_list_toolbar.dart';
+import '../../widgets/crab/crab_bulk_add_dialog.dart';
+import '../../widgets/crab/crab_lot_import_dialog.dart';
 import '../../widgets/crab/crab_management_dialogs.dart';
 import '../../widgets/crab/crab_management_table.dart';
 import '../../widgets/crab/crab_summary_kpi.dart';
@@ -52,6 +54,19 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
   }
 
   void _onUpdate() => setState(() {});
+
+  Future<void> _importLot(CrabService svc) async {
+    final lot = await showCrabLotImportDialog(context, svc);
+    if (!mounted || lot == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Đã nhập ${lot.displayLabel}. Tiếp theo: kiểm tra số lượng rồi phân cua vào hộp.',
+        ),
+      ),
+    );
+    await showCrabBulkAddDialog(context, svc, initialLotId: lot.id);
+  }
 
   Future<void> _onAction(CrabIndividual crab, CrabManagementAction action) async {
     final svc = widget.service;
@@ -155,6 +170,26 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
                   ],
                 ),
               ),
+              OutlinedButton.icon(
+                onPressed: () => _importLot(svc),
+                icon: const Icon(Icons.inventory_2_outlined, size: 18),
+                label: const Text('Nhập lô'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: DashboardColors.cyan,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                ),
+              ),
+              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: () => showCrabBulkAddDialog(context, svc),
+                icon: const Icon(Icons.playlist_add, size: 18),
+                label: const Text('Thêm nhiều'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: DashboardColors.cyan,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                ),
+              ),
+              const SizedBox(width: 10),
               FilledButton.icon(
                 onPressed: () => showCrabManagementFormDialog(context, svc),
                 icon: const Icon(Icons.add, size: 18),
@@ -195,7 +230,7 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
                       child: Text(
                         svc.error != null
                             ? 'Không tải được dữ liệu — thử mở lại tab'
-                            : 'Chưa có cua — dùng Thêm Cua',
+                            : 'Chưa có cua — nhập lô rồi phân vào hộp',
                         style: GoogleFonts.notoSans(color: DashboardColors.textMuted),
                       ),
                     ),
@@ -238,8 +273,6 @@ class _Breadcrumb extends StatelessWidget {
       children: [
         InkWell(onTap: () => onNavigate?.call(AppRoute.dashboard), child: Text('Dashboard', style: link)),
         Text('  >  ', style: muted),
-        InkWell(onTap: () => onNavigate?.call(AppRoute.farmManagement), child: Text('Quản lý Trại', style: link)),
-        Text('  >  ', style: muted),
         Text('Quản lý Cua', style: muted.copyWith(color: DashboardColors.textPrimary)),
       ],
     );
@@ -279,7 +312,6 @@ class _Toolbar extends StatelessWidget {
                 ),
               ),
             ),
-            _filterDropdown('Khu', service.areaFilter, service.areaOptions, service.setAreaFilter),
             _filterDropdown('Dãy', service.rowFilter, service.rowOptions, service.setRowFilter),
             _filterDropdown('Hộp', service.boxFilter, service.boxOptions, service.setBoxFilter),
             _filterDropdown('Lô cua', service.batchFilter, service.batchOptions, service.setBatchFilter),

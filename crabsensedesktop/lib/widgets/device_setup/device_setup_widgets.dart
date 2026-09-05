@@ -1458,7 +1458,7 @@ class CloudEdgeTestSection extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 'ESP32 / Edge tại trại → đồng bộ lên Cloud (${connectivity.cloudApiUrl}) → '
-                'CrabFarm Monitor đọc REST API (Bearer token).\n'
+                'CrabSense đọc REST API (Bearer token).\n'
                 'Ứng dụng desktop không nối trực tiếp Edge trên LAN.',
                 style: GoogleFonts.notoSans(
                   color: DashboardColors.textMuted,

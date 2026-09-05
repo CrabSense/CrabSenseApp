@@ -19,6 +19,13 @@ class IotDeviceService extends IoTDeviceService {
   List<IotDevice> _mockDevices = [];
   List<IotAutomationRule> _rules = [];
 
+  @override
+  void updateSession(AuthSession session) {
+    super.updateSession(session);
+    _mockDevices = [];
+    _selectedDeviceId = null;
+  }
+
   void setSearch(String value) {
     _search = value;
     notifyListeners();

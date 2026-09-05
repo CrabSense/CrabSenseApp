@@ -26,7 +26,7 @@ class AppFooter extends StatelessWidget {
       child: Row(
         children: [
           Text(
-            'CRABFARM MONITOR © 2024 CrabFarm Monitor. All rights reserved.',
+            'CRABSENSE © 2024 CrabSense. All rights reserved.',
             style: GoogleFonts.notoSans(
               color: DashboardColors.textMuted,
               fontSize: 11,

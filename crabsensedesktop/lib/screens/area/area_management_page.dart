@@ -246,7 +246,7 @@ class _Breadcrumb extends StatelessWidget {
         Text('  >  ', style: current),
         InkWell(
           onTap: onFarm,
-          child: Text('Quản lý Trại', style: link),
+          child: Text('Quản lý khu', style: link),
         ),
         Text('  >  ', style: current),
         Text(

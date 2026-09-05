@@ -292,12 +292,25 @@ class _ProfileTab extends StatelessWidget {
               const SizedBox(height: 16),
               _infoRow('Mã cua', crab.code),
               _infoRow('Lô cua', crab.batchId),
-              _infoRow('Khu', crab.areaName),
               _infoRow('Dãy', crab.rowName),
               _infoRow('Hộp', crab.boxLabel),
               _infoRow('Giới tính', crab.gender.label),
-              _infoRow('Cân nặng', '${crab.weightGram.toStringAsFixed(0)} g'),
-              _infoRow('Kích thước mai', '${crab.shellSizeCm.toStringAsFixed(1)} cm'),
+              _infoRow(
+                'Cân nặng',
+                crab.weightGram > 0 ? '${crab.weightGram.toStringAsFixed(0)} g' : '—',
+              ),
+              _infoRow(
+                'Bề ngang mai',
+                crab.carapaceLengthMm > 0
+                    ? '${crab.carapaceLengthMm.toStringAsFixed(1)} mm'
+                    : '—',
+              ),
+              _infoRow(
+                'Bề rộng mai',
+                crab.shellSizeCm > 0
+                    ? '${crab.shellSizeCm.toStringAsFixed(1)} mm'
+                    : '—',
+              ),
               _infoRow('Giai đoạn', crab.developmentStage.label),
               _infoRow('Sức khỏe', crab.healthStatus.label),
               const SizedBox(height: 8),

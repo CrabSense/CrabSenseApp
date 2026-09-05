@@ -238,7 +238,7 @@ class _RowFormDialogState extends State<_RowFormDialog> {
         await widget.svc.createRow(rowName: _name.text.trim());
       } else {
         await widget.svc.updateRow(widget.existing!,
-            rowCode: widget.existing!.rowCode, rowName: _name.text.trim());
+            rowName: _name.text.trim());
       }
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);

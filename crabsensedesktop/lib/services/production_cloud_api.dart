@@ -8,8 +8,7 @@ extension ProductionCloudApi on CloudApiClient {
   }
 
   Future<String> fetchNextRowCode(String token, String areaId) async {
-    final rows = await fetchRows(token, areaId);
-    return 'Day-${rows.length + 1}';
+    return fetchNextDayCode(token);
   }
 
   Future<String> fetchNextBoxCode(String token, String rowId) async {
@@ -21,8 +20,30 @@ extension ProductionCloudApi on CloudApiClient {
     return 'LOT-${DateTime.now().millisecondsSinceEpoch % 10000}';
   }
 
+  Future<({String code, String qrCode})> fetchNextCrabIdentity(String token) async {
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crabs/next-code');
+    final res = await _client.get(uri, headers: authHeaders(token));
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không lấy được mã cua',
+        statusCode: res.statusCode,
+      );
+    }
+    final data = _dataOf(body);
+    if (data is Map) {
+      final code = (data['code'] ?? data['Code'])?.toString() ?? '';
+      final qr = (data['qrCode'] ?? data['QrCode'])?.toString() ?? '';
+      if (code.isNotEmpty) {
+        return (code: code, qrCode: qr.isNotEmpty ? qr : 'QR-$code');
+      }
+    }
+    return (code: 'CRAB-0001', qrCode: 'QR-CRAB-0001');
+  }
+
   Future<String> fetchNextBatchCrabCode(String token, String batchId) async {
-    return 'CRAB-${DateTime.now().millisecondsSinceEpoch % 10000}';
+    final next = await fetchNextCrabIdentity(token);
+    return next.code;
   }
 
   Future<List<AreaRecord>> fetchAreas(String token, String farmId) async {
@@ -33,18 +54,17 @@ extension ProductionCloudApi on CloudApiClient {
   Future<({List<AreaRecord> areas, AreaSummaryStats summary})>
       fetchAreasWithSummary(String token, String farmId) async {
     final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/farming-areas');
-    final res = await _client.get(uri, headers: authHeaders(token));
+    final res = await _client.get(
+      uri,
+      headers: authHeaders(token, farmId: farmId.isEmpty ? null : farmId),
+    );
     final map = _decode(res);
     _ensureOk(res);
     final items = _itemsOf(map);
-    var areas = items
+    final areas = items
         .whereType<Map>()
         .map((e) => AreaRecord.fromJson(Map<String, dynamic>.from(e)))
         .toList();
-    if (farmId.isNotEmpty) {
-      final scoped = areas.where((a) => a.id == farmId).toList();
-      if (scoped.isNotEmpty) areas = scoped;
-    }
     final active = areas.where((a) => a.status == 'active').length;
     final disabled = areas.where((a) => a.status == 'disabled').length;
     final summary = AreaSummaryStats(
@@ -88,6 +108,11 @@ extension ProductionCloudApi on CloudApiClient {
       body: jsonEncode({
         'name': areaName,
         if (description != null) 'description': description,
+        'status': status.toLowerCase() == 'disabled' || status.toLowerCase() == 'closed'
+            ? 'Closed'
+            : status.toLowerCase() == 'suspended'
+                ? 'Suspended'
+                : 'Active',
       }),
     );
     return _parseSingle(res, 'area', AreaRecord.fromJson);
@@ -108,7 +133,15 @@ extension ProductionCloudApi on CloudApiClient {
       body: jsonEncode({
         'name': areaName,
         'description': description,
-        'isActive': status == null || status.toLowerCase() != 'disabled',
+        'status': status == null
+            ? 'Active'
+            : (status.toLowerCase() == 'disabled' || status.toLowerCase() == 'closed')
+                ? 'Closed'
+                : status.toLowerCase() == 'suspended'
+                    ? 'Suspended'
+                    : 'Active',
+        'isActive': status == null ||
+            (status.toLowerCase() != 'disabled' && status.toLowerCase() != 'closed'),
       }),
     );
     return _parseSingle(res, 'area', AreaRecord.fromJson);
@@ -126,11 +159,42 @@ extension ProductionCloudApi on CloudApiClient {
     return _parseList(res, 'rows', RowRecord.fromJson);
   }
 
+  Future<List<RowRecord>> fetchAllRows(String token, {String? areaId}) async {
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/farming-rows').replace(
+      queryParameters: areaId == null || areaId.isEmpty
+          ? null
+          : {'farmingAreaId': areaId},
+    );
+    final res = await _client.get(uri, headers: authHeaders(token));
+    return _parseList(res, 'rows', RowRecord.fromJson);
+  }
+
+  Future<String> fetchNextDayCode(String token) async {
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/farming-rows/next-code');
+    final res = await _client.get(uri, headers: authHeaders(token));
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không lấy được mã dãy',
+        statusCode: res.statusCode,
+      );
+    }
+    final data = _dataOf(body);
+    if (data is Map) {
+      final code = (data['code'] ?? data['Code'])?.toString();
+      if (code != null && code.isNotEmpty) return code;
+    }
+    return 'DAY-A01';
+  }
+
   Future<RowRecord> createRow(
     String token,
     String areaId, {
     required String rowName,
-    String? rowCode,
+    String? location,
+    int capacity = 0,
+    String? description,
+    FarmStatus status = FarmStatus.active,
   }) async {
     final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/farming-areas/$areaId/rows');
     final res = await _client.post(
@@ -139,7 +203,10 @@ extension ProductionCloudApi on CloudApiClient {
       body: jsonEncode({
         'farmingAreaId': areaId,
         'name': rowName,
-        'capacity': 0,
+        if (location != null && location.isNotEmpty) 'location': location,
+        'capacity': capacity,
+        if (description != null && description.isNotEmpty) 'description': description,
+        'status': status.apiValue,
       }),
     );
     return _parseSingle(res, 'row', RowRecord.fromJson);
@@ -148,14 +215,23 @@ extension ProductionCloudApi on CloudApiClient {
   Future<RowRecord> updateRow(
     String token,
     String rowId, {
-    required String rowCode,
     required String rowName,
+    String? location,
+    int? capacity,
+    String? description,
+    FarmStatus status = FarmStatus.active,
   }) async {
     final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/farming-rows/$rowId');
     final res = await _client.put(
       uri,
       headers: {...authHeaders(token), 'Content-Type': 'application/json'},
-      body: jsonEncode({'name': rowName, 'capacity': 0, 'isActive': true}),
+      body: jsonEncode({
+        'name': rowName,
+        'location': location ?? '',
+        if (capacity != null) 'capacity': capacity,
+        'description': description ?? '',
+        'status': status.apiValue,
+      }),
     );
     return _parseSingle(res, 'row', RowRecord.fromJson);
   }
@@ -168,6 +244,21 @@ extension ProductionCloudApi on CloudApiClient {
 
   Future<List<BoxRecord>> fetchBoxes(String token, String rowId) async {
     final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/farming-rows/$rowId/boxes');
+    final res = await _client.get(uri, headers: authHeaders(token));
+    return _parseList(res, 'boxes', BoxRecord.fromJson);
+  }
+
+  Future<List<BoxRecord>> fetchAllBoxes(
+    String token, {
+    String? areaId,
+    String? rowId,
+  }) async {
+    final q = <String, String>{};
+    if (areaId != null && areaId.isNotEmpty) q['farmingAreaId'] = areaId;
+    if (rowId != null && rowId.isNotEmpty) q['farmingRowId'] = rowId;
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/boxes').replace(
+      queryParameters: q.isEmpty ? null : q,
+    );
     final res = await _client.get(uri, headers: authHeaders(token));
     return _parseList(res, 'boxes', BoxRecord.fromJson);
   }
@@ -252,6 +343,38 @@ extension ProductionCloudApi on CloudApiClient {
     return _parseList(res, 'items', FarmingBatchRecord.fromJson);
   }
 
+  Future<FarmingBatchRecord> fetchCrabLot(String token, String lotId) async {
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crab-lots/$lotId');
+    final res = await _client.get(uri, headers: authHeaders(token));
+    return _parseSingle(res, 'batch', FarmingBatchRecord.fromJson);
+  }
+
+  Future<FarmingBatchRecord> updateCrabLot(
+    String token,
+    String lotId, {
+    String? name,
+    DateTime? importDate,
+    int? quantity,
+    String? supplierName,
+    String? notes,
+    String? status,
+  }) async {
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crab-lots/$lotId');
+    final res = await _client.put(
+      uri,
+      headers: {...authHeaders(token), 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        if (name != null) 'name': name,
+        if (importDate != null) 'importDate': importDate.toUtc().toIso8601String(),
+        if (quantity != null) 'quantity': quantity,
+        if (supplierName != null) 'supplierName': supplierName,
+        if (notes != null) 'notes': notes,
+        if (status != null) 'status': status,
+      }),
+    );
+    return _parseSingle(res, 'batch', FarmingBatchRecord.fromJson);
+  }
+
   Future<List<FarmingBatchRecord>> fetchBatches(String token, String boxId) =>
       fetchCrabLots(token);
 
@@ -283,6 +406,71 @@ extension ProductionCloudApi on CloudApiClient {
     return [lot];
   }
 
+  Future<String> fetchNextLotCode(String token, {DateTime? importDate}) async {
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crab-lots/next-code')
+        .replace(
+      queryParameters: importDate == null
+          ? null
+          : {'importDate': importDate.toUtc().toIso8601String()},
+    );
+    final res = await _client.get(uri, headers: authHeaders(token));
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không lấy được mã lô',
+        statusCode: res.statusCode,
+      );
+    }
+    final data = _dataOf(body);
+    if (data is Map) {
+      final code = (data['code'] ?? data['Code'])?.toString() ?? '';
+      if (code.isNotEmpty) return code;
+    }
+    return 'LOT-${DateTime.now().toUtc().toIso8601String().substring(0, 10).replaceAll('-', '')}-001';
+  }
+
+  Future<FarmingBatchRecord> createCrabLot(
+    String token, {
+    required String name,
+    required DateTime importDate,
+    required int quantity,
+    String? lotCode,
+    String? supplierName,
+    double? totalWeightKg,
+    double? weightMinGram,
+    double? weightMaxGram,
+    double? unitPriceVndPerKg,
+    double? shippingCostVnd,
+    double? otherCostVnd,
+    String condition = 'Good',
+    int deadOnArrival = 0,
+    String? notes,
+  }) async {
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crab-lots');
+    final res = await _client.post(
+      uri,
+      headers: {...authHeaders(token), 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'name': name,
+        'importDate': importDate.toUtc().toIso8601String(),
+        'quantity': quantity,
+        if (lotCode != null && lotCode.isNotEmpty) 'lotCode': lotCode,
+        if (supplierName != null && supplierName.isNotEmpty)
+          'supplierName': supplierName,
+        if (totalWeightKg != null) 'totalWeightKg': totalWeightKg,
+        if (weightMinGram != null) 'weightMinGram': weightMinGram,
+        if (weightMaxGram != null) 'weightMaxGram': weightMaxGram,
+        if (unitPriceVndPerKg != null) 'unitPriceVndPerKg': unitPriceVndPerKg,
+        if (shippingCostVnd != null) 'shippingCostVnd': shippingCostVnd,
+        if (otherCostVnd != null) 'otherCostVnd': otherCostVnd,
+        'condition': condition,
+        'deadOnArrival': deadOnArrival,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+      }),
+    );
+    return _parseSingle(res, 'batch', FarmingBatchRecord.fromJson);
+  }
+
   Future<FarmingBatchRecord> createBatch(
     String token,
     String boxId, {
@@ -294,21 +482,19 @@ extension ProductionCloudApi on CloudApiClient {
     String status = 'active',
     bool startNow = false,
   }) async {
-    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crab-lots');
-    final code = (batchCode != null && batchCode.isNotEmpty)
+    final name = (batchCode != null && batchCode.isNotEmpty)
         ? batchCode
-        : 'LOT-${DateTime.now().millisecondsSinceEpoch % 100000}';
-    final res = await _client.post(
-      uri,
-      headers: {...authHeaders(token), 'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'lotCode': code,
-        'importDate': startDate.toUtc().toIso8601String(),
-        if (expectedHarvestDate != null)
-          'notes': 'Dự kiến thu: ${_dateOnly(expectedHarvestDate)}',
-      }),
+        : 'Lô nhập ${_dateOnly(startDate)}';
+    return createCrabLot(
+      token,
+      name: name,
+      importDate: startDate,
+      quantity: initialQuantity > 0 ? initialQuantity : 1,
+      lotCode: (batchCode != null && batchCode.isNotEmpty) ? batchCode : null,
+      notes: expectedHarvestDate != null
+          ? 'Dự kiến thu: ${_dateOnly(expectedHarvestDate)}'
+          : null,
     );
-    return _parseSingle(res, 'batch', FarmingBatchRecord.fromJson);
   }
 
   Future<FarmingBatchRecord> updateBatch(
@@ -414,19 +600,42 @@ extension ProductionCloudApi on CloudApiClient {
     _ensureOk(res);
   }
 
-  Future<List<CrabManagementListItem>> _fetchAllCrabs(String token) async {
-    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crabs')
-        .replace(queryParameters: {'page': '1', 'pageSize': '0'});
-    final res = await _client.get(uri, headers: authHeaders(token));
+  Future<List<CrabManagementListItem>> _fetchAllCrabs(
+    String token, {
+    String? farmId,
+  }) async {
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crabs').replace(
+      queryParameters: {
+        'page': '1',
+        'pageSize': '0',
+        if (farmId != null && farmId.isNotEmpty) 'farmingAreaId': farmId,
+      },
+    );
+    final res = await _client.get(
+      uri,
+      headers: authHeaders(token, farmId: farmId),
+    );
     return _parseList(res, 'items', CrabManagementListItem.fromJson);
   }
 
   Future<({CrabManagementSummaryDto summary, List<CrabManagementListItem> crabs})>
       fetchFarmCrabs(String token, String farmId) async {
-    var crabs = await _fetchAllCrabs(token);
+    var crabs = await _fetchAllCrabs(token, farmId: farmId);
+    final rows = await fetchAllRows(
+      token,
+      areaId: farmId.isEmpty ? null : farmId,
+    );
+    final boxes = await fetchAllBoxes(
+      token,
+      areaId: farmId.isEmpty ? null : farmId,
+    );
+    final rowById = {for (final r in rows) r.id: r};
+    final boxById = {for (final b in boxes) b.id: b};
+    crabs = [
+      for (final c in crabs) _withRowFromBox(c, rowById, boxById),
+    ];
     if (farmId.isNotEmpty) {
-      final scoped = crabs.where((c) => c.areaId == farmId).toList();
-      if (scoped.isNotEmpty) crabs = scoped;
+      crabs = crabs.where((c) => c.areaId == farmId).toList();
     }
     final lots = await fetchCrabLots(token);
     final lotCodes = {for (final l in lots) l.id: l.batchCode};
@@ -448,6 +657,7 @@ extension ProductionCloudApi on CloudApiClient {
             gender: c.gender,
             weight: c.weight,
             shellWidth: c.shellWidth,
+            shellLength: c.shellLength,
             status: c.status,
             moltCount: c.moltCount,
             lastMoltDate: c.lastMoltDate,
@@ -562,6 +772,7 @@ extension ProductionCloudApi on CloudApiClient {
     required String gender,
     double? weight,
     double? shellWidth,
+    double? shellLength,
     required String status,
     String? healthStatus,
     String? growthStage,
@@ -576,6 +787,10 @@ extension ProductionCloudApi on CloudApiClient {
         'weightGram': weight,
         'isAlive': status.toLowerCase() != 'dead',
         'moltingStage': healthStatus ?? growthStage,
+        if (shellWidth != null) 'carapaceWidthMm': shellWidth,
+        if (shellLength != null) 'carapaceLengthMm': shellLength,
+        if (profileNote != null) 'notes': profileNote,
+        'gender': gender,
       }),
     );
     return _parseSingle(res, 'crab', BatchCrabRecord.fromJson);
@@ -594,23 +809,79 @@ extension ProductionCloudApi on CloudApiClient {
     String? profileNote,
     String? boxId,
     String? farmingAreaId,
+    String? farmingRowId,
+    String? crabType,
+    String? initialCondition,
+    String? condition,
+    DateTime? stockedAt,
+    List<String>? imageUrls,
+    double? carapaceLengthMm,
   }) async {
+    final hasBox = boxId != null && boxId.isNotEmpty;
     final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crabs');
     final res = await _client.post(
       uri,
       headers: {...authHeaders(token), 'Content-Type': 'application/json'},
       body: jsonEncode({
         'crabLotId': batchId,
-        if (boxId != null && boxId.isNotEmpty) 'boxId': boxId,
+        if (hasBox) 'boxId': boxId,
         if (farmingAreaId != null && farmingAreaId.isNotEmpty)
           'farmingAreaId': farmingAreaId,
-        'autoAssignEmptyBox': boxId == null || boxId.isEmpty,
+        if (farmingRowId != null && farmingRowId.isNotEmpty)
+          'farmingRowId': farmingRowId,
+        'autoAssignEmptyBox': !hasBox,
         if (crabCode != null && crabCode.isNotEmpty) 'tag': crabCode,
-        'weightGram': weight,
-        'moltingStage': healthStatus ?? growthStage,
+        'gender': gender,
+        if (weight != null) 'weightGram': weight,
+        if (weight != null) 'initialWeightGram': weight,
+        if (shellWidth != null) 'carapaceWidthMm': shellWidth,
+        if (carapaceLengthMm != null) 'carapaceLengthMm': carapaceLengthMm,
+        if (profileNote != null && profileNote.isNotEmpty) 'notes': profileNote,
+        if (crabType != null && crabType.isNotEmpty) 'crabType': crabType,
+        if (initialCondition != null && initialCondition.isNotEmpty)
+          'initialCondition': initialCondition,
+        if (condition != null && condition.isNotEmpty) 'condition': condition,
+        if (stockedAt != null) 'stockedAt': stockedAt.toUtc().toIso8601String(),
+        if (imageUrls != null && imageUrls.isNotEmpty) 'imageUrls': imageUrls,
       }),
     );
     return _parseSingle(res, 'crab', BatchCrabRecord.fromJson);
+  }
+
+  /// POST /api/crabs/images — field `files`. Returns public URLs for CreateCrab.imageUrls.
+  Future<List<String>> uploadCrabImages(
+    String token,
+    List<String> filePaths,
+  ) async {
+    if (filePaths.isEmpty) return const [];
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crabs/images');
+    final req = http.MultipartRequest('POST', uri);
+    req.headers.addAll(authHeaders(token));
+    for (final path in filePaths.take(10)) {
+      req.files.add(await http.MultipartFile.fromPath('files', path));
+    }
+    final streamed = await _client.send(req);
+    final res = await http.Response.fromStream(streamed);
+    final body = _decode(res);
+    if (res.statusCode == 401) {
+      throw CloudApiException('Phiên đăng nhập hết hạn', statusCode: 401);
+    }
+    if (res.statusCode < 200 || res.statusCode >= 300 || _isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không tải được ảnh (${res.statusCode})',
+        statusCode: res.statusCode,
+      );
+    }
+    final urls = <String>[];
+    for (final item in _itemsOf(body).whereType<Map>()) {
+      final url = (item['url'] ?? item['Url'] ?? item['shareLink'] ?? item['ShareLink'])
+          ?.toString();
+      if (url != null && url.isNotEmpty) urls.add(url);
+    }
+    if (urls.isEmpty && filePaths.isNotEmpty) {
+      throw CloudApiException('Upload ảnh thành công nhưng không nhận được URL');
+    }
+    return urls;
   }
 
   String? _dateOnly(DateTime? dt) {
@@ -863,4 +1134,52 @@ extension ProductionCloudApi on CloudApiClient {
     }
   }
 
+}
+
+bool _hasGuid(String? id) {
+  if (id == null) return false;
+  final v = id.trim();
+  return v.isNotEmpty && v != '00000000-0000-0000-0000-000000000000';
+}
+
+CrabManagementListItem _withRowFromBox(
+  CrabManagementListItem c,
+  Map<String, RowRecord> rowById,
+  Map<String, BoxRecord> boxById,
+) {
+  final box = _hasGuid(c.boxId) ? boxById[c.boxId] : null;
+  final row = _hasGuid(c.rowId)
+      ? rowById[c.rowId]
+      : (box == null ? null : rowById[box.rowId]);
+  return CrabManagementListItem(
+    id: c.id,
+    batchId: c.batchId,
+    batchCode: c.batchCode,
+    boxId: c.boxId,
+    boxCode: c.boxCode.isNotEmpty ? c.boxCode : (box?.boxCode ?? ''),
+    rowId: _hasGuid(c.rowId) ? c.rowId : (row?.id ?? box?.rowId ?? ''),
+    rowCode: c.rowCode.isNotEmpty
+        ? c.rowCode
+        : (row?.rowCode ?? box?.rowCode ?? ''),
+    rowName: c.rowName.isNotEmpty
+        ? c.rowName
+        : (row?.rowName ?? box?.rowName ?? ''),
+    areaId: _hasGuid(c.areaId) ? c.areaId : (row?.areaId ?? box?.areaId ?? ''),
+    areaCode: c.areaCode.isNotEmpty ? c.areaCode : (box?.areaCode ?? ''),
+    areaName: c.areaName.isNotEmpty
+        ? c.areaName
+        : (row?.areaName ?? box?.areaName ?? ''),
+    crabCode: c.crabCode,
+    gender: c.gender,
+    weight: c.weight,
+    shellWidth: c.shellWidth,
+    shellLength: c.shellLength,
+    status: c.status,
+    moltCount: c.moltCount,
+    lastMoltDate: c.lastMoltDate,
+    healthStatus: c.healthStatus,
+    growthStage: c.growthStage,
+    profileNote: c.profileNote,
+    batchStartDate: c.batchStartDate,
+  );
 }

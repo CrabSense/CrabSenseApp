@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "CrabFarm Monitor" "\0"
-            VALUE "FileDescription", "CrabFarm Monitor" "\0"
+            VALUE "CompanyName", "CrabSense" "\0"
+            VALUE "FileDescription", "CrabSense" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "CrabFarmMonitorDesktop" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 CrabFarm Monitor. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 CrabSense. All rights reserved." "\0"
             VALUE "OriginalFilename", "crab_farm_monitor_desktop.exe" "\0"
-            VALUE "ProductName", "CrabFarm Monitor" "\0"
+            VALUE "ProductName", "CrabSense" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

@@ -14,6 +14,8 @@ class CameraDeviceService extends ChangeNotifier {
 
   void updateSession(AuthSession session) {
     _session = session;
+    _cameras = [];
+    _selectedBoxId = null;
     notifyListeners();
   }
 

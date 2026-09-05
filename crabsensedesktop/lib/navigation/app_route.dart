@@ -11,6 +11,8 @@ enum AppRoute {
   boxDetail,
   farmingBatchManagement,
   farmingBatchDetail,
+  inboundLots,
+  inboundLotDetail,
   productionCrabManagement,
   crabManagementDetail,
   individuals,
@@ -35,7 +37,7 @@ extension AppRouteX on AppRoute {
         AppRoute.batches => 'Lứa nuôi',
         AppRoute.batchDetail => 'Chi tiết lứa',
         AppRoute.farmAreas => 'Bản đồ trại',
-        AppRoute.farmManagement => 'Quản lý trại',
+        AppRoute.farmManagement => 'Quản lý khu',
         AppRoute.areaManagement => 'Quản lý khu',
         AppRoute.areaDetail => 'Chi tiết khu',
         AppRoute.rowManagement => 'Quản lý dãy',
@@ -43,6 +45,8 @@ extension AppRouteX on AppRoute {
         AppRoute.boxDetail => 'Chi tiết hộp',
         AppRoute.farmingBatchManagement => 'Đợt nuôi (đã tắt)',
         AppRoute.farmingBatchDetail => 'Đợt nuôi (đã tắt)',
+        AppRoute.inboundLots => 'Quản lý nhập hàng',
+        AppRoute.inboundLotDetail => 'Chi tiết lô nhập',
         AppRoute.productionCrabManagement => 'Quản lý cua',
         AppRoute.crabManagementDetail => 'Chi tiết cua',
         AppRoute.individuals => 'Cá thể cua',
@@ -76,6 +80,8 @@ extension AppRouteX on AppRoute {
       this == AppRoute.rowManagement ||
       this == AppRoute.boxManagement ||
       this == AppRoute.boxDetail ||
+      this == AppRoute.inboundLots ||
+      this == AppRoute.inboundLotDetail ||
       this == AppRoute.crabManagementDetail ||
       this == AppRoute.environment ||
       this == AppRoute.devices ||

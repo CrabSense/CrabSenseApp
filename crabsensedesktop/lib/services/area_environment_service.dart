@@ -19,6 +19,9 @@ class AreaEnvironmentService extends ChangeNotifier {
 
   void updateSession(AuthSession session) {
     _session = session;
+    stopLiveRefresh(notify: false);
+    _data = null;
+    _error = null;
     _notifyDeferred();
   }
 

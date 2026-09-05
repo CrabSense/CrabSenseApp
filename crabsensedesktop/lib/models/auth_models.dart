@@ -66,6 +66,16 @@ class AuthUser {
       orgId: _optionalStr(json, 'orgId', 'OrgId'),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'email': email,
+        'displayName': displayName,
+        'fullName': displayName,
+        'role': role,
+        'username': username,
+        'orgId': orgId,
+      };
 }
 
 class FarmSummary {
@@ -96,6 +106,12 @@ class FarmSummary {
       name: name,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'code': code,
+        'name': name,
+      };
 
   @override
   String toString() => code.isEmpty || code == name ? name : '$name ($code)';
@@ -195,17 +211,61 @@ class AuthSession {
   bool get canManageFarms => isFarmOwner || isOrgAdmin;
 
   AuthSession copyWith({
+    String? token,
+    String? refreshToken,
+    AuthUser? user,
     FarmSummary? selectedFarm,
     List<FarmSummary>? farms,
+    bool? isOrgAdmin,
   }) =>
       AuthSession(
-        token: token,
-        refreshToken: refreshToken,
-        user: user,
+        token: token ?? this.token,
+        refreshToken: refreshToken ?? this.refreshToken,
+        user: user ?? this.user,
         farms: farms ?? this.farms,
         selectedFarm: selectedFarm ?? this.selectedFarm,
-        isOrgAdmin: isOrgAdmin,
+        isOrgAdmin: isOrgAdmin ?? this.isOrgAdmin,
       );
+
+  Map<String, dynamic> toJson() => {
+        'token': token,
+        'refreshToken': refreshToken,
+        'user': user.toJson(),
+        'farms': farms.map((f) => f.toJson()).toList(),
+        'selectedFarm': selectedFarm.toJson(),
+        'isOrgAdmin': isOrgAdmin,
+      };
+
+  factory AuthSession.fromJson(Map<String, dynamic> json) {
+    final farmsRaw = json['farms'];
+    final farms = <FarmSummary>[];
+    if (farmsRaw is List) {
+      for (final item in farmsRaw) {
+        if (item is Map) {
+          farms.add(FarmSummary.fromJson(Map<String, dynamic>.from(item)));
+        }
+      }
+    }
+    final userRaw = json['user'];
+    final selectedRaw = json['selectedFarm'];
+    return AuthSession(
+      token: (json['token'] ?? '').toString(),
+      refreshToken: _optionalStr(json, 'refreshToken', 'RefreshToken'),
+      user: userRaw is Map
+          ? AuthUser.fromJson(Map<String, dynamic>.from(userRaw))
+          : const AuthUser(
+              id: '',
+              email: '',
+              displayName: '',
+              role: UserRoles.staff,
+            ),
+      farms: farms,
+      selectedFarm: selectedRaw is Map
+          ? FarmSummary.fromJson(Map<String, dynamic>.from(selectedRaw))
+          : (farms.isEmpty ? FarmSummary.unassigned : farms.first),
+      isOrgAdmin: json['isOrgAdmin'] == true,
+    );
+  }
 }
 
 String _str(

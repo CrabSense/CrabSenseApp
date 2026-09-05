@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/crab_batch.dart';
 import '../models/crab_individual.dart';
+import '../models/production_models.dart';
 import '../navigation/app_route.dart';
 import '../services/batch_service.dart';
 import '../services/crab_service.dart';
@@ -15,6 +16,9 @@ import 'crab/crab_detail_page.dart';
 import 'crab/crab_list_page.dart';
 import 'crab/crab_management_page.dart';
 import 'crab/crab_management_detail_page.dart';
+import 'lot/crab_lot_inbound_page.dart';
+import 'lot/crab_lot_inbound_detail_page.dart';
+import '../services/crab_lot_inbound_service.dart';
 import 'dashboard_screen.dart';
 import 'farm/farm_layout_page.dart';
 import '../services/farm_layout_service.dart';
@@ -50,9 +54,9 @@ import '../services/harvest_sales_service.dart';
 import '../services/ai_assistant_service.dart';
 import '../models/auth_models.dart';
 import '../services/cloud_api_client.dart';
+import '../services/cloud_auth_service.dart';
 import '../services/connectivity_link_service.dart';
 import '../services/farm_dashboard_service.dart';
-import '../services/theme_mode_service.dart';
 import 'login_screen.dart';
 
 class MainShellScreen extends StatefulWidget {
@@ -74,6 +78,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
   final _cloudApi = CloudApiClient();
   final _batchService = BatchService();
   late final CrabService _crabService;
+  late final CrabLotInboundService _inboundLotService;
   late final FarmDashboardService _farmDashboardService;
   late final WaterQualityService _waterQualityService;
   late final FarmManagementService _farmManagementService;
@@ -106,6 +111,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
   AppRoute _route = AppRoute.dashboard;
   CrabBatch? _selectedBatch;
   String? _selectedCrabId;
+  String? _selectedLotId;
   String? _selectedAreaId;
   BoxListItem? _selectedBoxItem;
 
@@ -114,6 +120,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
     super.initState();
     _session = widget.session;
     _crabService = CrabService(session: _session);
+    _inboundLotService = CrabLotInboundService(session: _session);
     _farmDashboardService = FarmDashboardService(session: _session);
     _connectivityLinkService =
         ConnectivityLinkService(session: _session);
@@ -180,6 +187,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
     _gatewayService.registerHeartbeat();
     _crabProfileService.updateSession(_session);
     _crabService.updateSession(_session);
+    _inboundLotService.updateSession(_session);
     _farmDashboardService.updateSession(_session);
     _rowManagementService.updateSession(_session);
     _boxManagementService.updateSession(_session);
@@ -216,40 +224,71 @@ class _MainShellScreenState extends State<MainShellScreen> {
     if (farm.id == _session.selectedFarm.id) return;
     setState(() {
       _session = _session.copyWith(selectedFarm: farm);
+      _selectedAreaId = null;
+      _selectedBoxItem = null;
+      _selectedCrabId = null;
+      _selectedLotId = null;
+      _selectedBatch = null;
+      _route = switch (_route) {
+        AppRoute.areaDetail => AppRoute.areaManagement,
+        AppRoute.boxDetail => AppRoute.boxManagement,
+        AppRoute.crabManagementDetail => AppRoute.productionCrabManagement,
+        AppRoute.inboundLotDetail => AppRoute.inboundLots,
+        AppRoute.individualDetail ||
+        AppRoute.individualHealth =>
+          AppRoute.productionCrabManagement,
+        AppRoute.batchDetail => AppRoute.batches,
+        _ => _route,
+      };
     });
-    _connectivityLinkService.updateSession(_session);
-    _waterQualityService.updateSession(_session);
-    _alertService.updateSession(_session);
+    _applySessionToServices();
+    _reloadSelectedFarmData();
+    CloudAuthService().persistSessionIfRemembered(_session);
+  }
+
+  void _reloadSelectedFarmData() {
+    _connectivityLinkService.refreshCloud();
+    _waterQualityService.refreshTrend(quiet: true);
     _alertService.load();
-    _farmLogService.updateSession(_session);
-    _harvestSalesService.updateSession(_session);
-    _aiAssistantService.updateSession(_session);
+    _gatewayService.registerHeartbeat();
+
     if (_route.isProductionRoute) {
       _productionManagementService.loadCurrentTab();
     }
-    if (_route == AppRoute.areaManagement || _route == AppRoute.areaDetail) {
-      _areaManagementService.load();
-    }
-    if (_route == AppRoute.rowManagement) {
-      _rowManagementService.load();
-    }
-    if (_route == AppRoute.boxManagement) {
-      _boxManagementService.load();
-    }
-    _connectivityLinkService.refreshCloud();
-    _waterQualityService.refreshTrend(quiet: true);
-    _farmDashboardService.updateSession(_session);
-    if (_route == AppRoute.dashboard) {
-      _farmDashboardService.load(force: true);
-    }
-    if (_route == AppRoute.farmLogs) {
-      _farmLogService.load();
-    }
-    if (_route == AppRoute.harvestSales) {
-      _harvestSalesService.load();
-    }
-    if (_route == AppRoute.aiInsight) {
-      _aiAssistantService.load();
+
+    switch (_route) {
+      case AppRoute.dashboard:
+        _farmDashboardService.load(force: true);
+      case AppRoute.farmAreas:
+        _farmLayoutService.load(force: true);
+        _areaManagementService.load();
+        _iotDeviceService.loadUiDevices();
+      case AppRoute.areaManagement:
+        _areaManagementService.load();
+      case AppRoute.rowManagement:
+        _rowManagementService.load();
+      case AppRoute.boxManagement:
+        _boxManagementService.load();
+      case AppRoute.inboundLots:
+      case AppRoute.inboundLotDetail:
+        _inboundLotService.load();
+      case AppRoute.productionCrabManagement:
+      case AppRoute.individuals:
+        _crabService.load();
+      case AppRoute.devices:
+        _iotDeviceService.loadUiDevices();
+        _cameraDeviceService.loadCameras();
+      case AppRoute.environment:
+        _waterQualityService.refresh();
+        _areaEnvironmentService.loadByArea(_session.selectedFarm.id);
+      case AppRoute.farmLogs:
+        _farmLogService.load();
+      case AppRoute.harvestSales:
+        _harvestSalesService.load();
+      case AppRoute.aiInsight:
+        _aiAssistantService.load();
+      default:
+        break;
     }
   }
 
@@ -292,6 +331,9 @@ class _MainShellScreenState extends State<MainShellScreen> {
           route != AppRoute.crabManagementDetail) {
         _selectedCrabId = null;
       }
+      if (route != AppRoute.inboundLotDetail) {
+        _selectedLotId = null;
+      }
     });
     if (route.isProductionRoute) {
       _productionManagementService.setTab(ProductionTab.crab);
@@ -305,6 +347,23 @@ class _MainShellScreenState extends State<MainShellScreen> {
     }
     if (route == AppRoute.boxManagement) {
       _boxManagementService.load();
+    }
+    if (route == AppRoute.inboundLots) {
+      _inboundLotService.load();
+    }
+    if (route == AppRoute.farmAreas) {
+      _farmLayoutService.load(force: true);
+      _iotDeviceService.loadUiDevices();
+    }
+    if (route == AppRoute.devices) {
+      _iotDeviceService.loadUiDevices();
+      _cameraDeviceService.loadCameras();
+    }
+    if (route == AppRoute.environment) {
+      _waterQualityService.refresh();
+    }
+    if (route == AppRoute.alerts) {
+      _alertService.load();
     }
     if (route != AppRoute.areaDetail) {
       _selectedAreaId = null;
@@ -327,6 +386,22 @@ class _MainShellScreenState extends State<MainShellScreen> {
     if (route == AppRoute.aiInsight) {
       _aiAssistantService.load();
     }
+  }
+
+  void _openInboundLotDetail(FarmingBatchRecord lot) {
+    setState(() {
+      _selectedLotId = lot.id;
+      _route = AppRoute.inboundLotDetail;
+    });
+    _inboundLotService.refreshOne(lot.id);
+  }
+
+  void _backToInboundLots() {
+    setState(() {
+      _route = AppRoute.inboundLots;
+      _selectedLotId = null;
+    });
+    _inboundLotService.load();
   }
 
   void _openCrabManagementDetail(CrabIndividual crab) {
@@ -403,7 +478,12 @@ class _MainShellScreenState extends State<MainShellScreen> {
     });
   }
 
-  void _logout() {
+  Future<void> _logout() async {
+    final token = _session.token;
+    final auth = CloudAuthService();
+    await auth.clearSession(keepUsername: true);
+    await auth.logoutRemote(token);
+    if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (_) => false,
@@ -412,10 +492,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: appThemeMode,
-      builder: (context, _) => _buildShell(context),
-    );
+    return _buildShell(context);
   }
 
   Widget _buildShell(BuildContext context) {
@@ -423,6 +500,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
       AppRoute.batchDetail => AppRoute.batches,
       AppRoute.individualDetail || AppRoute.individualHealth => AppRoute.individuals,
       AppRoute.areaDetail => AppRoute.areaManagement,
+      AppRoute.inboundLotDetail => AppRoute.inboundLots,
       _ => _route,
     };
 
@@ -431,7 +509,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          WaveBackground(key: ValueKey(appThemeMode.isDark)),
+          const WaveBackground(),
           Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -515,7 +593,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
 
     if (_route == AppRoute.farmManagement) {
       return _shellTopBar(
-        searchHint: 'Tìm mã trại, tên, địa chỉ...',
+        searchHint: 'Tìm mã khu, tên, vị trí...',
         onSearchChanged: _farmManagementService.setSearch,
         centerTitle: const SizedBox.shrink(),
       );
@@ -531,7 +609,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
 
     if (_route == AppRoute.rowManagement) {
       return _shellTopBar(
-        searchHint: 'Tìm tên dãy hoặc mã dãy...',
+        searchHint: 'Tìm tên, mã hoặc vị trí dãy...',
         onSearchChanged: _rowManagementService.setSearch,
         centerTitle: const SizedBox.shrink(),
       );
@@ -539,8 +617,27 @@ class _MainShellScreenState extends State<MainShellScreen> {
 
     if (_route == AppRoute.boxManagement) {
       return _shellTopBar(
-        searchHint: 'Tìm mã hộp...',
+        searchHint: 'Tìm kiếm theo mã hộp hoặc mã cua...',
         onSearchChanged: _boxManagementService.setSearch,
+        centerTitle: const SizedBox.shrink(),
+      );
+    }
+
+    if (_route == AppRoute.inboundLots) {
+      return _shellTopBar(
+        searchHint: 'Tìm kiếm mã lô, tên lô hoặc nhà cung cấp...',
+        onSearchChanged: _inboundLotService.setSearch,
+        centerTitle: const SizedBox.shrink(),
+      );
+    }
+
+    if (_route == AppRoute.inboundLotDetail) {
+      return _shellTopBar(
+        searchHint: 'Tìm kiếm lô nhập...',
+        leading: IconButton(
+          onPressed: _backToInboundLots,
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF94A3B8)),
+        ),
         centerTitle: const SizedBox.shrink(),
       );
     }
@@ -705,9 +802,6 @@ class _MainShellScreenState extends State<MainShellScreen> {
         return BoxManagementPage(
           service: _boxManagementService,
           productionService: _productionManagementService,
-          deviceService: _iotDeviceService,
-          cameraService: _cameraDeviceService,
-          gatewayService: _gatewayService,
           onNavigate: _navigate,
           onBoxTap: (item) {
             _selectedBoxItem = item;
@@ -729,6 +823,35 @@ class _MainShellScreenState extends State<MainShellScreen> {
           );
         }
         return const SizedBox.shrink();
+      case AppRoute.inboundLots:
+        return CrabLotInboundPage(
+          service: _inboundLotService,
+          crabService: _crabService,
+          onNavigate: _navigate,
+          onOpenDetail: _openInboundLotDetail,
+        );
+      case AppRoute.inboundLotDetail:
+        final lotId = _selectedLotId ??
+            (_inboundLotService.lots.isNotEmpty ? _inboundLotService.lots.first.id : null);
+        if (lotId == null) {
+          return CrabLotInboundPage(
+            service: _inboundLotService,
+            crabService: _crabService,
+            onNavigate: _navigate,
+            onOpenDetail: _openInboundLotDetail,
+          );
+        }
+        return CrabLotInboundDetailPage(
+          lotId: lotId,
+          service: _inboundLotService,
+          crabService: _crabService,
+          onBack: _backToInboundLots,
+          onNavigate: _navigate,
+          onOpenCrab: (id) {
+            final crab = _crabService.getById(id);
+            if (crab != null) _openCrabManagementDetail(crab);
+          },
+        );
       case AppRoute.farmingBatchManagement:
       case AppRoute.farmingBatchDetail:
         return const Center(

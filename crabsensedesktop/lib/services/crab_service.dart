@@ -33,6 +33,7 @@ class CrabService extends ChangeNotifier {
   final CloudApiClient _api;
 
   List<CrabIndividual> _crabs = [];
+  List<RowRecord> _rowsInArea = [];
   List<FarmingBatchRecord> _lots = [];
   CrabManagementSummary _summary = const CrabManagementSummary(
     total: 0,
@@ -78,6 +79,7 @@ class CrabService extends ChangeNotifier {
   void updateSession(AuthSession session) {
     _session = session;
     _crabs = [];
+    _rowsInArea = [];
     _lots = [];
     _summary = const CrabManagementSummary(
       total: 0,
@@ -88,6 +90,9 @@ class CrabService extends ChangeNotifier {
       aliveRate: 0,
     );
     _currentPage = 1;
+    _areaFilter = MockCrabData.allOption;
+    _rowFilter = MockCrabData.allOption;
+    _boxFilter = MockCrabData.allOption;
     notifyListeners();
   }
 
@@ -97,11 +102,19 @@ class CrabService extends ChangeNotifier {
       ];
 
   List<String> get rowOptions {
-    var list = _crabs;
-    if (_areaFilter != MockCrabData.allOption) {
-      list = list.where((c) => c.areaName == _areaFilter).toList();
+    if (_rowsInArea.isNotEmpty) {
+      return [
+        MockCrabData.allOption,
+        ..._rowsInArea.map((r) {
+          final name = r.rowName.trim();
+          return name.isNotEmpty ? name : r.rowCode;
+        }),
+      ];
     }
-    return [MockCrabData.allOption, ...list.map((c) => c.rowName).toSet()];
+    return [
+      MockCrabData.allOption,
+      ..._crabs.map((c) => c.rowName).where((n) => n.trim().isNotEmpty).toSet(),
+    ];
   }
 
   List<String> get boxOptions {
@@ -125,10 +138,6 @@ class CrabService extends ChangeNotifier {
 
   List<CrabBatchChoice> get batchChoices {
     if (_lots.isNotEmpty) {
-      final codeCount = <String, int>{};
-      for (final l in _lots) {
-        codeCount[l.batchCode] = (codeCount[l.batchCode] ?? 0) + 1;
-      }
       final seen = <String>{};
       return [
         for (final l in _lots)
@@ -137,9 +146,7 @@ class CrabService extends ChangeNotifier {
               batchId: l.id,
               batchCode: l.batchCode,
               boxCode: l.boxCode ?? '',
-              label: (codeCount[l.batchCode] ?? 0) > 1
-                  ? '${l.batchCode} · ${l.id.length >= 8 ? l.id.substring(0, 8) : l.id}'
-                  : (l.batchCode.isEmpty ? l.id : l.batchCode),
+              label: l.displayLabel,
             ),
       ];
     }
@@ -224,6 +231,13 @@ class CrabService extends ChangeNotifier {
         _lots = await _api.fetchCrabLots(token);
       } catch (_) {
         _lots = [];
+      }
+      try {
+        _rowsInArea = farmId.isEmpty
+            ? []
+            : await _api.fetchAllRows(token, areaId: farmId);
+      } catch (_) {
+        _rowsInArea = [];
       }
       _lastListItems = result.crabs;
       _crabs = result.crabs.map(crabFromListItem).toList();
@@ -310,17 +324,90 @@ class CrabService extends ChangeNotifier {
 
   CrabIndividual? getById(String id) => MockCrabData.findById(_crabs, id);
 
+  List<CrabIndividual> crabsInLot({required String lotId, String? lotCode}) {
+    final ids = _lastListItems
+        .where((i) => i.batchId == lotId)
+        .map((i) => i.id)
+        .toSet();
+    return _crabs.where((c) {
+      if (ids.contains(c.id)) return true;
+      if (lotCode != null && lotCode.isNotEmpty && c.batchId == lotCode) {
+        return true;
+      }
+      return c.batchId == lotId;
+    }).toList();
+  }
+
+  Future<void> refreshLots() async {
+    try {
+      _lots = await _api.fetchCrabLots(token);
+      notifyListeners();
+    } on CloudApiException catch (e) {
+      _error = e.message;
+      notifyListeners();
+    } catch (e) {
+      _error = '$e';
+      notifyListeners();
+    }
+  }
+
   Future<FarmingBatchRecord?> ensureDefaultLot() async {
     try {
       if (_lots.isEmpty) {
         _lots = await _api.fetchCrabLots(token);
-      }
-      if (_lots.isNotEmpty) {
         notifyListeners();
-        return _lots.first;
       }
-      final lot = await _api.createBatch(token, farmId, startDate: DateTime.now());
-      _lots = [..._lots, lot];
+      return _lots.isEmpty ? null : _lots.first;
+    } on CloudApiException catch (e) {
+      _error = e.message;
+      notifyListeners();
+      return null;
+    } catch (e) {
+      _error = '$e';
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<String> peekNextLotCode({DateTime? importDate}) async {
+    return _api.fetchNextLotCode(token, importDate: importDate);
+  }
+
+  Future<FarmingBatchRecord?> importLot({
+    required String name,
+    required DateTime importDate,
+    required int quantity,
+    String? lotCode,
+    String? supplierName,
+    double? totalWeightKg,
+    double? weightMinGram,
+    double? weightMaxGram,
+    double? unitPriceVndPerKg,
+    double? shippingCostVnd,
+    double? otherCostVnd,
+    String condition = 'Good',
+    int deadOnArrival = 0,
+    String? notes,
+  }) async {
+    try {
+      final lot = await _api.createCrabLot(
+        token,
+        name: name,
+        importDate: importDate,
+        quantity: quantity,
+        lotCode: lotCode,
+        supplierName: supplierName,
+        totalWeightKg: totalWeightKg,
+        weightMinGram: weightMinGram,
+        weightMaxGram: weightMaxGram,
+        unitPriceVndPerKg: unitPriceVndPerKg,
+        shippingCostVnd: shippingCostVnd,
+        otherCostVnd: otherCostVnd,
+        condition: condition,
+        deadOnArrival: deadOnArrival,
+        notes: notes,
+      );
+      _lots = [lot, ..._lots.where((l) => l.id != lot.id)];
       notifyListeners();
       return lot;
     } on CloudApiException catch (e) {
@@ -342,30 +429,67 @@ class CrabService extends ChangeNotifier {
     }
   }
 
+  Future<({String code, String qrCode})?> peekNextCrabIdentity() async {
+    try {
+      return await _api.fetchNextCrabIdentity(token);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<List<AreaRecord>> fetchAreas() => _api.fetchAreas(token, '');
+
+  Future<List<RowRecord>> fetchRows(String areaId) =>
+      _api.fetchAllRows(token, areaId: areaId);
+
+  Future<List<BoxRecord>> fetchEmptyBoxes({
+    String? areaId,
+    String? rowId,
+  }) async {
+    final boxes = await _api.fetchAllBoxes(
+      token,
+      areaId: areaId,
+      rowId: rowId,
+    );
+    return boxes.where((b) => !b.hasCrab).toList();
+  }
+
   Future<bool> addCrab({
     required String batchId,
-    required String crabCode,
     required CrabGender gender,
-    required double weightGram,
-    required double shellSizeCm,
-    required CrabHealthStatus healthStatus,
-    required CrabLifeStatus lifeStatus,
-    required CrabDevelopmentStage developmentStage,
+    double? weightGram,
+    double? carapaceWidthMm,
+    double? carapaceLengthMm,
     String? note,
+    String? boxId,
+    String? farmingAreaId,
+    String? farmingRowId,
+    String? crabType,
+    String? initialCondition,
+    String condition = 'normal',
+    DateTime? stockedAt,
+    List<String>? imagePaths,
   }) async {
     try {
+      final imageUrls = (imagePaths == null || imagePaths.isEmpty)
+          ? const <String>[]
+          : await _api.uploadCrabImages(token, imagePaths);
       await _api.createBatchCrabExtended(
         token,
         batchId,
-        crabCode: crabCode,
         gender: genderToApi(gender),
         weight: weightGram,
-        shellWidth: shellSizeCm,
-        status: lifeStatusToApi(lifeStatus),
-        healthStatus: healthStatusToApi(healthStatus),
-        growthStage: growthStageToApi(developmentStage),
+        shellWidth: carapaceWidthMm,
+        carapaceLengthMm: carapaceLengthMm,
         profileNote: note,
-        farmingAreaId: farmId,
+        boxId: boxId,
+        farmingAreaId: farmingAreaId ?? farmId,
+        farmingRowId: farmingRowId,
+        crabType: crabType,
+        initialCondition: initialCondition,
+        condition: condition,
+        stockedAt: stockedAt,
+        imageUrls: imageUrls.isEmpty ? null : imageUrls,
       );
       await load();
       return true;
@@ -374,6 +498,60 @@ class CrabService extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  Future<({int saved, List<String> errors})> addCrabsBulk(
+    List<({
+      String batchId,
+      CrabGender gender,
+      double weightGram,
+      double carapaceWidthMm,
+      double carapaceLengthMm,
+      String? note,
+      String? boxId,
+      String? farmingAreaId,
+      String? farmingRowId,
+      String? crabType,
+      String? initialCondition,
+      String condition,
+      DateTime? stockedAt,
+      List<String>? imagePaths,
+    })> rows,
+  ) async {
+    var saved = 0;
+    final errors = <String>[];
+    for (var i = 0; i < rows.length; i++) {
+      final row = rows[i];
+      try {
+        final imageUrls = (row.imagePaths == null || row.imagePaths!.isEmpty)
+            ? const <String>[]
+            : await _api.uploadCrabImages(token, row.imagePaths!);
+        await _api.createBatchCrabExtended(
+          token,
+          row.batchId,
+          gender: genderToApi(row.gender),
+          weight: row.weightGram,
+          shellWidth: row.carapaceWidthMm,
+          carapaceLengthMm: row.carapaceLengthMm,
+          profileNote: row.note,
+          boxId: row.boxId,
+          farmingAreaId: row.farmingAreaId ?? farmId,
+          farmingRowId: row.farmingRowId,
+          crabType: row.crabType,
+          initialCondition: row.initialCondition,
+          condition: row.condition,
+          stockedAt: row.stockedAt,
+          imageUrls: imageUrls.isEmpty ? null : imageUrls,
+        );
+        saved++;
+      } on CloudApiException catch (e) {
+        errors.add('Dòng ${i + 1}: ${e.message}');
+      } catch (e) {
+        errors.add('Dòng ${i + 1}: $e');
+      }
+    }
+    await load();
+    return (saved: saved, errors: errors);
   }
 
   Future<bool> updateCrab(CrabIndividual crab) async {
@@ -385,6 +563,7 @@ class CrabService extends ChangeNotifier {
         gender: genderToApi(crab.gender),
         weight: crab.weightGram,
         shellWidth: crab.shellSizeCm,
+        shellLength: crab.carapaceLengthMm,
         status: lifeStatusToApi(crab.lifeStatus),
         healthStatus: healthStatusToApi(crab.healthStatus),
         growthStage: growthStageToApi(crab.developmentStage),

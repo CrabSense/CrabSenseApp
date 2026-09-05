@@ -116,6 +116,8 @@ class FarmLogService extends ChangeNotifier {
 
   void updateSession(AuthSession session) {
     _session = session;
+    _entries = [];
+    _selectedId = null;
   }
 
   Future<void> load() async {

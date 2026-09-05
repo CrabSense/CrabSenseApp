@@ -9,21 +9,24 @@ Future<void> showCreateFarmDialog(
   BuildContext context,
   FarmManagementService service,
 ) async {
-  String previewCode = 'FR-…';
+  String previewCode = 'AREA-A01';
   try {
     previewCode = await service.fetchNextCode();
   } catch (_) {}
 
+  if (!context.mounted) return;
   await showDialog<void>(
     context: context,
     builder: (ctx) => _FarmFormDialog(
-      title: 'Thêm trại mới',
+      title: 'Thêm khu mới',
       autoCode: previewCode,
       isCreate: true,
-      onSubmit: (name, address, description) => service.create(
-        name: name,
-        address: address,
-        description: description,
+      onSubmit: (input) => service.create(
+        name: input.name,
+        location: input.location,
+        areaSquareMeters: input.areaSquareMeters,
+        description: input.description,
+        status: input.status,
       ),
     ),
   );
@@ -37,17 +40,17 @@ Future<void> showEditFarmDialog(
   await showDialog<void>(
     context: context,
     builder: (ctx) => _FarmFormDialog(
-      title: 'Sửa trại',
+      title: 'Sửa khu',
       autoCode: farm.code,
       isCreate: false,
-      initialName: farm.name,
-      initialAddress: farm.address,
-      initialDescription: farm.description,
-      onSubmit: (name, address, description) => service.update(
+      initial: farm,
+      onSubmit: (input) => service.update(
         farm,
-        name: name,
-        address: address,
-        description: description,
+        name: input.name,
+        location: input.location,
+        areaSquareMeters: input.areaSquareMeters,
+        description: input.description,
+        status: input.status,
       ),
     ),
   );
@@ -63,7 +66,7 @@ Future<void> showDeleteFarmDialog(
     builder: (ctx) => AlertDialog(
       backgroundColor: DashboardColors.card,
       title: Text(
-        'Xóa trại?',
+        'Xóa khu?',
         style: GoogleFonts.notoSans(color: DashboardColors.textPrimary),
       ),
       content: Text(
@@ -89,7 +92,7 @@ Future<void> showDeleteFarmDialog(
     await service.delete(farm);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã xóa trại')),
+        const SnackBar(content: Text('Đã xóa khu')),
       );
     }
   } on Exception catch (e) {
@@ -101,28 +104,36 @@ Future<void> showDeleteFarmDialog(
   }
 }
 
+class _FarmFormInput {
+  const _FarmFormInput({
+    required this.name,
+    this.location,
+    this.areaSquareMeters,
+    this.description,
+    this.status = FarmStatus.active,
+  });
+
+  final String name;
+  final String? location;
+  final double? areaSquareMeters;
+  final String? description;
+  final FarmStatus status;
+}
+
 class _FarmFormDialog extends StatefulWidget {
   const _FarmFormDialog({
     required this.title,
     required this.autoCode,
     required this.isCreate,
     required this.onSubmit,
-    this.initialName,
-    this.initialAddress,
-    this.initialDescription,
+    this.initial,
   });
 
   final String title;
   final String autoCode;
   final bool isCreate;
-  final String? initialName;
-  final String? initialAddress;
-  final String? initialDescription;
-  final Future<dynamic> Function(
-    String name,
-    String? address,
-    String? description,
-  ) onSubmit;
+  final FarmRecord? initial;
+  final Future<dynamic> Function(_FarmFormInput input) onSubmit;
 
   @override
   State<_FarmFormDialog> createState() => _FarmFormDialogState();
@@ -131,22 +142,32 @@ class _FarmFormDialog extends StatefulWidget {
 class _FarmFormDialogState extends State<_FarmFormDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
-  late final TextEditingController _addressCtrl;
+  late final TextEditingController _locationCtrl;
+  late final TextEditingController _areaCtrl;
   late final TextEditingController _descCtrl;
+  late FarmStatus _status;
   var _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _nameCtrl = TextEditingController(text: widget.initialName ?? '');
-    _addressCtrl = TextEditingController(text: widget.initialAddress ?? '');
-    _descCtrl = TextEditingController(text: widget.initialDescription ?? '');
+    final farm = widget.initial;
+    _nameCtrl = TextEditingController(text: farm?.name ?? '');
+    _locationCtrl = TextEditingController(text: farm?.location ?? '');
+    _areaCtrl = TextEditingController(
+      text: farm?.areaSquareMeters == null
+          ? ''
+          : farm!.areaSquareMeters!.toString(),
+    );
+    _descCtrl = TextEditingController(text: farm?.description ?? '');
+    _status = farm?.status ?? FarmStatus.active;
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _addressCtrl.dispose();
+    _locationCtrl.dispose();
+    _areaCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
   }
@@ -155,10 +176,18 @@ class _FarmFormDialogState extends State<_FarmFormDialog> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     try {
+      final areaText = _areaCtrl.text.trim();
       await widget.onSubmit(
-        _nameCtrl.text.trim(),
-        _addressCtrl.text.trim().isEmpty ? null : _addressCtrl.text.trim(),
-        _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+        _FarmFormInput(
+          name: _nameCtrl.text.trim(),
+          location: _locationCtrl.text.trim().isEmpty
+              ? null
+              : _locationCtrl.text.trim(),
+          areaSquareMeters: areaText.isEmpty ? null : double.parse(areaText),
+          description:
+              _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+          status: _status,
+        ),
       );
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
@@ -166,7 +195,7 @@ class _FarmFormDialogState extends State<_FarmFormDialog> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            widget.isCreate ? 'Đã thêm trại' : 'Đã cập nhật trại',
+            widget.isCreate ? 'Đã thêm khu' : 'Đã cập nhật khu',
           ),
         ),
       );
@@ -189,7 +218,7 @@ class _FarmFormDialogState extends State<_FarmFormDialog> {
         style: GoogleFonts.notoSans(color: DashboardColors.textPrimary),
       ),
       content: SizedBox(
-        width: 480,
+        width: 520,
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -198,9 +227,27 @@ class _FarmFormDialogState extends State<_FarmFormDialog> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _autoCodeBanner(widget.autoCode, isCreate: widget.isCreate),
-                _field(_nameCtrl, 'Tên trại *', required: true),
-                _field(_addressCtrl, 'Địa chỉ', maxLines: 2),
-                _field(_descCtrl, 'Mô tả', maxLines: 3),
+                _field(_nameCtrl, 'Tên khu *', hint: 'Ví dụ: Khu nuôi nhà 1', required: true),
+                _field(
+                  _locationCtrl,
+                  'Vị trí',
+                  hint: 'Ví dụ: Nhà nuôi số 1 - Tầng 1',
+                ),
+                _field(
+                  _areaCtrl,
+                  'Diện tích (m²)',
+                  hint: 'Ví dụ: 100',
+                  keyboard: const TextInputType.numberWithOptions(decimal: true),
+                  validator: (v) {
+                    final t = v?.trim() ?? '';
+                    if (t.isEmpty) return null;
+                    final n = double.tryParse(t);
+                    if (n == null || n < 0) return 'Nhập số ≥ 0';
+                    return null;
+                  },
+                ),
+                _field(_descCtrl, 'Mô tả', hint: 'Giới thiệu ngắn về khu', maxLines: 3),
+                _statusField(),
               ],
             ),
           ),
@@ -225,7 +272,50 @@ class _FarmFormDialogState extends State<_FarmFormDialog> {
       ],
     );
   }
+
+  Widget _statusField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: 'Trạng thái *',
+          labelStyle: GoogleFonts.notoSans(color: DashboardColors.textMuted),
+          filled: true,
+          fillColor: DashboardColors.darkNavy.withValues(alpha: 0.4),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: DashboardColors.cardBorder),
+          ),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<FarmStatus>(
+            value: _status,
+            isExpanded: true,
+            dropdownColor: DashboardColors.card,
+            style: GoogleFonts.notoSans(color: DashboardColors.textPrimary),
+            items: FarmStatus.values
+                .map(
+                  (s) => DropdownMenuItem(
+                    value: s,
+                    child: Text('${_statusDot(s)}  ${s.label}'),
+                  ),
+                )
+                .toList(),
+            onChanged: (v) {
+              if (v != null) setState(() => _status = v);
+            },
+          ),
+        ),
+      ),
+    );
+  }
 }
+
+String _statusDot(FarmStatus status) => switch (status) {
+      FarmStatus.active => '🟢',
+      FarmStatus.suspended => '🟡',
+      FarmStatus.closed => '🔴',
+    };
 
 Widget _autoCodeBanner(String code, {required bool isCreate}) {
   return Container(
@@ -238,14 +328,14 @@ Widget _autoCodeBanner(String code, {required bool isCreate}) {
     ),
     child: Row(
       children: [
-        Icon(Icons.tag_outlined, size: 20, color: DashboardColors.cyan),
+        const Icon(Icons.lock_outline, size: 20, color: DashboardColors.cyan),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                isCreate ? 'Mã trại (tự động)' : 'Mã trại',
+                isCreate ? 'Mã khu (hệ thống tự tạo)' : 'Mã khu',
                 style: GoogleFonts.notoSans(
                   color: DashboardColors.textMuted,
                   fontSize: 11,
@@ -270,20 +360,27 @@ Widget _autoCodeBanner(String code, {required bool isCreate}) {
 Widget _field(
   TextEditingController ctrl,
   String label, {
+  String? hint,
   int maxLines = 1,
   bool required = false,
+  TextInputType? keyboard,
+  String? Function(String?)? validator,
 }) {
   return Padding(
     padding: const EdgeInsets.only(bottom: 12),
     child: TextFormField(
       controller: ctrl,
       maxLines: maxLines,
+      keyboardType: keyboard,
       style: GoogleFonts.notoSans(color: DashboardColors.textPrimary),
-      validator: required
-          ? (v) => (v == null || v.trim().isEmpty) ? 'Bắt buộc' : null
-          : null,
+      validator: validator ??
+          (required
+              ? (v) => (v == null || v.trim().isEmpty) ? 'Bắt buộc' : null
+              : null),
       decoration: InputDecoration(
         labelText: label,
+        hintText: hint,
+        hintStyle: GoogleFonts.notoSans(color: DashboardColors.textMuted, fontSize: 13),
         labelStyle: GoogleFonts.notoSans(color: DashboardColors.textMuted),
         filled: true,
         fillColor: DashboardColors.darkNavy.withValues(alpha: 0.4),

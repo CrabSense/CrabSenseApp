@@ -6,13 +6,14 @@ import '../models/production_models.dart';
 import '../utils/farm_layout_mapper.dart';
 import 'cloud_api_client.dart';
 
-/// Tải toàn bộ hộp trại từ API areas + detail.
+/// Bản đồ trại — hộp theo khu đang chọn trên header (selectedFarm = FarmingArea).
 class FarmLayoutService extends ChangeNotifier {
   FarmLayoutService({
     required AuthSession session,
     CloudApiClient? api,
   })  : _session = session,
-        _api = api ?? CloudApiClient();
+        _api = api ?? CloudApiClient(),
+        selectedAreaId = _areaIdOf(session);
 
   static const columnsPerRow = 10;
 
@@ -34,6 +35,9 @@ class FarmLayoutService extends ChangeNotifier {
     deceased: 0,
   );
 
+  /// null = tất cả khu; ngược lại = id FarmingArea.
+  String? selectedAreaId;
+
   bool loading = false;
   String? error;
   DateTime? loadedAt;
@@ -41,14 +45,26 @@ class FarmLayoutService extends ChangeNotifier {
   String get token => _session.token;
   String get farmId => _session.selectedFarm.id;
 
+  static String? _areaIdOf(AuthSession session) {
+    final id = session.selectedFarm.id.trim();
+    return id.isEmpty ? null : id;
+  }
+
   void updateSession(AuthSession session) {
     _session = session;
+    selectedAreaId = _areaIdOf(session);
     boxes = [];
     areas = [];
     zones = [];
     boxesPerZone.clear();
     _resetSummary();
     notifyListeners();
+  }
+
+  Future<void> selectArea(String? areaId) async {
+    if (selectedAreaId == areaId && boxes.isNotEmpty && !loading) return;
+    selectedAreaId = areaId;
+    await load(force: true);
   }
 
   void _resetSummary() {
@@ -71,26 +87,44 @@ class FarmLayoutService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final areaList = await _api.fetchAreas(token, farmId);
+      final areaList = await _api.fetchAreas(token, '');
+      if (selectedAreaId != null &&
+          !areaList.any((a) => a.id == selectedAreaId)) {
+        final fromHeader = _areaIdOf(_session);
+        selectedAreaId = areaList.any((a) => a.id == fromHeader)
+            ? fromHeader
+            : (areaList.isEmpty ? null : areaList.first.id);
+      }
+
+      final rows = await _api.fetchAllRows(token, areaId: selectedAreaId);
+      final rawBoxes = await _api.fetchAllBoxes(token, areaId: selectedAreaId);
+      final areaById = {for (final a in areaList) a.id: a};
+      final rowById = {for (final r in rows) r.id: r};
       final merged = <FarmMapBox>[];
       final perZone = <String, int>{};
 
-      for (final area in areaList) {
-        final detail = await _api.fetchAreaDetail(token, area.id);
-        final rowById = {for (final r in detail.rows) r.id: r};
-
-        for (final box in detail.boxes) {
-          final row = rowById[box.rowId] ??
-              RowRecord(
-                id: box.rowId,
-                areaId: area.id,
-                rowCode: '—',
-                rowName: '—',
-              );
-          merged.add(toFarmMapBox(box: box, area: area, row: row));
-          final z = area.areaCode;
-          perZone[z] = (perZone[z] ?? 0) + 1;
-        }
+      for (final box in rawBoxes) {
+        final row = rowById[box.rowId];
+        final areaId = box.areaId ?? row?.areaId ?? selectedAreaId ?? '';
+        final area = areaById[areaId] ??
+            (areaList.isEmpty
+                ? AreaRecord(
+                    id: areaId,
+                    farmId: farmId,
+                    areaCode: box.areaCode ?? '—',
+                    areaName: box.areaName ?? 'Khu',
+                  )
+                : areaList.first);
+        final safeRow = row ??
+            RowRecord(
+              id: box.rowId,
+              areaId: area.id,
+              rowCode: box.rowCode ?? '—',
+              rowName: box.rowName ?? '—',
+            );
+        merged.add(toFarmMapBox(box: box, area: area, row: safeRow));
+        final z = area.areaCode;
+        perZone[z] = (perZone[z] ?? 0) + 1;
       }
 
       merged.sort((a, b) {
@@ -101,7 +135,10 @@ class FarmLayoutService extends ChangeNotifier {
 
       areas = areaList;
       boxes = merged;
-      zones = areaList.map((a) => a.areaCode).toList()..sort();
+      zones = [
+        for (final a in areaList)
+          if (selectedAreaId == null || a.id == selectedAreaId) a.areaCode,
+      ];
       boxesPerZone
         ..clear()
         ..addAll(perZone);
@@ -121,4 +158,19 @@ class FarmLayoutService extends ChangeNotifier {
   String mascotMessage() => boxes.mascotMessage();
 
   int zoneCapacity(String zone) => boxesPerZone[zone] ?? 0;
+
+  AreaRecord? get selectedArea {
+    final id = selectedAreaId;
+    if (id == null) return null;
+    for (final a in areas) {
+      if (a.id == id) return a;
+    }
+    return null;
+  }
+
+  String areaChipLabel(AreaRecord a) {
+    final name = a.areaName.trim();
+    if (name.isNotEmpty && name != a.areaCode) return name;
+    return a.areaCode;
+  }
 }

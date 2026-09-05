@@ -1,5 +1,6 @@
 import '../config/app_env.dart';
 import '../models/auth_models.dart';
+import 'auth_session_store.dart';
 import 'cloud_api_client.dart';
 
 class CloudAuthResult {
@@ -34,10 +35,12 @@ class CloudAuthResult {
 }
 
 class CloudAuthService {
-  CloudAuthService({CloudApiClient? client})
-      : _api = client ?? CloudApiClient();
+  CloudAuthService({CloudApiClient? client, AuthSessionStore? store})
+      : _api = client ?? CloudApiClient(),
+        _store = store ?? AuthSessionStore();
 
   final CloudApiClient _api;
+  final AuthSessionStore _store;
 
   Future<CloudAuthResult> signIn({
     required String username,
@@ -85,6 +88,78 @@ class CloudAuthService {
 
   bool canSwitchFarms(AuthMePayload me) =>
       me.canViewAllFarms || me.farms.length > 1;
+
+  Future<String?> loadRememberedUsername() => _store.loadUsername();
+
+  Future<void> persistSession(AuthSession session, {String? username}) =>
+      _store.save(session, username: username);
+
+  Future<void> persistSessionIfRemembered(AuthSession session) =>
+      _store.saveIfPersisted(session);
+
+  Future<void> clearSession({bool keepUsername = true}) {
+    return keepUsername ? _store.clearTokensKeepUsername() : _store.clear();
+  }
+
+  Future<void> logoutRemote(String token) => _api.logout(token);
+
+  /// Khôi phục phiên đã lưu. Access token hết hạn (1h) thì refresh (7 ngày).
+  /// API tắt / lỗi mạng → vẫn vào bằng session cache.
+  Future<AuthSession?> restorePersistedSession() async {
+    final stored = await _store.load();
+    if (stored == null) return null;
+
+    var session = stored.session;
+    try {
+      final me = await _api.authMe(session.token);
+      return _mergeMe(session, me, stored.username);
+    } on CloudApiException catch (e) {
+      if (e.statusCode != 401) {
+        return session;
+      }
+      final refresh = session.refreshToken?.trim();
+      if (refresh == null || refresh.isEmpty) {
+        await _store.clearTokensKeepUsername();
+        return null;
+      }
+      try {
+        final next = await _api.refresh(refresh);
+        session = session.copyWith(
+          token: next.token,
+          refreshToken: next.refreshToken ?? refresh,
+          user: next.user ?? session.user,
+        );
+        final me = await _api.authMe(session.token);
+        return _mergeMe(session, me, stored.username);
+      } catch (_) {
+        await _store.clearTokensKeepUsername();
+        return null;
+      }
+    } catch (_) {
+      return session;
+    }
+  }
+
+  Future<AuthSession> _mergeMe(
+    AuthSession session,
+    AuthMePayload me,
+    String? username,
+  ) async {
+    final farms = me.farms.isEmpty ? const [FarmSummary.unassigned] : me.farms;
+    final selected = farms.any((f) => f.id == session.selectedFarm.id)
+        ? farms.firstWhere((f) => f.id == session.selectedFarm.id)
+        : (resolveDefaultFarm(farms, me) ?? farms.first);
+    final next = AuthSession(
+      token: session.token,
+      refreshToken: session.refreshToken,
+      user: me.user,
+      farms: farms,
+      selectedFarm: selected,
+      isOrgAdmin: me.isOrgAdmin,
+    );
+    await _store.save(next, username: username);
+    return next;
+  }
 
   FarmSummary? resolveDefaultFarm(List<FarmSummary> farms, AuthMePayload me) {
     if (farms.isEmpty) return FarmSummary.unassigned;

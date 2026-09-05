@@ -257,7 +257,7 @@ class _Breadcrumb extends StatelessWidget {
       children: [
         InkWell(onTap: () => onNavigate?.call(AppRoute.dashboard), child: Text('Dashboard', style: link)),
         Text('  >  ', style: muted),
-        InkWell(onTap: () => onNavigate?.call(AppRoute.farmManagement), child: Text('Quản lý Trại', style: link)),
+        InkWell(onTap: () => onNavigate?.call(AppRoute.farmManagement), child: Text('Quản lý khu', style: link)),
         Text('  >  ', style: muted),
         Text('Quản lý Đợt Nuôi', style: muted.copyWith(color: DashboardColors.textPrimary)),
       ],

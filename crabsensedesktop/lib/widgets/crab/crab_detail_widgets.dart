@@ -51,7 +51,18 @@ class CrabInfoCard extends StatelessWidget {
           _row('Giới tính', crab.gender.label),
           _row('Ngày thả', MockCrabData.formatDate(crab.releaseDate)),
           _row('Tuổi nuôi', '${crab.ageDays} ngày'),
-          _row('Kích thước mai', '${crab.shellSizeCm}cm'),
+          _row(
+            'Cân nặng',
+            crab.weightGram > 0 ? '${crab.weightGram.toStringAsFixed(0)} g' : '—',
+          ),
+          _row(
+            'Bề ngang mai',
+            crab.carapaceLengthMm > 0 ? '${crab.carapaceLengthMm} mm' : '—',
+          ),
+          _row(
+            'Bề rộng mai',
+            crab.shellSizeCm > 0 ? '${crab.shellSizeCm} mm' : '—',
+          ),
           _row('Lột xác cuối', crab.lastMoltDate == null ? '—' : MockCrabData.formatDate(crab.lastMoltDate!)),
         ],
       ),

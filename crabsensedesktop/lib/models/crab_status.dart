@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import '../theme/dashboard_theme.dart';
 
 enum CrabGender {
+  unknown,
   male,
   female;
 
   String get label => switch (this) {
+        CrabGender.unknown => 'Chưa rõ',
         CrabGender.male => 'Đực',
         CrabGender.female => 'Cái',
       };

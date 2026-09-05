@@ -1,3 +1,6 @@
+import 'crab_lot_status.dart';
+import 'farm_record.dart';
+
 class AreaSummaryStats {
   const AreaSummaryStats({
     required this.total,
@@ -78,7 +81,12 @@ class AreaRecord {
                 json['FarmingAreaId'] ??
                 '')
             .toString(),
-        areaCode: (json['areaCode'] ?? json['AreaCode'] ?? name).toString(),
+        areaCode: (json['code'] ??
+                json['Code'] ??
+                json['areaCode'] ??
+                json['AreaCode'] ??
+                name)
+            .toString(),
         areaName: name,
         description: (json['description'] ?? json['Description'])?.toString(),
         status: inactive
@@ -129,17 +137,63 @@ class RowRecord {
     required this.areaId,
     required this.rowCode,
     required this.rowName,
+    this.areaName,
+    this.areaLocation,
+    this.location,
+    this.description,
+    this.capacity = 0,
+    this.status = FarmStatus.active,
+    this.boxCount = 0,
+    this.crabCount = 0,
+    this.healthyBoxCount = 0,
+    this.alertBoxCount = 0,
   });
 
   final String id;
   final String areaId;
+  final String? areaName;
+  final String? areaLocation;
   final String rowCode;
   final String rowName;
+  final String? location;
+  final String? description;
+  final int capacity;
+  final FarmStatus status;
+  final int boxCount;
+  final int crabCount;
+  final int healthyBoxCount;
+  final int alertBoxCount;
+
+  String get displayLocation {
+    final loc = location?.trim() ?? '';
+    if (loc.isEmpty) return '—';
+    return loc;
+  }
+
+  String get displayPlace {
+    final area = areaName?.trim() ?? '';
+    final loc = location?.trim() ?? '';
+    if (area.isEmpty && loc.isEmpty) return '—';
+    if (loc.isEmpty) return area;
+    if (area.isEmpty) return loc;
+    return '$area - $loc';
+  }
+
+  String get displayBoxes {
+    if (capacity > 0) return '$boxCount / $capacity';
+    return '$boxCount';
+  }
 
   factory RowRecord.fromJson(Map<String, dynamic> json) {
     final name =
         (json['rowName'] ?? json['RowName'] ?? json['name'] ?? json['Name'] ?? '')
             .toString();
+    final code = (json['code'] ??
+            json['Code'] ??
+            json['rowCode'] ??
+            json['RowCode'] ??
+            name)
+        .toString();
     return RowRecord(
       id: (json['id'] ?? json['Id']).toString(),
       areaId: (json['areaId'] ??
@@ -148,9 +202,28 @@ class RowRecord {
               json['FarmingAreaId'] ??
               '')
           .toString(),
-      rowCode: (json['rowCode'] ?? json['RowCode'] ?? name).toString(),
+      areaName: (json['areaName'] ?? json['AreaName'])?.toString(),
+      areaLocation: (json['areaLocation'] ?? json['AreaLocation'])?.toString(),
+      rowCode: code.isNotEmpty ? code : name,
       rowName: name,
+      location: (json['location'] ?? json['Location'])?.toString(),
+      description: (json['description'] ?? json['Description'])?.toString(),
+      capacity: _rowInt(json, 'capacity', 'Capacity'),
+      status: FarmStatus.parse(
+        json['status'] ?? json['Status'],
+        json['isActive'] ?? json['IsActive'],
+      ),
+      boxCount: _rowInt(json, 'boxCount', 'BoxCount'),
+      crabCount: _rowInt(json, 'crabCount', 'CrabCount'),
+      healthyBoxCount: _rowInt(json, 'healthyBoxCount', 'HealthyBoxCount'),
+      alertBoxCount: _rowInt(json, 'alertBoxCount', 'AlertBoxCount'),
     );
+  }
+
+  static int _rowInt(Map<String, dynamic> json, String a, String b) {
+    final raw = json[a] ?? json[b];
+    if (raw is num) return raw.toInt();
+    return int.tryParse('$raw') ?? 0;
   }
 }
 
@@ -162,6 +235,20 @@ class BoxRecord {
     this.position,
     this.volume,
     required this.status,
+    this.displayName,
+    this.areaId,
+    this.areaName,
+    this.areaCode,
+    this.rowName,
+    this.rowCode,
+    this.isOccupied = false,
+    this.crabId,
+    this.crabTag,
+    this.crabMoltingStage,
+    this.crabStatus,
+    this.crabCondition,
+    this.alertCount = 0,
+    this.aiSummary,
   });
 
   final String id;
@@ -170,6 +257,31 @@ class BoxRecord {
   final String? position;
   final double? volume;
   final String status;
+  final String? displayName;
+  final String? areaId;
+  final String? areaName;
+  final String? areaCode;
+  final String? rowName;
+  final String? rowCode;
+  final bool isOccupied;
+  final String? crabId;
+  final String? crabTag;
+  final String? crabMoltingStage;
+  final String? crabStatus;
+  final String? crabCondition;
+  final int alertCount;
+  final String? aiSummary;
+
+  String get title =>
+      (displayName != null && displayName!.trim().isNotEmpty)
+          ? displayName!.trim()
+          : boxCode;
+
+  bool get hasCrab {
+    if (crabId != null && crabId!.isNotEmpty && crabId != 'null') return true;
+    if (crabTag != null && crabTag!.trim().isNotEmpty) return true;
+    return isOccupied && status.toLowerCase() != 'empty';
+  }
 
   factory BoxRecord.fromJson(Map<String, dynamic> json) {
     final occupied = json['isOccupied'] == true || json['IsOccupied'] == true;
@@ -191,7 +303,43 @@ class BoxRecord {
           : null,
       status: (json['status'] ?? json['Status'] ?? (occupied ? 'occupied' : 'empty'))
           .toString(),
+      displayName: _boxStr(json, const ['displayName', 'DisplayName']),
+      areaId: _boxStr(json, const [
+        'areaId',
+        'AreaId',
+        'farmingAreaId',
+        'FarmingAreaId',
+      ]),
+      areaName: _boxStr(json, const ['areaName', 'AreaName']),
+      areaCode: _boxStr(json, const ['areaCode', 'AreaCode']),
+      rowName: _boxStr(json, const ['rowName', 'RowName']),
+      rowCode: _boxStr(json, const ['rowCode', 'RowCode']),
+      isOccupied: occupied,
+      crabId: _boxStr(json, const ['crabId', 'CrabId']),
+      crabTag: _boxStr(json, const ['crabTag', 'CrabTag']),
+      crabMoltingStage:
+          _boxStr(json, const ['crabMoltingStage', 'CrabMoltingStage']),
+      crabStatus: _boxStr(json, const ['crabStatus', 'CrabStatus']),
+      crabCondition: _boxStr(json, const ['crabCondition', 'CrabCondition']),
+      alertCount: _boxInt(json, 'alertCount', 'AlertCount'),
+      aiSummary: _boxStr(json, const ['aiSummary', 'AiSummary']),
     );
+  }
+
+  static int _boxInt(Map<String, dynamic> json, String a, String b) {
+    final raw = json[a] ?? json[b];
+    if (raw is num) return raw.toInt();
+    return int.tryParse('$raw') ?? 0;
+  }
+
+  static String? _boxStr(Map<String, dynamic> json, List<String> keys) {
+    for (final key in keys) {
+      final raw = json[key];
+      if (raw == null) continue;
+      final value = raw.toString().trim();
+      if (value.isNotEmpty && value != 'null') return value;
+    }
+    return null;
   }
 }
 
@@ -207,6 +355,20 @@ class FarmingBatchRecord {
     required this.currentQuantity,
     required this.status,
     this.boxCode,
+    this.name,
+    this.supplierName,
+    this.totalWeightKg,
+    this.averageWeightGram,
+    this.weightMinGram,
+    this.weightMaxGram,
+    this.unitPriceVndPerKg,
+    this.crabCostVnd,
+    this.shippingCostVnd,
+    this.otherCostVnd,
+    this.totalCostVnd,
+    this.condition = 'Good',
+    this.deadOnArrival = 0,
+    this.notes,
   });
 
   final String id;
@@ -219,9 +381,35 @@ class FarmingBatchRecord {
   final int initialQuantity;
   final int currentQuantity;
   final String status;
+  final String? name;
+  final String? supplierName;
+  final double? totalWeightKg;
+  final double? averageWeightGram;
+  final double? weightMinGram;
+  final double? weightMaxGram;
+  final double? unitPriceVndPerKg;
+  final double? crabCostVnd;
+  final double? shippingCostVnd;
+  final double? otherCostVnd;
+  final double? totalCostVnd;
+  final String condition;
+  final int deadOnArrival;
+  final String? notes;
 
-  /// Nhãn dropdown: BT-3 — H-5 (mã đợt có thể trùng giữa các hộp).
+  int get placedCount => currentQuantity;
+
+  CrabLotWorkflowStatus get workflowStatus => CrabLotWorkflowStatusX.resolve(
+        raw: status,
+        placed: placedCount,
+        quantity: initialQuantity,
+      );
+
+  /// Tên lô · mã lô (phiếu nhập).
   String get displayLabel {
+    final n = name?.trim();
+    if (n != null && n.isNotEmpty && n != batchCode) {
+      return '$n · $batchCode';
+    }
     final box = boxCode?.trim();
     if (box != null && box.isNotEmpty) return '$batchCode — $box';
     return batchCode;
@@ -234,6 +422,18 @@ class FarmingBatchRecord {
     return DateTime.tryParse(s);
   }
 
+  static double? _num(Map<String, dynamic> json, List<String> keys) {
+    for (final key in keys) {
+      final raw = json[key];
+      if (raw is num) return raw.toDouble();
+      if (raw is String) {
+        final parsed = double.tryParse(raw.replaceAll(',', ''));
+        if (parsed != null) return parsed;
+      }
+    }
+    return null;
+  }
+
   factory FarmingBatchRecord.fromJson(Map<String, dynamic> json) {
     final qty = ((json['quantity'] ??
                 json['Quantity'] ??
@@ -241,6 +441,11 @@ class FarmingBatchRecord {
                 json['InitialQuantity']) as num?)
             ?.toInt() ??
         0;
+    final placed = ((json['placedCount'] ??
+                json['PlacedCount'] ??
+                json['currentQuantity'] ??
+                json['CurrentQuantity']) as num?)
+            ?.toInt();
     return FarmingBatchRecord(
       id: (json['id'] ?? json['Id']).toString(),
       boxId: (json['boxId'] ?? json['BoxId'] ?? '').toString(),
@@ -251,6 +456,7 @@ class FarmingBatchRecord {
               json['BatchCode'] ??
               '')
           .toString(),
+      name: (json['name'] ?? json['Name'])?.toString(),
       startDate: _parseDate(
             json['importDate'] ??
                 json['ImportDate'] ??
@@ -263,13 +469,23 @@ class FarmingBatchRecord {
       actualHarvestDate:
           _parseDate(json['actualHarvestDate'] ?? json['ActualHarvestDate']),
       initialQuantity: qty,
-      currentQuantity: ((json['currentQuantity'] ??
-                  json['CurrentQuantity'] ??
-                  json['quantity'] ??
-                  json['Quantity']) as num?)
-              ?.toInt() ??
-          qty,
-      status: (json['status'] ?? json['Status'] ?? 'active').toString(),
+      currentQuantity: placed ?? qty,
+      status: (json['status'] ?? json['Status'] ?? '').toString(),
+      supplierName: (json['supplierName'] ?? json['SupplierName'])?.toString(),
+      totalWeightKg: _num(json, ['totalWeightKg', 'TotalWeightKg']),
+      averageWeightGram: _num(json, ['averageWeightGram', 'AverageWeightGram']),
+      weightMinGram: _num(json, ['weightMinGram', 'WeightMinGram']),
+      weightMaxGram: _num(json, ['weightMaxGram', 'WeightMaxGram']),
+      unitPriceVndPerKg: _num(json, ['unitPriceVndPerKg', 'UnitPriceVndPerKg']),
+      crabCostVnd: _num(json, ['crabCostVnd', 'CrabCostVnd']),
+      shippingCostVnd: _num(json, ['shippingCostVnd', 'ShippingCostVnd']),
+      otherCostVnd: _num(json, ['otherCostVnd', 'OtherCostVnd']),
+      totalCostVnd: _num(json, ['totalCostVnd', 'TotalCostVnd']),
+      condition: (json['condition'] ?? json['Condition'] ?? 'Good').toString(),
+      deadOnArrival:
+          ((json['deadOnArrival'] ?? json['DeadOnArrival']) as num?)?.toInt() ??
+              0,
+      notes: (json['notes'] ?? json['Notes'])?.toString(),
     );
   }
 }
@@ -311,9 +527,7 @@ class BatchCrabRecord {
           .toString(),
       gender: (json['gender'] ?? json['Gender'] ?? 'unknown').toString(),
       weight: weightRaw is num ? weightRaw.toDouble() : null,
-      shellWidth: (json['shellWidth'] ?? json['ShellWidth']) is num
-          ? (json['shellWidth'] ?? json['ShellWidth']).toDouble()
-          : null,
+      shellWidth: _crabWidthMm(json),
       status: status,
     );
   }
@@ -372,6 +586,7 @@ class CrabManagementListItem {
     required this.gender,
     this.weight,
     this.shellWidth,
+    this.shellLength,
     required this.status,
     required this.moltCount,
     this.lastMoltDate,
@@ -396,6 +611,7 @@ class CrabManagementListItem {
   final String gender;
   final double? weight;
   final double? shellWidth;
+  final double? shellLength;
   final String status;
   final int moltCount;
   final String? lastMoltDate;
@@ -453,9 +669,8 @@ class CrabManagementListItem {
           .toString(),
       gender: (json['gender'] ?? json['Gender'] ?? 'unknown').toString(),
       weight: weightRaw is num ? weightRaw.toDouble() : null,
-      shellWidth: (json['shellWidth'] ?? json['ShellWidth']) is num
-          ? (json['shellWidth'] ?? json['ShellWidth']).toDouble()
-          : null,
+      shellWidth: _crabWidthMm(json),
+      shellLength: _crabLengthMm(json),
       status: status,
       moltCount: (json['moltCount'] ?? json['MoltCount'] as num?)?.toInt() ?? 0,
       lastMoltDate: (json['moltedAt'] ??
@@ -475,4 +690,19 @@ class CrabManagementListItem {
           .toString(),
     );
   }
+}
+
+double? _crabWidthMm(Map<String, dynamic> json) {
+  final raw = json['carapaceWidthMm'] ??
+      json['CarapaceWidthMm'] ??
+      json['shellWidth'] ??
+      json['ShellWidth'];
+  if (raw is num) return raw.toDouble();
+  return double.tryParse('$raw');
+}
+
+double? _crabLengthMm(Map<String, dynamic> json) {
+  final raw = json['carapaceLengthMm'] ?? json['CarapaceLengthMm'];
+  if (raw is num) return raw.toDouble();
+  return double.tryParse('$raw');
 }

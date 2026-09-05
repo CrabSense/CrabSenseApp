@@ -1,3 +1,4 @@
+import 'crab_condition.dart';
 import 'production_models.dart';
 
 class BoxListItem {
@@ -18,4 +19,23 @@ class BoxListItem {
   final String rowId;
   final String rowCode;
   final String rowName;
+
+  String get displayName => box.title;
+
+  String get placeLabel {
+    final khu = areaName.trim().isEmpty ? areaCode : areaName;
+    final day = rowName.trim().isEmpty ? rowCode : rowName;
+    return '$khu • $day';
+  }
+
+  bool get hasCrab => box.hasCrab;
+
+  bool get hasAlert => box.alertCount > 0;
+
+  CrabCondition get crabCondition => CrabConditionX.parse(
+        condition: box.crabCondition,
+        moltingStage: box.crabMoltingStage,
+        crabStatus: box.crabStatus,
+        hasCrab: hasCrab,
+      );
 }

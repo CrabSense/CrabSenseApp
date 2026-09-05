@@ -2,33 +2,9 @@ import 'package:flutter/foundation.dart';
 
 import '../models/auth_models.dart';
 import '../models/box_list_item.dart';
+import '../models/crab_condition.dart';
 import '../models/production_models.dart';
 import 'cloud_api_client.dart';
-
-enum BoxViewFilter { all, farming, empty, attention }
-
-extension BoxViewFilterX on BoxViewFilter {
-  String get label => switch (this) {
-        BoxViewFilter.all => 'Tất cả',
-        BoxViewFilter.farming => 'Đang nuôi',
-        BoxViewFilter.empty => 'Hộp trống',
-        BoxViewFilter.attention => 'Cần chú ý',
-      };
-}
-
-class BoxRowStats {
-  const BoxRowStats({
-    required this.total,
-    required this.farming,
-    required this.empty,
-    required this.attention,
-  });
-
-  final int total;
-  final int farming;
-  final int empty;
-  final int attention;
-}
 
 class BoxManagementService extends ChangeNotifier {
   BoxManagementService({
@@ -46,21 +22,20 @@ class BoxManagementService extends ChangeNotifier {
   bool loading = false;
   String? error;
   String search = '';
-  String? selectedAreaId;
-  String? selectedRowId;
-  BoxViewFilter viewFilter = BoxViewFilter.all;
+  String? areaFilterId;
+  String? rowFilterId;
+  BoxOccupancyFilter occupancyFilter = BoxOccupancyFilter.all;
+  CrabConditionFilter crabFilter = CrabConditionFilter.all;
+  int page = 0;
+  static const int pageSize = 6;
 
   AuthSession get session => _session;
   String get token => _session.token;
   String get farmId => _session.selectedFarm.id;
 
-  RowRecord? get selectedRow {
-    final id = selectedRowId;
-    if (id == null) return null;
-    for (final r in rows) {
-      if (r.id == id) return r;
-    }
-    return null;
+  List<RowRecord> get rowsForFilter {
+    if (areaFilterId == null) return rows;
+    return rows.where((r) => r.areaId == areaFilterId).toList();
   }
 
   void updateSession(AuthSession session) {
@@ -68,106 +43,102 @@ class BoxManagementService extends ChangeNotifier {
     areas = [];
     rows = [];
     items = [];
-    selectedAreaId = null;
-    selectedRowId = null;
+    areaFilterId = _defaultAreaId(session);
+    rowFilterId = null;
+    occupancyFilter = BoxOccupancyFilter.all;
+    crabFilter = CrabConditionFilter.all;
+    page = 0;
     notifyListeners();
+  }
+
+  String? _defaultAreaId(AuthSession session) {
+    final id = session.selectedFarm.id;
+    return id.isEmpty ? null : id;
   }
 
   void setSearch(String value) {
     search = value;
+    page = 0;
     notifyListeners();
   }
 
-  void setViewFilter(BoxViewFilter f) {
-    viewFilter = f;
+  void setAreaFilter(String? areaId) {
+    if (areaFilterId == areaId) return;
+    areaFilterId = areaId;
+    rowFilterId = null;
+    page = 0;
+    load();
+  }
+
+  void setRowFilter(String? rowId) {
+    rowFilterId = rowId;
+    page = 0;
     notifyListeners();
   }
 
-  Future<void> selectArea(String? areaId) async {
-    selectedAreaId = areaId;
-    selectedRowId = null;
-    rows = [];
-    notifyListeners();
-    if (areaId == null) return;
-    loading = true;
-    notifyListeners();
-    try {
-      rows = await _api.fetchRows(token, areaId);
-      error = null;
-    } on CloudApiException catch (e) {
-      error = e.message;
-    } catch (e) {
-      error = '$e';
-    } finally {
-      loading = false;
-      notifyListeners();
-    }
-  }
-
-  void selectRow(String? rowId) {
-    selectedRowId = rowId;
+  void setOccupancyFilter(BoxOccupancyFilter filter) {
+    occupancyFilter = filter;
+    page = 0;
     notifyListeners();
   }
 
-  static bool isEmptyBox(BoxRecord b) {
-    final s = b.status.toLowerCase();
-    return s == 'empty' || s == 'deceased';
+  void setCrabFilter(CrabConditionFilter filter) {
+    crabFilter = filter;
+    page = 0;
+    notifyListeners();
   }
 
-  static bool needsAttention(BoxRecord b) {
-    final s = b.status.toLowerCase();
-    return s == 'maintenance' ||
-        s == 'alert' ||
-        s == 'warning' ||
-        s == 'disabled';
+  void setPage(int value) {
+    page = value;
+    notifyListeners();
   }
 
-  static bool isFarming(BoxRecord b) =>
-      !isEmptyBox(b) && !needsAttention(b);
-
-  List<BoxListItem> get _scopedItems {
+  List<BoxListItem> get filteredItems {
     var list = items;
-    if (selectedRowId != null) {
-      list = list.where((i) => i.rowId == selectedRowId).toList();
-    } else if (selectedAreaId != null) {
-      list = list.where((i) => i.areaId == selectedAreaId).toList();
+    if (areaFilterId != null) {
+      list = list.where((i) => i.areaId == areaFilterId).toList();
+    }
+    if (rowFilterId != null) {
+      list = list.where((i) => i.rowId == rowFilterId).toList();
+    }
+
+    final q = search.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      list = list.where((i) {
+        final crab = i.box.crabTag?.toLowerCase() ?? '';
+        return i.displayName.toLowerCase().contains(q) ||
+            i.box.boxCode.toLowerCase().contains(q) ||
+            crab.contains(q);
+      }).toList();
+    }
+
+    list = switch (occupancyFilter) {
+      BoxOccupancyFilter.occupied => list.where((i) => i.hasCrab).toList(),
+      BoxOccupancyFilter.empty => list.where((i) => !i.hasCrab).toList(),
+      BoxOccupancyFilter.alert => list.where((i) => i.hasAlert).toList(),
+      BoxOccupancyFilter.all => list,
+    };
+
+    final crab = crabFilter.condition;
+    if (crab != null) {
+      list = list.where((i) => i.crabCondition == crab).toList();
     }
     return list;
   }
 
-  List<BoxListItem> get filteredItems {
-    var list = _scopedItems;
-    final q = search.trim().toLowerCase();
-    if (q.isNotEmpty) {
-      list = list
-          .where((i) =>
-              i.box.boxCode.toLowerCase().contains(q) ||
-              (i.box.position?.toLowerCase().contains(q) ?? false) ||
-              i.rowCode.toLowerCase().contains(q))
-          .toList();
-    }
-    return switch (viewFilter) {
-      BoxViewFilter.farming =>
-        list.where((i) => isFarming(i.box)).toList(),
-      BoxViewFilter.empty =>
-        list.where((i) => isEmptyBox(i.box)).toList(),
-      BoxViewFilter.attention =>
-        list.where((i) => needsAttention(i.box)).toList(),
-      BoxViewFilter.all => list,
-    };
+  int get totalPages {
+    final n = filteredItems.length;
+    if (n == 0) return 1;
+    return (n + pageSize - 1) ~/ pageSize;
   }
 
-  BoxRowStats get rowStats {
-    final list = selectedRowId != null
-        ? items.where((i) => i.rowId == selectedRowId)
-        : _scopedItems;
-    final boxes = list.map((i) => i.box).toList();
-    return BoxRowStats(
-      total: boxes.length,
-      farming: boxes.where(isFarming).length,
-      empty: boxes.where(isEmptyBox).length,
-      attention: boxes.where(needsAttention).length,
-    );
+  List<BoxListItem> get pagedItems {
+    final list = filteredItems;
+    if (list.isEmpty) return [];
+    final safePage = page.clamp(0, totalPages - 1);
+    final start = safePage * pageSize;
+    final end = (start + pageSize).clamp(0, list.length);
+    return list.sublist(start, end);
   }
 
   Future<void> load() async {
@@ -175,47 +146,39 @@ class BoxManagementService extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      areas = await _api.fetchAreas(token, farmId);
-      final merged = <BoxListItem>[];
-      final rowList = <RowRecord>[];
-      for (final area in areas) {
-        final detail = await _api.fetchAreaDetail(token, area.id);
-        rowList.addAll(detail.rows);
-        for (final box in detail.boxes) {
-          final row = detail.rows.firstWhere(
-            (r) => r.id == box.rowId,
-            orElse: () => RowRecord(
-              id: box.rowId,
-              areaId: area.id,
-              rowCode: '—',
-              rowName: '—',
-            ),
-          );
-          merged.add(
-            BoxListItem(
-              box: box,
-              areaId: area.id,
-              areaCode: area.areaCode,
-              areaName: area.areaName,
-              rowId: row.id,
-              rowCode: row.rowCode,
-              rowName: row.rowName,
-            ),
-          );
+      areas = await _api.fetchAreas(token, '');
+      if (areaFilterId != null && !areas.any((a) => a.id == areaFilterId)) {
+        areaFilterId = _defaultAreaId(_session);
+        if (areaFilterId != null && !areas.any((a) => a.id == areaFilterId)) {
+          areaFilterId = null;
         }
       }
-      items = merged;
-      if (selectedAreaId != null &&
-          areas.any((a) => a.id == selectedAreaId)) {
-        rows = await _api.fetchRows(token, selectedAreaId!);
-      } else {
-        rows = rowList
-            .where((r) => selectedAreaId == null || r.areaId == selectedAreaId)
-            .toList();
+      rows = await _api.fetchAllRows(token, areaId: areaFilterId);
+      final areaById = {for (final a in areas) a.id: a};
+      final rowById = {for (final r in rows) r.id: r};
+      final boxes = await _api.fetchAllBoxes(token, areaId: areaFilterId);
+      items = boxes.map((box) {
+        final row = rowById[box.rowId];
+        final areaId = box.areaId ?? row?.areaId ?? '';
+        final area = areaById[areaId];
+        return BoxListItem(
+          box: box,
+          areaId: areaId,
+          areaCode: box.areaCode ?? area?.areaCode ?? '',
+          areaName: box.areaName ?? area?.areaName ?? '',
+          rowId: box.rowId,
+          rowCode: box.rowCode ?? row?.rowCode ?? '',
+          rowName: box.rowName ?? row?.rowName ?? '',
+        );
+      }).toList()
+        ..sort((a, b) => a.box.boxCode.compareTo(b.box.boxCode));
+
+      if (areaFilterId != null && !areas.any((a) => a.id == areaFilterId)) {
+        areaFilterId = null;
       }
-      if (selectedRowId != null &&
-          !rows.any((r) => r.id == selectedRowId)) {
-        selectedRowId = null;
+      if (rowFilterId != null &&
+          !rowsForFilter.any((r) => r.id == rowFilterId)) {
+        rowFilterId = null;
       }
       error = null;
     } on CloudApiException catch (e) {

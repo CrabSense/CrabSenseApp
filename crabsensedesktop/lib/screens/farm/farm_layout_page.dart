@@ -13,6 +13,7 @@ import '../../widgets/farm/box_detail_drawer.dart';
 import '../../widgets/farm/crab_box_card.dart';
 import '../../widgets/farm/farm_kpi_strip.dart';
 import '../../widgets/farm/farm_devices_tab.dart';
+import '../../widgets/farm/farm_layout_ras_flow.dart';
 import '../../widgets/shared/ai_assistant_avatar.dart';
 
 class FarmLayoutPage extends StatefulWidget {
@@ -38,7 +39,6 @@ class _FarmLayoutPageState extends State<FarmLayoutPage>
   late final TabController _tabController;
 
   BoxStatus? _statusFilter;
-  String? _zoneFilter;
   String _search = '';
 
   @override
@@ -67,10 +67,11 @@ class _FarmLayoutPageState extends State<FarmLayoutPage>
   List<FarmMapBox> get _filtered {
     return widget.farmLayoutService.boxes.where((item) {
       final b = item.display;
-      if (_zoneFilter != null && item.areaCode != _zoneFilter) return false;
       if (_statusFilter != null && b.status != _statusFilter) return false;
       if (_search.isNotEmpty &&
-          !b.id.toLowerCase().contains(_search.toLowerCase())) {
+          !b.id.toLowerCase().contains(_search.toLowerCase()) &&
+          !item.areaName.toLowerCase().contains(_search.toLowerCase()) &&
+          !item.rowName.toLowerCase().contains(_search.toLowerCase())) {
         return false;
       }
       return true;
@@ -102,18 +103,15 @@ class _FarmLayoutPageState extends State<FarmLayoutPage>
                 error: svc.error,
                 onRetry: () => svc.load(force: true),
                 summary: svc.summary,
-                zones: svc.zones,
                 filtered: filtered,
-                boxesPerZone: svc.boxesPerZone,
                 statusFilter: _statusFilter,
-                zoneFilter: _zoneFilter,
                 search: _search,
                 mascotMessage: mascotMsg,
                 highlightBoxId: _highlightBoxId,
                 farmLayoutService: widget.farmLayoutService,
+                rasFlowService: widget.rasFlowService,
                 areaService: widget.areaService,
                 onStatusFilter: (s) => setState(() => _statusFilter = s),
-                onZoneFilter: (z) => setState(() => _zoneFilter = z),
                 onSearch: (q) => setState(() => _search = q),
                 onBoxTap: (item) => showBoxDetailDrawer(context, item),
               ),
@@ -168,18 +166,15 @@ class _MapTab extends StatelessWidget {
     required this.error,
     required this.onRetry,
     required this.summary,
-    required this.zones,
     required this.filtered,
-    required this.boxesPerZone,
     required this.statusFilter,
-    required this.zoneFilter,
     required this.search,
     required this.mascotMessage,
     required this.highlightBoxId,
     required this.farmLayoutService,
+    required this.rasFlowService,
     required this.areaService,
     required this.onStatusFilter,
-    required this.onZoneFilter,
     required this.onSearch,
     required this.onBoxTap,
   });
@@ -188,18 +183,15 @@ class _MapTab extends StatelessWidget {
   final String? error;
   final VoidCallback onRetry;
   final FarmLayoutSummary summary;
-  final List<String> zones;
   final List<FarmMapBox> filtered;
-  final Map<String, int> boxesPerZone;
   final BoxStatus? statusFilter;
-  final String? zoneFilter;
   final String search;
   final String mascotMessage;
   final String? highlightBoxId;
   final FarmLayoutService farmLayoutService;
+  final RasFlowService rasFlowService;
   final AreaManagementService areaService;
   final ValueChanged<BoxStatus?> onStatusFilter;
-  final ValueChanged<String?> onZoneFilter;
   final ValueChanged<String> onSearch;
   final ValueChanged<FarmMapBox> onBoxTap;
 
@@ -228,7 +220,9 @@ class _MapTab extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Dữ liệu từ máy chủ — sơ đồ RAS và lưới hộp theo khu',
+                          farmLayoutService.selectedArea == null
+                              ? 'Toàn bộ khu — chọn khu trên header hoặc chip bên dưới'
+                              : 'Khu ${farmLayoutService.areaChipLabel(farmLayoutService.selectedArea!)} — hộp và sơ đồ RAS',
                           style: GoogleFonts.notoSans(
                             color: DashboardColors.textMuted,
                             fontSize: 14,
@@ -267,17 +261,22 @@ class _MapTab extends StatelessWidget {
               const SizedBox(height: 24),
               FarmKpiStrip(summary: summary),
               const SizedBox(height: 20),
+              FarmLayoutRasFlow(
+                rasFlowService: rasFlowService,
+                areaService: areaService,
+                farmLayoutService: farmLayoutService,
+                areaId: farmLayoutService.selectedAreaId,
+              ),
+              const SizedBox(height: 20),
               _FilterBar(
-                zones: zones,
+                farmLayoutService: farmLayoutService,
                 statusFilter: statusFilter,
-                zoneFilter: zoneFilter,
                 search: search,
                 onStatusFilter: onStatusFilter,
-                onZoneFilter: onZoneFilter,
                 onSearch: onSearch,
               ),
               const SizedBox(height: 20),
-              if (!loading && zones.isEmpty)
+              if (!loading && farmLayoutService.areas.isEmpty)
                 Padding(
                   padding: const EdgeInsets.all(24),
                   child: Center(
@@ -288,15 +287,17 @@ class _MapTab extends StatelessWidget {
                   ),
                 )
               else
-                for (final zone in zones)
-                  _ZoneSection(
-                    zone: zone,
-                    zoneTotal: boxesPerZone[zone] ?? 0,
-                    items: filtered.where((e) => e.areaCode == zone).toList(),
-                    highlightBoxId: highlightBoxId,
-                    onBoxTap: onBoxTap,
-                  ),
-              if (!loading && filtered.isEmpty && zones.isNotEmpty)
+                for (final area in farmLayoutService.areas)
+                  if (farmLayoutService.selectedAreaId == null ||
+                      area.id == farmLayoutService.selectedAreaId)
+                    _ZoneSection(
+                      zone: farmLayoutService.areaChipLabel(area),
+                      zoneTotal: filtered.where((e) => e.areaId == area.id).length,
+                      items: filtered.where((e) => e.areaId == area.id).toList(),
+                      highlightBoxId: highlightBoxId,
+                      onBoxTap: onBoxTap,
+                    ),
+              if (!loading && filtered.isEmpty && farmLayoutService.areas.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.all(32),
                   child: Center(
@@ -322,25 +323,22 @@ class _MapTab extends StatelessWidget {
 
 class _FilterBar extends StatelessWidget {
   const _FilterBar({
-    required this.zones,
+    required this.farmLayoutService,
     required this.statusFilter,
-    required this.zoneFilter,
     required this.search,
     required this.onStatusFilter,
-    required this.onZoneFilter,
     required this.onSearch,
   });
 
-  final List<String> zones;
+  final FarmLayoutService farmLayoutService;
   final BoxStatus? statusFilter;
-  final String? zoneFilter;
   final String search;
   final ValueChanged<BoxStatus?> onStatusFilter;
-  final ValueChanged<String?> onZoneFilter;
   final ValueChanged<String> onSearch;
 
   @override
   Widget build(BuildContext context) {
+    final selected = farmLayoutService.selectedAreaId;
     return GlassCard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -351,9 +349,15 @@ class _FilterBar extends StatelessWidget {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _zoneChip('Tất cả', zoneFilter == null, () => onZoneFilter(null)),
-              for (final z in zones)
-                _zoneChip('Khu $z', zoneFilter == z, () => onZoneFilter(z)),
+              _zoneChip('Tất cả khu', selected == null, () {
+                farmLayoutService.selectArea(null);
+              }),
+              for (final a in farmLayoutService.areas)
+                _zoneChip(
+                  farmLayoutService.areaChipLabel(a),
+                  selected == a.id,
+                  () => farmLayoutService.selectArea(a.id),
+                ),
               const SizedBox(width: 8),
               _statusChip('Tất cả', statusFilter == null, () => onStatusFilter(null)),
               for (final s in BoxStatus.values)
@@ -450,7 +454,7 @@ class _ZoneSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Khu $zone — ${items.length}${zoneTotal > 0 ? ' / $zoneTotal' : ''} hộp',
+            '$zone — ${items.length}${zoneTotal > 0 ? ' / $zoneTotal' : ''} hộp',
             style: GoogleFonts.notoSans(
               color: DashboardColors.textPrimary,
               fontSize: 16,

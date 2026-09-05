@@ -6,7 +6,6 @@ import '../../services/connectivity_link_service.dart';
 import '../../theme/dashboard_theme.dart';
 import 'cloud_edge_header_badges.dart';
 import 'farm_header_selector.dart';
-import 'theme_mode_toggle.dart';
 
 class AppTopBar extends StatelessWidget {
   const AppTopBar({
@@ -120,8 +119,6 @@ class AppTopBar extends StatelessWidget {
             ),
             const SizedBox(width: 12),
           ],
-          const ThemeModeToggle(),
-          const SizedBox(width: 8),
           IconButton(
             onPressed: () {},
             icon: Stack(

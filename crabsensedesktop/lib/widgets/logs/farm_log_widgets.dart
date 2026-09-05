@@ -538,7 +538,7 @@ class FarmLogAiPanel extends StatelessWidget {
         children: [
           AiAssistantHeader(
             title: 'AI Assistant',
-            subtitle: 'CrabFarm Insight',
+            subtitle: 'CrabSense Insight',
             avatarSize: 48,
             titleStyle: GoogleFonts.notoSans(
               fontWeight: FontWeight.w700,

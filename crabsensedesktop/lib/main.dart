@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:media_kit/media_kit.dart';
 
 import 'config/app_env.dart';
-import 'screens/login_screen.dart';
+import 'screens/auth_gate.dart';
 import 'services/theme_mode_service.dart';
 
 Future<void> main() async {
@@ -19,16 +19,11 @@ class CrabFarmMonitorApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: appThemeMode,
-      builder: (context, _) {
-        return MaterialApp(
-          title: 'CrabFarm Monitor',
-          debugShowCheckedModeBanner: false,
-          theme: appThemeMode.materialTheme,
-          home: const LoginScreen(),
-        );
-      },
+    return MaterialApp(
+      title: 'CrabSense',
+      debugShowCheckedModeBanner: false,
+      theme: appThemeMode.materialTheme,
+      home: const AuthGate(),
     );
   }
 }

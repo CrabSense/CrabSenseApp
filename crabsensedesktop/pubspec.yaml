@@ -13,6 +13,7 @@ dependencies:
   fl_chart: ^0.70.2
   flutter_dotenv: ^5.2.1
   http: ^1.2.2
+  file_picker: ^8.1.4
   media_kit: ^1.1.11
   media_kit_video: ^1.2.5
   media_kit_libs_windows_video: ^1.0.10
@@ -28,6 +29,7 @@ flutter:
   assets:
     - .env
     - assets/images/logo.png
+    - assets/images/login_background.png
     - assets/images/background_light.png
-    - assets/images/background_dark.png
     - assets/images/ai_assistant_mascot.png
+    - assets/icon_tab/

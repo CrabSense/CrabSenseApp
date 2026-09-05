@@ -73,6 +73,9 @@ class HarvestSalesService extends ChangeNotifier {
 
   void updateSession(AuthSession session) {
     _session = session;
+    _qualified = [];
+    _orders = [];
+    _harvests = [];
   }
 
   void setSearch(String v) {
@@ -87,8 +90,15 @@ class HarvestSalesService extends ChangeNotifier {
     try {
       final now = DateTime.now();
       final start = DateTime(now.year, now.month, 1);
-      final vouchers = await _api.fetchHarvestVouchers(_session.token);
-      final sales = await _api.fetchSalesHistory(_session.token);
+      final farmId = _session.selectedFarm.id;
+      final vouchers = await _api.fetchHarvestVouchers(
+        _session.token,
+        farmingAreaId: farmId,
+      );
+      final sales = await _api.fetchSalesHistory(
+        _session.token,
+        farmingAreaId: farmId,
+      );
       Map<String, dynamic> summary = {};
       try {
         summary = await _api.fetchSalesSummary(
