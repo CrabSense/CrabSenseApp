@@ -156,8 +156,6 @@ flutter:
   # Assets
   assets:
     - assets/images/
-    # TODO: Add Logo_CrabSense.png to assets/images/ directory
-    # - assets/images/Logo_CrabSense.png
     
   # Fonts - Inter font family for Material Design 3
   # TODO: Add Inter font files to assets/fonts/ directory

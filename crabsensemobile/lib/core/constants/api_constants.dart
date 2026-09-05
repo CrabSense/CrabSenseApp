@@ -138,7 +138,13 @@ class ApiConstants {
   static const String crabLots = '/crab-lots';
   static const String cropBatches = '/crop-batches';
   static const String allocations = '/allocations';
+  static String crabAllocations(String crabId) => '/crabs/$crabId/allocations';
   static String crabMoltings(String crabId) => '/crabs/$crabId/moltings';
+  static String crabProfile(String crabId) => '/crabs/$crabId/profile';
+  static String crabWeights(String crabId) => '/crabs/$crabId/weights';
+  static String crabStatusHistory(String crabId) =>
+      '/crabs/$crabId/status-history';
+  static String crabHarvests(String crabId) => '/crabs/$crabId/harvests';
 
   // ===========================================================================
   // QR Code Endpoints (Swagger: 07)

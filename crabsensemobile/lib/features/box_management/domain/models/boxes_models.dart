@@ -116,6 +116,8 @@ extension BoxSortOptionX on BoxSortOption {
 /// Quick filter chips on the Boxes tab.
 enum BoxQuickFilter {
   all,
+  occupied,
+  empty,
   healthy,
   warning,
   critical,
@@ -130,6 +132,10 @@ extension BoxQuickFilterX on BoxQuickFilter {
     switch (this) {
       case BoxQuickFilter.all:
         return 'Tất cả';
+      case BoxQuickFilter.occupied:
+        return 'Đang nuôi';
+      case BoxQuickFilter.empty:
+        return 'Trống';
       case BoxQuickFilter.healthy:
         return 'Healthy';
       case BoxQuickFilter.warning:

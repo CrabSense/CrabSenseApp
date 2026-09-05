@@ -23,7 +23,7 @@ class QuickActionsGrid extends StatelessWidget {
   final void Function(ScanQuickAction action) onAction;
 
   static const _items = <(ScanQuickAction, IconData, String)>[
-    (ScanQuickAction.details, Icons.description_outlined, 'Xem chi tiết'),
+    (ScanQuickAction.details, Icons.set_meal_rounded, 'Theo dõi cua'),
     (ScanQuickAction.aiDetection, Icons.smart_toy_outlined, 'Phát hiện AI'),
     (ScanQuickAction.videoAi, Icons.videocam_outlined, 'Quay Video AI'),
     (ScanQuickAction.water, Icons.science_outlined, 'Kiểm tra nước'),

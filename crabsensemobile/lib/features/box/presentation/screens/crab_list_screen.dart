@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routes.dart';
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -13,6 +14,7 @@ import '../../data/models/crab_model.dart';
 import '../../domain/entities/crab.dart';
 import '../../domain/entities/box_enums.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
+import '../widgets/box_history_panel.dart';
 import '../widgets/crab_avatar.dart';
 import '../widgets/daily_box_care_sheet.dart';
 
@@ -48,6 +50,7 @@ class _CrabListScreenState extends State<CrabListScreen> {
   List<CrabModel> _crabs = [];
   bool _loading = true;
   Object? _error;
+  final _historyKey = GlobalKey<BoxHistoryPanelState>();
 
   @override
   void initState() {
@@ -67,6 +70,7 @@ class _CrabListScreenState extends State<CrabListScreen> {
         _crabs = list;
         _loading = false;
       });
+      _historyKey.currentState?.reload();
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -141,9 +145,13 @@ class _CrabListScreenState extends State<CrabListScreen> {
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ));
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    if (!mounted) return;
-    if (context.canPop()) context.pop();
+    if (result == 'ended') {
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      if (!mounted) return;
+      if (context.canPop()) context.pop();
+      return;
+    }
+    await _refresh();
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -167,82 +175,137 @@ class _CrabListScreenState extends State<CrabListScreen> {
               : RefreshIndicator(
                   color: _primary,
                   onRefresh: _refresh,
-                  child: _crabs.isEmpty
-                      ? _EmptyState(onAdd: _showAddCrabSheet)
-                      : ListView(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-                          children: [
-                            _CrabTile(
-                              crab: _crabs.first,
-                              index: 1,
-                              onTap: () => context.push(
-                                RoutePaths.crabDetails(
-                                  _crabs.first.id,
-                                  boxId: widget.boxId,
-                                  boxCode: widget.boxCode,
-                                ),
-                                extra: _crabs.first,
-                              ),
-                              onMove: () => _showMoveCrabSheet(_crabs.first),
-                            ),
-                            const SizedBox(height: 12),
-                            DailyBoxCareSheet(
-                              key: ValueKey(_crabs.first.id),
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+                    children: [
+                      if (_crabs.isEmpty)
+                        _EmptyState(onAdd: _showAddCrabSheet)
+                      else ...[
+                        _CrabTile(
+                          crab: _crabs.first,
+                          index: 1,
+                          onTap: () => context.push(
+                            RoutePaths.crabDetails(
+                              _crabs.first.id,
                               boxId: widget.boxId,
-                              boxCode: widget.boxCode ??
-                                  widget.boxId.substring(0, 8),
-                              crab: _crabs.first,
-                              embedded: true,
-                              onResult: _onCareResult,
+                              boxCode: widget.boxCode,
                             ),
-                          ],
+                            extra: _crabs.first,
+                          ),
+                          onMove: () => _showMoveCrabSheet(_crabs.first),
                         ),
+                        const SizedBox(height: 12),
+                        DailyBoxCareSheet(
+                          key: ValueKey(_crabs.first.id),
+                          boxId: widget.boxId,
+                          boxCode: widget.boxCode ??
+                              widget.boxId.substring(0, 8),
+                          crab: _crabs.first,
+                          embedded: true,
+                          onResult: _onCareResult,
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      BoxHistoryPanel(
+                        key: _historyKey,
+                        boxId: widget.boxId,
+                        boxCode: widget.boxCode,
+                      ),
+                    ],
+                  ),
                 ),
     );
   }
 
   PreferredSizeWidget _buildAppBar(String boxLabel) {
     return PreferredSize(
-      preferredSize: const Size.fromHeight(56),
-      child: Container(
-        decoration: const BoxDecoration(
-          gradient: CrabSenseColors.headerGradient,
-        ),
-        child: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _primaryDk),
-            onPressed: () => context.pop(),
-          ),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Hộp $boxLabel',
-                style: const TextStyle(
-                  color: _primaryDk,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                ),
+      preferredSize: const Size.fromHeight(64),
+      child: Material(
+        color: _surface,
+        elevation: 0,
+        child: SafeArea(
+          bottom: false,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(4, 6, 8, 8),
+            decoration: const BoxDecoration(
+              color: _surface,
+              border: Border(
+                bottom: BorderSide(color: _border),
               ),
-              const Text(
-                'Cua & phiếu hôm nay',
-                style: TextStyle(
-                  color: Color(0xFF2F5C28),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded, color: _primaryDk),
-              onPressed: _refresh,
             ),
-          ],
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: _primaryDk,
+                    size: 18,
+                  ),
+                  onPressed: () => context.pop(),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _primaryBg,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _border),
+                  ),
+                  child: const Icon(
+                    Icons.inventory_2_rounded,
+                    size: 18,
+                    color: _primaryDk,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Hộp $boxLabel',
+                        style: const TextStyle(
+                          color: _primaryDk,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const Text(
+                        'Cua · phiếu · lịch sử',
+                        style: TextStyle(
+                          color: _textSub,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _refresh,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Ink(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: CrabSenseColors.primaryMuted,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: _border),
+                      ),
+                      child: const Icon(
+                        Icons.refresh_rounded,
+                        size: 20,
+                        color: _primaryDk,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -352,50 +415,52 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 80, horizontal: 32),
-          child: Column(
-            children: [
-              const CrabAvatar(size: 80),
-              const SizedBox(height: 20),
-              const Text('Hộp chưa có cua',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: _textMain)),
-              const SizedBox(height: 8),
-              const Text(
-                'Mỗi hộp chỉ nuôi 1 con. Nhấn nút bên dưới để nhập cua.',
-                style: TextStyle(
-                  color: _textSub,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  height: 1.4,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 28),
-              ElevatedButton.icon(
-                onPressed: onAdd,
-                icon: const Icon(Icons.add_rounded, color: Colors.white),
-                label: const Text(
-                  'Thêm cua ngay',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryDk,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+      child: Column(
+        children: [
+          const CrabAvatar(size: 72),
+          const SizedBox(height: 16),
+          const Text(
+            'Hộp chưa có cua',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: _textMain,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          const Text(
+            'Mỗi hộp chỉ nuôi 1 con. Nhấn nút bên dưới để nhập cua.',
+            style: TextStyle(
+              color: _textSub,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 22),
+          ElevatedButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add_rounded, color: Colors.white),
+            label: const Text(
+              'Thêm cua ngay',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryDk,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -460,6 +525,71 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
   String _shell = 'hard';
   String _spots = 'few';
   bool _submitting = false;
+  bool _loadingLots = true;
+  List<({String id, String code})> _lots = [];
+  String? _selectedLotId;
+  bool _createNewLot = false;
+  final _newLotCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLots();
+  }
+
+  Future<void> _loadLots() async {
+    try {
+      final res = await _api.get<dynamic>(ApiConstants.crabLots);
+      final decoded = jsonDecode(jsonEncode(res.data));
+      final list = <({String id, String code})>[];
+      dynamic raw = decoded;
+      if (decoded is Map) raw = decoded['data'] ?? decoded;
+      if (raw is List) {
+        for (final item in raw) {
+          if (item is! Map) continue;
+          final id = (item['id'] ?? item['Id'])?.toString() ?? '';
+          final code =
+              (item['lotCode'] ?? item['LotCode'] ?? item['code'])?.toString() ??
+                  '';
+          if (id.isNotEmpty) list.add((id: id, code: code.isEmpty ? id : code));
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _lots = list;
+          _selectedLotId = list.isNotEmpty ? list.first.id : null;
+          _createNewLot = list.isEmpty;
+          _loadingLots = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loadingLots = false;
+          _createNewLot = true;
+        });
+      }
+    }
+  }
+
+  Future<String?> _ensureLotId() async {
+    if (!_createNewLot && _selectedLotId != null) return _selectedLotId;
+    final code = _newLotCtrl.text.trim().isNotEmpty
+        ? _newLotCtrl.text.trim()
+        : 'LOT-${DateTime.now().millisecondsSinceEpoch}';
+    final res = await _api.post<dynamic>(ApiConstants.crabLots, data: {
+      'lotCode': code,
+      'importDate': DateTime.now().toUtc().toIso8601String(),
+    });
+    final decoded = jsonDecode(jsonEncode(res.data));
+    if (decoded is Map) {
+      final data = decoded['data'];
+      if (data is Map) {
+        return (data['id'] ?? data['Id'])?.toString();
+      }
+    }
+    return null;
+  }
 
   @override
   void dispose() {
@@ -467,6 +597,7 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
     _lengthCtrl.dispose();
     _widthCtrl.dispose();
     _notesCtrl.dispose();
+    _newLotCtrl.dispose();
     super.dispose();
   }
 
@@ -477,10 +608,17 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
     try {
       final isMale = _gender == 'male';
       final weight = int.parse(_weightCtrl.text.trim());
+      String? lotId;
+      try {
+        lotId = await _ensureLotId();
+      } catch (_) {
+        lotId = null; // BE may auto-create lot when omitted.
+      }
       final res = await _api.post<dynamic>('/boxes/${widget.boxId}/crabs', data: {
         'weightGram': weight,
         'tag': crabTag,
         'gender': _gender,
+        if (lotId != null && lotId.isNotEmpty) 'crabLotId': lotId,
         if (isMale) 'moltingStage': _shell,
         if (!isMale) 'roeStatus': _spots,
         if (_lengthCtrl.text.trim().isNotEmpty)
@@ -565,6 +703,59 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
                 'Chỉ điền những gì cần theo dõi.',
                 style: TextStyle(fontSize: 13, color: _textSub, height: 1.35),
               ),
+              const SizedBox(height: 16),
+              const Text(
+                'Lô nhập',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: _textMain,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (_loadingLots)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: LinearProgressIndicator(color: _primary),
+                )
+              else ...[
+                Row(
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Chọn lô'),
+                      selected: !_createNewLot,
+                      onSelected: _lots.isEmpty
+                          ? null
+                          : (_) => setState(() => _createNewLot = false),
+                    ),
+                    const SizedBox(width: 8),
+                    ChoiceChip(
+                      label: const Text('Tạo lô mới'),
+                      selected: _createNewLot,
+                      onSelected: (_) => setState(() => _createNewLot = true),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (!_createNewLot && _lots.isNotEmpty)
+                  DropdownButtonFormField<String>(
+                    value: _selectedLotId,
+                    decoration: _deco('Lô cua'),
+                    items: [
+                      for (final lot in _lots)
+                        DropdownMenuItem(
+                          value: lot.id,
+                          child: Text(lot.code),
+                        ),
+                    ],
+                    onChanged: (v) => setState(() => _selectedLotId = v),
+                  )
+                else
+                  TextFormField(
+                    controller: _newLotCtrl,
+                    decoration: _deco('VD: LOT-2026-09'),
+                  ),
+              ],
               const SizedBox(height: 20),
               const Text(
                 'Cân nặng (g)',

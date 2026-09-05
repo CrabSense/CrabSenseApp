@@ -366,6 +366,10 @@ class BoxesRepositoryImpl implements BoxesRepository {
           switch (chip) {
             case BoxQuickFilter.all:
               return true;
+            case BoxQuickFilter.occupied:
+              return b.crabCount > 0;
+            case BoxQuickFilter.empty:
+              return b.crabCount <= 0;
             case BoxQuickFilter.healthy:
               return b.status == BoxHealthStatus.healthy;
             case BoxQuickFilter.warning:

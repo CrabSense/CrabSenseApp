@@ -50,9 +50,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isTablet = screenWidth >= 600;
 
     return Scaffold(
-        backgroundColor: kHomeBg,
-      body: SafeArea(
-        child: homeAsyncState.when(
+      backgroundColor: kHomeBg,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/home_pattern.jpg'),
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+                opacity: 0.55,
+              ),
+            ),
+          ),
+          // Wash nhẹ để card/text vẫn đọc rõ trên pattern
+          const ColoredBox(color: Color(0xCCF4F7F2)),
+          SafeArea(
+            child: homeAsyncState.when(
           loading: () => const HomeSkeleton(),
           error: (error, stackTrace) => Center(
             child: SectionErrorCard(
@@ -273,7 +288,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             );
           },
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }

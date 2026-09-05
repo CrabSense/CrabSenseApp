@@ -15,6 +15,7 @@ import '../../domain/models/boxes_models.dart';
 import '../providers/boxes_provider.dart';
 import '../widgets/box_quick_sheets.dart';
 import '../widgets/boxes_skeleton.dart';
+import '../widgets/box_qr_sheet.dart';
 import '../widgets/farm_structure_manage_sheet.dart';
 
 /// Boxes tab — Farm map view, light theme.
@@ -154,45 +155,107 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
   void _showStructureActions() {
     showModalBottomSheet<void>(
       context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Wrap(
-          children: [
-            const ListTile(
-              title: Text('Tạo cấu trúc khu nuôi'),
-              subtitle: Text('Khu → Dãy → Hộp'),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        final bottom = MediaQuery.paddingOf(sheetContext).bottom;
+        return Padding(
+          padding: EdgeInsets.only(bottom: bottom),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.55,
             ),
-            ListTile(
-              leading: const Icon(Icons.account_tree_outlined),
-              title: const Text('Quản lý khu / dãy / hộp'),
-              subtitle: const Text('Xem, sửa, xóa'),
-              onTap: () => _closeSheetThen(sheetContext, () {
-                showFarmStructureManageSheet(context);
-              }),
+            decoration: const BoxDecoration(
+              color: kHomeSurface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
-            ListTile(
-              leading: const Icon(Icons.add_business_rounded),
-              title: const Text('Tạo khu nuôi'),
-              onTap: () => _closeSheetThen(sheetContext, () {
-                _showCreateStructure('Khu');
-              }),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: kHomeBorder,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Cấu trúc khu nuôi',
+                    style: TextStyle(
+                      color: kHomePrimaryDark,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Khu → Dãy → Hộp',
+                    style: TextStyle(color: kHomeTextSub, fontSize: 12),
+                  ),
+                  const SizedBox(height: 12),
+                  _StructureActionTile(
+                    icon: Icons.tune_rounded,
+                    title: 'Quản lý khu / dãy / hộp',
+                    subtitle: 'Xem, sửa, xóa',
+                    onTap: () => _closeSheetThen(sheetContext, () {
+                      showFarmStructureManageSheet(context);
+                    }),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _CompactCreateChip(
+                          icon: Icons.add_business_rounded,
+                          label: 'Khu',
+                          onTap: () => _closeSheetThen(sheetContext, () {
+                            _showCreateStructure('Khu');
+                          }),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _CompactCreateChip(
+                          icon: Icons.view_stream_rounded,
+                          label: 'Dãy',
+                          onTap: () => _closeSheetThen(sheetContext, () {
+                            _showCreateStructure('Dãy');
+                          }),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _CompactCreateChip(
+                          icon: Icons.inventory_2_rounded,
+                          label: 'Hộp',
+                          onTap: () => _closeSheetThen(sheetContext, () {
+                            _showCreateBox();
+                          }),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _StructureActionTile(
+                    icon: Icons.refresh_rounded,
+                    title: 'Làm mới sơ đồ',
+                    onTap: () => _closeSheetThen(sheetContext, () {
+                      ref.read(boxesStateProvider.notifier).refresh();
+                    }),
+                  ),
+                ],
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.view_stream_rounded),
-              title: const Text('Tạo dãy nuôi'),
-              onTap: () => _closeSheetThen(sheetContext, () {
-                _showCreateStructure('Dãy');
-              }),
-            ),
-            ListTile(
-              leading: const Icon(Icons.inventory_2_outlined),
-              title: const Text('Tạo hộp nuôi'),
-              onTap: () => _closeSheetThen(sheetContext, () {
-                _showCreateBox();
-              }),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -315,6 +378,12 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
               onTap: () => Navigator.pop(ctx, 'crabs'),
             ),
             ListTile(
+              leading: const Icon(Icons.qr_code_2_rounded),
+              title: const Text('Mã QR hộp'),
+              subtitle: const Text('Tạo / xem để in tem'),
+              onTap: () => Navigator.pop(ctx, 'qr'),
+            ),
+            ListTile(
               leading: const Icon(Icons.edit_outlined),
               title: const Text('Sửa mã hộp'),
               onTap: () => Navigator.pop(ctx, 'edit'),
@@ -331,6 +400,11 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
     if (!mounted || action == null) return;
     if (action == 'crabs') {
       await _handleBoxTap(box);
+      return;
+    }
+    if (action == 'qr') {
+      if (!mounted) return;
+      await showBoxQrSheet(context, boxId: box.id, boxCode: box.code);
       return;
     }
     if (action == 'edit') {
@@ -402,82 +476,74 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
 
     return Scaffold(
       backgroundColor: kHomeBg,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(56),
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: CrabSenseColors.headerGradient,
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Sơ đồ trang trại',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.add_box_rounded, color: Colors.white),
-                    onPressed: _showStructureActions,
-                    tooltip: 'Tạo khu, dãy hoặc hộp',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                  const SizedBox(width: 12),
-                  IconButton(
-                    icon: const Icon(Icons.account_tree_outlined, color: Colors.white),
-                    onPressed: () => showFarmStructureManageSheet(context),
-                    tooltip: 'Quản lý khu, dãy, hộp',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-                    onPressed: () => ref.read(boxesStateProvider.notifier).refresh(),
-                    tooltip: 'Làm mới',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/home_pattern.jpg'),
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+                opacity: 0.45,
               ),
             ),
           ),
-        ),
-      ),
-      body: asyncState.when(
-        loading: () => const BoxesSkeleton(gridColumns: 4),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
+          const ColoredBox(color: Color(0xD6F4F7F2)),
+          SafeArea(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline, color: kHomeDanger, size: 48),
-                const SizedBox(height: 12),
-                Text(
-                  _boxesErrorMessage(e),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: kHomeTextSub),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  onPressed: () => ref.read(boxesStateProvider.notifier).loadData(forceRefresh: true),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Thử lại'),
+                _BoxesTopBar(onManage: _showStructureActions),
+                Expanded(
+                  child: asyncState.when(
+                    loading: () => const BoxesSkeleton(gridColumns: 4),
+                    error: (e, _) => Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: kHomeDangerBg,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Icon(
+                                Icons.error_outline_rounded,
+                                color: kHomeDanger,
+                                size: 32,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              _boxesErrorMessage(e),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: kHomeTextSub),
+                            ),
+                            const SizedBox(height: 14),
+                            FilledButton.icon(
+                              onPressed: () => ref
+                                  .read(boxesStateProvider.notifier)
+                                  .loadData(forceRefresh: true),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: kHomePrimary,
+                                foregroundColor: kHomePrimaryDark,
+                              ),
+                              icon: const Icon(Icons.refresh_rounded),
+                              label: const Text('Thử lại'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    data: (data) => _buildContent(data),
+                  ),
                 ),
               ],
             ),
           ),
-        ),
-        data: (data) => _buildContent(data),
+        ],
       ),
     );
   }
@@ -487,7 +553,10 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
     final selectedFarm = farms.where((farm) => farm.id == data.selectedFarmId).firstOrNull ??
       (farms.isNotEmpty ? farms.first : null);
     final boxes = data.visibleBoxes;
-    final activeCount = boxes.where((b) => b.status == BoxHealthStatus.healthy || b.status == BoxHealthStatus.warning).length;
+    final allBoxes = data.allBoxes;
+    final occupiedCount = allBoxes.where((b) => b.crabCount > 0).length;
+    final emptyCount = allBoxes.length - occupiedCount;
+    final activeFilters = data.quickFilters;
 
     return RefreshIndicator(
       onRefresh: () => ref.read(boxesStateProvider.notifier).refresh(),
@@ -498,31 +567,41 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header card: farm selector + stats
             _FarmHeaderCard(
               farms: farms,
               selectedFarm: selectedFarm,
-              totalBoxes: boxes.length,
-              activeBoxes: activeCount,
+              totalBoxes: allBoxes.length,
+              activeBoxes: occupiedCount,
+              emptyBoxes: emptyCount,
               onFarmChanged: (id) {
                 _selectedFarmId = id;
                 ref.read(boxesStateProvider.notifier).switchFarm(id);
               },
+              onStatTap: (filter) {
+                ref.read(boxesStateProvider.notifier).toggleQuickFilter(filter);
+              },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            _OccupancyFilterRow(
+              active: activeFilters,
+              onToggle: (f) =>
+                  ref.read(boxesStateProvider.notifier).toggleQuickFilter(f),
+            ),
+            const SizedBox(height: 14),
 
-            // Box grid label
-            const Text(
-              'Hộp nuôi',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: kHomeTextMain,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: HomeSectionHeader(
+                    icon: Icons.grid_view_rounded,
+                    title: 'Hộp nuôi (${boxes.length})',
+                  ),
+                ),
+                const _CompactLegend(),
+              ],
             ),
             const SizedBox(height: 10),
 
-            // Box grid
             if (boxes.isEmpty)
               _EmptyBoxState(
                 canCreate: data.canCreateBox,
@@ -537,34 +616,252 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
 
             const SizedBox(height: 16),
 
-            // Legend
-            _Legend(),
-
-            const SizedBox(height: 16),
-
-            // Stats button
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton.icon(
+              child: FilledButton.icon(
                 onPressed: () => context.push(RoutePaths.reports),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kHomePrimaryDark,
-                  foregroundColor: Colors.white,
+                style: FilledButton.styleFrom(
+                  backgroundColor: kHomePrimary,
+                  foregroundColor: kHomePrimaryDark,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
                   elevation: 0,
                 ),
                 icon: const Icon(Icons.bar_chart_rounded),
                 label: const Text(
                   'Thống kê trang trại',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
                 ),
               ),
             ),
             const SizedBox(height: 24),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Soft top bar (Home-aligned) ─────────────────────────────────────────────
+
+class _BoxesTopBar extends StatelessWidget {
+  const _BoxesTopBar({required this.onManage});
+
+  final VoidCallback onManage;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: kHomePrimaryBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: kHomeBorder),
+            ),
+            child: const Icon(
+              Icons.map_rounded,
+              size: 20,
+              color: kHomePrimaryDark,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sơ đồ trang trại',
+                  style: TextStyle(
+                    color: kHomePrimaryDark,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Kéo xuống để làm mới',
+                  style: TextStyle(
+                    color: kHomeTextSub,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onManage,
+              borderRadius: BorderRadius.circular(14),
+              child: Ink(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                decoration: BoxDecoration(
+                  color: kHomePrimary,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: kHomeShadow,
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.tune_rounded,
+                      size: 18,
+                      color: kHomePrimaryDark,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'Quản lý',
+                      style: TextStyle(
+                        color: kHomePrimaryDark,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactCreateChip extends StatelessWidget {
+  const _CompactCreateChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: CrabSenseColors.primaryMuted,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: kHomeBorder),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, size: 20, color: kHomePrimaryDark),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: kHomePrimaryDark,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StructureActionTile extends StatelessWidget {
+  const _StructureActionTile({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+    this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.zero,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Ink(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: CrabSenseColors.primaryMuted,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: kHomeBorder),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: kHomeSurface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: kHomeBorder),
+                  ),
+                  child: Icon(icon, color: kHomePrimaryDark, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: kHomePrimaryDark,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle!,
+                          style: const TextStyle(
+                            color: kHomeTextSub,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: kHomeTextHint,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -589,88 +886,137 @@ class _FarmHeaderCard extends StatelessWidget {
     required this.selectedFarm,
     required this.totalBoxes,
     required this.activeBoxes,
+    required this.emptyBoxes,
     required this.onFarmChanged,
+    this.onStatTap,
   });
 
   final List farms;
   final dynamic selectedFarm;
   final int totalBoxes;
   final int activeBoxes;
+  final int emptyBoxes;
   final void Function(String) onFarmChanged;
+  final void Function(BoxQuickFilter filter)? onStatTap;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: homeCardDecoration(),
+      decoration: homeCardDecoration(radius: 22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.agriculture_rounded, color: kHomePrimary, size: 20),
-              const SizedBox(width: 8),
-              const Text(
-                'Trang trại',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: kHomeTextSub,
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: kHomePrimaryBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.waves_rounded,
+                  color: kHomePrimaryDark,
+                  size: 18,
                 ),
               ),
-              const Spacer(),
-              DropdownButton<String>(
-                value: selectedFarm.id.isEmpty ? null : selectedFarm.id,
-                underline: const SizedBox.shrink(),
-                icon: const Icon(Icons.expand_more_rounded, color: kHomeTextSub, size: 20),
-                style: const TextStyle(
-                  color: kHomeTextMain,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Khu nuôi',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: kHomeTextSub,
+                  ),
                 ),
-                hint: Text(
-                  farms.isNotEmpty ? (farms.first as dynamic).name : 'Chọn trang trại',
-                  style: const TextStyle(color: kHomeTextMain, fontWeight: FontWeight.w700),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: CrabSenseColors.primaryMuted,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: kHomeBorder),
                 ),
-                items: farms.map<DropdownMenuItem<String>>((f) {
-                  return DropdownMenuItem<String>(
-                    value: (f as dynamic).id as String,
-                    child: Text((f as dynamic).name as String),
-                  );
-                }).toList(),
-                onChanged: (id) {
-                  if (id != null) onFarmChanged(id);
-                },
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: selectedFarm == null ||
+                            (selectedFarm.id as String).isEmpty
+                        ? null
+                        : selectedFarm.id as String,
+                    icon: const Icon(
+                      Icons.expand_more_rounded,
+                      color: kHomePrimaryDark,
+                      size: 20,
+                    ),
+                    style: const TextStyle(
+                      color: kHomePrimaryDark,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                    ),
+                    hint: Text(
+                      farms.isNotEmpty
+                          ? (farms.first as dynamic).name as String
+                          : 'Chọn khu',
+                      style: const TextStyle(
+                        color: kHomePrimaryDark,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    items: farms.map<DropdownMenuItem<String>>((f) {
+                      return DropdownMenuItem<String>(
+                        value: (f as dynamic).id as String,
+                        child: Text((f as dynamic).name as String),
+                      );
+                    }).toList(),
+                    onChanged: (id) {
+                      if (id != null) onFarmChanged(id);
+                    },
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          const Divider(height: 1, color: kHomeBorder),
-          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                child: _StatItem(
-                  icon: Icons.grid_view_rounded,
-                  label: 'Tổng hộp',
-                  value: '$totalBoxes',
-                  color: kHomePrimary,
+                child: GestureDetector(
+                  onTap: () => onStatTap?.call(BoxQuickFilter.all),
+                  child: _StatItem(
+                    icon: Icons.grid_view_rounded,
+                    label: 'Tổng',
+                    value: '$totalBoxes',
+                    color: kHomePrimaryDark,
+                    tint: kHomePrimaryBg,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Expanded(
-                child: _StatItem(
-                  icon: Icons.check_circle_rounded,
-                  label: 'Đang nuôi',
-                  value: '$activeBoxes',
-                  color: kHomePrimary,
+                child: GestureDetector(
+                  onTap: () => onStatTap?.call(BoxQuickFilter.occupied),
+                  child: _StatItem(
+                    icon: Icons.check_circle_rounded,
+                    label: 'Đang nuôi',
+                    value: '$activeBoxes',
+                    color: kHomePrimaryDark,
+                    tint: const Color(0xFFD5F5E3),
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Expanded(
-                child: _StatItem(
-                  icon: Icons.warning_rounded,
-                  label: 'Cảnh báo',
-                  value: '${totalBoxes - activeBoxes}',
-                  color: kHomeWarning,
+                child: GestureDetector(
+                  onTap: () => onStatTap?.call(BoxQuickFilter.empty),
+                  child: _StatItem(
+                    icon: Icons.crop_square_rounded,
+                    label: 'Trống',
+                    value: '$emptyBoxes',
+                    color: kHomeTextSub,
+                    tint: const Color(0xFFEEF1ED),
+                  ),
                 ),
               ),
             ],
@@ -687,32 +1033,46 @@ class _StatItem extends StatelessWidget {
     required this.label,
     required this.value,
     required this.color,
+    required this.tint,
   });
 
   final IconData icon;
   final String label;
   final String value;
   final Color color;
+  final Color tint;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 22),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: color,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      decoration: BoxDecoration(
+        color: tint,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kHomeBorder.withValues(alpha: 0.7)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
           ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 11, color: kHomeTextSub),
-        ),
-      ],
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              color: kHomeTextSub,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -758,30 +1118,32 @@ class _BoxFarmGrid extends StatelessWidget {
     }
   }
 
-  Color _textColor(BoxSummary box) {
+  Color _accentColor(BoxSummary box) {
     if (box.alerts.hasAlerts || box.status == BoxHealthStatus.critical) {
       return kHomeDanger;
     }
     if (box.crabCount == 0) return kHomeTextHint;
     if (box.status == BoxHealthStatus.warning) return kHomeWarning;
     switch (box.status) {
-      case BoxHealthStatus.critical: return kHomeDanger;
-      case BoxHealthStatus.warning: return kHomeWarning;
-      case BoxHealthStatus.offline: return kHomeTextHint;
-      default: return kHomePrimaryDark;
+      case BoxHealthStatus.critical:
+        return kHomeDanger;
+      case BoxHealthStatus.warning:
+        return kHomeWarning;
+      case BoxHealthStatus.offline:
+        return kHomeTextHint;
+      default:
+        return kHomePrimaryDark;
     }
   }
 
-  String? _statusIcon(BoxSummary box) {
-    if (box.alerts.hasAlerts || box.status == BoxHealthStatus.critical) {
-      return '🔴';
-    }
-    if (box.crabCount == 0) return null;
-    switch (box.status) {
-      case BoxHealthStatus.critical: return '🔴';
-      case BoxHealthStatus.warning: return '⚠️';
-      default: return null;
-    }
+  String _boxLabel(BoxSummary box) {
+    final code = box.code.trim();
+    if (code.isNotEmpty && code.toLowerCase() != 'x') return code;
+    final qr = box.qrCode.trim();
+    if (qr.isNotEmpty && qr.toLowerCase() != 'x') return qr;
+    final name = box.name.trim();
+    if (name.isNotEmpty) return name;
+    return box.id.substring(0, 4).toUpperCase();
   }
 
   @override
@@ -791,66 +1153,74 @@ class _BoxFarmGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 4,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-        childAspectRatio: 0.95,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 0.92,
       ),
       itemCount: boxes.length,
       itemBuilder: (context, i) {
         final box = boxes[i];
         final bg = _bgColor(box);
         final border = _borderColor(box);
-        final textC = _textColor(box);
-        final emoji = _statusIcon(box);
-        final label = box.qrCode.isNotEmpty ? box.qrCode : box.id.substring(0, 4).toUpperCase();
+        final accent = _accentColor(box);
+        final occupied = box.crabCount > 0;
+        final label = _boxLabel(box);
 
-        return GestureDetector(
-          onTap: () => onBoxTap(box),
-          onLongPress: onBoxLongPress == null ? null : () => onBoxLongPress!(box),
-          child: Container(
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: border, width: 1.5),
-            ),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => onBoxTap(box),
+            onLongPress:
+                onBoxLongPress == null ? null : () => onBoxLongPress!(box),
+            borderRadius: BorderRadius.circular(16),
+            child: Ink(
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: border, width: 1.2),
+                boxShadow: const [
+                  BoxShadow(
+                    color: kHomeShadow,
+                    blurRadius: 8,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                if (emoji != null)
-                  Text(emoji, style: const TextStyle(fontSize: 14))
-                else
-                  Icon(
-                    box.crabCount > 0
-                        ? Icons.set_meal_rounded
-                        : Icons.inventory_2_outlined,
-                    color: textC,
-                    size: 16,
-                  ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: textC,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  box.crabCount > 0 ? '${box.crabCount} con cua' : 'Chưa có cua',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: box.crabCount > 0 ? textC : kHomeTextHint,
-                  ),
-                ),
+                    if (occupied)
+                      Image.asset(
+                        'assets/images/crab_icon.png',
+                        width: 30,
+                        height: 30,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Icon(
+                          Icons.pets_rounded,
+                          size: 26,
+                          color: accent,
+                        ),
+                      )
+                    else
+                      Icon(
+                        Icons.crop_square_rounded,
+                        size: 28,
+                        color: accent,
+                      ),
+                    const SizedBox(height: 6),
+                    Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: accent,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -862,32 +1232,85 @@ class _BoxFarmGrid extends StatelessWidget {
   }
 }
 
-// ─── Legend ───────────────────────────────────────────────────────────────────
+// ─── Compact status legend (inline) ───────────────────────────────────────────
 
-class _Legend extends StatelessWidget {
+class _OccupancyFilterRow extends StatelessWidget {
+  const _OccupancyFilterRow({
+    required this.active,
+    required this.onToggle,
+  });
+
+  final Set<BoxQuickFilter> active;
+  final ValueChanged<BoxQuickFilter> onToggle;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: homeCardDecoration(),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _LegendItem(color: kHomePrimary, label: 'Bình thường'),
-          _LegendItem(color: kHomeWarning, label: 'Sắp lột'),
-          _LegendItem(color: kHomeDanger, label: 'Cảnh báo'),
-          _LegendItem(color: kHomeBorder, label: 'Trống'),
-        ],
-      ),
+    const filters = [
+      BoxQuickFilter.all,
+      BoxQuickFilter.occupied,
+      BoxQuickFilter.empty,
+    ];
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final f in filters)
+          FilterChip(
+            selected: active.contains(f) ||
+                (f == BoxQuickFilter.all &&
+                    active.length == 1 &&
+                    active.contains(BoxQuickFilter.all)),
+            label: Text(f.label),
+            onSelected: (_) => onToggle(f),
+            selectedColor: kHomePrimaryBg,
+            checkmarkColor: kHomePrimaryDark,
+            labelStyle: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+              color: active.contains(f) ||
+                      (f == BoxQuickFilter.all &&
+                          active.contains(BoxQuickFilter.all))
+                  ? kHomePrimaryDark
+                  : kHomeTextSub,
+            ),
+            side: BorderSide(color: kHomeBorder),
+            backgroundColor: kHomeSurface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+      ],
     );
   }
 }
 
-class _LegendItem extends StatelessWidget {
-  const _LegendItem({required this.color, required this.label});
+class _CompactLegend extends StatelessWidget {
+  const _CompactLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _DotHint(color: kHomePrimary, tip: 'Ổn'),
+        SizedBox(width: 6),
+        _DotHint(color: kHomeWarning, tip: 'Lột'),
+        SizedBox(width: 6),
+        _DotHint(color: kHomeDanger, tip: 'CB'),
+        SizedBox(width: 6),
+        _DotHint(color: Color(0xFFB0B8B2), tip: 'Trống'),
+      ],
+    );
+  }
+}
+
+class _DotHint extends StatelessWidget {
+  const _DotHint({required this.color, required this.tip});
 
   final Color color;
-  final String label;
+  final String tip;
 
   @override
   Widget build(BuildContext context) {
@@ -895,17 +1318,18 @@ class _LegendItem extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 3),
         Text(
-          label,
-          style: const TextStyle(fontSize: 11, color: kHomeTextSub, fontWeight: FontWeight.w600),
+          tip,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: kHomeTextHint,
+          ),
         ),
       ],
     );

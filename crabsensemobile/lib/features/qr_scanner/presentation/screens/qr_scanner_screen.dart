@@ -192,7 +192,14 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
 
     switch (action) {
       case ScanQuickAction.details:
-        context.push(RoutePaths.boxDetails(boxId));
+        context.push(
+          RoutePaths.boxCrabs(
+            boxId,
+            boxCode: state.result.code.trim().isEmpty
+                ? null
+                : state.result.code.trim(),
+          ),
+        );
       case ScanQuickAction.aiDetection:
         unawaited(_openAiDetection(boxId));
       case ScanQuickAction.videoAi:
@@ -420,6 +427,19 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
         }
         if (state is QuickResultReady) {
           await HapticFeedback.mediumImpact();
+          // Vào theo dõi cua / phiếu hộp ngay sau khi quét thành công.
+          if (context.mounted) {
+            final code = state.result.code.trim();
+            await context.push(
+              RoutePaths.boxCrabs(
+                state.result.boxId,
+                boxCode: code.isEmpty ? null : code,
+              ),
+            );
+            if (context.mounted) {
+              context.read<ScannerBloc>().add(const ScannerReset());
+            }
+          }
         }
         if (state is BoxFetchFailure) {
           _onFailure(state);
