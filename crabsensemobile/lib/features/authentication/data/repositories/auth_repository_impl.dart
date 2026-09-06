@@ -1,7 +1,11 @@
 import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:local_auth/local_auth.dart';
+import '../../../../core/di/injection.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../core/network/network_info.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -44,10 +48,6 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<Either<Failure, User>> login({required String email, required String password}) async {
-    if (!await networkInfo.isConnected) {
-      return const Left(NetworkFailure('No internet connection. Please check your network.'));
-    }
-
     try {
       final response = await remoteDataSource.login(email: email, password: password);
       await _persistAuthResponse(response);
@@ -58,8 +58,9 @@ class AuthRepositoryImpl implements AuthRepository {
       return Left(NetworkFailure(e.message, e.code));
     } on ParseException catch (e) {
       return Left(ParseFailure(e.message, e.field));
+    } on FormatException catch (e) {
+      return Left(ParseFailure(e.message));
     } on CacheException catch (e) {
-      // Remote login succeeded but local cache failed — surface cache error.
       return Left(CacheFailure(e.message, e.code));
     }
   }
@@ -94,7 +95,9 @@ class AuthRepositoryImpl implements AuthRepository {
     }
 
     try {
-      await localDataSource.clearAuthData(); // clears tokens per req 23.4
+      await localDataSource.clearAuthData();
+      sl<ApiClient>().dio.options.headers.remove('Authorization');
+      sl<Dio>().options.headers.remove('Authorization');
       return const Right(null);
     } on CacheException catch (e) {
       return Left(CacheFailure(e.message, e.code));
@@ -128,6 +131,11 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<Either<Failure, User>> loginWithBiometric() async {
+    if (kIsWeb) {
+      return const Left(
+        AuthenticationFailure('Biometric authentication is not available on web.'),
+      );
+    }
     final isEnabled = await localDataSource.isBiometricEnabled();
     if (!isEnabled) {
       return const Left(
@@ -223,6 +231,11 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<Either<Failure, void>> setBiometricEnabled(bool enabled) async {
+    if (kIsWeb && enabled) {
+      return const Left(
+        PermissionFailure('Biometric not available on web.', permissionType: 'biometric'),
+      );
+    }
     try {
       if (enabled) {
         final canCheck = await localAuth.canCheckBiometrics;
@@ -269,6 +282,9 @@ class AuthRepositoryImpl implements AuthRepository {
       localDataSource.saveAccessTokenExpiry(response.accessTokenExpiresAt),
       localDataSource.saveRefreshTokenExpiry(response.refreshTokenExpiresAt),
     ]);
+    final bearer = 'Bearer ${response.accessToken}';
+    sl<ApiClient>().dio.options.headers['Authorization'] = bearer;
+    sl<Dio>().options.headers['Authorization'] = bearer;
   }
 
   /// Converts a [ServerException] to the most specific [Failure] subtype.

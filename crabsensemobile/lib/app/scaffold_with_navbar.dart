@@ -40,14 +40,17 @@ class ScaffoldWithNavBar extends ConsumerWidget {
     return Scaffold(
       backgroundColor: CrabSenseColors.background,
       body: child,
-      bottomNavigationBar: Container(
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+        child: Container(
         decoration: BoxDecoration(
           color: CrabSenseColors.navBackground,
+          borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.10),
               blurRadius: 16,
-              offset: const Offset(0, -2),
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -64,6 +67,7 @@ class ScaffoldWithNavBar extends ConsumerWidget {
               ],
             ),
           ),
+        ),
         ),
       ),
     );
@@ -166,17 +170,17 @@ class _QrNavItem extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: isActive ? CrabSenseColors.primary : CrabSenseColors.primaryLight,
+                color: CrabSenseColors.primary,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: CrabSenseColors.primary.withValues(alpha: 0.35),
+                    color: CrabSenseColors.primary.withValues(alpha: 0.45),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
                 ],
               ),
-              child: Icon(Icons.qr_code_scanner_rounded, size: 22, color: isActive ? Colors.white : CrabSenseColors.primaryDark),
+              child: Icon(Icons.qr_code_scanner_rounded, size: 22, color: CrabSenseColors.primaryDark),
             ),
             const SizedBox(height: 1),
             Flexible(

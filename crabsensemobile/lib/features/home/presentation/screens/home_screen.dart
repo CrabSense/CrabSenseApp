@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../app/routes.dart';
+import '../../../../core/errors/error_mapper.dart';
 import '../providers/home_provider.dart';
 
 import '../widgets/home_header.dart';
@@ -22,7 +23,7 @@ import '../widgets/offline_banner.dart';
 import '../widgets/section_error_card.dart';
 import '../../../notifications/presentation/providers/unread_notifications_provider.dart';
 
-/// Farm Command Center — Main Home Screen (Material 3 Dark Tech Blue)
+/// Farm Command Center — Home (layout cũ, palette Neofarm)
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -49,14 +50,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isTablet = screenWidth >= 600;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: SafeArea(
-        child: homeAsyncState.when(
+      backgroundColor: kHomeBg,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/home_pattern.jpg'),
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+                opacity: 0.55,
+              ),
+            ),
+          ),
+          // Wash nhẹ để card/text vẫn đọc rõ trên pattern
+          const ColoredBox(color: Color(0xCCF4F7F2)),
+          SafeArea(
+            child: homeAsyncState.when(
           loading: () => const HomeSkeleton(),
           error: (error, stackTrace) => Center(
             child: SectionErrorCard(
               sectionTitle: 'Trang chủ Command Center',
-              errorMessage: error.toString(),
+              errorMessage: ErrorMapper.userFacingMessage(error),
               onRetry: () => ref.read(homeStateProvider.notifier).loadData(forceRefresh: true),
             ),
           ),
@@ -272,7 +288,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             );
           },
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }

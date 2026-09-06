@@ -57,7 +57,7 @@ class ProfileHeader extends StatelessWidget {
                         child: Text(
                           'TÀI KHOẢN',
                           style: TextStyle(
-                            color: kHomeBlueLight,
+                            color: kHomePrimaryDark,
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.2,
@@ -103,7 +103,7 @@ class ProfileHeader extends StatelessWidget {
                             padding: const EdgeInsets.all(2),
                             child: CircleAvatar(
                               radius: 32,
-                              backgroundColor: kHomeNavyDeep,
+                              backgroundColor: kHomeBg,
                               backgroundImage: profile.avatarUrl != null &&
                                       profile.avatarUrl!.isNotEmpty
                                   ? NetworkImage(profile.avatarUrl!)
@@ -134,7 +134,7 @@ class ProfileHeader extends StatelessWidget {
                                   : Colors.white54,
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: kHomeNavyDeep,
+                                color: kHomeBg,
                                 width: 2.5,
                               ),
                             ),
@@ -153,7 +153,7 @@ class ProfileHeader extends StatelessWidget {
                                 child: Text(
                                   profile.fullName,
                                   style: const TextStyle(
-                                    color: Colors.white,
+                                    color: kHomeTextMain,
                                     fontSize: 17,
                                     fontWeight: FontWeight.w800,
                                   ),

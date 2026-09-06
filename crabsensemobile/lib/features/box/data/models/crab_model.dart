@@ -35,32 +35,38 @@ class CrabModel extends Crab {
     String asStr(Object? value) => value?.toString() ?? '';
 
     return CrabModel(
-      id: asStr(json['id']),
-      boxId: asStr(json['boxId'] ?? json['box_id']),
-      species: _speciesFromString(json['species'] as String? ?? 'mudCrab'),
-      weight:
-          (json['weight'] as num?)?.toDouble() ??
-          (json['weightGram'] as num?)?.toDouble() ??
-          (json['weight_gram'] as num?)?.toDouble() ??
-          0.0,
+      id: asStr(json['id'] ?? json['Id']),
+      boxId: asStr(json['boxId'] ?? json['box_id'] ?? json['BoxId']),
+      species: _speciesFromString(
+        asStr(json['species']).isEmpty ? 'mudCrab' : asStr(json['species']),
+      ),
+      weight: _asDouble(json['weight'] ?? json['weightGram'] ?? json['weight_gram']),
       moltingStatus: _moltingStatusFromString(
-        json['moltingStatus'] as String? ??
-            json['molting_status'] as String? ??
-            json['moltingStage'] as String? ??
-            json['molting_stage'] as String? ??
-            'unknown',
+        asStr(
+          json['moltingStatus'] ??
+              json['molting_status'] ??
+              json['moltingStage'] ??
+              json['molting_stage'] ??
+              'unknown',
+        ),
       ),
       healthStatus: _healthStatusFromString(
-        json['healthStatus'] as String? ?? json['health_status'] as String? ?? 'unknown',
+        asStr(json['healthStatus'] ?? json['health_status'] ?? 'unknown'),
       ),
-      source: _sourceFromString(json['source'] as String? ?? 'farm'),
+      source: _sourceFromString(
+        asStr(json['source']).isEmpty ? 'farm' : asStr(json['source']),
+      ),
       addedAt: _parseDateTime(
-        json['addedAt'] as String? ??
-            json['added_at'] as String? ??
-            json['stockedAt'] as String? ??
-            json['stocked_at'] as String?,
+        asStr(
+          json['addedAt'] ?? json['added_at'] ?? json['stockedAt'] ?? json['stocked_at'],
+        ),
       ),
-      addedBy: asStr(json['addedBy'] ?? json['added_by'] ?? json['tag']),
+      addedBy: () {
+        final tag = asStr(json['tag']);
+        if (tag.isNotEmpty && tag.toLowerCase() != 'system') return tag;
+        final by = asStr(json['addedBy'] ?? json['added_by']);
+        return by;
+      }(),
     );
   }
 
@@ -201,14 +207,17 @@ class CrabModel extends Crab {
     switch (value.toLowerCase()) {
       case 'premolt':
       case 'pre_molt':
+      case 'medium':
         return MoltingStatus.preMolt;
       case 'molting':
         return MoltingStatus.molting;
       case 'postmolt':
       case 'post_molt':
+      case 'soft':
         return MoltingStatus.postMolt;
       case 'hardshell':
       case 'hard_shell':
+      case 'hard':
         return MoltingStatus.hardShell;
       default:
         return MoltingStatus.hardShell;
@@ -257,10 +266,16 @@ class CrabModel extends Crab {
   static CrabSource _sourceFromString(String value) =>
       crabSourceFromString(value) ?? CrabSource.farm;
 
+  static double _asDouble(Object? value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0;
+    return 0;
+  }
+
   static DateTime _parseDateTime(String? value) {
     if (value == null || value.isEmpty) {
       return DateTime.now().toUtc();
     }
-    return DateTime.parse(value);
+    return DateTime.tryParse(value) ?? DateTime.now().toUtc();
   }
 }

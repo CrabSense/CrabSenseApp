@@ -1,4 +1,4 @@
-import 'dart:io' show Platform;
+import 'package:crabsensemobile/core/platform/io_export.dart';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 
@@ -18,7 +18,7 @@ class ApiConstants {
   /// Update when your Wi‑Fi IP changes, or pass via --dart-define=DEV_HOST_LAN=x.x.x.x
   static const String _devHostLan = String.fromEnvironment(
     'DEV_HOST_LAN',
-    defaultValue: '10.33.248.225',
+    defaultValue: '103.69.96.143',
   );
 
   /// Resolves API host for the current platform:
@@ -27,7 +27,9 @@ class ApiConstants {
   /// - iOS Simulator / desktop / web → http://localhost:5080
   static String get baseUrl {
     if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
-    if (!kIsWeb && Platform.isAndroid) return 'http://$_devHostLan:5080';
+    if (kIsWeb || (!kIsWeb && Platform.isAndroid)) {
+      return 'http://$_devHostLan:5080';
+    }
     return 'http://localhost:5080';
   }
 
@@ -136,7 +138,13 @@ class ApiConstants {
   static const String crabLots = '/crab-lots';
   static const String cropBatches = '/crop-batches';
   static const String allocations = '/allocations';
+  static String crabAllocations(String crabId) => '/crabs/$crabId/allocations';
   static String crabMoltings(String crabId) => '/crabs/$crabId/moltings';
+  static String crabProfile(String crabId) => '/crabs/$crabId/profile';
+  static String crabWeights(String crabId) => '/crabs/$crabId/weights';
+  static String crabStatusHistory(String crabId) =>
+      '/crabs/$crabId/status-history';
+  static String crabHarvests(String crabId) => '/crabs/$crabId/harvests';
 
   // ===========================================================================
   // QR Code Endpoints (Swagger: 07)

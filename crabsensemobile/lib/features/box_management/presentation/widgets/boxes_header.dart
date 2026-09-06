@@ -35,7 +35,7 @@ class BoxesHeader extends ConsumerWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+              colors: [kHomeSurface, kHomeBg, kHomeBg],
             ),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
@@ -123,7 +123,7 @@ class BoxesHeader extends ConsumerWidget {
                                 const Text(
                                   'CHỌN KHU NUÔI',
                                   style: TextStyle(
-                                    color: kHomeBlueLight,
+                                    color: kHomePrimaryDark,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 1.0,
                                     fontSize: 13,
@@ -133,7 +133,7 @@ class BoxesHeader extends ConsumerWidget {
                                 Text(
                                   '${data.availableFarms.length} khu vực khả dụng',
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.5),
+                                    color: const Color(0xFF5A7184),
                                     fontSize: 12,
                                   ),
                                 ),
@@ -150,7 +150,7 @@ class BoxesHeader extends ConsumerWidget {
                                 height: 34,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: kHomeNavy.withValues(alpha: 0.9),
+                                  color: kHomeBg.withValues(alpha: 0.9),
                                   border: Border.all(
                                     color: kHomeBorderBlue.withValues(
                                       alpha: 0.45,
@@ -159,7 +159,7 @@ class BoxesHeader extends ConsumerWidget {
                                 ),
                                 child: Icon(
                                   Icons.close_rounded,
-                                  color: Colors.white.withValues(alpha: 0.5),
+                                  color: const Color(0xFF5A7184),
                                   size: 18,
                                 ),
                               ),
@@ -226,7 +226,7 @@ class BoxesHeader extends ConsumerWidget {
                 child: Text(
                   'BOXES',
                   style: TextStyle(
-                    color: kHomeBlueLight,
+                    color: kHomePrimaryDark,
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.2,
@@ -244,7 +244,7 @@ class BoxesHeader extends ConsumerWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.45),
+            color: const Color(0xFF5A7184),
             fontSize: 12,
           ),
         ),
@@ -316,7 +316,7 @@ class _FarmSelectorBar extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+              colors: [kHomeSurface, kHomeBg, kHomeBg],
             ),
             borderRadius: BorderRadius.circular(28),
             border: Border.all(
@@ -380,7 +380,7 @@ class _FarmSelectorBar extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: kHomeTextMain,
                             fontWeight: FontWeight.w700,
                             fontSize: 14,
                           ),
@@ -438,7 +438,7 @@ class _FarmOptionTile extends StatelessWidget {
                   : const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [kHomeNavyLift, kHomeNavyDeep],
+                      colors: [kHomeSurface, kHomeBg],
                     ),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
@@ -465,7 +465,7 @@ class _FarmOptionTile extends StatelessWidget {
                     shape: BoxShape.circle,
                     color: isSelected
                         ? kHomeBlue.withValues(alpha: 0.18)
-                        : kHomeNavy.withValues(alpha: 0.8),
+                        : kHomeBg.withValues(alpha: 0.8),
                     border: Border.all(
                       color: isSelected
                           ? kHomeBlue.withValues(alpha: 0.6)
@@ -477,7 +477,7 @@ class _FarmOptionTile extends StatelessWidget {
                     size: 18,
                     color: isSelected
                         ? kHomeBlue
-                        : Colors.white.withValues(alpha: 0.45),
+                        : const Color(0xFF5A7184),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -488,7 +488,7 @@ class _FarmOptionTile extends StatelessWidget {
                       Text(
                         name,
                         style: TextStyle(
-                          color: Colors.white,
+                          color: kHomeTextMain,
                           fontWeight:
                               isSelected ? FontWeight.w800 : FontWeight.w600,
                           fontSize: 14,
@@ -501,7 +501,7 @@ class _FarmOptionTile extends StatelessWidget {
                         const Text(
                           'Đang điều hành',
                           style: TextStyle(
-                            color: kHomeBlueLight,
+                            color: kHomePrimaryDark,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -516,7 +516,7 @@ class _FarmOptionTile extends StatelessWidget {
                       : Icons.chevron_right_rounded,
                   color: isSelected
                       ? kHomeBlue
-                      : Colors.white.withValues(alpha: 0.4),
+                      : const Color(0xFF5A7184),
                   size: 22,
                 ),
               ],
@@ -598,7 +598,7 @@ class _HeaderIconButton extends StatelessWidget {
               minimumSize: const Size(36, 36),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               padding: EdgeInsets.zero,
-              backgroundColor: kHomeNavyDeep.withValues(alpha: 0.75),
+              backgroundColor: kHomeBg.withValues(alpha: 0.75),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
                 side: BorderSide(
@@ -630,7 +630,7 @@ class _HeaderIconButton extends StatelessWidget {
                 child: Text(
                   countBadge!,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: kHomeTextMain,
                     fontSize: 9,
                     fontWeight: FontWeight.w800,
                     height: 1.1,

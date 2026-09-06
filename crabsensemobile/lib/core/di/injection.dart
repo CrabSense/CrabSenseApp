@@ -242,6 +242,8 @@ Future<void> init() async {
     () => const FlutterSecureStorage(
       aOptions: AndroidOptions(encryptedSharedPreferences: true),
       iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+      // Web: dùng localStorage với encryption key (hoạt động trên Chrome)
+      webOptions: WebOptions(dbName: 'crabsense_secure', publicKey: 'CrabSenseWeb'),
     ),
   );
 
@@ -775,7 +777,7 @@ Future<void> init() async {
   );
 
   sl.registerLazySingleton<NotificationPreferencesRepository>(
-    () => NotificationPreferencesRepositoryImpl(localDataSource: sl()),
+    () => NotificationPreferencesRepositoryImpl(localDataSource: sl(), api: sl()),
   );
 
   //! ============================================================================

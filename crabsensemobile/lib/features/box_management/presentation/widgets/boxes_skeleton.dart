@@ -30,9 +30,9 @@ class BoxesSkeleton extends StatelessWidget {
             itemCount: gridColumns * 2,
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: gridColumns,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.72,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: gridColumns >= 4 ? 0.95 : 0.85,
             ),
             itemBuilder: (_, __) => const GridBoxCardSkeleton(),
           ),
@@ -103,33 +103,20 @@ class GridBoxCardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: CrabSenseColors.card,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: CrabSenseColors.border),
       ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              _ShimmerBlock(width: 72, height: 16, radius: 6),
-              Spacer(),
-              _ShimmerBlock(width: 56, height: 20, radius: 20),
-            ],
-          ),
-          SizedBox(height: 8),
-          _ShimmerBlock(width: 90, height: 12, radius: 6),
-          SizedBox(height: 12),
-          _ShimmerBlock(width: double.infinity, height: 48, radius: 12),
-          SizedBox(height: 12),
-          _ShimmerBlock(width: double.infinity, height: 12, radius: 6),
-          SizedBox(height: 8),
-          _ShimmerBlock(width: double.infinity, height: 12, radius: 6),
-          Spacer(),
-          _ShimmerBlock(width: 100, height: 10, radius: 6),
-        ],
+      child: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _ShimmerBlock(width: 22, height: 22, radius: 8),
+            SizedBox(height: 6),
+            _ShimmerBlock(width: 36, height: 8, radius: 4),
+          ],
+        ),
       ),
     );
   }

@@ -51,9 +51,9 @@ class _HomeSkeletonState extends State<HomeSkeleton> with SingleTickerProviderSt
               begin: Alignment(_animation.value - 1, 0),
               end: Alignment(_animation.value, 0),
               colors: const [
-                kHomeNavy,
-                kHomeNavyLift,
-                kHomeNavy,
+                kHomeBg,
+                kHomeSurface,
+                kHomeBg,
               ],
             ),
           ),

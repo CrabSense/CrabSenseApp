@@ -54,26 +54,26 @@ class BoxCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Ink(
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
-              ),
+              color: kHomeSurface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: _accent.withValues(alpha: 0.5),
-              ),
-              boxShadow: [
+              border: Border.all(color: kHomeBorder),
+              boxShadow: const [
                 BoxShadow(
-                  color: _accent.withValues(alpha: 0.16),
-                  blurRadius: 14,
-                  offset: const Offset(0, 4),
+                  color: kHomeShadow,
+                  blurRadius: 8,
+                  offset: Offset(0, 3),
                 ),
               ],
             ),
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(0),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(height: 4, color: _accent),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
@@ -87,7 +87,7 @@ class BoxCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                color: Colors.white,
+                                color: kHomeTextMain,
                                 fontWeight: FontWeight.w800,
                                 fontSize: 15,
                               ),
@@ -95,9 +95,10 @@ class BoxCard extends StatelessWidget {
                             const SizedBox(height: 2),
                             Text(
                               box.location.areaName,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.45),
+                              style: const TextStyle(
+                                color: kHomeTextSub,
                                 fontSize: 11,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
@@ -106,7 +107,7 @@ class BoxCard extends StatelessWidget {
                       BoxStatusBadge(status: box.status, compact: true),
                       PopupMenuButton<String>(
                         tooltip: 'Thao tác nhanh',
-                        color: kHomeNavy,
+                        color: kHomeBg,
                         onSelected: onMenuSelected,
                         itemBuilder: (_) => [
                           PopupMenuItem(
@@ -114,7 +115,7 @@ class BoxCard extends StatelessWidget {
                             child: Text(
                               'Quét QR',
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
+                                color: const Color(0xFF5A7184),
                               ),
                             ),
                           ),
@@ -123,7 +124,7 @@ class BoxCard extends StatelessWidget {
                             child: Text(
                               'Phát hiện AI',
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
+                                color: const Color(0xFF5A7184),
                               ),
                             ),
                           ),
@@ -132,7 +133,7 @@ class BoxCard extends StatelessWidget {
                             child: Text(
                               'Kiểm tra nước',
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
+                                color: const Color(0xFF5A7184),
                               ),
                             ),
                           ),
@@ -141,7 +142,7 @@ class BoxCard extends StatelessWidget {
                             child: Text(
                               'Thu hoạch',
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
+                                color: const Color(0xFF5A7184),
                               ),
                             ),
                           ),
@@ -150,14 +151,14 @@ class BoxCard extends StatelessWidget {
                             child: Text(
                               'Xem chi tiết',
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
+                                color: const Color(0xFF5A7184),
                               ),
                             ),
                           ),
                         ],
                         icon: Icon(
                           Icons.more_vert_rounded,
-                          color: Colors.white.withValues(alpha: 0.45),
+                          color: const Color(0xFF5A7184),
                           size: 20,
                         ),
                       ),
@@ -207,7 +208,7 @@ class BoxCard extends StatelessWidget {
                         size: 14,
                         color: box.devices.isOnline
                             ? kHomeGreen
-                            : Colors.white.withValues(alpha: 0.4),
+                            : const Color(0xFF5A7184),
                       ),
                       const SizedBox(width: 4),
                       Text(
@@ -215,7 +216,7 @@ class BoxCard extends StatelessWidget {
                         style: TextStyle(
                           color: box.devices.isOnline
                               ? kHomeGreen
-                              : Colors.white.withValues(alpha: 0.4),
+                              : const Color(0xFF5A7184),
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                         ),
@@ -248,15 +249,18 @@ class BoxCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     'Cập nhật ${formatRelativeTime(box.lastUpdated)}',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.4),
+                    style: const TextStyle(
+                      color: kHomeTextSub,
                       fontSize: 10,
                     ),
                   ),
                 ],
               ),
             ),
-          ),
+          ],
+        ),
+      ),
+    ),
         ),
       ),
     );
@@ -274,7 +278,7 @@ class _MetricChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
-        color: kHomeNavyDeep.withValues(alpha: 0.7),
+        color: kHomeBg.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.35)),
       ),
@@ -285,8 +289,8 @@ class _MetricChip extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
+            style: const TextStyle(
+              color: kHomeTextSub,
               fontSize: 10,
             ),
           ),

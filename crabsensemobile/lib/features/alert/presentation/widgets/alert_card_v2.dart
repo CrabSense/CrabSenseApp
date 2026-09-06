@@ -54,7 +54,7 @@ class AlertCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: alert.category == AlertCategory.waterQuality
                             ? kHomeBlueLight.withValues(alpha: 0.15)
-                            : kHomeNavyDeep,
+                            : kHomeBg,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -86,7 +86,7 @@ class AlertCard extends StatelessWidget {
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    color: Colors.white,
+                                    color: kHomeTextMain,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 14,
                                   ),

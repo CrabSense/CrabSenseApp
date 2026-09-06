@@ -37,7 +37,7 @@ void showAiRecommendationDetailSheet(
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+            colors: [kHomeSurface, kHomeBg, kHomeBg],
           ),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           border: Border.all(
@@ -147,7 +147,7 @@ void showAiRecommendationDetailSheet(
                           child: Text(
                             'CHI TIẾT KHUYẾN NGHỊ AI',
                             style: TextStyle(
-                              color: kHomeBlueLight,
+                              color: kHomePrimaryDark,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 1.0,
                               fontSize: 13,
@@ -192,7 +192,7 @@ void showAiRecommendationDetailSheet(
                                   Text(
                                     recommendation.title,
                                     style: const TextStyle(
-                                      color: Colors.white,
+                                      color: kHomeTextMain,
                                       fontWeight: FontWeight.w800,
                                       fontSize: 16,
                                       height: 1.3,
@@ -219,7 +219,7 @@ void showAiRecommendationDetailSheet(
                                         child: Text(
                                           recommendation.targetBoxOrArea,
                                           style: const TextStyle(
-                                            color: kHomeBlueLight,
+                                            color: kHomePrimaryDark,
                                             fontWeight: FontWeight.w700,
                                             fontSize: 13,
                                           ),
@@ -321,7 +321,7 @@ void showAiRecommendationDetailSheet(
                                             Text(
                                               'Thực hiện ngay',
                                               style: TextStyle(
-                                                color: Colors.white,
+                                                color: kHomeTextMain,
                                                 fontWeight: FontWeight.w800,
                                                 fontSize: 14,
                                               ),
@@ -478,7 +478,7 @@ class _InfoTile extends StatelessWidget {
                 Text(
                   value,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: kHomeTextMain,
                     fontSize: 12.5,
                     height: 1.4,
                     fontWeight: FontWeight.w500,
@@ -511,7 +511,7 @@ class _SheetCloseButton extends StatelessWidget {
           height: 34,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: kHomeNavy.withValues(alpha: 0.9),
+            color: kHomeBg.withValues(alpha: 0.9),
             border: Border.all(
               color: kHomeBorderBlue.withValues(alpha: 0.45),
             ),

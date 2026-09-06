@@ -117,10 +117,18 @@ class AuthResponse {
     required this.refreshTokenExpiresAt,
   });
 
+  static Map<String, dynamic>? _asMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return value.map((key, val) => MapEntry(key.toString(), val));
+    }
+    return null;
+  }
+
   factory AuthResponse.fromJson(Map<String, dynamic> json) {
-    final payload = (json['data'] is Map<String, dynamic>)
-        ? json['data'] as Map<String, dynamic>
-        : json;
+    // Dio/web JSON is often Map<dynamic,dynamic> — `is Map<String,dynamic>`
+    // would skip unwrap and persist an empty JWT.
+    final payload = _asMap(json['data']) ?? json;
 
     final token = payload['accessToken'] ?? payload['access_token'] ?? payload['token'] ?? '';
     final refresh = payload['refreshToken'] ?? payload['refresh_token'] ?? '';
@@ -135,16 +143,20 @@ class AuthResponse {
         ? (DateTime.tryParse(refreshExpiresAtRaw.toString()) ?? DateTime.now().add(const Duration(days: 7)))
         : DateTime.now().add(const Duration(days: 7));
 
-    final userJson = (payload['user'] is Map<String, dynamic>)
-        ? payload['user'] as Map<String, dynamic>
-        : payload;
+    final userJson = _asMap(payload['user']) ?? payload;
 
     final user = UserModel.fromJson(userJson);
 
+    final access = token.toString();
+    final refreshStr = refresh.toString();
+    if (access.isEmpty || access == 'null') {
+      throw const FormatException('Login response missing accessToken');
+    }
+
     return AuthResponse(
       user: user,
-      accessToken: token.toString(),
-      refreshToken: refresh.toString(),
+      accessToken: access,
+      refreshToken: refreshStr,
       accessTokenExpiresAt: expiresAt,
       refreshTokenExpiresAt: refreshExpiresAt,
     );

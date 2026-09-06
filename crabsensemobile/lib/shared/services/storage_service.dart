@@ -1,5 +1,6 @@
-import 'dart:io';
+import 'package:crabsensemobile/core/platform/io_export.dart';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -62,6 +63,7 @@ class StorageServiceImpl implements StorageService {
 
   @override
   Future<int> getAvailableStorageBytes() async {
+    if (kIsWeb) return _kFallbackAvailableBytes; // Web has no disk check
     try {
       final tempDir = await getTemporaryDirectory();
       return await _probeAvailableBytes(tempDir.path);
@@ -77,9 +79,10 @@ class StorageServiceImpl implements StorageService {
 
   @override
   Future<int> getTotalVideoStorageUsedBytes() async {
+    if (kIsWeb) return 0; // Not applicable on web
     try {
       final docDir = await getApplicationDocumentsDirectory();
-      return _directorySize(docDir);
+      return _directorySize(docDir.path);
     } on Exception catch (e) {
       _logger.w('StorageService: getTotalVideoStorageUsedBytes failed. Error: $e');
       return 0;
@@ -140,10 +143,10 @@ class StorageServiceImpl implements StorageService {
   }
 
   /// Recursively sums the size of all files under [dir].
-  int _directorySize(Directory dir) {
+  int _directorySize(String dirPath) {
     var total = 0;
     try {
-      for (final entity in dir.listSync(recursive: true)) {
+      for (final entity in Directory(dirPath).listSync(recursive: true)) {
         if (entity is File) {
           try {
             total += entity.lengthSync();

@@ -1,5 +1,7 @@
 // ignore_for_file: lines_longer_than_80_chars
 
+import 'dart:convert';
+
 import 'package:dio/dio.dart' show DioException;
 import 'package:logger/logger.dart';
 
@@ -196,13 +198,20 @@ class BoxRemoteDataSourceImpl implements BoxRemoteDataSource {
   Future<List<CrabModel>> getCrabsByBox(String boxId) async {
     _logger.d('BoxRemoteDataSource: getCrabsByBox($boxId)');
 
-    final result = await _apiClient.safeGet<Map<String, dynamic>>(ApiConstants.boxCrabs(boxId));
-
+    final result = await _apiClient.safeGet<dynamic>(ApiConstants.boxCrabs(boxId));
     _checkFailure(result.failure, 'crabs by box');
 
-    final raw = result.data.data;
-    final items = _extractList(raw, 'getCrabsByBox');
-    return items.map((e) => CrabModel.fromJson(e as Map<String, dynamic>)).toList();
+    final items = _extractList(result.data.data, 'getCrabsByBox');
+    return items.map((e) {
+      if (e is Map) return CrabModel.fromJson(Map<String, dynamic>.from(e));
+      try {
+        final decoded = jsonDecode(jsonEncode(e));
+        if (decoded is Map) {
+          return CrabModel.fromJson(Map<String, dynamic>.from(decoded));
+        }
+      } catch (_) {}
+      throw const ParseException(message: 'Invalid crab row', field: 'data');
+    }).toList();
   }
 
   @override
@@ -268,23 +277,27 @@ class BoxRemoteDataSourceImpl implements BoxRemoteDataSource {
     return responseBody;
   }
 
-  /// Extracts and validates a list payload from an API response map.
-  List<dynamic> _extractList(Map<String, dynamic>? responseBody, String operationName) {
-    if (responseBody == null) {
+  /// Extracts a list payload from `{ data: [...] }`, `{ items }`, or nested maps.
+  List<dynamic> _extractList(dynamic responseBody, String operationName) {
+    dynamic body = responseBody;
+    try {
+      body = jsonDecode(jsonEncode(responseBody));
+    } catch (_) {}
+    if (body == null) return [];
+    if (body is List) return body;
+    if (body is! Map) {
+      _logger.w('BoxRemoteDataSource: unexpected list shape in $operationName');
       return [];
     }
-
-    // Nested list under "data".
-    if (responseBody.containsKey('data') && responseBody['data'] is List<dynamic>) {
-      return responseBody['data'] as List<dynamic>;
+    final map = Map<Object?, Object?>.from(body);
+    for (final key in ['data', 'items', 'Items', 'crabs', 'Crabs', r'$values']) {
+      final nested = map[key];
+      if (nested is List) return nested;
+      if (nested is Map) {
+        final deeper = _extractList(nested, operationName);
+        if (deeper.isNotEmpty) return deeper;
+      }
     }
-
-    // List at root level.
-    if (responseBody.containsKey('items') && responseBody['items'] is List<dynamic>) {
-      return responseBody['items'] as List<dynamic>;
-    }
-
-    // Empty fallback — avoids crashing on unexpected shapes.
     _logger.w('BoxRemoteDataSource: unexpected list shape in $operationName');
     return [];
   }

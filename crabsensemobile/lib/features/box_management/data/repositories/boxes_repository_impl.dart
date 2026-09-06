@@ -1,62 +1,15 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html show window;
 
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/network/api_client.dart';
 import '../../domain/models/boxes_models.dart';
 import '../../domain/repositories/boxes_repository.dart';
 
 /// Production Boxes repository — uses GET /boxes/overview (no mock enrichment).
 class BoxesRepositoryImpl implements BoxesRepository {
-  BoxesRepositoryImpl({
-    Dio? dio,
-    FlutterSecureStorage? secureStorage,
-  }) : _secureStorage =
-           secureStorage ??
-           const FlutterSecureStorage(
-             aOptions: AndroidOptions(encryptedSharedPreferences: true),
-             iOptions: IOSOptions(
-               accessibility: KeychainAccessibility.first_unlock,
-             ),
-           ),
-       _dio =
-           dio ??
-           Dio(
-             BaseOptions(
-               baseUrl: ApiConstants.apiBaseUrl,
-               connectTimeout: ApiConstants.connectTimeout,
-               receiveTimeout: ApiConstants.receiveTimeout,
-               headers: const {
-                 'Content-Type': 'application/json',
-                 'Accept': 'application/json',
-               },
-             ),
-           ) {
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          try {
-            String? token;
-            if (kIsWeb) {
-              // Web: đọc từ localStorage
-              token = html.window.localStorage['auth_access_token'];
-            } else {
-              token = await _secureStorage.read(key: 'auth_access_token');
-            }
-            if (token != null && token.isNotEmpty) {
-              options.headers['Authorization'] = 'Bearer $token';
-            }
-          } catch (_) {}
-          return handler.next(options);
-        },
-      ),
-    );
-  }
+  BoxesRepositoryImpl({required ApiClient api}) : _api = api;
 
-  final Dio _dio;
-  final FlutterSecureStorage _secureStorage;
+  final ApiClient _api;
 
   BoxesStateData? _cached;
   BoxesViewMode _viewMode = BoxesViewMode.grid;
@@ -75,13 +28,17 @@ class BoxesRepositoryImpl implements BoxesRepository {
     required String farmingRowId,
     String? code,
   }) async {
-    await _dio.post(
+    await _api.post(
       ApiConstants.boxes,
       data: {
         'farmingRowId': farmingRowId,
         if (code != null && code.isNotEmpty) 'code': code,
       },
     );
+    return _reload();
+  }
+
+  Future<BoxesStateData> _reload() {
     return getBoxesSummary(
       farmingAreaId: _cached?.selectedFarmId,
       forceRefresh: true,
@@ -95,13 +52,148 @@ class BoxesRepositoryImpl implements BoxesRepository {
     );
   }
 
+  @override
+  Future<BoxesStateData> updateBox({
+    required String id,
+    required String code,
+    String? status,
+    required bool isOccupied,
+  }) async {
+    await _api.put(
+      ApiConstants.boxDetails(id),
+      data: {
+        'code': code,
+        if (status != null) 'status': status,
+        'isOccupied': isOccupied,
+      },
+    );
+    return _reload();
+  }
+
+  @override
+  Future<BoxesStateData> deleteBox(String id) async {
+    await _api.delete(ApiConstants.boxDetails(id));
+    return _reload();
+  }
+
+  @override
+  Future<BoxesStateData> createArea({required String name, String? description}) async {
+    await _api.post(
+      ApiConstants.farmingAreas,
+      data: {
+        'name': name,
+        if (description != null && description.isNotEmpty) 'description': description,
+      },
+    );
+    return _reload();
+  }
+
+  @override
+  Future<BoxesStateData> updateArea({
+    required String id,
+    required String name,
+    String? description,
+    bool isActive = true,
+  }) async {
+    await _api.put(
+      ApiConstants.farmDetails(id),
+      data: {
+        'name': name,
+        'description': description,
+        'isActive': isActive,
+      },
+    );
+    return _reload();
+  }
+
+  @override
+  Future<BoxesStateData> deleteArea(String id) async {
+    await _api.delete(ApiConstants.farmDetails(id));
+    return _reload();
+  }
+
+  @override
+  Future<BoxesStateData> createRow({
+    required String farmingAreaId,
+    required String name,
+    required int capacity,
+  }) async {
+    await _api.post(
+      ApiConstants.farmingRows,
+      data: {
+        'farmingAreaId': farmingAreaId,
+        'name': name,
+        'capacity': capacity,
+      },
+    );
+    return _reload();
+  }
+
+  @override
+  Future<BoxesStateData> updateRow({
+    required String id,
+    required String name,
+    required int capacity,
+    bool isActive = true,
+  }) async {
+    await _api.put(
+      ApiConstants.pondDetails(id),
+      data: {
+        'name': name,
+        'capacity': capacity,
+        'isActive': isActive,
+      },
+    );
+    return _reload();
+  }
+
+  @override
+  Future<BoxesStateData> deleteRow(String id) async {
+    await _api.delete(ApiConstants.pondDetails(id));
+    return _reload();
+  }
+
+  @override
+  Future<List<FarmRowOption>> fetchRowDetails(String? farmingAreaId) async {
+    final query = <String, dynamic>{};
+    if (farmingAreaId != null && farmingAreaId.isNotEmpty) {
+      query['farmingAreaId'] = farmingAreaId;
+    }
+    final res = await _api.get(
+      ApiConstants.farmingRows,
+      queryParameters: query.isEmpty ? null : query,
+    );
+    final list = _extractList(res.data) ?? const [];
+    final rows = <FarmRowOption>[];
+    for (final item in list) {
+      final map = _asMap(item);
+      if (map == null) continue;
+      final id = map['id']?.toString();
+      final name = map['name']?.toString() ?? map['code']?.toString();
+      final areaId = map['farmingAreaId']?.toString();
+      if (id == null || name == null || areaId == null) continue;
+      rows.add(
+        FarmRowOption(
+          id: id,
+          name: name,
+          farmingAreaId: areaId,
+          areaName: map['areaName']?.toString(),
+          capacity: (map['capacity'] as num?)?.toInt() ?? 0,
+          boxCount: (map['boxCount'] as num?)?.toInt() ?? 0,
+          isActive: map['isActive'] != false,
+        ),
+      );
+    }
+    return rows;
+  }
+
   /// Lists farming rows for [farmingAreaId] (for create-box picker).
   Future<List<({String id, String name})>> fetchRows(String? farmingAreaId) async {
     final query = <String, dynamic>{};
     if (farmingAreaId != null && farmingAreaId.isNotEmpty) {
       query['farmingAreaId'] = farmingAreaId;
     }
-    final res = await _dio.get(
+    final res = await _api.get(
       ApiConstants.farmingRows,
       queryParameters: query.isEmpty ? null : query,
     );
@@ -274,6 +366,10 @@ class BoxesRepositoryImpl implements BoxesRepository {
           switch (chip) {
             case BoxQuickFilter.all:
               return true;
+            case BoxQuickFilter.occupied:
+              return b.crabCount > 0;
+            case BoxQuickFilter.empty:
+              return b.crabCount <= 0;
             case BoxQuickFilter.healthy:
               return b.status == BoxHealthStatus.healthy;
             case BoxQuickFilter.warning:
@@ -409,7 +505,10 @@ class BoxesRepositoryImpl implements BoxesRepository {
   }
 
   Future<List<FarmAreaOption>> _fetchFarms() async {
-    final res = await _dio.get(ApiConstants.farmingAreas);
+    final res = await _api.get(
+      ApiConstants.farmingAreas,
+      queryParameters: const {'page': 1, 'pageSize': 200},
+    );
     if (res.statusCode == 200 && res.data != null) {
       final list = _extractList(res.data);
       if (list != null) {
@@ -435,7 +534,7 @@ class BoxesRepositoryImpl implements BoxesRepository {
     }
 
     try {
-      final res = await _dio.get(
+      final res = await _api.get(
         ApiConstants.boxesOverview,
         queryParameters: query.isEmpty ? null : query,
       );
@@ -460,15 +559,15 @@ class BoxesRepositoryImpl implements BoxesRepository {
     }
 
     final results = await Future.wait([
-      _dio.get(
+      _api.get(
         ApiConstants.boxesFarmingStatus,
         queryParameters: query.isEmpty ? null : query,
       ),
-      _dio.get(
+      _api.get(
         ApiConstants.waterQualityLatest,
         queryParameters: query.isEmpty ? null : query,
       ),
-      _dio.get(
+      _api.get(
         ApiConstants.alerts,
         queryParameters: {
           'activeOnly': true,
@@ -476,7 +575,7 @@ class BoxesRepositoryImpl implements BoxesRepository {
             'farmingAreaId': farmingAreaId,
         },
       ),
-      _dio.get(
+      _api.get(
         ApiConstants.devices,
         queryParameters: query.isEmpty ? null : query,
       ),
@@ -506,9 +605,9 @@ class BoxesRepositoryImpl implements BoxesRepository {
       final rowName = map['rowName']?.toString();
       final apiStatus = map['status']?.toString();
       final occupied = map['isOccupied'] == true;
-      final crabCount = occupied
-          ? (map['currentCrabId'] != null ? 1 : 0)
-          : 0;
+        final crabCount = (map['currentCrabCount'] as num?)?.toInt() ??
+          (map['crabCount'] as num?)?.toInt() ??
+          (map['currentCrabId'] != null ? 1 : 0);
 
       final healthStatus = _statusFromApi(apiStatus, devices.isOnline);
       final score = _scoreFromStatus(healthStatus, openAlerts, devices);
@@ -599,8 +698,12 @@ class BoxesRepositoryImpl implements BoxesRepository {
     for (final item in items) {
       final map = _asMap(item);
       if (map == null) continue;
-      final box = _mapOverviewItem(map);
-      if (box != null) boxes.add(box);
+      try {
+        final box = _mapOverviewItem(map);
+        if (box != null) boxes.add(box);
+      } catch (_) {
+        // Skip malformed items so one bad box doesn't blank the whole tab.
+      }
     }
 
     final summary = summaryMap != null

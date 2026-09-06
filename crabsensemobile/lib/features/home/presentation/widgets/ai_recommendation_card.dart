@@ -218,7 +218,7 @@ class AiRecommendationCard extends StatelessWidget {
                                       .titleMedium
                                       ?.copyWith(
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                        color: kHomeTextMain,
                                         fontSize: 14,
                                       ),
                                   maxLines: 1,
@@ -367,7 +367,7 @@ class AiRecommendationCard extends StatelessWidget {
                                 .titleMedium
                                 ?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: kHomeTextMain,
                                 ),
                           ),
                           const SizedBox(height: 2),
@@ -455,7 +455,7 @@ class _GlowActionButton extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.25),
+                color: const Color(0xFF5A7184),
               ),
             ),
             child: Stack(
@@ -472,7 +472,7 @@ class _GlowActionButton extends StatelessWidget {
                         gradient: LinearGradient(
                           colors: [
                             Colors.transparent,
-                            Colors.white.withValues(alpha: 0.7),
+                            const Color(0xFF5A7184),
                             Colors.transparent,
                           ],
                         ),
@@ -490,7 +490,7 @@ class _GlowActionButton extends StatelessWidget {
                         color: Colors.white,
                         shadows: [
                           Shadow(
-                            color: Colors.white.withValues(alpha: 0.8),
+                            color: const Color(0xFF5A7184),
                             blurRadius: 8,
                           ),
                         ],
@@ -502,7 +502,7 @@ class _GlowActionButton extends StatelessWidget {
                           child: Text(
                             label,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: kHomeTextMain,
                               fontWeight: FontWeight.w800,
                               fontSize: 13.5,
                               letterSpacing: 0.2,
@@ -547,7 +547,7 @@ class _GhostActionButton extends StatelessWidget {
           splashColor: kHomeBlue.withValues(alpha: 0.15),
           child: Ink(
             decoration: BoxDecoration(
-              color: kHomeNavyDeep.withValues(alpha: 0.7),
+              color: kHomeBg.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: kHomeBlue.withValues(alpha: 0.55),
@@ -571,7 +571,7 @@ class _GhostActionButton extends StatelessWidget {
                       child: Text(
                         label,
                         style: const TextStyle(
-                          color: kHomeBlueLight,
+                          color: kHomePrimaryDark,
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
                         ),

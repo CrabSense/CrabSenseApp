@@ -33,7 +33,7 @@ class SensorReadingCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+          colors: [kHomeSurface, kHomeBg, kHomeBg],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
@@ -80,7 +80,7 @@ class SensorReadingCard extends StatelessWidget {
                       child: Text(
                         label,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
+                          color: const Color(0xFF5A7184),
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -131,7 +131,7 @@ class SensorReadingCard extends StatelessWidget {
                 Text(
                   rangeLabel,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.45),
+                    color: const Color(0xFF5A7184),
                     fontSize: 11,
                   ),
                 ),
@@ -140,7 +140,7 @@ class SensorReadingCard extends StatelessWidget {
                   Text(
                     timestamp!,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.35),
+                      color: const Color(0xFF5A7184),
                       fontSize: 10,
                     ),
                   ),

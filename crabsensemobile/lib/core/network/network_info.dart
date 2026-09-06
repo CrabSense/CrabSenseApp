@@ -1,4 +1,5 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// Network connection type detected by [NetworkInfo].
 enum NetworkType {
@@ -39,6 +40,8 @@ class NetworkInfoImpl implements NetworkInfo {
 
   @override
   Future<bool> get isConnected async {
+    // Browser connectivity_plus often reports "none" even when online.
+    if (kIsWeb) return true;
     final results = await _getResults();
     return _isConnectedFromResults(results);
   }

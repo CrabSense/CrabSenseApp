@@ -14,7 +14,7 @@ class NotificationSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kHomeNavyDeep,
+      backgroundColor: kHomeBg,
       body: Stack(
         children: [
           Positioned.fill(
@@ -45,7 +45,7 @@ class NotificationSettingsScreen extends StatelessWidget {
                         child: Text(
                           'CÀI ĐẶT THÔNG BÁO',
                           style: TextStyle(
-                            color: kHomeBlueLight,
+                            color: kHomePrimaryDark,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.8,
                             fontSize: 16,

@@ -37,12 +37,12 @@ class BoxFilterChips extends StatelessWidget {
                 label: Text(filter.label),
                 onSelected: (_) => onToggle(filter),
                 selectedColor: kHomeBlue.withValues(alpha: 0.22),
-                backgroundColor: kHomeNavyDeep.withValues(alpha: 0.75),
+                backgroundColor: kHomeBg.withValues(alpha: 0.75),
                 checkmarkColor: kHomeBlueLight,
                 labelStyle: TextStyle(
                   color: selected
                       ? kHomeBlueLight
-                      : Colors.white.withValues(alpha: 0.55),
+                      : const Color(0xFF5A7184),
                   fontSize: 12,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 ),
@@ -89,7 +89,7 @@ class ViewModeSwitcher extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: kHomeNavyDeep.withValues(alpha: 0.75),
+        color: kHomeBg.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.45)),
       ),
@@ -166,7 +166,7 @@ class _ModeBtn extends StatelessWidget {
                   size: 16,
                   color: selected
                       ? kHomeBlueLight
-                      : Colors.white.withValues(alpha: 0.4),
+                      : const Color(0xFF5A7184),
                 ),
                 const SizedBox(width: 6),
                 Flexible(
@@ -177,7 +177,7 @@ class _ModeBtn extends StatelessWidget {
                     style: TextStyle(
                       color: selected
                           ? kHomeBlueLight
-                          : Colors.white.withValues(alpha: 0.4),
+                          : const Color(0xFF5A7184),
                       fontSize: 12,
                       fontWeight:
                           selected ? FontWeight.w700 : FontWeight.w500,

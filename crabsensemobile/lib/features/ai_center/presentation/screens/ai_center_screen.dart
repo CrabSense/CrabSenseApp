@@ -28,7 +28,7 @@ class AiCenterScreen extends ConsumerWidget {
     });
 
     return Scaffold(
-      backgroundColor: kHomeNavyDeep,
+      backgroundColor: kHomeBg,
       body: Stack(
         children: [
           Positioned.fill(
@@ -60,7 +60,7 @@ class AiCenterScreen extends ConsumerWidget {
                         child: Text(
                           'TRUNG TÂM AI',
                           style: TextStyle(
-                            color: kHomeBlueLight,
+                            color: kHomePrimaryDark,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.8,
                             fontSize: 16,
@@ -155,7 +155,7 @@ class AiCenterScreen extends ConsumerWidget {
                             )
                           : RefreshIndicator(
                               color: kHomeCyan,
-                              backgroundColor: kHomeNavyLift,
+                              backgroundColor: kHomeSurface,
                               onRefresh: notifier.load,
                               child: switch (state.tab) {
                                 AiCenterTab.overview => _OverviewTab(
@@ -217,7 +217,7 @@ class _MiniStat extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.5),
+              color: const Color(0xFF5A7184),
               fontSize: 11,
             ),
           ),
@@ -254,7 +254,7 @@ class _TabChip extends StatelessWidget {
           ),
         ),
         selectedColor: kHomeBlue.withValues(alpha: 0.45),
-        backgroundColor: kHomeNavyDeep.withValues(alpha: 0.72),
+        backgroundColor: kHomeBg.withValues(alpha: 0.72),
         side: BorderSide(
           color: selected
               ? kHomeCyan.withValues(alpha: 0.8)
@@ -283,7 +283,7 @@ class _ErrorBody extends StatelessWidget {
           'Không tải được dữ liệu AI',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.9),
+            color: const Color(0xFF5A7184),
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -292,7 +292,7 @@ class _ErrorBody extends StatelessWidget {
           message,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.5),
+            color: const Color(0xFF5A7184),
             fontSize: 12,
           ),
         ),
@@ -302,7 +302,7 @@ class _ErrorBody extends StatelessWidget {
             onPressed: onRetry,
             style: FilledButton.styleFrom(
               backgroundColor: kHomeCyan,
-              foregroundColor: kHomeNavyDeep,
+              foregroundColor: kHomeBg,
             ),
             child: const Text('Thử lại'),
           ),
@@ -342,7 +342,7 @@ class _OverviewTab extends StatelessWidget {
                     const Text(
                       'MÔ HÌNH',
                       style: TextStyle(
-                        color: kHomeBlueLight,
+                        color: kHomePrimaryDark,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.8,
                         fontSize: 12,
@@ -352,7 +352,7 @@ class _OverviewTab extends StatelessWidget {
                     Text(
                       state.modelVersion,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: kHomeTextMain,
                         fontWeight: FontWeight.w800,
                         fontSize: 18,
                       ),
@@ -363,7 +363,7 @@ class _OverviewTab extends StatelessWidget {
                           ? 'Chưa có phát hiện — mô hình sẵn sàng khi có video/kiểm tra.'
                           : 'Đang hoạt động · ${state.detections.length} phát hiện gần đây · độ tin cậy TB ${state.avgConfidence.toStringAsFixed(1)}%.',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.65),
+                        color: const Color(0xFF5A7184),
                         height: 1.4,
                         fontSize: 13,
                       ),
@@ -435,7 +435,7 @@ class _NavCard extends StatelessWidget {
                       Text(
                         title,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: kHomeTextMain,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -443,7 +443,7 @@ class _NavCard extends StatelessWidget {
                       Text(
                         subtitle,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.55),
+                          color: const Color(0xFF5A7184),
                           fontSize: 12,
                           height: 1.35,
                         ),
@@ -453,7 +453,7 @@ class _NavCard extends StatelessWidget {
                 ),
                 Icon(
                   Icons.chevron_right_rounded,
-                  color: Colors.white.withValues(alpha: 0.35),
+                  color: const Color(0xFF5A7184),
                 ),
               ],
             ),
@@ -485,7 +485,7 @@ class _DetectionsTab extends StatelessWidget {
             child: Center(
               child: Text(
                 'Chưa có phát hiện AI',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.55)),
+                style: TextStyle(color: const Color(0xFF5A7184)),
               ),
             ),
           ),
@@ -517,7 +517,7 @@ class _DetectionsTab extends StatelessWidget {
                           child: Text(
                             d.typeLabelVi,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: kHomeTextMain,
                               fontWeight: FontWeight.w800,
                               fontSize: 15,
                               height: 1.3,
@@ -537,7 +537,7 @@ class _DetectionsTab extends StatelessWidget {
                     Text(
                       '${d.statusLabelVi} · ${fmt.format(d.detectedAt.toLocal())}',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.55),
+                        color: const Color(0xFF5A7184),
                         fontSize: 12,
                         height: 1.35,
                       ),
@@ -547,7 +547,7 @@ class _DetectionsTab extends StatelessWidget {
                       Text(
                         'Box: ${d.boxId}',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.45),
+                          color: const Color(0xFF5A7184),
                           fontSize: 11,
                         ),
                       ),
@@ -556,7 +556,7 @@ class _DetectionsTab extends StatelessWidget {
                     Text(
                       'Model: ${d.modelVersion}',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.45),
+                        color: const Color(0xFF5A7184),
                         fontSize: 11,
                       ),
                     ),
@@ -615,7 +615,7 @@ class _RecommendationsTab extends StatelessWidget {
             child: Center(
               child: Text(
                 'Chưa có khuyến nghị',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.55)),
+                style: TextStyle(color: const Color(0xFF5A7184)),
               ),
             ),
           ),
@@ -656,7 +656,7 @@ class _RecommendationsTab extends StatelessWidget {
                           child: Text(
                             r.title,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: kHomeTextMain,
                               fontWeight: FontWeight.w800,
                               fontSize: 15,
                               height: 1.3,
@@ -691,7 +691,7 @@ class _RecommendationsTab extends StatelessWidget {
                       Text(
                         r.description,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
+                          color: const Color(0xFF5A7184),
                           height: 1.4,
                           fontSize: 13,
                         ),
@@ -702,7 +702,7 @@ class _RecommendationsTab extends StatelessWidget {
                       Text(
                         'Lý do: ${r.reason}',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.5),
+                          color: const Color(0xFF5A7184),
                           fontSize: 12,
                           height: 1.35,
                         ),
@@ -713,7 +713,7 @@ class _RecommendationsTab extends StatelessWidget {
                       Text(
                         'Thời điểm: ${r.optimalTimeframe}',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.5),
+                          color: const Color(0xFF5A7184),
                           fontSize: 12,
                         ),
                       ),

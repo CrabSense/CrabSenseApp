@@ -92,7 +92,7 @@ class _SalesView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: CrabSenseColors.background,
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         title: const Row(
           children: [
@@ -104,7 +104,7 @@ class _SalesView extends StatelessWidget {
             ),
           ],
         ),
-        backgroundColor: CrabSenseColors.surface,
+        backgroundColor: const Color(0xFFFFFFFF),
         foregroundColor: CrabSenseColors.textPrimary,
         elevation: 0,
       ),
@@ -271,7 +271,7 @@ class _SalesView extends StatelessWidget {
             hintText: 'e.g. Ocean Catch Seafood Co.',
             prefixIcon: const Icon(Icons.person_outline_rounded, color: CrabSenseColors.primary),
             filled: true,
-            fillColor: CrabSenseColors.surface,
+            fillColor: const Color(0xFFFFFFFF),
             errorText: state.buyerNameError,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -299,7 +299,7 @@ class _SalesView extends StatelessWidget {
             hintText: 'Phone number or email address',
             prefixIcon: const Icon(Icons.contact_phone_outlined, color: CrabSenseColors.primary),
             filled: true,
-            fillColor: CrabSenseColors.surface,
+            fillColor: const Color(0xFFFFFFFF),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: CrabSenseColors.outline),
@@ -338,7 +338,7 @@ class _SalesView extends StatelessWidget {
               hintText: '0.0',
               prefixIcon: const Icon(Icons.scale_rounded, color: CrabSenseColors.primary),
               filled: true,
-              fillColor: CrabSenseColors.surface,
+              fillColor: const Color(0xFFFFFFFF),
               errorText: state.quantityError,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -372,7 +372,7 @@ class _SalesView extends StatelessWidget {
               hintText: '0.00',
               prefixIcon: const Icon(Icons.attach_money_rounded, color: CrabSenseColors.primary),
               filled: true,
-              fillColor: CrabSenseColors.surface,
+              fillColor: const Color(0xFFFFFFFF),
               errorText: state.unitPriceError,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -449,13 +449,13 @@ class _SalesView extends StatelessWidget {
   Widget _buildPaymentMethodDropdown(BuildContext context, SalesFormState state) {
     return DropdownButtonFormField<PaymentMethod>(
       value: state.paymentMethod,
-      dropdownColor: CrabSenseColors.surface,
+      dropdownColor: const Color(0xFFFFFFFF),
       style: const TextStyle(color: CrabSenseColors.textPrimary, fontSize: 16),
       decoration: InputDecoration(
         labelText: 'Payment Method *',
         prefixIcon: const Icon(Icons.payment_rounded, color: CrabSenseColors.primary),
         filled: true,
-        fillColor: CrabSenseColors.surface,
+        fillColor: const Color(0xFFFFFFFF),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: CrabSenseColors.outline),
@@ -521,8 +521,8 @@ class _SalesView extends StatelessWidget {
                   data: Theme.of(context).copyWith(
                     colorScheme: const ColorScheme.dark(
                       primary: CrabSenseColors.primary,
-                      onPrimary: CrabSenseColors.background,
-                      surface: CrabSenseColors.surface,
+                      onPrimary: const Color(0xFFF5F7FA),
+                      surface: const Color(0xFFFFFFFF),
                       onSurface: CrabSenseColors.textPrimary,
                     ),
                   ),
@@ -540,8 +540,8 @@ class _SalesView extends StatelessWidget {
                     data: Theme.of(context).copyWith(
                       colorScheme: const ColorScheme.dark(
                         primary: CrabSenseColors.primary,
-                        onPrimary: CrabSenseColors.background,
-                        surface: CrabSenseColors.surface,
+                        onPrimary: const Color(0xFFF5F7FA),
+                        surface: const Color(0xFFFFFFFF),
                         onSurface: CrabSenseColors.textPrimary,
                       ),
                     ),
@@ -566,7 +566,7 @@ class _SalesView extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
             decoration: BoxDecoration(
-              color: CrabSenseColors.surface,
+              color: const Color(0xFFFFFFFF),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: state.dateError != null
@@ -629,7 +629,7 @@ class _SalesView extends StatelessWidget {
         hintText: 'Add optional notes, delivery terms, or buyer details...',
         hintStyle: const TextStyle(color: CrabSenseColors.textDisabled),
         filled: true,
-        fillColor: CrabSenseColors.surface,
+        fillColor: const Color(0xFFFFFFFF),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: CrabSenseColors.outline),
@@ -687,7 +687,7 @@ class _SubmitButton extends StatelessWidget {
               },
         style: ElevatedButton.styleFrom(
           backgroundColor: CrabSenseColors.primary,
-          foregroundColor: CrabSenseColors.background,
+          foregroundColor: const Color(0xFFF5F7FA),
           disabledBackgroundColor: CrabSenseColors.surfaceVariant,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -700,7 +700,7 @@ class _SubmitButton extends StatelessWidget {
                 height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  color: CrabSenseColors.background,
+                  color: const Color(0xFFF5F7FA),
                 ),
               )
             : const Row(

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -50,6 +51,7 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen> with WidgetsBin
   @override
   void initState() {
     super.initState();
+    if (kIsWeb) return; // Camera not supported on web
     WidgetsBinding.instance.addObserver(this);
 
     // Request camera permission after first frame so context is ready.
@@ -205,10 +207,10 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen> with WidgetsBin
       context: ctx,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
-        backgroundColor: kHomeNavy,
+        backgroundColor: kHomeBg,
         title: const Text(
           'Không đủ dung lượng',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: kHomeTextMain),
         ),
         content: Text(
           'Không đủ bộ nhớ để quay video.\n\n'
@@ -246,10 +248,10 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen> with WidgetsBin
       context: ctx,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
-        backgroundColor: kHomeNavy,
+        backgroundColor: kHomeBg,
         title: const Text(
           'Hàng đợi ngoại tuyến gần đầy',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: kHomeTextMain),
         ),
         content: Text(
           'Hàng đợi video ngoại tuyến đã đầy hơn 80% '
@@ -317,7 +319,7 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen> with WidgetsBin
     title: const Text(
       'QUAY VIDEO AI',
       style: TextStyle(
-        color: kHomeBlueLight,
+        color: kHomePrimaryDark,
         fontWeight: FontWeight.w800,
         letterSpacing: 1,
       ),
@@ -367,7 +369,7 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen> with WidgetsBin
             const SizedBox(height: 16),
             Text(
               'Đang nén... ${(state.progress * 100).toStringAsFixed(0)}%',
-              style: const TextStyle(color: Colors.white, fontSize: 16),
+              style: const TextStyle(color: kHomeTextMain, fontSize: 16),
             ),
           ],
         ),
@@ -384,7 +386,7 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen> with WidgetsBin
             const SizedBox(height: 16),
             Text(
               'Đang tải lên... ${(state.progress * 100).toStringAsFixed(0)}%',
-              style: const TextStyle(color: Colors.white, fontSize: 16),
+              style: const TextStyle(color: kHomeTextMain, fontSize: 16),
             ),
             if (state.currentAttempt > 1)
               Padding(
@@ -409,7 +411,7 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen> with WidgetsBin
             SizedBox(height: 16),
             Text(
               'Video uploaded successfully',
-              style: TextStyle(color: Colors.white, fontSize: 16),
+              style: TextStyle(color: kHomeTextMain, fontSize: 16),
             ),
           ],
         ),
@@ -426,7 +428,7 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen> with WidgetsBin
             const SizedBox(height: 16),
             const Text(
               'Video saved offline - will upload when connected',
-              style: TextStyle(color: Colors.white, fontSize: 16),
+              style: TextStyle(color: kHomeTextMain, fontSize: 16),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -448,7 +450,7 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen> with WidgetsBin
               const SizedBox(height: 16),
               Text(
                 state.message,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
+                style: const TextStyle(color: kHomeTextMain, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),

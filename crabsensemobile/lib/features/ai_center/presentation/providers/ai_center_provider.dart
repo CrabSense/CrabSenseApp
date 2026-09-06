@@ -1,12 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../../core/di/injection.dart';
+import '../../../../core/network/api_client.dart';
 import '../../data/ai_center_repository.dart';
 import '../../data/models/ai_center_models.dart';
 
 final aiCenterRepositoryProvider = Provider<AiCenterRepository>(
-  (ref) => AiCenterRepositoryImpl(secureStorage: sl<FlutterSecureStorage>()),
+  (ref) => AiCenterRepositoryImpl(api: sl<ApiClient>()),
 );
 
 class AiCenterState {

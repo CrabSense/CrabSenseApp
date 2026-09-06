@@ -80,17 +80,17 @@ class _BoxCameraScreenState extends State<BoxCameraScreen> {
         status.toLowerCase() == 'preview';
 
     return Scaffold(
-      backgroundColor: kHomeNavyDeep,
+      backgroundColor: kHomeBg,
       appBar: AppBar(
         title: const Text(
           'CAMERA TRỰC TIẾP',
           style: TextStyle(
-            color: kHomeBlueLight,
+            color: kHomePrimaryDark,
             fontWeight: FontWeight.w800,
             letterSpacing: 1,
           ),
         ),
-        backgroundColor: kHomeNavy,
+        backgroundColor: kHomeBg,
         foregroundColor: kHomeBlueLight,
         elevation: 0,
         leading: IconButton(
@@ -160,7 +160,7 @@ class _BoxCameraScreenState extends State<BoxCameraScreen> {
                             Text(
                               message,
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.55),
+                                color: const Color(0xFF5A7184),
                               ),
                             ),
                           ],
@@ -170,7 +170,7 @@ class _BoxCameraScreenState extends State<BoxCameraScreen> {
                               stream,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.white.withValues(alpha: 0.65),
+                                color: const Color(0xFF5A7184),
                               ),
                             ),
                           ],
@@ -207,7 +207,7 @@ class _BoxCameraScreenState extends State<BoxCameraScreen> {
                                   Text(
                                     'Sao chép URL stream',
                                     style: TextStyle(
-                                      color: Colors.white,
+                                      color: kHomeTextMain,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
@@ -240,7 +240,7 @@ class _BoxCameraScreenState extends State<BoxCameraScreen> {
         Text(
           '$label: ',
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.45),
+            color: const Color(0xFF5A7184),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -248,7 +248,7 @@ class _BoxCameraScreenState extends State<BoxCameraScreen> {
           child: Text(
             value,
             style: const TextStyle(
-              color: Colors.white,
+              color: kHomeTextMain,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -291,7 +291,7 @@ class _BoxCameraScreenState extends State<BoxCameraScreen> {
               ),
               child: Text(
                 online ? 'Trực tiếp / Xem trước' : 'Xem trước',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
+                style: const TextStyle(color: kHomeTextMain, fontSize: 12),
               ),
             ),
           ),
@@ -313,7 +313,7 @@ class _BoxCameraScreenState extends State<BoxCameraScreen> {
             const SizedBox(height: 8),
             Text(
               online ? 'Camera trực tuyến' : 'Camera ngoại tuyến',
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: kHomeTextMain),
             ),
           ],
         ),

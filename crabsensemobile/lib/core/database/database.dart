@@ -1,13 +1,9 @@
 // ignore_for_file: lines_longer_than_80_chars
 
-import 'dart:io';
-
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../features/video_capture/domain/entities/ai_detection.dart' show AIDetection;
+import 'database_connection.dart';
 import 'migrations/database_migration_manager.dart';
 
 // Table definitions
@@ -641,7 +637,7 @@ class AiDetections extends Table {
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  AppDatabase() : super(openAppConnection());
 
   /// Constructor that accepts a [QueryExecutor] — used in tests.
   AppDatabase.forTesting(super.executor);
@@ -659,17 +655,3 @@ class AppDatabase extends _$AppDatabase {
     },
   );
 }
-
-// ============================================================================
-// DATABASE CONNECTION
-// ============================================================================
-
-/// Opens a persistent [NativeDatabase] stored in the app's documents folder.
-///
-/// The file is named `crabsense.db`. [NativeDatabase.createInBackground]
-/// is used so the initial schema creation does not block the UI thread.
-LazyDatabase _openConnection() => LazyDatabase(() async {
-  final dbFolder = await getApplicationDocumentsDirectory();
-  final file = File(p.join(dbFolder.path, 'crabsense.db'));
-  return NativeDatabase.createInBackground(file);
-});

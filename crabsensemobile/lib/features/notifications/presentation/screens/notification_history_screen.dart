@@ -46,10 +46,10 @@ class _NotificationHistoryView extends StatelessWidget {
           final hasItems = state is NotificationHistoryLoaded && !state.isEmpty;
 
           return Scaffold(
-            backgroundColor: CrabSenseColors.background,
+            backgroundColor: const Color(0xFFF5F7FA),
             appBar: AppBar(
               title: const Text('Notifications'),
-              backgroundColor: CrabSenseColors.surface,
+              backgroundColor: const Color(0xFFFFFFFF),
               foregroundColor: CrabSenseColors.textPrimary,
               actions: [
                 if (hasItems)
@@ -101,7 +101,7 @@ class _NotificationHistoryView extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        backgroundColor: CrabSenseColors.surface,
+        backgroundColor: const Color(0xFFFFFFFF),
         title: const Text('Clear notifications'),
         content: const Text('All notification history will be permanently deleted.'),
         actions: [
@@ -136,7 +136,7 @@ class _NotificationList extends StatelessWidget {
   @override
   Widget build(BuildContext context) => RefreshIndicator(
     color: CrabSenseColors.primary,
-    backgroundColor: CrabSenseColors.surface,
+    backgroundColor: const Color(0xFFFFFFFF),
     onRefresh: () async {
       context.read<NotificationHistoryBloc>().add(const NotificationHistoryLoadRequested());
       // Wait for a non-loading state.

@@ -118,9 +118,15 @@ abstract class AuthLocalDataSource {
 }
 
 /// Implementation of [AuthLocalDataSource] using FlutterSecureStorage.
+/// On Web: falls back to localStorage (no Keychain/Keystore available).
 class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   AuthLocalDataSourceImpl({required this.secureStorage});
   final FlutterSecureStorage secureStorage;
+
+  // Web IndexedDB can lag behind writes; keep tokens in RAM so Dio
+  // attaches JWT immediately after login.
+  String? _memAccessToken;
+  String? _memRefreshToken;
 
   // Storage keys
   static const String _keyUser = 'auth_user';
@@ -130,11 +136,24 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   static const String _keyRefreshTokenExpiry = 'auth_refresh_token_expiry';
   static const String _keyBiometricEnabled = 'auth_biometric_enabled';
 
+  // ── Web-safe storage helpers ─────────────────────────────────────────
+  Future<void> _write(String key, String value) async {
+    await secureStorage.write(key: key, value: value);
+  }
+
+  Future<String?> _read(String key) async {
+    return secureStorage.read(key: key);
+  }
+
+  Future<void> _delete(String key) async {
+    await secureStorage.delete(key: key);
+  }
+
   @override
   Future<void> cacheUser(UserModel user) async {
     try {
       final userJson = jsonEncode(user.toJson());
-      await secureStorage.write(key: _keyUser, value: userJson);
+      await _write(_keyUser, userJson);
     } catch (e) {
       throw CacheException(message: 'Failed to cache user data: $e');
     }
@@ -143,7 +162,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   @override
   Future<UserModel> getCachedUser() async {
     try {
-      final userJson = await secureStorage.read(key: _keyUser);
+      final userJson = await _read(_keyUser);
       if (userJson == null) {
         throw const CacheException(message: 'No cached user data found');
       }
@@ -158,8 +177,9 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
 
   @override
   Future<void> saveAccessToken(String token) async {
+    _memAccessToken = token;
     try {
-      await secureStorage.write(key: _keyAccessToken, value: token);
+      await _write(_keyAccessToken, token);
     } catch (e) {
       throw CacheException(message: 'Failed to save access token: $e');
     }
@@ -167,11 +187,14 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
 
   @override
   Future<String> getAccessToken() async {
+    final mem = _memAccessToken;
+    if (mem != null && mem.isNotEmpty) return mem;
     try {
-      final token = await secureStorage.read(key: _keyAccessToken);
-      if (token == null) {
+      final token = await _read(_keyAccessToken);
+      if (token == null || token.isEmpty) {
         throw const CacheException(message: 'No access token found');
       }
+      _memAccessToken = token;
       return token;
     } catch (e) {
       if (e is CacheException) rethrow;
@@ -181,8 +204,9 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
 
   @override
   Future<void> saveRefreshToken(String token) async {
+    _memRefreshToken = token;
     try {
-      await secureStorage.write(key: _keyRefreshToken, value: token);
+      await _write(_keyRefreshToken, token);
     } catch (e) {
       throw CacheException(message: 'Failed to save refresh token: $e');
     }
@@ -190,11 +214,14 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
 
   @override
   Future<String> getRefreshToken() async {
+    final mem = _memRefreshToken;
+    if (mem != null && mem.isNotEmpty) return mem;
     try {
-      final token = await secureStorage.read(key: _keyRefreshToken);
-      if (token == null) {
+      final token = await _read(_keyRefreshToken);
+      if (token == null || token.isEmpty) {
         throw const CacheException(message: 'No refresh token found');
       }
+      _memRefreshToken = token;
       return token;
     } catch (e) {
       if (e is CacheException) rethrow;
@@ -205,7 +232,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   @override
   Future<void> saveAccessTokenExpiry(DateTime expiry) async {
     try {
-      await secureStorage.write(key: _keyAccessTokenExpiry, value: expiry.toIso8601String());
+      await _write(_keyAccessTokenExpiry, expiry.toIso8601String());
     } catch (e) {
       throw CacheException(message: 'Failed to save access token expiry: $e');
     }
@@ -214,7 +241,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   @override
   Future<DateTime> getAccessTokenExpiry() async {
     try {
-      final expiryStr = await secureStorage.read(key: _keyAccessTokenExpiry);
+      final expiryStr = await _read(_keyAccessTokenExpiry);
       if (expiryStr == null) {
         throw const CacheException(message: 'No access token expiry found');
       }
@@ -228,7 +255,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   @override
   Future<void> saveRefreshTokenExpiry(DateTime expiry) async {
     try {
-      await secureStorage.write(key: _keyRefreshTokenExpiry, value: expiry.toIso8601String());
+      await _write(_keyRefreshTokenExpiry, expiry.toIso8601String());
     } catch (e) {
       throw CacheException(message: 'Failed to save refresh token expiry: $e');
     }
@@ -237,7 +264,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   @override
   Future<DateTime> getRefreshTokenExpiry() async {
     try {
-      final expiryStr = await secureStorage.read(key: _keyRefreshTokenExpiry);
+      final expiryStr = await _read(_keyRefreshTokenExpiry);
       if (expiryStr == null) {
         throw const CacheException(message: 'No refresh token expiry found');
       }
@@ -250,13 +277,15 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
 
   @override
   Future<void> clearAuthData() async {
+    _memAccessToken = null;
+    _memRefreshToken = null;
     try {
       await Future.wait([
-        secureStorage.delete(key: _keyUser),
-        secureStorage.delete(key: _keyAccessToken),
-        secureStorage.delete(key: _keyRefreshToken),
-        secureStorage.delete(key: _keyAccessTokenExpiry),
-        secureStorage.delete(key: _keyRefreshTokenExpiry),
+        _delete(_keyUser),
+        _delete(_keyAccessToken),
+        _delete(_keyRefreshToken),
+        _delete(_keyAccessTokenExpiry),
+        _delete(_keyRefreshTokenExpiry),
         // Note: Keep biometric preference - user choice persists across logins
       ]);
     } catch (e) {
@@ -267,8 +296,8 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   @override
   Future<bool> purgeMockSessionIfPresent() async {
     try {
-      final token = await secureStorage.read(key: _keyAccessToken);
-      final refresh = await secureStorage.read(key: _keyRefreshToken);
+      final token = await _read(_keyAccessToken);
+      final refresh = await _read(_keyRefreshToken);
       if (_isMockToken(token) || _isMockToken(refresh)) {
         await clearAuthData();
         return true;
@@ -282,7 +311,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   @override
   Future<void> setBiometricEnabled(bool enabled) async {
     try {
-      await secureStorage.write(key: _keyBiometricEnabled, value: enabled.toString());
+      await _write(_keyBiometricEnabled, enabled.toString());
     } catch (e) {
       throw CacheException(message: 'Failed to save biometric preference: $e');
     }
@@ -291,7 +320,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   @override
   Future<bool> isBiometricEnabled() async {
     try {
-      final value = await secureStorage.read(key: _keyBiometricEnabled);
+      final value = await _read(_keyBiometricEnabled);
       return value == 'true';
     } catch (e) {
       // Return false by default if preference is not set
@@ -302,8 +331,8 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   @override
   Future<bool> isAuthenticated() async {
     try {
-      final token = await secureStorage.read(key: _keyAccessToken);
-      final refresh = await secureStorage.read(key: _keyRefreshToken);
+      final token = await _read(_keyAccessToken);
+      final refresh = await _read(_keyRefreshToken);
 
       // Discard leftover mock session from old offline-login stub.
       if (_isMockToken(token) || _isMockToken(refresh)) {
@@ -315,7 +344,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
         return false;
       }
 
-      final expiryStr = await secureStorage.read(key: _keyAccessTokenExpiry);
+      final expiryStr = await _read(_keyAccessTokenExpiry);
       if (expiryStr == null) {
         return false;
       }

@@ -24,10 +24,11 @@ import 'token_refresh_interceptor.dart' show TokenRefreshInterceptor;
 ///
 /// Requirements: 1.6, 23.4 — JWT read from platform secure storage only.
 class AuthInterceptor extends Interceptor {
-  // Named parameters differ from private fields (_localDataSource vs
-  // localDataSource) so we use initializer list instead of
-  // initializing-formals ('this._x') syntax.
-  AuthInterceptor({required this._localDataSource, required this._logger});
+  AuthInterceptor({
+    required AuthLocalDataSource localDataSource,
+    required Logger logger,
+  })  : _localDataSource = localDataSource,
+        _logger = logger;
 
   final AuthLocalDataSource _localDataSource;
 
@@ -51,11 +52,13 @@ class AuthInterceptor extends Interceptor {
 
     try {
       final token = await _localDataSource.getAccessToken();
-      // Never log the token value (req 23.5).
-      options.headers['Authorization'] = 'Bearer $token';
+      if (token.isNotEmpty) {
+        options.headers['Authorization'] = 'Bearer $token';
+      }
     } on CacheException {
       // No token stored — public endpoint or not yet authenticated.
-      // Proceed without the header so the server can return a proper 401.
+    } catch (_) {
+      // Storage glitch must not drop the request without a header retry.
     }
 
     handler.next(options);

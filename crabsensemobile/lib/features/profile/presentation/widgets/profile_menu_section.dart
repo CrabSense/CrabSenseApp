@@ -55,7 +55,7 @@ class ProfileMenuSection extends StatelessWidget {
                           child: Text(
                             title,
                             style: const TextStyle(
-                              color: kHomeBlueLight,
+                              color: kHomePrimaryDark,
                               fontSize: 13,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.8,

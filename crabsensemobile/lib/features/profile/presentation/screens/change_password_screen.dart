@@ -61,7 +61,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kHomeNavyDeep,
+      backgroundColor: kHomeBg,
       body: Stack(
         children: [
           Positioned.fill(
@@ -92,7 +92,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                         child: Text(
                           'ĐỔI MẬT KHẨU',
                           style: TextStyle(
-                            color: kHomeBlueLight,
+                            color: kHomePrimaryDark,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.8,
                             fontSize: 16,
@@ -170,7 +170,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                                       onPressed: _saving ? null : _save,
                                       style: FilledButton.styleFrom(
                                         backgroundColor: kHomeCyan,
-                                        foregroundColor: kHomeNavyDeep,
+                                        foregroundColor: kHomeBg,
                                       ),
                                       child: _saving
                                           ? const SizedBox(
@@ -217,7 +217,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       controller: controller,
       obscureText: obscure,
       validator: validator,
-      style: const TextStyle(color: Colors.white),
+      style: const TextStyle(color: kHomeTextMain),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: Colors.white54),
@@ -230,7 +230,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
           ),
         ),
         filled: true,
-        fillColor: kHomeNavyDeep.withValues(alpha: 0.65),
+        fillColor: kHomeBg.withValues(alpha: 0.65),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: kHomeBorderBlue.withValues(alpha: 0.45)),

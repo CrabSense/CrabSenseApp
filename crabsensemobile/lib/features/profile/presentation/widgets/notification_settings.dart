@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:crabsensemobile/core/platform/io_export.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -195,7 +195,7 @@ class _SectionHeader extends StatelessWidget {
                   Text(
                     title,
                     style: const TextStyle(
-                      color: kHomeBlueLight,
+                      color: kHomePrimaryDark,
                       fontWeight: FontWeight.w800,
                       fontSize: 13,
                       letterSpacing: 0.6,

@@ -35,7 +35,7 @@ class PriorityAlertCard extends StatelessWidget {
             end: Alignment.bottomRight,
             colors: [
               alert.severity.color.withValues(alpha: 0.22),
-              kHomeNavyLift,
+              kHomeSurface,
             ],
           ),
           border: Border.all(
@@ -82,7 +82,7 @@ class PriorityAlertCard extends StatelessWidget {
                   Text(
                     alert.title,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: kHomeTextMain,
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
                     ),
@@ -219,7 +219,7 @@ class _HeroBtn extends StatelessWidget {
         onPressed: onPressed,
         style: FilledButton.styleFrom(
           backgroundColor: kHomeCyan,
-          foregroundColor: kHomeNavyDeep,
+          foregroundColor: kHomeBg,
           minimumSize: const Size(48, 40),
           padding: const EdgeInsets.symmetric(horizontal: 14),
           shape: RoundedRectangleBorder(

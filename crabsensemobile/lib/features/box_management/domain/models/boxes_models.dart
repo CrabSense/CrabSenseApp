@@ -116,6 +116,8 @@ extension BoxSortOptionX on BoxSortOption {
 /// Quick filter chips on the Boxes tab.
 enum BoxQuickFilter {
   all,
+  occupied,
+  empty,
   healthy,
   warning,
   critical,
@@ -130,6 +132,10 @@ extension BoxQuickFilterX on BoxQuickFilter {
     switch (this) {
       case BoxQuickFilter.all:
         return 'Tất cả';
+      case BoxQuickFilter.occupied:
+        return 'Đang nuôi';
+      case BoxQuickFilter.empty:
+        return 'Trống';
       case BoxQuickFilter.healthy:
         return 'Healthy';
       case BoxQuickFilter.warning:
@@ -280,6 +286,32 @@ class FarmAreaOption {
   final String name;
 
   const FarmAreaOption({required this.id, required this.name});
+}
+
+class FarmRowOption {
+  final String id;
+  final String name;
+  final String farmingAreaId;
+  final String? areaName;
+  final int capacity;
+  final int boxCount;
+  final bool isActive;
+
+  const FarmRowOption({
+    required this.id,
+    required this.name,
+    required this.farmingAreaId,
+    this.areaName,
+    this.capacity = 0,
+    this.boxCount = 0,
+    this.isActive = true,
+  });
+
+  @override
+  bool operator ==(Object other) => other is FarmRowOption && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
 /// Advanced filter state for the Boxes tab.

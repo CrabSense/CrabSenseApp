@@ -2,13 +2,15 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/di/injection.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../core/providers/selected_farm_provider.dart';
 import '../../data/repositories/alerts_command_repository_impl.dart';
 import '../../domain/models/alerts_models.dart';
 import '../../domain/repositories/alerts_command_repository.dart';
 
 final alertsRepositoryProvider = Provider<AlertsCommandRepository>(
-  (ref) => AlertsCommandRepositoryImpl(),
+  (ref) => AlertsCommandRepositoryImpl(api: sl<ApiClient>()),
 );
 
 /// Permission flags applied from AuthBloc via the Alerts screen.

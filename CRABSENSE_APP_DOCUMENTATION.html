@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CrabSense Mobile — Tài liệu kỹ thuật toàn diện</title>
+<style>
+  :root {
+    --bg: #070f1a; --bg2: #0b1827; --bg3: #0f2240;
+    --primary: #00c8ff; --accent: #4d9aff; --success: #00e676;
+    --warning: #ffb300; --danger: #ef5350; --muted: #8aa3c4;
+    --border: rgba(77,154,255,0.2); --text: #e2eaf4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; }
+  h1 { font-size: 2rem; color: var(--primary); text-shadow: 0 0 20px rgba(0,200,255,0.4); }
+  h2 { font-size: 1.4rem; color: var(--accent); border-left: 3px solid var(--accent); padding-left: 12px; margin: 32px 0 16px; }
+  h3 { font-size: 1.1rem; color: var(--primary); margin: 20px 0 10px; }
+  h4 { font-size: 0.95rem; color: var(--warning); margin: 14px 0 8px; }
+  p { margin-bottom: 10px; color: var(--text); }
+  a { color: var(--primary); }
+  code { background: rgba(0,200,255,0.08); color: var(--primary); padding: 1px 6px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 12px; }
+  pre { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 12px; color: #a8d4ff; margin: 10px 0; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  .hero { background: linear-gradient(135deg, #0a1f3d 0%, #061224 100%); border-bottom: 1px solid var(--border); padding: 40px 24px; text-align: center; }
+  .hero p { color: var(--muted); max-width: 600px; margin: 12px auto; font-size: 1rem; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; margin: 2px; }
+  .badge-primary { background: rgba(0,200,255,0.15); color: var(--primary); border: 1px solid rgba(0,200,255,0.3); }
+  .badge-accent { background: rgba(77,154,255,0.15); color: var(--accent); border: 1px solid rgba(77,154,255,0.3); }
+  .badge-success { background: rgba(0,230,118,0.15); color: var(--success); border: 1px solid rgba(0,230,118,0.3); }
+  .badge-warning { background: rgba(255,179,0,0.15); color: var(--warning); border: 1px solid rgba(255,179,0,0.3); }
+  .badge-danger { background: rgba(239,83,80,0.15); color: var(--danger); border: 1px solid rgba(239,83,80,0.3); }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th { background: var(--bg3); color: var(--primary); padding: 10px 14px; text-align: left; border-bottom: 2px solid var(--border); }
+  td { padding: 9px 14px; border-bottom: 1px solid rgba(77,154,255,0.08); vertical-align: top; }
+  tr:hover td { background: rgba(77,154,255,0.04); }
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 12px 0; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin: 16px 0; }
+  .screen-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .screen-card h4 { color: var(--primary); margin-top: 0; }
+  .screen-card .path { color: var(--muted); font-family: monospace; font-size: 11px; margin-bottom: 8px; }
+  .screen-card p { font-size: 13px; color: #c0d0e0; margin: 0; }
+  .nav-diagram { display: flex; justify-content: center; gap: 0; margin: 20px 0; flex-wrap: wrap; }
+  .nav-tab { background: var(--bg3); border: 1px solid var(--border); padding: 16px 24px; text-align: center; min-width: 120px; position: relative; }
+  .nav-tab.active { border-color: var(--primary); background: rgba(0,200,255,0.08); }
+  .nav-tab .icon { font-size: 22px; display: block; margin-bottom: 6px; }
+  .nav-tab .label { font-size: 11px; color: var(--muted); }
+  .nav-tab.active .label { color: var(--primary); font-weight: 700; }
+  .flow-box { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; display: inline-block; text-align: center; font-size: 12px; margin: 4px; }
+  .flow-arrow { color: var(--accent); font-size: 18px; margin: 0 4px; }
+  .flow-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 6px 0; padding-left: 20px; }
+  .toc a { display: block; color: var(--muted); padding: 4px 0; text-decoration: none; font-size: 13px; }
+  .toc a:hover { color: var(--primary); }
+  .toc { column-count: 2; column-gap: 24px; }
+  .section { padding: 16px 0; border-bottom: 1px solid rgba(77,154,255,0.06); }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+  .api-method { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 10px; font-weight: 800; margin-right: 6px; }
+  .get { background: rgba(0,230,118,0.15); color: var(--success); }
+  .post { background: rgba(0,200,255,0.15); color: var(--primary); }
+  .put { background: rgba(255,179,0,0.15); color: var(--warning); }
+  .del { background: rgba(239,83,80,0.15); color: var(--danger); }
+  .arch-layer { border-left: 3px solid; padding: 12px 16px; margin: 8px 0; border-radius: 0 8px 8px 0; }
+  .layer-presentation { border-color: var(--primary); background: rgba(0,200,255,0.04); }
+  .layer-domain { border-color: var(--success); background: rgba(0,230,118,0.04); }
+  .layer-data { border-color: var(--accent); background: rgba(77,154,255,0.04); }
+  .separator { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 32px 0; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>🦀 CrabSense Mobile</h1>
+  <p>Ứng dụng IoT di động cho nuôi cua thông minh — Tài liệu kỹ thuật toàn diện</p>
+  <div class="tag-row" style="justify-content:center; margin-top:16px;">
+    <span class="badge badge-primary">Flutter 3.47.1</span>
+    <span class="badge badge-accent">Dart 3.13.1</span>
+    <span class="badge badge-success">Clean Architecture</span>
+    <span class="badge badge-warning">BLoC + Riverpod</span>
+    <span class="badge badge-primary">Material 3 Dark</span>
+    <span class="badge badge-accent">BE: 103.69.96.143:5080</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- MỤC LỤC -->
+  <h2>📋 Mục lục</h2>
+  <div class="card">
+    <div class="toc">
+      <a href="#overview">1. Tổng quan</a>
+      <a href="#architecture">2. Kiến trúc Clean Architecture</a>
+      <a href="#navigation">3. Navigation & Router</a>
+      <a href="#navbar">4. Bottom Navigation Bar</a>
+      <a href="#screens">5. Danh sách màn hình</a>
+      <a href="#features">6. Các tính năng chi tiết</a>
+      <a href="#api">7. API Endpoints</a>
+      <a href="#state">8. State Management</a>
+      <a href="#storage">9. Bộ nhớ cục bộ & Offline</a>
+      <a href="#widgets">10. Widgets tái sử dụng</a>
+      <a href="#flow">11. Luồng điều hướng</a>
+      <a href="#tech">12. Stack kỹ thuật</a>
+    </div>
+  </div>
+
+  <!-- 1. TỔNG QUAN -->
+  <div class="section" id="overview">
+    <h2>1. Tổng quan ứng dụng</h2>
+    <div class="card-grid">
+      <div class="card">
+        <h4>🎯 Mục đích</h4>
+        <p>CrabSense Mobile là ứng dụng enterprise IoT cho nhân viên vận hành trang trại nuôi cua. Giúp theo dõi sức khỏe cua, chất lượng nước, cảnh báo, thu hoạch và bán hàng ngay trên điện thoại — kể cả khi mất mạng.</p>
+      </div>
+      <div class="card">
+        <h4>👥 Đối tượng sử dụng</h4>
+        <p><strong>5 vai trò:</strong> Admin, Farm Manager, Field Operator, Sales, Viewer. Mỗi role có permission khác nhau: xem dữ liệu, ghi log, thu hoạch, bán hàng, cấu hình hệ thống.</p>
+      </div>
+      <div class="card">
+        <h4>📱 Nền tảng</h4>
+        <p>Android (primary), iOS, Desktop, Web (với một số tính năng bị giới hạn — camera/biometric không hoạt động trên web). Hỗ trợ tiếng Anh và tiếng Việt.</p>
+      </div>
+      <div class="card">
+        <h4>🌐 Backend</h4>
+        <p>REST API tại <code>http://103.69.96.143:5080/api</code> — .NET 8, PostgreSQL. Swagger: <code>/swagger</code>. Dùng JWT Bearer token, refresh token tự động.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. KIẾN TRÚC -->
+  <div class="section" id="architecture">
+    <h2>2. Kiến trúc Clean Architecture</h2>
+    <p>Mỗi feature được tổ chức theo 3 layer độc lập:</p>
+    <div class="arch-layer layer-presentation">
+      <strong>Presentation Layer</strong> — Screens, Widgets, BLoC/Cubit/Riverpod Providers<br>
+      <code>lib/features/*/presentation/screens/</code>, <code>lib/features/*/presentation/bloc/</code>
+    </div>
+    <div class="arch-layer layer-domain">
+      <strong>Domain Layer</strong> — Use Cases, Entities, Repository Interfaces<br>
+      <code>lib/features/*/domain/usecases/</code>, <code>lib/features/*/domain/entities/</code>
+    </div>
+    <div class="arch-layer layer-data">
+      <strong>Data Layer</strong> — Repository Implementations, Data Sources (Remote/Local), Models<br>
+      <code>lib/features/*/data/datasources/</code>, <code>lib/features/*/data/repositories/</code>
+    </div>
+    <br>
+    <p><strong>Dependency Injection:</strong> GetIt (<code>sl</code>) — lazy singletons cho services/repos/usecases, factories cho BLoC. Khởi tạo trong <code>lib/core/di/injection.dart</code>.</p>
+  </div>
+
+  <!-- 3. NAVIGATION -->
+  <div class="section" id="navigation">
+    <h2>3. Navigation & Router</h2>
+    <p>Dùng <code>go_router ^13.0.0</code>. Auth-aware redirect tự động:</p>
+    <pre>
+AuthInitial         →  /splash (loading)
+!Authenticated      →  /login  (trừ /traceability/*)
+Authenticated       →  /dashboard
+</pre>
+    <h3>Cây Route đầy đủ</h3>
+    <pre>
+/                          → Splash Screen (kiểm tra JWT)
+/login                     → Login Screen
+/dashboard                 ┐
+/boxes                     │  ShellRoute
+/scanner                   │  (Bottom NavBar)
+/alerts                    │
+/profile                   ┘
+/box/:id                   → Box Details
+  /box/:id/video           → Video Capture
+  /box/:id/inspect         → Manual Inspection
+  /box/:id/camera          → Box Camera Stream
+  /box/:id/crabs           → Crab List
+/crab/:crabId              → Crab Detail (?boxId=)
+/water-quality             → Water Quality (?farmingAreaId=)
+/ai-results/:videoId       → AI Results
+/operations                → Operation Log Form (?boxId=)
+/operations/history        → Operation History Timeline
+/harvest                   → Harvest Form (?boxId=&farmId=)
+/sales                     → Sales Form (?farmId=)
+/notifications             → Notification History
+/devices                   → IoT Devices (?type=)
+/ai-center                 → AI Center (?tab=overview|detections|recommendations)
+/reports                   → Reports Hub (?type=harvest|inventory|molting|survival|efficiency)
+/offline-sync              → Offline Sync Status
+/app-settings              → App Settings
+/security                  → Security & Privacy
+/help                      → Help & Support
+/app-info                  → App Info
+/legal                     → Legal Documents
+/firebase                  → Firebase Hub (?service=)
+/profile/edit              → Edit Profile
+/profile/change-password   → Change Password
+/profile/notifications     → Notification Preferences
+/traceability/:productId   → Traceability (PUBLIC — không cần login)
+</pre>
+  </div>
+
+  <!-- 4. BOTTOM NAV -->
+  <div class="section" id="navbar">
+    <h2>4. Bottom Navigation Bar</h2>
+    <p>Cyber glass style — backdrop blur, neon glow, active tile indicator. Badge đỏ tự động trên tab Cảnh báo.</p>
+    <div class="nav-diagram">
+      <div class="nav-tab active">
+        <span class="icon">🏠</span>
+        <span class="label">Trang chủ</span>
+      </div>
+      <div class="nav-tab">
+        <span class="icon">📦</span>
+        <span class="label">Hộp nuôi</span>
+      </div>
+      <div class="nav-tab active" style="border-color: var(--primary);">
+        <span class="icon" style="background: radial-gradient(circle, #7fb8ff, #2f80ff); width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 6px;">📷</span>
+        <span class="label" style="color: var(--primary);">Quét QR</span>
+      </div>
+      <div class="nav-tab">
+        <span class="icon">🔔 <span style="background: var(--danger); color: white; border-radius: 8px; font-size: 9px; padding: 0 4px; vertical-align: top;">3</span></span>
+        <span class="label">Cảnh báo</span>
+      </div>
+      <div class="nav-tab">
+        <span class="icon">👤</span>
+        <span class="label">Tài khoản</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. MÀNN HÌNH -->
+  <div class="section" id="screens">
+    <h2>5. Danh sách tất cả màn hình</h2>
+
+    <h3>🔐 Authentication</h3>
+    <div class="card-grid">
+      <div class="screen-card">
+        <h4>Splash Screen</h4>
+        <div class="path">/  (route: splash)</div>
+        <p>Màn hình khởi động với logo CrabSense + loading animation. Tự động kiểm tra trạng thái JWT — nếu còn hạn chuyển sang /dashboard, ngược lại chuyển /login. Timeout 2 giây.</p>
+      </div>
+      <div class="screen-card">
+        <h4>Màn hình Đăng nhập</h4>
+        <div class="path">/login</div>
+        <p>Form email + mật khẩu, nút đăng nhập Google, toggle biometric (vân tay/FaceID). Hologram palette background. Hiển thị lỗi inline. Quản lý bởi <code>AuthBloc</code>.</p>
+        <div class="tag-row"><span class="badge badge-accent">AuthBloc</span><span class="badge badge-primary">BiometricCubit</span></div>
+      </div>
+    </div>
+
+    <h3>📊 Dashboard / Home</h3>
+    <div class="card-grid">
+      <div class="screen-card">
+        <h4>Farm Command Center</h4>
+        <div class="path">/dashboard</div>
+        <p>Màn hình chính sau đăng nhập. Bao gồm: Farm Hero Card (tên farm, tổng số hộp, cảnh báo active), Health Score Circle, AI Recommendations, 7 Quick Action buttons, Water Quality Overview, Today Tasks, Device Status, Recent Activity feed.</p>
+        <div class="tag-row"><span class="badge badge-accent">DashboardBloc</span><span class="badge badge-warning">Riverpod homeStateProvider</span></div>
+      </div>
+    </div>
+
+    <h3>📦 Quản lý Hộp nuôi</h3>
+    <div class="card-grid">
+      <div class="screen-card">
+        <h4>Farm Digital Twin</h4>
+        <div class="path">/boxes</div>
+        <p>Xem toàn bộ hộp nuôi theo dạng grid. Farm overview summary ở đầu trang. Chip filter (active/inactive/maintenance/harvested). Thanh tìm kiếm real-time. Mỗi card box hiển thị: QR code, số cua, trạng thái sức khỏe, thông số nước, cảnh báo active.</p>
+        <div class="tag-row"><span class="badge badge-warning">Riverpod boxesStateProvider</span></div>
+      </div>
+      <div class="screen-card">
+        <h4>Chi tiết Hộp nuôi</h4>
+        <div class="path">/box/:id</div>
+        <p>Full info của 1 hộp: tên/mã QR, vị trí, sức chứa, loài cua, trạng thái vận hành, số cua hiện tại, chất lượng nước realtime, AI health status, cảnh báo active. Quick actions: Quay video, Kiểm tra, Xem cua, Camera, Thu hoạch, Vận hành.</p>
+        <div class="tag-row"><span class="badge badge-accent">BoxBloc</span></div>
+      </div>
+      <div class="screen-card">
+        <h4>Danh sách Cua</h4>
+        <div class="path">/box/:id/crabs</div>
+        <p>Danh sách tất cả cua trong hộp. Hiển thị: ID cua, loài, cân nặng, trạng thái lột xác, sức khỏe, ngày nhập. Pull-to-refresh. Thêm cua mới qua FAB.</p>
+      </div>
+      <div class="screen-card">
+        <h4>Camera Hộp</h4>
+        <div class="path">/box/:id/camera</div>
+        <p>Xem metadata camera của hộp từ API <code>/boxes/:id/camera</code>. Hiển thị thông tin cấu hình camera IoT, trạng thái kết nối.</p>
+      </div>
+    </div>
+
+    <h3>📷 QR Scanner</h3>
+    <div class="card-grid">
+      <div class="screen-card">
+        <h4>Quét mã QR</h4>
+        <div class="path">/scanner</div>
+        <p>Fullscreen camera realtime với overlay khung quét. Tự động decode QR ≤500ms. Quick-result bottom sheet hiển thị ngay sau khi quét: thông tin hộp, số cua, trạng thái. Upload ảnh từ gallery. Toggle đèn flash. Điều hướng sang box details hoặc inspection.</p>
+        <div class="tag-row"><span class="badge badge-accent">ScannerBloc</span><span class="badge badge-primary">mobile_scanner</span></div>
+      </div>
+    </div>
+
+    <h3>💧 Chất lượng nước</h3>
+    <div class="card-grid">
+      <div class="screen-card">
+        <h4>Water Quality Monitor</h4>
+        <div class="path">/water-quality</div>
+        <p>4 thông số: Nhiệt độ (26-30°C), pH (7.5-8.5), Oxy hòa tan (≥5.0 mg/L), Độ mặn (15-25 ppt). Live reading tự refresh mỗi 30 giây. Biểu đồ lịch sử dùng fl_chart. Filter theo farming area/pond. Cảnh báo màu đỏ khi vượt ngưỡng. Cache offline 7 ngày.</p>
+        <div class="tag-row"><span class="badge badge-accent">WaterQualityBloc</span><span class="badge badge-primary">fl_chart</span></div>
+      </div>
+    </div>
+
+    <h3>🔔 Cảnh báo</h3>
+    <div class="card-grid">
+      <div class="screen-card">
+        <h4>Smart Alert Command Center</h4>
+        <div class="path">/alerts</div>
+        <p>Danh sách cảnh báo theo mức độ: Critical/Warning/Info. Filter theo loại (waterQuality/equipment/crabHealth/maintenance/task/system) và trạng thái (unread/read/acknowledged/dismissed). Swipe để dismiss. Tap để acknowledge. Badge count realtime trên NavBar. Lịch sử 30 ngày.</p>
+        <div class="tag-row"><span class="badge badge-accent">AlertBloc</span><span class="badge badge-warning">Riverpod alertsProvider</span><span class="badge badge-warning">alertsBadgeCountProvider</span></div>
+      </div>
+    </div>
+
+    <h3>🎬 Video & AI</h3>
+    <div class="card-grid">
+      <div class="screen-card">
+        <h4>Quay video</h4>
+        <div class="path">/box/:id/video</div>
+        <p>Fullscreen camera 5-10 giây. Guidelines overlay hướng dẫn đặt camera. Timer hiển thị thời gian recording. Sau khi dừng: tự nén file xuống &lt;10MB (giảm 70%), upload multipart lên server, trigger AI phân tích. Permission flow đầy đủ: rationale → denied handler.</p>
+        <div class="tag-row"><span class="badge badge-accent">VideoCaptureBloc</span><span class="badge badge-primary">camera package</span></div>
+      </div>
+      <div class="screen-card">
+        <h4>Kết quả AI</h4>
+        <div class="path">/ai-results/:videoId</div>
+        <p>Hiển thị kết quả phân tích AI: trạng thái lột xác (preMolt/molting/postMolt/hardShell), confidence score, health indicators, detected crabs list, recommendations. Nút gửi feedback (đúng/sai). Navigate sang InspectionScreen để ghi nhận kiểm tra.</p>
+        <div class="tag-row"><span class="badge badge-accent">AiResultsBloc</span></div>
+      </div>
+      <div class="screen-card">
+        <h4>Trung tâm AI</h4>
+        <div class="path">/ai-center</div>
+        <p>Hub 3 tab: Overview (thống kê tổng), Detections (lịch sử phát hiện), Recommendations (gợi ý hành động từ AI). Filter theo farm/ngày. Model info và performance metrics.</p>
+        <div class="tag-row"><span class="badge badge-warning">Riverpod aiCenterStateProvider</span></div>
+      </div>
+    </div>
+
+    <h3>🔍 Kiểm tra & Vận hành</h3>
+    <div class="card-grid">
+      <div class="screen-card">
+        <h4>Kiểm tra thủ công</h4>
+        <div class="path">/box/:id/inspect</div>
+        <p>Form kiểm tra cua: chọn trạng thái lột xác, đánh giá sức khỏe, nhập cân nặng (gram), ghi notes, đính kèm ảnh. Hiển thị AI result để so sánh. Nộp kết quả đồng bộ offline. Role-based: chỉ Field Operator/Manager mới được submit.</p>
+        <div class="tag-row"><span class="badge badge-accent">InspectionBloc</span></div>
+      </div>
+      <div class="screen-card">
+        <h4>Nhật ký vận hành</h4>
+        <div class="path">/operations</div>
+        <p>Form tạo/sửa operation log. Loại thao tác: Cho ăn, Thay nước, Thêm khoáng, Vệ sinh, Dùng thuốc, Kiểm tra. Chọn box IDs, số lượng, đơn vị, ghi chú, ảnh đính kèm. Offline queue với tự đồng bộ khi có mạng.</p>
+        <div class="tag-row"><span class="badge badge-accent">OperationBloc</span></div>
+      </div>
+      <div class="screen-card">
+        <h4>Lịch sử vận hành</h4>
+        <div class="path">/operations/history</div>
+        <p>Timeline toàn bộ logs vận hành. Filter theo loại thao tác, hộp nuôi, khoảng ngày. Hologram UI style. Xem, chỉnh sửa từng entry.</p>
+      </div>
+    </div>
+
+    <h3>🌾 Thu hoạch & Bán hàng</h3>
+    <div class="card-grid">
+      <div class="screen-card">
+        <h4>Thu hoạch</h4>
+        <div class="path">/harvest</div>
+        <p>Form ghi nhận thu hoạch: chọn box, tổng trọng lượng (kg), số lượng cua, phân loại chất lượng (Grade A/B/C), ngày thu hoạch, người thực hiện, điểm đến, ảnh, ghi chú. Lịch sử thu hoạch kèm biểu đồ tuần, breakdown theo grade. Export CSV.</p>
+        <div class="tag-row"><span class="badge badge-accent">HarvestBloc</span><span class="badge badge-accent">HarvestHistoryBloc</span></div>
+      </div>
+      <div class="screen-card">
+        <h4>Bán hàng</h4>
+        <div class="path">/sales</div>
+        <p>Form ghi nhận giao dịch bán: tên/liên hệ người mua, số lượng kg, đơn giá, tổng tiền (tự tính), phương thức thanh toán (tiền mặt/chuyển khoản/tín dụng), trạng thái thanh toán. Offline queue. Báo cáo doanh thu theo ngày/tuần.</p>
+        <div class="tag-row"><span class="badge badge-accent">SalesBloc</span><span class="badge badge-accent">SalesHistoryBloc</span></div>
+      </div>
+    </div>
+
+    <h3>📊 Báo cáo</h3>
+    <div class="card-grid">
+      <div class="screen-card">
+        <h4>Hub Báo cáo</h4>
+        <div class="path">/reports</div>
+        <p>5 loại báo cáo: Năng suất thu hoạch, Tồn kho cua, Tỷ lệ lột xác, Tỷ lệ sống, Hiệu quả vận hành. Xuất file CSV + JSON. Upload tự động lên Google Drive vào folder CRAB. Fallback share sheet nếu Drive lỗi.</p>
+        <div class="tag-row"><span class="badge badge-warning">Riverpod reportsProvider</span></div>
+      </div>
+    </div>
+
+    <h3>⚙️ Hồ sơ & Cài đặt</h3>
+    <table>
+      <tr><th>Màn hình</th><th>Route</th><th>Mô tả</th></tr>
+      <tr><td>Hồ sơ</td><td><code>/profile</code></td><td>Hub master: avatar, tên, role, menu điều hướng tất cả cài đặt</td></tr>
+      <tr><td>Sửa hồ sơ</td><td><code>/profile/edit</code></td><td>Chỉnh sửa tên, email, số điện thoại, ảnh đại diện</td></tr>
+      <tr><td>Đổi mật khẩu</td><td><code>/profile/change-password</code></td><td>Form 3 trường: mật khẩu cũ, mới, xác nhận — validation real-time</td></tr>
+      <tr><td>Cài đặt thông báo</td><td><code>/profile/notifications</code></td><td>Bật/tắt từng loại notification preferences</td></tr>
+      <tr><td>Đồng bộ ngoại tuyến</td><td><code>/offline-sync</code></td><td>Sync queue status: pending count, conflict list, last sync time, manual sync trigger</td></tr>
+      <tr><td>Cài đặt ứng dụng</td><td><code>/app-settings</code></td><td>Ngôn ngữ (VI/EN), đơn vị đo, theme preferences</td></tr>
+      <tr><td>Bảo mật</td><td><code>/security</code></td><td>Đổi mật khẩu, biometric toggle, 2FA, xem chính sách</td></tr>
+      <tr><td>Trợ giúp</td><td><code>/help</code></td><td>FAQ, hotline, email support, gửi feedback bug</td></tr>
+      <tr><td>Thông tin ứng dụng</td><td><code>/app-info</code></td><td>Version, build number, licenses</td></tr>
+      <tr><td>Văn bản pháp lý</td><td><code>/legal</code></td><td>Terms of Service / Privacy Policy</td></tr>
+      <tr><td>Thiết bị IoT</td><td><code>/devices</code></td><td>Danh sách ESP32/camera/sensor/pump/valve — filter theo type</td></tr>
+      <tr><td>Firebase Hub</td><td><code>/firebase</code></td><td>Status 4 dịch vụ Firebase: Auth, Messaging, Storage, Crashlytics</td></tr>
+    </table>
+
+    <h3>🔔 Thông báo</h3>
+    <div class="card-grid">
+      <div class="screen-card">
+        <h4>Lịch sử thông báo</h4>
+        <div class="path">/notifications</div>
+        <p>Trung tâm thông báo in-app. Grouped theo ngày. Mỗi thông báo có icon type, tiêu đề, nội dung, timestamp. Nút "Xóa tất cả". Pull-to-refresh. Riverpod <code>unreadNotificationsProvider</code> đếm badge.</p>
+        <div class="tag-row"><span class="badge badge-accent">NotificationHistoryBloc</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. TÍNH NĂNG -->
+  <div class="section" id="features">
+    <h2>6. Chi tiết tính năng</h2>
+    <table>
+      <tr><th>Tính năng</th><th>Mô tả chi tiết</th><th>State</th></tr>
+      <tr><td><strong>Đăng nhập</strong></td><td>Email/password + Google OAuth + Biometric. JWT access token 15 phút, refresh token. Token lưu FlutterSecureStorage (Keychain/Keystore). Tự refresh khi 401.</td><td><code>AuthBloc</code></td></tr>
+      <tr><td><strong>Offline-first</strong></td><td>Tất cả write operations đưa vào SyncQueue Drift SQLite trước. BidirectionalSyncManager upload khi có mạng. Exponential backoff: 1s→2s→4s→8s→16s. Background sync qua WorkManager.</td><td><code>SyncBloc</code></td></tr>
+      <tr><td><strong>Realtime Alerts</strong></td><td>Badge count Riverpod theo dõi /alerts/unread/count. FCM push notifications. In-app banner overlay khi app foreground. Navigate tới màn hình liên quan khi tap.</td><td>Riverpod + FCM</td></tr>
+      <tr><td><strong>AI Detection</strong></td><td>Quay video 5-10s → nén 70% → upload multipart → server trigger AI → poll kết quả. Confidence score, molting status, health classification. Feedback loop cải thiện model.</td><td><code>VideoCaptureBloc + AiResultsBloc</code></td></tr>
+      <tr><td><strong>QR Workflow</strong></td><td>Scan QR box → giải mã ≤500ms → quick-result overlay (số cua, trạng thái, thông số nước) → điều hướng chi tiết hoặc trigger action nhanh.</td><td><code>ScannerBloc</code></td></tr>
+      <tr><td><strong>Water Quality</strong></td><td>4 cảm biến realtime, 30s auto-refresh, historical chart, threshold alerts (nhiệt độ/pH/DO/salinity), cache 7 ngày offline.</td><td><code>WaterQualityBloc</code></td></tr>
+      <tr><td><strong>Reports & Export</strong></td><td>5 loại báo cáo CSV+JSON. Auto-upload Google Drive folder "CRAB". Fallback share sheet. Timestamp filename.</td><td>Riverpod</td></tr>
+      <tr><td><strong>Role-based Access</strong></td><td>5 roles (admin/farmManager/fieldOperator/sales/viewer). UI ẩn/hiện actions theo role. Permission check trước mỗi critical action.</td><td>AuthBloc state</td></tr>
+      <tr><td><strong>Notification System</strong></td><td>FCM token register khi login. 4 Android channels (critical/warning/tasks/system). Permission request flow. History Hive local. Deep link navigation từ notification tap.</td><td>Firebase + NotificationHistoryBloc</td></tr>
+      <tr><td><strong>Traceability (public)</strong></td><td>Route /traceability/:productId không cần đăng nhập. Cho phép khách hàng truy xuất nguồn gốc cua qua QR. (Hiện đang placeholder)</td><td>Public route</td></tr>
+    </table>
+  </div>
+
+  <!-- 7. API -->
+  <div class="section" id="api">
+    <h2>7. API Endpoints</h2>
+    <p>Base URL: <code>http://103.69.96.143:5080/api</code> | Auth: <code>Bearer JWT</code></p>
+    <table>
+      <tr><th>Method</th><th>Endpoint</th><th>Chức năng</th></tr>
+      <tr><td><span class="api-method post">POST</span></td><td><code>/auth/login</code></td><td>Đăng nhập email/password → trả về access + refresh token</td></tr>
+      <tr><td><span class="api-method post">POST</span></td><td><code>/auth/logout</code></td><td>Vô hiệu hóa token phía server</td></tr>
+      <tr><td><span class="api-method post">POST</span></td><td><code>/auth/refresh</code></td><td>Làm mới access token bằng refresh token</td></tr>
+      <tr><td><span class="api-method get">GET</span></td><td><code>/auth/me</code></td><td>Thông tin user hiện tại</td></tr>
+      <tr><td><span class="api-method get">GET</span></td><td><code>/dashboard/overview</code></td><td>Tổng quan dashboard: farm summary, health score, active alerts</td></tr>
+      <tr><td><span class="api-method get">GET</span></td><td><code>/farming-areas</code></td><td>Danh sách khu nuôi (farms)</td></tr>
+      <tr><td><span class="api-method get">GET</span></td><td><code>/farming-rows</code></td><td>Danh sách hàng/ao</td></tr>
+      <tr><td><span class="api-method get">GET</span></td><td><code>/boxes/overview</code></td><td>Danh sách hộp enriched (health, water, AI, alerts)</td></tr>
+      <tr><td><span class="api-method get">GET</span></td><td><code>/boxes/:id</code></td><td>Chi tiết 1 hộp nuôi</td></tr>
+      <tr><td><span class="api-method get">GET</span></td><td><code>/boxes/qr/:code/quick-result</code></td><td>Quick result từ QR scan (≤500ms)</td></tr>
+      <tr><td><span class="api-method get">GET</span></td><td><code>/boxes/:id/crabs</code></td><td>Danh sách cua trong hộp</td></tr>
+      <tr><td><span class="api-method post">POST</span></td><td><code>/boxes/:id/crabs</code></td><td>Thêm cua vào hộp</td></tr>
+      <tr><td><span class="api-method get">GET</span></td><td><code>/iot/live</code></td><td>Số liệu cảm biến realtime</td></tr>
+      <tr><td><span class="api-method get">GET</span></td><td><code>/iot/history</code></td><td>Lịch sử cảm biến</td></tr>
+      <tr><td><span class="api-method get">GET</span></td><td><code>/alert-thresholds</code></td><td>Ngưỡng cảnh báo cấu hình</td></tr>
+      <tr><td><span class="api-method get">GET</span></td><td><code>/alerts</code></td><td>Danh sách cảnh báo</td></tr>
+      <tr><td><span class="api-method put">PUT</span></td><td><code>/alerts/:id/acknowledge</code></td><td>Xác nhận đã đọc cảnh báo</td></tr>
+      <tr><td><span class="api-method put">PUT</span></td><td><code>/alerts/:id/resolve</code></td><td>Giải quyết/đóng cảnh báo</td></tr>
+      <tr><td><span class="api-method post">POST</span></td><td><code>/media/upload</code></td><td>Upload video (multipart, với progress callback)</td></tr>
+      <tr><td><span class="api-method post">POST</span></td><td><code>/ai/analyze</code></td><td>Trigger AI phân tích video</td></tr>
+      <tr><td><span class="api-method get">GET</span></td><td><code>/ai/detections</code></td><td>Kết quả AI detection</td></tr>
+      <tr><td><span class="api-method post">POST</span></td><td><code>/ai/feedback</code></td><td>Gửi feedback về kết quả AI</td></tr>
+      <tr><td><span class="api-method get">GET</span></td><td><code>/ai/recommendations</code></td><td>Gợi ý hành động từ AI</td></tr>
+      <tr><td><span class="api-method post">POST</span></td><td><code>/inspections/submit</code></td><td>Nộp kết quả kiểm tra thủ công</td></tr>
+      <tr><td><span class="api-method get">GET</span></td><td><code>/operations</code></td><td>Danh sách nhật ký vận hành</td></tr>
+      <tr><td><span class="api-method post">POST</span></td><td><code>/operations</code></td><td>Tạo nhật ký vận hành mới</td></tr>
+      <tr><td><span class="api-method put">PUT</span></td><td><code>/operations/:id</code></td><td>Cập nhật nhật ký</td></tr>
+      <tr><td><span class="api-method post">POST</span></td><td><code>/harvest-vouchers</code></td><td>Ghi nhận thu hoạch</td></tr>
+      <tr><td><span class="api-method get">GET</span></td><td><code>/harvest-vouchers/statistics</code></td><td>Tổng hợp thống kê thu hoạch</td></tr>
+      <tr><td><span class="api-method post">POST</span></td><td><code>/sales</code></td><td>Ghi nhận giao dịch bán hàng</td></tr>
+      <tr><td><span class="api-method get">GET</span></td><td><code>/devices</code></td><td>Danh sách thiết bị IoT</td></tr>
+      <tr><td><span class="api-method post">POST</span></td><td><code>/notifications/register</code></td><td>Đăng ký FCM device token</td></tr>
+      <tr><td><span class="api-method post">POST</span></td><td><code>/sync/batch</code></td><td>Đồng bộ batch offline queue lên server</td></tr>
+      <tr><td><span class="api-method get">GET</span></td><td><code>/traceability/:productId</code></td><td>Truy xuất nguồn gốc sản phẩm (PUBLIC)</td></tr>
+    </table>
+  </div>
+
+  <!-- 8. STATE MANAGEMENT -->
+  <div class="section" id="state">
+    <h2>8. State Management</h2>
+    <h3>Flutter BLoC</h3>
+    <table>
+      <tr><th>BLoC/Cubit</th><th>Feature</th><th>Events → States</th></tr>
+      <tr><td><code>AuthBloc</code></td><td>authentication</td><td>LoginRequested, LogoutRequested, AuthenticationStatusRequested → Authenticated, Unauthenticated, AuthLoading</td></tr>
+      <tr><td><code>BiometricCubit</code></td><td>authentication</td><td>checkAvailability(), toggle() → BiometricAvailable, NotAvailable</td></tr>
+      <tr><td><code>DashboardBloc</code></td><td>dashboard</td><td>DashboardLoadRequested → DashboardLoading, DashboardLoaded, DashboardError</td></tr>
+      <tr><td><code>BoxBloc</code></td><td>box</td><td>BoxDetailsLoadRequested → BoxLoading, BoxLoaded, BoxError</td></tr>
+      <tr><td><code>ScannerBloc</code></td><td>qr_scanner</td><td>QRScanned, CameraPermissionRequested → ScannerReady, QuickResultLoaded</td></tr>
+      <tr><td><code>VideoCaptureBloc</code></td><td>video_capture</td><td>CameraPermissionRequested, RecordingStarted, RecordingStopped → VideoCaptureReady, VideoRecording, VideoCaptureComplete</td></tr>
+      <tr><td><code>AiResultsBloc</code></td><td>video_capture</td><td>LoadAIResults → AiResultsLoading, AiResultsLoaded, AiResultsError</td></tr>
+      <tr><td><code>WaterQualityBloc</code></td><td>water_quality</td><td>LoadCurrentReadings, LoadHistoricalData → WaterQualityLoaded</td></tr>
+      <tr><td><code>AlertBloc</code></td><td>alert</td><td>AlertsLoadRequested, AlertAcknowledgeRequested, AlertDismissRequested</td></tr>
+      <tr><td><code>InspectionBloc</code></td><td>manual_inspection</td><td>LoadInspectionContext, SubmitInspection, SubmitFeedback</td></tr>
+      <tr><td><code>OperationBloc</code></td><td>operation_logs</td><td>CreateOperationLog, UpdateOperationLog</td></tr>
+      <tr><td><code>HarvestBloc</code></td><td>harvest</td><td>RecordHarvest → HarvestSubmitting, HarvestSuccess</td></tr>
+      <tr><td><code>SalesBloc</code></td><td>sales</td><td>CreateSale → SaleSubmitting, SaleSuccess</td></tr>
+      <tr><td><code>NotificationHistoryBloc</code></td><td>notifications</td><td>LoadHistory, ClearHistory → HistoryLoaded</td></tr>
+      <tr><td><code>SyncBloc</code></td><td>shared</td><td>SyncStarted, SyncPendingCountRefreshed → SyncState(isSyncing, isOffline, pendingCount)</td></tr>
+    </table>
+
+    <h3>Riverpod Providers</h3>
+    <table>
+      <tr><th>Provider</th><th>Feature</th><th>Mô tả</th></tr>
+      <tr><td><code>homeStateProvider</code></td><td>home</td><td>Farm Command Center data (overview + quick actions)</td></tr>
+      <tr><td><code>boxesStateProvider</code></td><td>box_management</td><td>Boxes list với filter/search state</td></tr>
+      <tr><td><code>alertsProvider</code></td><td>alert</td><td>Alert list reactive</td></tr>
+      <tr><td><code>alertsBadgeCountProvider</code></td><td>alert</td><td>Badge count cho NavBar (unread alerts)</td></tr>
+      <tr><td><code>devicesStateProvider</code></td><td>devices</td><td>IoT device list + filter state</td></tr>
+      <tr><td><code>aiCenterStateProvider</code></td><td>ai_center</td><td>AI hub tabs state + data</td></tr>
+      <tr><td><code>reportsProvider</code></td><td>reports</td><td>Report data + export state</td></tr>
+      <tr><td><code>profileStateProvider</code></td><td>profile</td><td>Profile info + settings + sync summary</td></tr>
+      <tr><td><code>selectedFarmProvider</code></td><td>core</td><td>Global farm context được chọn</td></tr>
+      <tr><td><code>unreadNotificationsProvider</code></td><td>notifications</td><td>Unread notification count</td></tr>
+    </table>
+  </div>
+
+  <!-- 9. STORAGE -->
+  <div class="section" id="storage">
+    <h2>9. Bộ nhớ cục bộ & Offline</h2>
+    <table>
+      <tr><th>Storage</th><th>Package</th><th>Dùng cho</th><th>Bảo mật</th></tr>
+      <tr><td>Drift SQLite</td><td><code>drift ^2.14.0</code></td><td>Offline queue (SyncQueue), Box cache, Crab cache, Water readings, Alert history, Operation logs, Harvest, Sales, Video metadata, AI detections, Inspections</td><td>File-level encryption</td></tr>
+      <tr><td>Hive</td><td><code>hive_flutter ^1.1.0</code></td><td>Notification history (kNotifHistoryBoxName), Notification preferences (kNotifPrefsBoxName)</td><td>AES encryption optional</td></tr>
+      <tr><td>FlutterSecureStorage</td><td><code>flutter_secure_storage ^9.0.0</code></td><td>JWT access token, refresh token, expiry timestamps, biometric preference, FCM token</td><td>Keychain (iOS) / Keystore (Android) — AES256</td></tr>
+    </table>
+
+    <h3>Offline Sync Architecture</h3>
+    <div class="card">
+      <p><strong>Write path:</strong> User action → SyncQueue (SQLite) → UI phản hồi ngay → Background: BidirectionalSyncManager upload khi có mạng</p>
+      <p><strong>Read path:</strong> Remote API → Drift SQLite cache → UI đọc từ cache → 30-day retention</p>
+      <p><strong>Conflict resolution:</strong> Server-wins strategy + ConflictResolutionDialog cho manual conflicts</p>
+      <p><strong>Retry:</strong> Exponential backoff 1s → 2s → 4s → 8s → 16s (max 5 lần)</p>
+      <p><strong>Background sync:</strong> WorkManager (Android) / BGTaskScheduler (iOS) — periodic 15 phút</p>
+    </div>
+  </div>
+
+  <!-- 10. WIDGETS -->
+  <div class="section" id="widgets">
+    <h2>10. Widgets tái sử dụng quan trọng</h2>
+    <table>
+      <tr><th>Widget</th><th>File</th><th>Mô tả</th></tr>
+      <tr><td><code>BrandedLoadingScreen</code></td><td>lib/widgets/</td><td>Loading screen với logo CrabSense + message + subtitle</td></tr>
+      <tr><td><code>ScaffoldWithNavBar</code></td><td>lib/app/</td><td>Shell scaffold với Bottom NavBar cyber glass style</td></tr>
+      <tr><td><code>InAppNotificationBanner</code></td><td>shared/widgets/notifications/</td><td>Overlay banner khi nhận FCM foreground — slide-in từ trên</td></tr>
+      <tr><td><code>OfflineBanner</code></td><td>shared/widgets/</td><td>Banner vàng hiển thị khi mất kết nối internet</td></tr>
+      <tr><td><code>ConflictResolutionDialog</code></td><td>shared/widgets/</td><td>Dialog giải quyết xung đột sync thủ công</td></tr>
+      <tr><td><code>SkeletonLoader</code></td><td>shared/widgets/</td><td>Shimmer loading placeholder cho danh sách/cards</td></tr>
+      <tr><td><code>ErrorStateWidget</code></td><td>shared/widgets/</td><td>Màn hình lỗi với icon + message + nút Retry</td></tr>
+      <tr><td><code>CameraPermissionDeniedWidget</code></td><td>shared/widgets/permissions/</td><td>UI khi user từ chối quyền camera — hướng dẫn mở Settings</td></tr>
+      <tr><td><code>SyncAppBarAction</code></td><td>shared/widgets/</td><td>Icon button AppBar hiện trạng thái sync (badge pending count)</td></tr>
+      <tr><td><code>FarmDigitalTwin</code></td><td>box_management/widgets/</td><td>Custom painter vẽ sơ đồ trang trại dạng hologram</td></tr>
+      <tr><td><code>CrabHologramPainter</code></td><td>home/widgets/</td><td>Custom painter background hologram cho Farm Command Center</td></tr>
+      <tr><td><code>PriorityAlertCard</code></td><td>alert/widgets/</td><td>Alert card với màu theo severity, swipe actions</td></tr>
+      <tr><td><code>HarvestSummaryCard</code></td><td>harvest/widgets/</td><td>Card tổng hợp thống kê thu hoạch</td></tr>
+    </table>
+  </div>
+
+  <!-- 11. LUỒNG -->
+  <div class="section" id="flow">
+    <h2>11. Luồng điều hướng chính</h2>
+
+    <h3>Luồng đăng nhập</h3>
+    <div class="flow-row">
+      <div class="flow-box">App Start</div><span class="flow-arrow">→</span>
+      <div class="flow-box">Splash (check JWT)</div><span class="flow-arrow">→</span>
+      <div class="flow-box">Có JWT hợp lệ?</div>
+    </div>
+    <div class="flow-row">
+      <div class="flow-box" style="opacity:0.3">◯</div><span class="flow-arrow"> Yes →</span>
+      <div class="flow-box">/dashboard (HomeScreen)</div>
+    </div>
+    <div class="flow-row">
+      <div class="flow-box" style="opacity:0.3">◯</div><span class="flow-arrow"> No →</span>
+      <div class="flow-box">/login</div><span class="flow-arrow">→</span>
+      <div class="flow-box">Nhập email+pass / Google / Biometric</div><span class="flow-arrow">→</span>
+      <div class="flow-box">/dashboard</div>
+    </div>
+
+    <h3>Luồng quay video & AI</h3>
+    <div class="flow-row">
+      <div class="flow-box">BoxDetailsScreen</div><span class="flow-arrow">→</span>
+      <div class="flow-box">Tap "Quay video"</div><span class="flow-arrow">→</span>
+      <div class="flow-box">VideoCaptureScreen</div><span class="flow-arrow">→</span>
+      <div class="flow-box">Record 5-10s</div>
+    </div>
+    <div class="flow-row">
+      <span class="flow-arrow">→</span>
+      <div class="flow-box">Nén video (70%)</div><span class="flow-arrow">→</span>
+      <div class="flow-box">Upload multipart</div><span class="flow-arrow">→</span>
+      <div class="flow-box">Trigger AI</div><span class="flow-arrow">→</span>
+      <div class="flow-box">AiResultsScreen</div>
+    </div>
+    <div class="flow-row">
+      <span class="flow-arrow">→</span>
+      <div class="flow-box">Tap "Kiểm tra"</div><span class="flow-arrow">→</span>
+      <div class="flow-box">InspectionScreen</div><span class="flow-arrow">→</span>
+      <div class="flow-box">Submit → SyncQueue → Server</div>
+    </div>
+
+    <h3>Luồng QR Scan</h3>
+    <div class="flow-row">
+      <div class="flow-box">Tab Scanner</div><span class="flow-arrow">→</span>
+      <div class="flow-box">Camera QR realtime</div><span class="flow-arrow">→</span>
+      <div class="flow-box">Decode QR (≤500ms)</div><span class="flow-arrow">→</span>
+      <div class="flow-box">Quick-result sheet</div>
+    </div>
+    <div class="flow-row">
+      <span class="flow-arrow">→</span>
+      <div class="flow-box">Xem chi tiết → /box/:id</div>
+      <span class="flow-arrow">hoặc</span>
+      <div class="flow-box">Quick action</div>
+    </div>
+
+    <h3>Luồng Offline → Online Sync</h3>
+    <div class="flow-row">
+      <div class="flow-box">User action (offline)</div><span class="flow-arrow">→</span>
+      <div class="flow-box">Write to SyncQueue SQLite</div><span class="flow-arrow">→</span>
+      <div class="flow-box">UI phản hồi ngay</div>
+    </div>
+    <div class="flow-row">
+      <span class="flow-arrow">→</span>
+      <div class="flow-box">Kết nối mạng</div><span class="flow-arrow">→</span>
+      <div class="flow-box">BidirectionalSyncManager</div><span class="flow-arrow">→</span>
+      <div class="flow-box">Batch upload /sync/batch</div><span class="flow-arrow">→</span>
+      <div class="flow-box">Xóa queue</div>
+    </div>
+  </div>
+
+  <!-- 12. STACK KỸ THUẬT -->
+  <div class="section" id="tech">
+    <h2>12. Stack kỹ thuật</h2>
+    <table>
+      <tr><th>Category</th><th>Package</th><th>Version</th><th>Mục đích</th></tr>
+      <tr><td>UI Framework</td><td>Flutter</td><td>3.47.1</td><td>Cross-platform UI</td></tr>
+      <tr><td>Language</td><td>Dart</td><td>3.13.1</td><td>Programming language</td></tr>
+      <tr><td>Navigation</td><td>go_router</td><td>^13.0.0</td><td>Type-safe routing + deep links</td></tr>
+      <tr><td>State (BLoC)</td><td>flutter_bloc</td><td>^8.1.3</td><td>Predictable state management</td></tr>
+      <tr><td>State (Reactive)</td><td>flutter_riverpod</td><td>^2.5.1</td><td>Provider pattern, auto-dispose</td></tr>
+      <tr><td>DI</td><td>get_it</td><td>^7.6.4</td><td>Service locator</td></tr>
+      <tr><td>HTTP Client</td><td>dio</td><td>^5.4.0</td><td>REST API với interceptors</td></tr>
+      <tr><td>Database</td><td>drift</td><td>^2.14.0</td><td>Type-safe SQLite ORM</td></tr>
+      <tr><td>Key-Value Storage</td><td>hive_flutter</td><td>^1.1.0</td><td>Fast local key-value store</td></tr>
+      <tr><td>Secure Storage</td><td>flutter_secure_storage</td><td>^9.0.0</td><td>JWT tokens Keychain/Keystore</td></tr>
+      <tr><td>Camera</td><td>camera</td><td>^0.10.5+5</td><td>Video capture (mobile only)</td></tr>
+      <tr><td>QR Scanner</td><td>mobile_scanner</td><td>^7.4.0</td><td>Realtime QR decoding</td></tr>
+      <tr><td>Video Compression</td><td>video_compress</td><td>^3.1.2</td><td>Nén video 70%</td></tr>
+      <tr><td>Push Notifications</td><td>firebase_messaging</td><td>^15.2.10</td><td>FCM push notifications</td></tr>
+      <tr><td>Local Notifications</td><td>flutter_local_notifications</td><td>^17.2.1</td><td>In-app foreground notifications</td></tr>
+      <tr><td>Biometric Auth</td><td>local_auth</td><td>^2.1.8</td><td>Vân tay / FaceID</td></tr>
+      <tr><td>Connectivity</td><td>connectivity_plus</td><td>^5.0.2</td><td>Network status detection</td></tr>
+      <tr><td>Background Sync</td><td>workmanager</td><td>^0.9.0+3</td><td>Periodic background tasks</td></tr>
+      <tr><td>Charts</td><td>fl_chart</td><td>^0.66.0</td><td>Biểu đồ water quality history</td></tr>
+      <tr><td>Image Picker</td><td>image_picker</td><td>^1.0.4</td><td>Chọn ảnh từ gallery</td></tr>
+      <tr><td>Location</td><td>geolocator</td><td>^11.0.0</td><td>GPS location cho operations</td></tr>
+      <tr><td>Google Sign-In</td><td>google_sign_in</td><td>^7.2.0</td><td>OAuth Google login</td></tr>
+      <tr><td>URL Launcher</td><td>url_launcher</td><td>^6.3.2</td><td>Mở links, phone, email</td></tr>
+      <tr><td>Share</td><td>share_plus</td><td>^12.0.2</td><td>Share CSV/JSON reports</td></tr>
+      <tr><td>Fonts</td><td>google_fonts</td><td>^6.1.0</td><td>Typography system</td></tr>
+      <tr><td>Logging</td><td>logger</td><td>^2.0.2+1</td><td>Structured logging</td></tr>
+      <tr><td>Error Handling</td><td>fpdart</td><td>^1.1.0</td><td>Either monad cho failures</td></tr>
+      <tr><td>UUID</td><td>uuid</td><td>^4.3.3</td><td>Generate unique IDs offline</td></tr>
+      <tr><td>Crypto</td><td>crypto</td><td>^3.0.3</td><td>SHA-256 certificate pinning</td></tr>
+    </table>
+  </div>
+
+  <div class="separator"></div>
+  <div style="text-align:center; color: var(--muted); padding: 24px 0; font-size: 12px;">
+    CrabSense Mobile — Tài liệu kỹ thuật toàn diện | Flutter 3.47.1 | Backend 103.69.96.143:5080
+  </div>
+
+</div>
+</body>
+</html>

@@ -315,7 +315,7 @@ class _TimelineHeader extends StatelessWidget {
         Text(
           '$totalCount bản ghi',
           style: theme.textTheme.labelSmall?.copyWith(
-            color: Colors.white.withValues(alpha: 0.45),
+            color: const Color(0xFF5A7184),
           ),
         ),
       ],
@@ -388,7 +388,7 @@ class _TypeChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected
               ? color.withValues(alpha: 0.2)
-              : kHomeNavyDeep.withValues(alpha: 0.75),
+              : kHomeBg.withValues(alpha: 0.75),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
@@ -652,7 +652,7 @@ class _TimelineEventCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: kHomeNavyDeep.withValues(alpha: 0.75),
+        color: kHomeBg.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.4)),
         boxShadow: [
@@ -671,7 +671,7 @@ class _TimelineEventCard extends StatelessWidget {
             Text(
               event.description!,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.white.withValues(alpha: 0.55),
+                color: const Color(0xFF5A7184),
               ),
             ),
           ],
@@ -709,7 +709,7 @@ class _CardTitleRow extends StatelessWidget {
         Text(
           DateFormat('HH:mm').format(event.timestamp),
           style: theme.textTheme.labelSmall?.copyWith(
-            color: Colors.white.withValues(alpha: 0.4),
+            color: const Color(0xFF5A7184),
           ),
         ),
       ],

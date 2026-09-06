@@ -1,6 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:crabsensemobile/core/platform/io_export.dart';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -78,6 +79,16 @@ class ReportFileExporter {
     bool includeJson = true,
     bool openFolderOnSuccess = true,
   }) async {
+    if (kIsWeb) {
+      // On web: file system is not accessible. Return CSV string only.
+      return const ReportExportResult(
+        csvPath: '',
+        shared: false,
+        driveUploaded: false,
+        driveMessage: 'File export not supported on web. Copy CSV data manually.',
+      );
+    }
+
     final stamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
     final base = 'crabsense_${data.kind.name}_$stamp';
     final dir = await getApplicationDocumentsDirectory();

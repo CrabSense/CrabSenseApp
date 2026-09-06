@@ -3,25 +3,19 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/errors/error_mapper.dart';
 import '../../../../app/routes.dart';
 import '../../../authentication/domain/entities/user.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
-import '../../../home/presentation/widgets/crab_hologram_painter.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/alerts_models.dart';
 import '../providers/alerts_provider.dart';
-import '../widgets/alert_card_v2.dart';
-import '../widgets/alert_filter_chips.dart';
-import '../widgets/alert_overview_summary.dart';
-import '../widgets/alert_search_bar.dart';
 import '../widgets/alert_sheets.dart';
-import '../widgets/alerts_header.dart';
 import '../widgets/alerts_skeleton.dart';
 import '../widgets/alerts_states.dart';
-import '../widgets/priority_alert_card.dart';
 
-/// Smart Alert Command Center tab.
+/// Alerts screen — Light theme rebuild.
 class AlertsScreen extends ConsumerStatefulWidget {
   const AlertsScreen({super.key});
 
@@ -29,22 +23,33 @@ class AlertsScreen extends ConsumerStatefulWidget {
   ConsumerState<AlertsScreen> createState() => _AlertsScreenState();
 }
 
-class _AlertsScreenState extends ConsumerState<AlertsScreen> {
-  bool _showSearch = false;
+class _AlertsScreenState extends ConsumerState<AlertsScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
   UserRole? _lastRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   void _syncPermissions(User user) {
     final role = user.role;
     if (_lastRole == role) return;
     _lastRole = role;
-
     final flags = AlertsPermissionFlags.fromRoleFlags(
       isAdmin: role.isAdmin,
       isManager: role.canManageUsers,
       isOperator: role.canPerformFieldOperations,
       hasWriteAccess: role.hasWriteAccess,
     );
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final notifier = ref.read(alertsStateProvider.notifier);
@@ -57,7 +62,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: kHomeNavyLift,
+        backgroundColor: kHomePrimary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
@@ -102,527 +107,355 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
     await showAlertAssignmentSheet(
       context: context,
       alert: alert,
-      onAssign:
-          ({
-            required String assigneeId,
-            required String assigneeName,
-            required String assigneeRole,
-            String? note,
-          }) {
-            ref
-                .read(alertsStateProvider.notifier)
-                .assign(
-                  alertId: alert.id,
-                  assigneeId: assigneeId,
-                  assigneeName: assigneeName,
-                  assigneeRole: assigneeRole,
-                  note: note,
-                );
-            _snack('Đã giao cho $assigneeName');
-          },
-    );
-  }
-
-  Future<void> _openMore(AlertItem alert, AlertsStateData data) async {
-    await showAlertQuickActionsSheet(
-      context: context,
-      alert: alert,
-      canAcknowledge: data.canAcknowledge,
-      canResolve: data.canResolve,
-      canAssign: data.canAssign,
-      onAcknowledge: () {
-        ref.read(alertsStateProvider.notifier).acknowledge(alert.id);
-        _snack('Đã xác nhận xem');
-      },
-      onHandle: () => _handleNow(alert, data),
-      onAssign: () => _assign(alert),
-      onViewBox: () {
-        if (alert.boxId != null) {
-          context.push(RoutePaths.boxDetails(alert.boxId!));
-        }
-      },
-      onViewDetail: () => _openDetail(alert, data),
-      onHide: () {
-        ref.read(alertsStateProvider.notifier).hideAlert(alert.id);
-        _snack('Đã tạm ẩn cảnh báo');
-      },
-      onAction: (action) {
-        if (action.id == 'complete' || action.id == 'log_result') {
-          ref
-              .read(alertsStateProvider.notifier)
-              .resolve(alert.id, note: action.label);
-          _snack('Đã đánh dấu hoàn thành');
-          return;
-        }
-        _snack('Đã ghi nhận: ${action.label}');
+      onAssign: ({
+        required String assigneeId,
+        required String assigneeName,
+        required String assigneeRole,
+        String? note,
+      }) {
+        ref.read(alertsStateProvider.notifier).assign(
+          alertId: alert.id,
+          assigneeId: assigneeId,
+          assigneeName: assigneeName,
+          assigneeRole: assigneeRole,
+          note: note,
+        );
+        _snack('Đã giao cho $assigneeName');
       },
     );
   }
 
-  void _showSortGroupSheet(AlertsStateData data) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) {
-        final maxH = MediaQuery.sizeOf(ctx).height * 0.85;
-        return Container(
-          constraints: BoxConstraints(maxHeight: maxH),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
+  List<AlertItem> _filterByTab(List<AlertItem> alerts, int tabIndex) {
+    if (tabIndex == 0) return alerts;
+    if (tabIndex == 1) {
+      return alerts.where((a) => a.category == AlertCategory.waterQuality).toList();
+    }
+    return alerts.where((a) => a.category != AlertCategory.waterQuality).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    if (authState is Authenticated) _syncPermissions(authState.user);
+
+    final async = ref.watch(alertsStateProvider);
+    final totalUnread = async.valueOrNull?.summary.open ?? 0;
+
+    return Scaffold(
+      backgroundColor: kHomeBg,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(56 + 48),
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [kHomePrimary, kHomePrimaryDark],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
             ),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
           ),
-          clipBehavior: Clip.antiAlias,
-          child: Stack(
-            children: [
-              const HomeCrabWatermark(alpha: 0.05, trayExtent: 28),
-              SafeArea(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          child: SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
                     children: [
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          margin: const EdgeInsets.only(bottom: 14),
+                      const Expanded(
+                        child: Text(
+                          'Cảnh báo',
+                          style: TextStyle(
+                            color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      if (totalUnread > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: kHomeCyan.withValues(alpha: 0.75),
-                            borderRadius: BorderRadius.circular(4),
+                            color: Colors.white.withOpacity(0.25),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '$totalUnread',
+                            style: const TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13,
+                            ),
                           ),
                         ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.refresh_rounded,
+                            color: Colors.white),
+                        onPressed: () =>
+                            ref.read(alertsStateProvider.notifier).refresh(),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                       ),
-                      const Text(
-                        'SẮP XẾP & NHÓM',
-                        style: TextStyle(
-                          color: kHomeBlueLight,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14,
-                          letterSpacing: 0.8,
+                    ],
+                  ),
+                ),
+                TabBar(
+                  controller: _tabController,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.white60,
+                  indicatorColor: Colors.white,
+                  indicatorWeight: 3,
+                  dividerColor: Colors.transparent,
+                  labelStyle: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w700),
+                  unselectedLabelStyle: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w500),
+                  tabs: const [
+                    Tab(text: 'Tất cả'),
+                    Tab(text: 'Chất lượng nước'),
+                    Tab(text: 'Cua'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      body: async.when(
+        loading: () => const AlertsSkeleton(),
+        error: (e, _) => Center(
+          child: SectionErrorCard(message: ErrorMapper.userFacingMessage(e),
+            onRetry: () =>
+                ref.read(alertsStateProvider.notifier).refresh(),
+          ),
+        ),
+        data: (data) => TabBarView(
+          controller: _tabController,
+          children: List.generate(3, (tabIdx) {
+            final filtered = _filterByTab(data.visibleAlerts, tabIdx);
+            return _AlertListView(
+              alerts: filtered,
+              data: data,
+              onRefresh: () => ref.read(alertsStateProvider.notifier).refresh(),
+              onTap: (a) => _openDetail(a, data),
+              onDismiss: (a) {
+                ref.read(alertsStateProvider.notifier).hideAlert(a.id);
+                _snack('Đã tạm ẩn cảnh báo');
+              },
+            );
+          }),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Alert List ───────────────────────────────────────────────────────────────
+
+class _AlertListView extends StatelessWidget {
+  const _AlertListView({
+    required this.alerts,
+    required this.data,
+    required this.onRefresh,
+    required this.onTap,
+    required this.onDismiss,
+  });
+
+  final List<AlertItem> alerts;
+  final AlertsStateData data;
+  final Future<void> Function() onRefresh;
+  final void Function(AlertItem) onTap;
+  final void Function(AlertItem) onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    if (alerts.isEmpty) {
+      return const _EmptyAlertsState();
+    }
+    return RefreshIndicator(
+      color: kHomePrimary,
+      onRefresh: onRefresh,
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: alerts.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (context, i) {
+          final alert = alerts[i];
+          return Dismissible(
+            key: Key(alert.id),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              decoration: BoxDecoration(
+                color: kHomeDanger.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.delete_outline_rounded, color: kHomeDanger),
+            ),
+            onDismissed: (_) => onDismiss(alert),
+            child: _AlertCard(alert: alert, onTap: () => onTap(alert)),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _AlertCard extends StatelessWidget {
+  const _AlertCard({required this.alert, required this.onTap});
+
+  final AlertItem alert;
+  final VoidCallback onTap;
+
+  Color _accentColor() {
+    switch (alert.severity) {
+      case AlertItemSeverity.critical:
+        return kHomeDanger;
+      case AlertItemSeverity.high:
+        return kHomeWarning;
+      case AlertItemSeverity.medium:
+        return kHomePrimary;
+      case AlertItemSeverity.low: return kHomeSecondary; case AlertItemSeverity.resolved: return kHomePrimary; }
+  }
+
+  IconData _icon() {
+    switch (alert.severity) {
+      case AlertItemSeverity.critical:
+        return Icons.error_rounded;
+      case AlertItemSeverity.high:
+        return Icons.warning_rounded;
+      case AlertItemSeverity.medium:
+        return Icons.info_rounded;
+      case AlertItemSeverity.low: return Icons.check_circle_rounded; case AlertItemSeverity.resolved: return Icons.check_circle_outline_rounded; }
+  }
+
+  String _timestamp() {
+    final diff = DateTime.now().difference(alert.detectedAt);
+    if (diff.inMinutes < 1) return 'Vừa xong';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
+    if (diff.inHours < 24) return '${diff.inHours} giờ trước';
+    return '${diff.inDays} ngày trước';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = _accentColor();
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: kHomeBorder),
+          boxShadow: [BoxShadow(color: const Color(0x14000000), blurRadius: 6, offset: const Offset(0, 2))],  
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Left accent border
+              Container(
+                width: 4,
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius:
+                      const BorderRadius.horizontal(left: Radius.circular(12)),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: accent.withOpacity(0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(_icon(), color: accent, size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              alert.title,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: accent == kHomeDanger
+                                    ? kHomeDanger
+                                    : kHomeTextMain,
+                              ),
+                            ),
+                            if (alert.description.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                alert.description,
+                                style: const TextStyle(
+                                    fontSize: 12, color: kHomeTextSub),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Sắp xếp',
-                        style: TextStyle(color: Colors.white54),
+                      const SizedBox(width: 8),
+                      Text(
+                        _timestamp(),
+                        style: const TextStyle(
+                            fontSize: 11, color: kHomeTextHint),
                       ),
-                      for (final s in AlertSortOption.values)
-                        RadioListTile<AlertSortOption>(
-                          value: s,
-                          groupValue: data.sortOption,
-                          activeColor: kHomeCyan,
-                          title: Text(
-                            switch (s) {
-                              AlertSortOption.priorityDesc =>
-                                'Ưu tiên cao → thấp',
-                              AlertSortOption.newest => 'Mới nhất',
-                              AlertSortOption.oldest => 'Cũ nhất',
-                              AlertSortOption.severity => 'Theo mức độ',
-                            },
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                          onChanged: (v) {
-                            if (v == null) return;
-                            ref.read(alertsStateProvider.notifier).setSort(v);
-                            Navigator.pop(ctx);
-                          },
-                        ),
-                      const Text(
-                        'Nhóm theo',
-                        style: TextStyle(color: Colors.white54),
-                      ),
-                      for (final g in AlertGroupBy.values)
-                        RadioListTile<AlertGroupBy>(
-                          value: g,
-                          groupValue: data.groupBy,
-                          activeColor: kHomeCyan,
-                          title: Text(
-                            switch (g) {
-                              AlertGroupBy.severity => 'Mức độ',
-                              AlertGroupBy.date => 'Ngày',
-                              AlertGroupBy.category => 'Loại cảnh báo',
-                              AlertGroupBy.status => 'Trạng thái',
-                              AlertGroupBy.box => 'Hộp',
-                              AlertGroupBy.none => 'Không nhóm',
-                            },
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                          onChanged: (v) {
-                            if (v == null) return;
-                            ref.read(alertsStateProvider.notifier).setGroupBy(v);
-                            Navigator.pop(ctx);
-                          },
-                        ),
                     ],
                   ),
                 ),
               ),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
+}
 
-  void _showHistoryRangeSheet(AlertsStateData data) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
-            ),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Stack(
-            children: [
-              const HomeCrabWatermark(alpha: 0.05, trayExtent: 28),
-              SafeArea(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 10),
-                    Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: kHomeCyan.withValues(alpha: 0.75),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    for (final r in AlertHistoryRange.values)
-                      ListTile(
-                        title: Text(
-                          switch (r) {
-                            AlertHistoryRange.today => 'Hôm nay',
-                            AlertHistoryRange.days7 => '7 ngày',
-                            AlertHistoryRange.days30 => '30 ngày',
-                            AlertHistoryRange.custom => 'Tùy chỉnh (30 ngày)',
-                          },
-                          style: TextStyle(
-                            color: data.historyRange == r
-                                ? kHomeCyan
-                                : Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        onTap: () {
-                          ref
-                              .read(alertsStateProvider.notifier)
-                              .setHistoryRange(r);
-                          Navigator.pop(ctx);
-                        },
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+class _EmptyAlertsState extends StatelessWidget {
+  const _EmptyAlertsState();
 
   @override
   Widget build(BuildContext context) {
-    final authState = context.watch<AuthBloc>().state;
-    if (authState is Authenticated) {
-      _syncPermissions(authState.user);
-    }
-
-    final async = ref.watch(alertsStateProvider);
-    final width = MediaQuery.sizeOf(context).width;
-    final maxWidth = width >= 700 ? 720.0 : double.infinity;
-
-    return Scaffold(
-      backgroundColor: kHomeNavyDeep,
-      body: Stack(
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Positioned.fill(
-            child: IgnorePointer(
-              child: CustomPaint(
-                painter: CrabHologramPainter(
-                  color: kHomeBlueLight.withValues(alpha: 0.05),
-                  trayExtent: 32,
-                ),
-              ),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: kHomePrimaryBg,
+              shape: BoxShape.circle,
+              border: Border.all(color: kHomePrimary.withOpacity(0.3)),
+            ),
+            child: const Icon(Icons.shield_rounded,
+                color: kHomePrimary, size: 40),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Không có cảnh báo nào',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: kHomeTextMain,
             ),
           ),
-          SafeArea(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxWidth),
-                child: async.when(
-                  loading: () => const AlertsSkeleton(),
-                  error: (e, _) => Center(
-                    child: SectionErrorCard(
-                      message: e.toString(),
-                      onRetry: () =>
-                          ref.read(alertsStateProvider.notifier).refresh(),
-                    ),
-                  ),
-                  data: _buildContent,
-                ),
-              ),
-            ),
+          const SizedBox(height: 8),
+          const Text(
+            'Trang trại hoạt động bình thường 🎉',
+            style: TextStyle(fontSize: 13, color: kHomeTextSub),
           ),
         ],
       ),
     );
-  }
-
-  Widget _buildContent(AlertsStateData data) {
-    final notifier = ref.read(alertsStateProvider.notifier);
-
-    return RefreshIndicator(
-      color: kHomeCyan,
-      backgroundColor: kHomeNavy,
-      onRefresh: () => notifier.refresh(),
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            sliver: SliverToBoxAdapter(
-              child: AlertsHeader(
-                data: data,
-                onFarmSwitched: notifier.switchFarm,
-                onSearchPressed: () =>
-                    setState(() => _showSearch = !_showSearch),
-                onFilterPressed: () => _showSortGroupSheet(data),
-                onHistoryPressed: () {
-                  if (data.showingHistory) {
-                    notifier.setShowingHistory(false);
-                  } else {
-                    notifier.setShowingHistory(true);
-                    _showHistoryRangeSheet(data);
-                  }
-                },
-                onMarkAllRead: data.canMarkAllRead
-                    ? () async {
-                        await notifier.markAllRead();
-                        _snack('Đã đánh dấu tất cả đã xem');
-                      }
-                    : null,
-                onNotificationSettings: () =>
-                    context.push(RoutePaths.notificationSettings),
-              ),
-            ),
-          ),
-          if (data.isOfflineCached || !data.isOnline)
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              sliver: SliverToBoxAdapter(
-                child: AlertsOfflineBanner(
-                  lastSyncedAt: data.lastSyncedAt,
-                  pendingCount: data.pendingSyncCount,
-                  onRetrySync: () => notifier.syncPending(),
-                ),
-              ),
-            ),
-          if (data.sectionError != null)
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              sliver: SliverToBoxAdapter(
-                child: SectionErrorCard(
-                  message: data.sectionError!,
-                  onRetry: () => notifier.refresh(),
-                ),
-              ),
-            ),
-          if (_showSearch)
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              sliver: SliverToBoxAdapter(
-                child: AlertSearchBar(
-                  initialValue: data.searchQuery,
-                  onChanged: notifier.setSearchQuery,
-                  onClear: notifier.clearSearch,
-                ),
-              ),
-            ),
-          if (!data.showingHistory)
-            ..._activeSections(data, notifier)
-          else
-            ..._historySections(data, notifier),
-          const SliverToBoxAdapter(child: SizedBox(height: 32)),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _activeSections(
-    AlertsStateData data,
-    AlertsNotifier notifier,
-  ) {
-    return [
-      SliverPadding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        sliver: SliverToBoxAdapter(
-          child: AlertOverviewSummary(
-            summary: data.summary,
-            onTapSeverity: notifier.toggleQuickFilter,
-          ),
-        ),
-      ),
-      if (data.priorityAlert != null)
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          sliver: SliverToBoxAdapter(
-            child: PriorityAlertCard(
-              alert: data.priorityAlert!,
-              onHandleNow: () => _handleNow(data.priorityAlert!, data),
-              onViewBox: () {
-                final id = data.priorityAlert!.boxId;
-                if (id != null) context.push(RoutePaths.boxDetails(id));
-              },
-              onAcknowledge: () {
-                if (!data.canAcknowledge) return;
-                notifier.acknowledge(data.priorityAlert!.id);
-              },
-              onViewDetail: () => _openDetail(data.priorityAlert!, data),
-              onAssign: data.canAssign
-                  ? () => _assign(data.priorityAlert!)
-                  : null,
-            ),
-          ),
-        ),
-      SliverPadding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        sliver: SliverToBoxAdapter(
-          child: AlertFilterChips(
-            activeFilters: data.quickFilters,
-            onToggle: notifier.toggleQuickFilter,
-            onClear: notifier.clearFilters,
-          ),
-        ),
-      ),
-      if (data.visibleAlerts.isEmpty)
-        SliverFillRemaining(
-          hasScrollBody: false,
-          child: data.hasActiveFilters
-              ? AlertsFilterEmptyState(onClear: notifier.clearFilters)
-              : AlertsEmptyState(
-                  onRefresh: () => notifier.refresh(),
-                  onHistory: () => notifier.setShowingHistory(true),
-                ),
-        )
-      else
-        ..._groupedList(data),
-    ];
-  }
-
-  List<Widget> _historySections(AlertsStateData data, AlertsNotifier notifier) {
-    return [
-      SliverPadding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        sliver: SliverToBoxAdapter(
-          child: Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Lịch sử cảnh báo',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: () => _showHistoryRangeSheet(data),
-                child: Text(switch (data.historyRange) {
-                  AlertHistoryRange.today => 'Hôm nay',
-                  AlertHistoryRange.days7 => '7 ngày',
-                  AlertHistoryRange.days30 => '30 ngày',
-                  AlertHistoryRange.custom => 'Tùy chỉnh',
-                }),
-              ),
-              TextButton(
-                onPressed: () => notifier.setShowingHistory(false),
-                child: const Text('Quay lại'),
-              ),
-            ],
-          ),
-        ),
-      ),
-      SliverPadding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-        sliver: SliverToBoxAdapter(
-          child: AlertFilterChips(
-            activeFilters: data.quickFilters,
-            onToggle: notifier.toggleQuickFilter,
-            onClear: notifier.clearFilters,
-          ),
-        ),
-      ),
-      if (data.visibleAlerts.isEmpty)
-        const SliverFillRemaining(
-          hasScrollBody: false,
-          child: Center(
-            child: Text(
-              'Không có lịch sử trong khoảng thời gian này',
-              style: TextStyle(color: Colors.white54),
-            ),
-          ),
-        )
-      else
-        ..._groupedList(data),
-    ];
-  }
-
-  List<Widget> _groupedList(AlertsStateData data) {
-    final widgets = <Widget>[];
-    for (final section in data.groupedAlerts) {
-      widgets.add(
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
-          sliver: SliverToBoxAdapter(
-            child: Text(
-              '${section.title} (${section.items.length})',
-              style: const TextStyle(
-                color: Colors.white70,
-                fontWeight: FontWeight.w800,
-                fontSize: 13,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ),
-        ),
-      );
-      widgets.add(
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate((context, index) {
-              final alert = section.items[index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: RepaintBoundary(
-                  child: AlertCard(
-                    alert: alert,
-                    onTap: () => _openDetail(alert, data),
-                    onMore: () => _openMore(alert, data),
-                  ),
-                ),
-              );
-            }, childCount: section.items.length),
-          ),
-        ),
-      );
-    }
-    return widgets;
   }
 }

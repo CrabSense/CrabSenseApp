@@ -52,17 +52,17 @@ class _AiResultsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kHomeNavyDeep,
+    backgroundColor: kHomeBg,
     appBar: AppBar(
       title: const Text(
         'K?T QU? AI',
         style: TextStyle(
-          color: kHomeBlueLight,
+          color: kHomePrimaryDark,
           fontWeight: FontWeight.w800,
           letterSpacing: 1,
         ),
       ),
-      backgroundColor: kHomeNavy,
+      backgroundColor: kHomeBg,
       foregroundColor: kHomeBlueLight,
       elevation: 0,
       actions: [
@@ -314,7 +314,7 @@ class _ConfidenceScoreCard extends StatelessWidget {
                 const Text(
                   '?i?m tin c?y AI',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: kHomeTextMain,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -553,7 +553,7 @@ class _DetectedCrabsCard extends StatelessWidget {
               Text(
                 'Cua phát hi?n (${detectedCrabs.length})',
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: kHomeTextMain,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -566,7 +566,7 @@ class _DetectedCrabsCard extends StatelessWidget {
             width: double.infinity,
             height: 200,
             decoration: BoxDecoration(
-              color: kHomeNavyLift,
+              color: kHomeSurface,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: kHomeBorderBlue),
             ),
@@ -619,7 +619,7 @@ class _DetectedCrabsCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     'Crab ${entry.key + 1}: ${entry.value.label}',
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    style: const TextStyle(color: kHomeTextMain, fontSize: 13),
                   ),
                   const Spacer(),
                   Text(
@@ -712,7 +712,7 @@ class _RecommendationsCard extends StatelessWidget {
                 Text(
                   'Khuy?n ngh?',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: kHomeTextMain,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -840,7 +840,7 @@ class _FeedbackSection extends StatelessWidget {
             const Text(
               'K?t qu? này có chính xác không?',
               style: TextStyle(
-                color: Colors.white,
+                color: kHomeTextMain,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
@@ -956,7 +956,7 @@ class _PollingView extends StatelessWidget {
           const Text(
             '?ang phân tích AI?',
             style: TextStyle(
-              color: Colors.white,
+              color: kHomeTextMain,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -996,7 +996,7 @@ class _ErrorView extends StatelessWidget {
           const Text(
             'Không t?i ???c k?t qu? AI',
             style: TextStyle(
-              color: Colors.white,
+              color: kHomeTextMain,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),

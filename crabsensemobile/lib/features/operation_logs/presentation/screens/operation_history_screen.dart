@@ -116,7 +116,7 @@ class _OperationHistoryScreenState extends State<OperationHistoryScreen> {
   Widget build(BuildContext context) {
     final filtered = _filteredLogs;
     return Scaffold(
-      backgroundColor: const Color(0xFF071426),
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
@@ -126,7 +126,7 @@ class _OperationHistoryScreenState extends State<OperationHistoryScreen> {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+              colors: [kHomeSurface, kHomeBg, kHomeBg],
             ),
             border: Border(
               bottom: BorderSide(
@@ -153,7 +153,7 @@ class _OperationHistoryScreenState extends State<OperationHistoryScreen> {
             const Text(
               'LỊCH SỬ VẬN HÀNH',
               style: TextStyle(
-                color: kHomeBlueLight,
+                color: kHomePrimaryDark,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.0,
                 fontSize: 14,
@@ -200,7 +200,7 @@ class _OperationHistoryScreenState extends State<OperationHistoryScreen> {
           else
             RefreshIndicator(
               color: kHomeBlue,
-              backgroundColor: kHomeNavy,
+              backgroundColor: kHomeBg,
               onRefresh: () => _load(refresh: true),
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -263,7 +263,7 @@ class _ErrorBody extends StatelessWidget {
               const Text(
                 'Không tải được lịch sử',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: kHomeTextMain,
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
                 ),
@@ -273,7 +273,7 @@ class _ErrorBody extends StatelessWidget {
                 message,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
+                  color: const Color(0xFF5A7184),
                   fontSize: 12.5,
                 ),
               ),

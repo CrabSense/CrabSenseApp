@@ -206,7 +206,7 @@ class _OperationTimelineState extends State<OperationTimeline> {
           colorScheme: Theme.of(ctx).colorScheme.copyWith(
             primary: kHomeBlue,
             onPrimary: Colors.white,
-            surface: kHomeNavy,
+            surface: kHomeBg,
             onSurface: Colors.white,
           ),
         ),
@@ -362,9 +362,9 @@ class _SearchBar extends StatelessWidget {
     style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white),
     decoration: InputDecoration(
       hintText: 'Tìm trong ghi chú…',
-      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.45)),
+      hintStyle: TextStyle(color: const Color(0xFF5A7184)),
       filled: true,
-      fillColor: kHomeNavyDeep.withValues(alpha: 0.75),
+      fillColor: kHomeBg.withValues(alpha: 0.75),
       prefixIcon: const Icon(Icons.search, size: 18, color: kHomeBlueLight),
       suffixIcon: controller.text.isNotEmpty
           ? GestureDetector(
@@ -453,7 +453,7 @@ class _FilterChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected
               ? accentColor.withValues(alpha: 0.18)
-              : kHomeNavyDeep.withValues(alpha: 0.75),
+              : kHomeBg.withValues(alpha: 0.75),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
@@ -550,7 +550,7 @@ class _BoxFilterDropdown extends StatelessWidget {
       decoration: BoxDecoration(
         color: selected != null
             ? kHomeBlue.withValues(alpha: 0.18)
-            : kHomeNavyDeep.withValues(alpha: 0.75),
+            : kHomeBg.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: selected != null
@@ -562,7 +562,7 @@ class _BoxFilterDropdown extends StatelessWidget {
         child: DropdownButton<String?>(
           value: selected,
           isDense: true,
-          dropdownColor: kHomeNavy,
+          dropdownColor: kHomeBg,
           icon: const Icon(Icons.arrow_drop_down, size: 16, color: kHomeBlueLight),
           hint: Row(
             mainAxisSize: MainAxisSize.min,
@@ -618,7 +618,7 @@ class _DatePickerButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: kHomeNavyDeep.withValues(alpha: 0.75),
+          color: kHomeBg.withValues(alpha: 0.75),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.4)),
         ),
@@ -810,7 +810,7 @@ class _TimelineRow extends StatelessWidget {
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+                  colors: [kHomeSurface, kHomeBg, kHomeBg],
                 ),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: accent.withValues(alpha: 0.4)),
@@ -918,7 +918,7 @@ class _TimelineRow extends StatelessWidget {
                       width: double.infinity,
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: kHomeNavyDeep.withValues(alpha: 0.6),
+                        color: kHomeBg.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: kHomeBorderBlue.withValues(alpha: 0.25),
@@ -1065,7 +1065,7 @@ class _SkeletonRowState extends State<_SkeletonRow> with SingleTickerProviderSta
                     width: 14,
                     height: 14,
                     decoration: BoxDecoration(
-                      color: kHomeNavyLift.withValues(alpha: opacity),
+                      color: kHomeSurface.withValues(alpha: opacity),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -1087,7 +1087,7 @@ class _SkeletonRowState extends State<_SkeletonRow> with SingleTickerProviderSta
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: kHomeNavyDeep.withValues(alpha: 0.75),
+                  color: kHomeBg.withValues(alpha: 0.75),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: kHomeBorderBlue.withValues(alpha: opacity),
@@ -1103,7 +1103,7 @@ class _SkeletonRowState extends State<_SkeletonRow> with SingleTickerProviderSta
                           width: 80,
                           height: 22,
                           decoration: BoxDecoration(
-                            color: kHomeNavyLift.withValues(alpha: opacity),
+                            color: kHomeSurface.withValues(alpha: opacity),
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
@@ -1112,7 +1112,7 @@ class _SkeletonRowState extends State<_SkeletonRow> with SingleTickerProviderSta
                           width: 40,
                           height: 14,
                           decoration: BoxDecoration(
-                            color: kHomeNavyLift.withValues(alpha: opacity),
+                            color: kHomeSurface.withValues(alpha: opacity),
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
@@ -1124,7 +1124,7 @@ class _SkeletonRowState extends State<_SkeletonRow> with SingleTickerProviderSta
                       width: 120,
                       height: 14,
                       decoration: BoxDecoration(
-                        color: kHomeNavyLift.withValues(alpha: opacity),
+                        color: kHomeSurface.withValues(alpha: opacity),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
@@ -1136,7 +1136,7 @@ class _SkeletonRowState extends State<_SkeletonRow> with SingleTickerProviderSta
                           width: 80,
                           height: 12,
                           decoration: BoxDecoration(
-                            color: kHomeNavyLift.withValues(alpha: opacity),
+                            color: kHomeSurface.withValues(alpha: opacity),
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),

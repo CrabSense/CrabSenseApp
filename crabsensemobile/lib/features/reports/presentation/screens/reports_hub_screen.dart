@@ -32,7 +32,7 @@ class ReportsHubScreen extends StatelessWidget {
             child: Text(
               'Báo cáo vận hành từ API /reports. Mở từng mục để xem và xuất CSV/JSON (lưu Drive).',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.65),
+                color: const Color(0xFF5A7184),
                 fontSize: 13,
                 height: 1.35,
               ),
@@ -118,7 +118,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
               'Đã lưu CSV${result.jsonPath != null ? ' + JSON' : ''} '
               'vào Google Drive.\n${result.folderUrl ?? ''}',
             ),
-            backgroundColor: kHomeNavyLift,
+            backgroundColor: kHomeSurface,
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 4),
           ),
@@ -130,7 +130,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
               'Đã mở folder CRAB + sheet chia sẻ.\n'
               'Chọn Google Drive → lưu vào folder vừa mở.',
             ),
-            backgroundColor: kHomeNavyLift,
+            backgroundColor: kHomeSurface,
             behavior: SnackBarBehavior.floating,
             duration: Duration(seconds: 5),
           ),
@@ -213,7 +213,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                   const Text(
                     'Không tải được báo cáo',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: kHomeTextMain,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -221,7 +221,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                   Text(
                     '$e',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.65),
+                      color: const Color(0xFF5A7184),
                       fontSize: 13,
                     ),
                   ),
@@ -231,7 +231,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                         ref.invalidate(reportDetailProvider(kind)),
                     style: FilledButton.styleFrom(
                       backgroundColor: kHomeCyan,
-                      foregroundColor: kHomeNavyDeep,
+                      foregroundColor: kHomeBg,
                     ),
                     child: const Text('Thử lại'),
                   ),
@@ -264,7 +264,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                 ),
                 style: FilledButton.styleFrom(
                   backgroundColor: kHomeCyan,
-                  foregroundColor: kHomeNavyDeep,
+                  foregroundColor: kHomeBg,
                 ),
               ),
             ),
@@ -288,7 +288,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                     Text(
                       section.title,
                       style: const TextStyle(
-                        color: kHomeBlueLight,
+                        color: kHomePrimaryDark,
                         fontWeight: FontWeight.w800,
                         fontSize: 13,
                         letterSpacing: 0.4,
@@ -332,7 +332,7 @@ class _MetricChip extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.55),
+              color: const Color(0xFF5A7184),
               fontSize: 11,
             ),
           ),

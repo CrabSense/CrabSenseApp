@@ -1,6 +1,6 @@
 // ignore_for_file: lines_longer_than_80_chars
 
-import 'dart:io';
+import 'package:crabsensemobile/core/platform/io_export.dart';
 
 import 'package:dio/dio.dart' show DioException, FormData, MultipartFile;
 import 'package:logger/logger.dart';

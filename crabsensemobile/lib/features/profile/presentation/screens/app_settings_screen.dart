@@ -24,17 +24,17 @@ class AppSettingsScreen extends ConsumerWidget {
     Future<void> pickLanguage() async {
       final next = await showModalBottomSheet<String>(
         context: context,
-        backgroundColor: kHomeNavyLift,
+        backgroundColor: kHomeSurface,
         builder: (ctx) => SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                title: const Text('Tiếng Việt', style: TextStyle(color: Colors.white)),
+                title: const Text('Tiếng Việt', style: TextStyle(color: kHomeTextMain)),
                 onTap: () => Navigator.pop(ctx, 'Tiếng Việt'),
               ),
               ListTile(
-                title: const Text('English', style: TextStyle(color: Colors.white)),
+                title: const Text('English', style: TextStyle(color: kHomeTextMain)),
                 onTap: () => Navigator.pop(ctx, 'English'),
               ),
             ],
@@ -52,19 +52,19 @@ class AppSettingsScreen extends ConsumerWidget {
     Future<void> pickUnits() async {
       final next = await showModalBottomSheet<String>(
         context: context,
-        backgroundColor: kHomeNavyLift,
+        backgroundColor: kHomeSurface,
         builder: (ctx) => SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
                 title: const Text('°C, mg/L, ppt, pH',
-                    style: TextStyle(color: Colors.white)),
+                    style: TextStyle(color: kHomeTextMain)),
                 onTap: () => Navigator.pop(ctx, '°C, mg/L, ppt, pH'),
               ),
               ListTile(
                 title: const Text('°F, ppm, ppt, pH',
-                    style: TextStyle(color: Colors.white)),
+                    style: TextStyle(color: kHomeTextMain)),
                 onTap: () => Navigator.pop(ctx, '°F, ppm, ppt, pH'),
               ),
             ],
@@ -82,14 +82,14 @@ class AppSettingsScreen extends ConsumerWidget {
     Future<void> pickCamera() async {
       final next = await showModalBottomSheet<String>(
         context: context,
-        backgroundColor: kHomeNavyLift,
+        backgroundColor: kHomeSurface,
         builder: (ctx) => SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               for (final r in ['HD 720p', 'HD 1080p', '2K'])
                 ListTile(
-                  title: Text(r, style: const TextStyle(color: Colors.white)),
+                  title: Text(r, style: const TextStyle(color: kHomeTextMain)),
                   onTap: () => Navigator.pop(ctx, r),
                 ),
             ],
@@ -107,7 +107,7 @@ class AppSettingsScreen extends ConsumerWidget {
     Future<void> pickRefresh() async {
       final next = await showModalBottomSheet<int>(
         context: context,
-        backgroundColor: kHomeNavyLift,
+        backgroundColor: kHomeSurface,
         builder: (ctx) => SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -115,7 +115,7 @@ class AppSettingsScreen extends ConsumerWidget {
               for (final sec in [15, 30, 60, 120])
                 ListTile(
                   title: Text('$sec giây',
-                      style: const TextStyle(color: Colors.white)),
+                      style: const TextStyle(color: kHomeTextMain)),
                   onTap: () => Navigator.pop(ctx, sec),
                 ),
             ],

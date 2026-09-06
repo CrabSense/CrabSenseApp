@@ -117,8 +117,7 @@ class _FarmDigitalTwinState extends State<FarmDigitalTwin> {
                 onPressed: _fitAll,
                 icon: const Icon(
                   Icons.fit_screen_rounded,
-                  color: kHomeBlueLight,
-                  size: 20,
+                  color: const Color(0xFF27AE60), size: 20,
                 ),
               ),
               IconButton(
@@ -132,8 +131,7 @@ class _FarmDigitalTwinState extends State<FarmDigitalTwin> {
                 },
                 icon: const Icon(
                   Icons.refresh_rounded,
-                  color: kHomeBlueLight,
-                  size: 20,
+                  color: const Color(0xFF27AE60), size: 20,
                 ),
               ),
             ],
@@ -143,18 +141,14 @@ class _FarmDigitalTwinState extends State<FarmDigitalTwin> {
         Expanded(
           child: DecoratedBox(
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
-              ),
+              color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: kHomeBorderBlue.withValues(alpha: 0.5),
+                color: const Color(0xFFDDE4EB),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: kHomeBlue.withValues(alpha: 0.14),
+                  color: const Color(0x142ECC71),
                   blurRadius: 14,
                 ),
               ],
@@ -283,8 +277,7 @@ class _BoxNode extends StatelessWidget {
                 Text(
                   '${box.healthScore.score}',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.75),
-                    fontSize: 10,
+                    color: const Color(0xFF5A7184), fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -324,7 +317,7 @@ class _FarmGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = kHomeBorderBlue.withValues(alpha: 0.28)
+      ..color = const Color(0xFFDDE4EB)
       ..strokeWidth = 1;
     for (var x = 0.0; x <= size.width; x += cell) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
@@ -358,21 +351,19 @@ class _AreaChip extends StatelessWidget {
         label: Text(label),
         selected: selected,
         onSelected: (_) => onTap(),
-        selectedColor: kHomeBlue.withValues(alpha: 0.25),
+        selectedcolor: const Color(0xFFD5F5E3),
         labelStyle: TextStyle(
-          color: selected
-              ? kHomeBlueLight
-              : Colors.white.withValues(alpha: 0.55),
+          color: selected ? const Color(0xFF27AE60) : const Color(0xFF5A7184),
           fontSize: 11,
           fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
         ),
-        backgroundColor: kHomeNavyDeep.withValues(alpha: 0.75),
+        backgroundcolor: const Color(0xFFF5F7FA),
         visualDensity: VisualDensity.compact,
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         side: BorderSide(
           color: selected
               ? kHomeBlue.withValues(alpha: 0.8)
-              : kHomeBorderBlue.withValues(alpha: 0.4),
+              : const Color(0xFFDDE4EB),
         ),
       ),
     );
@@ -387,9 +378,9 @@ class _MapLegend extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: kHomeNavyDeep.withValues(alpha: 0.82),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.45)),
+        border: Border.all(color: const Color(0xFFDDE4EB)),
       ),
       child: const Wrap(
         spacing: 10,
@@ -432,8 +423,7 @@ class _LegendDot extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.55),
-            fontSize: 10,
+            color: const Color(0xFF5A7184), fontSize: 10,
             fontWeight: FontWeight.w600,
           ),
         ),

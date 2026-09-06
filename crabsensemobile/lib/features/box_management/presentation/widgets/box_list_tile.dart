@@ -56,7 +56,7 @@ class BoxListTileCard extends StatelessWidget {
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+                  colors: [kHomeSurface, kHomeBg, kHomeBg],
                 ),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
@@ -105,7 +105,7 @@ class BoxListTileCard extends StatelessWidget {
                               child: Text(
                                 box.code,
                                 style: const TextStyle(
-                                  color: Colors.white,
+                                  color: kHomeTextMain,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 14,
                                 ),
@@ -122,7 +122,7 @@ class BoxListTileCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.55),
+                            color: const Color(0xFF5A7184),
                             fontSize: 11,
                           ),
                         ),
@@ -149,7 +149,7 @@ class BoxListTileCard extends StatelessWidget {
                             Text(
                               formatRelativeTime(box.lastUpdated),
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.4),
+                                color: const Color(0xFF5A7184),
                                 fontSize: 10,
                               ),
                             ),

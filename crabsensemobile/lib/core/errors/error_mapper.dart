@@ -1,6 +1,7 @@
-import 'dart:io';
+import 'package:crabsensemobile/core/platform/io_export.dart';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'exceptions.dart';
 import 'failures.dart';
@@ -71,14 +72,14 @@ class ErrorMapper {
     }
 
     // Handle platform exceptions
-    if (exception is SocketException) {
+    if (!kIsWeb && exception is SocketException) {
       return const NetworkFailure(
         'Unable to connect to server. Please check your internet connection.',
         'SOCKET_ERROR',
       );
     }
 
-    if (exception is HttpException) {
+    if (!kIsWeb && exception is HttpException) {
       return ServerFailure(exception.message, code: 'HTTP_ERROR');
     }
 
@@ -134,7 +135,7 @@ class ErrorMapper {
 
       case DioExceptionType.unknown:
         // Check if it's a socket exception (no internet)
-        if (exception.error is SocketException) {
+        if (!kIsWeb && exception.error is SocketException) {
           return const NetworkFailure();
         }
         return UnexpectedFailure(
@@ -251,4 +252,32 @@ class ErrorMapper {
       failure is AuthenticationFailure ||
       failure is PermissionFailure ||
       failure is ValidationFailure;
+
+  /// Converts a thrown API error into a short Vietnamese message for UI.
+  static String userFacingMessage(Object error) {
+    final text = error.toString();
+    final lower = text.toLowerCase();
+    if (text.contains('401') ||
+        lower.contains('unauthorized') ||
+        lower.contains('refresh token') ||
+        lower.contains('access token')) {
+      return 'Phiên đăng nhập chưa gửi được token. Đăng xuất rồi đăng nhập lại.';
+    }
+    if (text.contains('403') || lower.contains('forbidden')) {
+      return 'Tài khoản không có quyền xem dữ liệu này.';
+    }
+    if (lower.contains('timeout') || lower.contains('timed out')) {
+      return 'Máy chủ phản hồi chậm. Thử lại.';
+    }
+    if (lower.contains('socket') ||
+        lower.contains('connection') ||
+        lower.contains('cors') ||
+        lower.contains('xmlhttprequest')) {
+      return 'Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.';
+    }
+    if (text.length > 180) {
+      return 'Không tải được dữ liệu. Thử lại; nếu vẫn lỗi hãy đăng nhập lại.';
+    }
+    return text;
+  }
 }

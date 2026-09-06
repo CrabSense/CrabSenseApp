@@ -1,17 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../../core/di/injection.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../core/providers/selected_farm_provider.dart';
 import '../../../notifications/presentation/providers/unread_notifications_provider.dart';
 import '../../data/repositories/home_repository_impl.dart';
 import '../../domain/models/home_models.dart';
 import '../../domain/repositories/home_repository.dart';
 
-/// Provider cho Repository — must use the same FlutterSecureStorage instance
-/// as Auth (encryptedSharedPreferences) or Android cannot read the JWT.
 final homeRepositoryProvider = Provider<HomeRepository>(
-  (ref) => HomeRepositoryImpl(secureStorage: sl<FlutterSecureStorage>()),
+  (ref) => HomeRepositoryImpl(api: sl<ApiClient>()),
 );
 
 /// Provider cho Trang chủ Home Command Center State

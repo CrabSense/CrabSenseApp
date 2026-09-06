@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -6,15 +6,22 @@ import '../../../../app/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../notifications/presentation/providers/unread_notifications_provider.dart';
 import '../../domain/models/home_models.dart';
-import 'crab_hologram_painter.dart';
 
-// Palette theo ảnh thiết kế: xanh dương (azure) trên nền navy đậm.
-const Color _kBlue = Color(0xFF2F80FF);
-const Color _kBlueLight = Color(0xFF6FB0FF);
-const Color _kNavyDeep = Color(0xFF081A36);
-const Color _kNavy = Color(0xFF0C2348);
-const Color _kNavyLift = Color(0xFF123061);
-const Color _kBorderBlue = Color(0xFF3E6FB8);
+// Light theme palette — xanh lá tuoi, n?n tr?ng/xám nh?t
+const Color _kPrimary    = Color(0xFF6DC22E);
+const Color _kPrimaryDk  = Color(0xFF0A3323);
+const Color _kPrimaryBg  = Color(0xFFC8E86A);
+const Color _kSecondary  = Color(0xFF4F7A62);
+const Color _kBorder     = Color(0xFFD5E0D0);
+const Color _kSurface    = Color(0xFFFFFFFF);
+const Color _kBg         = Color(0xFFF3F6EC);
+const Color _kShadow     = Color(0x14000000);
+const Color _kBlue       = Color(0xFF4F7A62);
+const Color _kBlueLight  = Color(0xFF3D8B6E);
+const Color _kNavyDeep   = Color(0xFF0A3323);
+const Color _kNavy       = Color(0xFF0A3323);
+const Color _kNavyLift   = Color(0xFF6DC22E);
+const Color _kBorderBlue = Color(0xFFD5E0D0);
 
 class HomeHeader extends ConsumerWidget {
   const HomeHeader({
@@ -43,6 +50,20 @@ class HomeHeader extends ConsumerWidget {
     return 'Chào buổi tối!';
   }
 
+  String _initials(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return 'CS';
+    if (parts.length == 1) {
+      final s = parts.first;
+      return (s.length >= 2 ? s.substring(0, 2) : s).toUpperCase();
+    }
+    return (parts.first[0] + parts.last[0]).toUpperCase();
+  }
+
   void _showFarmSelector(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -50,19 +71,15 @@ class HomeHeader extends ConsumerWidget {
       builder: (ctx) {
         return Container(
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [_kNavyLift, _kNavy, _kNavyDeep],
-            ),
+            color: _kSurface,
             borderRadius:
                 const BorderRadius.vertical(top: Radius.circular(24)),
             border: Border.all(
-              color: _kBorderBlue.withValues(alpha: 0.5),
+              color: _kBorder,
             ),
             boxShadow: [
               BoxShadow(
-                color: _kBlue.withValues(alpha: 0.25),
+                color: _kShadow,
                 blurRadius: 24,
                 offset: const Offset(0, -6),
               ),
@@ -71,37 +88,6 @@ class HomeHeader extends ConsumerWidget {
           clipBehavior: Clip.antiAlias,
           child: Stack(
             children: [
-              // Họa tiết lưới khay nuôi + cua (đồng bộ trang home)
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: CustomPaint(
-                    painter: CrabHologramPainter(
-                      color: _kBlueLight.withValues(alpha: 0.08),
-                      trayExtent: 28,
-                    ),
-                  ),
-                ),
-              ),
-              // Vệt sáng cạnh trên
-              Positioned(
-                top: 0,
-                left: 32,
-                right: 32,
-                height: 1,
-                child: IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.transparent,
-                          _kBlueLight.withValues(alpha: 0.6),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
               SafeArea(
                 top: false,
                 child: Padding(
@@ -116,47 +102,29 @@ class HomeHeader extends ConsumerWidget {
                           width: 42,
                           height: 4,
                           decoration: BoxDecoration(
-                            color: _kBorderBlue.withValues(alpha: 0.6),
+                            color: _kBorder,
                             borderRadius: BorderRadius.circular(2),
-                            boxShadow: [
-                              BoxShadow(
-                                color: _kBlue.withValues(alpha: 0.4),
-                                blurRadius: 6,
-                              ),
-                            ],
                           ),
                         ),
                       ),
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          // Pin phát sáng như thanh chọn trại
+                          // Pin icon for farm selector
                           Container(
                             width: 38,
                             height: 38,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: _kBlue.withValues(alpha: 0.14),
+                              color: _kPrimaryBg,
                               border: Border.all(
-                                color: _kBlue.withValues(alpha: 0.5),
+                                color: _kPrimary.withValues(alpha: 0.4),
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: _kBlue.withValues(alpha: 0.4),
-                                  blurRadius: 14,
-                                ),
-                              ],
                             ),
                             child: Icon(
                               Icons.location_on_rounded,
-                              color: _kBlue,
+                              color: _kPrimaryDk,
                               size: 20,
-                              shadows: [
-                                Shadow(
-                                  color: _kBlue.withValues(alpha: 0.9),
-                                  blurRadius: 12,
-                                ),
-                              ],
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -167,7 +135,7 @@ class HomeHeader extends ConsumerWidget {
                                 const Text(
                                   'CHỌN TRANG TRẠI ĐIỀU HÀNH',
                                   style: TextStyle(
-                                    color: _kBlueLight,
+                                    color: _kPrimaryDk,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 1.0,
                                     fontSize: 13,
@@ -229,21 +197,7 @@ class HomeHeader extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Stack(
-          children: [
-            // Họa tiết khay nuôi + cua mờ phía sau hàng chào/avatar
-            Positioned.fill(
-              child: IgnorePointer(
-                child: CustomPaint(
-                  painter: CrabHologramPainter(
-                    color: _kBlueLight.withValues(alpha: 0.09),
-                  ),
-                ),
-              ),
-            ),
-            _buildTopRow(context, unreadCount: unread),
-          ],
-        ),
+        _buildTopRow(context, unreadCount: unread),
         const SizedBox(height: 14),
         // Farm selector — neon left-edge + wireframe (matches design ref)
         _FarmSelectorBar(
@@ -272,23 +226,27 @@ class HomeHeader extends ConsumerWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: _kBlue,
+                      color: _kPrimary,
                       width: 2.2,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: _kBlue.withValues(alpha: 0.5),
-                        blurRadius: 16,
+                        color: _kPrimary.withValues(alpha: 0.25),
+                        blurRadius: 10,
                         spreadRadius: 1,
                       ),
                     ],
                   ),
-                  child: const CircleAvatar(
-                    backgroundColor: _kNavy,
+                  child: CircleAvatar(
+                    backgroundColor: _kPrimaryBg,
                     child: Text(
-                      'OP',
+                      _initials(
+                        data.operatorName.isNotEmpty
+                            ? data.operatorName
+                            : 'CS',
+                      ),
                       style: TextStyle(
-                        color: _kBlueLight,
+                        color: _kPrimaryDk,
                         fontWeight: FontWeight.w800,
                         fontSize: 15,
                       ),
@@ -406,8 +364,8 @@ class HomeHeader extends ConsumerWidget {
   }
 }
 
-/// Item chọn trại trong bottom sheet: pin phát sáng + tên trại,
-/// item đang chọn có viền + glow xanh và nhãn "Đang điều hành".
+/// Item ch?n tr?i trong bottom sheet: pin phát sáng + tên tr?i,
+/// item dang ch?n có vi?n + glow xanh và nhãn "Ðang di?u hành".
 class _FarmOptionTile extends StatelessWidget {
   const _FarmOptionTile({
     required this.name,
@@ -434,32 +392,21 @@ class _FarmOptionTile extends StatelessWidget {
               vertical: 12,
             ),
             decoration: BoxDecoration(
-              gradient: isSelected
-                  ? LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [
-                        _kBlue.withValues(alpha: 0.22),
-                        _kBlue.withValues(alpha: 0.08),
-                      ],
-                    )
-                  : const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [_kNavyLift, _kNavyDeep],
-                    ),
+              color: isSelected
+                  ? _kPrimary.withValues(alpha: 0.10)
+                  : _kBg,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: isSelected
-                    ? _kBlue.withValues(alpha: 0.9)
-                    : _kBorderBlue.withValues(alpha: 0.4),
+                    ? _kPrimary.withValues(alpha: 0.8)
+                    : _kBorder,
                 width: isSelected ? 1.4 : 1,
               ),
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: _kBlue.withValues(alpha: 0.35),
-                        blurRadius: 14,
+                        color: _kPrimary.withValues(alpha: 0.15),
+                        blurRadius: 10,
                       ),
                     ]
                   : null,
@@ -472,34 +419,18 @@ class _FarmOptionTile extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: isSelected
-                        ? _kBlue.withValues(alpha: 0.18)
-                        : _kNavy.withValues(alpha: 0.8),
+                        ? _kPrimary.withValues(alpha: 0.15)
+                        : _kBg,
                     border: Border.all(
                       color: isSelected
-                          ? _kBlue.withValues(alpha: 0.6)
-                          : _kBorderBlue.withValues(alpha: 0.4),
+                          ? _kPrimary.withValues(alpha: 0.6)
+                          : _kBorder,
                     ),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: _kBlue.withValues(alpha: 0.45),
-                              blurRadius: 12,
-                            ),
-                          ]
-                        : null,
                   ),
                   child: Icon(
                     Icons.location_on_rounded,
                     size: 18,
-                    color: isSelected ? _kBlue : CrabSenseColors.hintText,
-                    shadows: isSelected
-                        ? [
-                            Shadow(
-                              color: _kBlue.withValues(alpha: 0.9),
-                              blurRadius: 10,
-                            ),
-                          ]
-                        : null,
+                    color: isSelected ? _kPrimaryDk : CrabSenseColors.textHint,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -511,7 +442,7 @@ class _FarmOptionTile extends StatelessWidget {
                         name,
                         style: TextStyle(
                           color: isSelected
-                              ? Colors.white
+                              ? _kPrimaryDk
                               : CrabSenseColors.textPrimary,
                           fontWeight:
                               isSelected ? FontWeight.w800 : FontWeight.w600,
@@ -525,7 +456,7 @@ class _FarmOptionTile extends StatelessWidget {
                         const Text(
                           'Đang điều hành',
                           style: TextStyle(
-                            color: _kBlueLight,
+                            color: _kPrimaryDk,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -537,19 +468,13 @@ class _FarmOptionTile extends StatelessWidget {
                 if (isSelected)
                   Icon(
                     Icons.check_circle_rounded,
-                    color: _kBlue,
+                    color: _kPrimary,
                     size: 22,
-                    shadows: [
-                      Shadow(
-                        color: _kBlue.withValues(alpha: 0.8),
-                        blurRadius: 10,
-                      ),
-                    ],
                   )
                 else
                   Icon(
                     Icons.chevron_right_rounded,
-                    color: CrabSenseColors.hintText.withValues(alpha: 0.7),
+                    color: CrabSenseColors.textHint,
                     size: 22,
                   ),
               ],
@@ -561,7 +486,7 @@ class _FarmOptionTile extends StatelessWidget {
   }
 }
 
-/// Nút đóng tròn nhỏ trong bottom sheet.
+/// Nút dóng tròn nh? trong bottom sheet.
 class _SheetCloseButton extends StatelessWidget {
   const _SheetCloseButton({required this.onTap});
 
@@ -579,14 +504,14 @@ class _SheetCloseButton extends StatelessWidget {
           height: 34,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: _kNavy.withValues(alpha: 0.9),
+            color: _kBg,
             border: Border.all(
-              color: _kBorderBlue.withValues(alpha: 0.45),
+              color: _kBorder,
             ),
           ),
           child: const Icon(
             Icons.close_rounded,
-            color: CrabSenseColors.hintText,
+            color: CrabSenseColors.textSecondary,
             size: 18,
           ),
         ),
@@ -595,8 +520,8 @@ class _SheetCloseButton extends StatelessWidget {
   }
 }
 
-/// Pill chọn trại theo ảnh: nền navy gradient, viền xanh dương sáng nhẹ,
-/// pin định vị xanh phát sáng + watermark cua mờ bên phải.
+/// Pill ch?n tr?i theo ?nh: n?n navy gradient, vi?n xanh duong sáng nh?,
+/// pin d?nh v? xanh phát sáng + watermark cua m? bên ph?i.
 class _FarmSelectorBar extends StatelessWidget {
   const _FarmSelectorBar({
     required this.farmName,
@@ -620,16 +545,16 @@ class _FarmSelectorBar extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
-              colors: [_kNavy, _kNavyDeep, Color(0xFF0B2144)],
+              colors: [Color(0xFF2ECC71), Color(0xFF27AE60)],
             ),
             borderRadius: BorderRadius.circular(28),
             border: Border.all(
-              color: _kBorderBlue.withValues(alpha: 0.5),
+              color: Color(0xFF27AE60),
             ),
             boxShadow: [
               BoxShadow(
-                color: _kBlue.withValues(alpha: 0.2),
-                blurRadius: 14,
+                color: Color(0x282ECC71),
+                blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
             ],
@@ -637,124 +562,24 @@ class _FarmSelectorBar extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           child: Stack(
             children: [
-              // Vầng sáng xanh lan ra từ khu vực pin (bên trái, như ảnh)
-              Positioned(
-                left: -18,
-                top: -18,
-                bottom: -18,
-                width: 110,
-                child: IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: RadialGradient(
-                        colors: [
-                          _kBlue.withValues(alpha: 0.28),
-                          _kBlue.withValues(alpha: 0.0),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              // Nền: lưới khay nuôi isometric, mỗi khay một con cua,
-              // cua lớn phát sáng ở giữa-phải (mờ dần về trái để lộ chữ)
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: CustomPaint(
-                    painter: CrabHologramPainter(
-                      color: _kBlueLight.withValues(alpha: 0.16),
-                    ),
-                  ),
-                ),
-              ),
-              // Highlight nhẹ ở cạnh trên (ánh sáng như ảnh)
-              Positioned(
-                top: 0,
-                left: 20,
-                right: 20,
-                height: 1,
-                child: IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.transparent,
-                          _kBlueLight.withValues(alpha: 0.6),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              // Pin + tên trại + chevron
+              // Pin + tên tr?i + chevron
               Positioned.fill(
                 child: Padding(
                   padding: const EdgeInsets.only(left: 12, right: 16),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      SizedBox(
-                        width: 36,
-                        height: 36,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Quầng glow phía sau pin
-                            DecoratedBox(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: RadialGradient(
-                                  colors: [
-                                    _kBlue.withValues(alpha: 0.45),
-                                    _kBlue.withValues(alpha: 0.0),
-                                  ],
-                                ),
-                              ),
-                              child: const SizedBox.expand(),
-                            ),
-                            // Lõi sáng hiện qua lỗ tròn của pin
-                            Transform.translate(
-                              offset: const Offset(0, -2.5),
-                              child: Container(
-                                width: 9,
-                                height: 9,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white.withValues(alpha: 0.95),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: _kBlueLight,
-                                      blurRadius: 8,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            Icon(
-                              Icons.location_on_rounded,
-                              color: _kBlue,
-                              size: 26,
-                              shadows: [
-                                Shadow(
-                                  color: _kBlue.withValues(alpha: 0.95),
-                                  blurRadius: 14,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                      Icon(
+                        Icons.location_on_rounded,
+                        color: Colors.white,
+                        size: 24,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           farmName,
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                            letterSpacing: 0.1,
-                            height: 1.0,
+                            color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15, letterSpacing: 0.1, height: 1.0,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -800,13 +625,13 @@ class _HeaderActionButton extends StatelessWidget {
           height: 40,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: _kNavy.withValues(alpha: 0.9),
+            color: Colors.white,
             border: Border.all(
-              color: _kBorderBlue.withValues(alpha: 0.55),
+              color: const Color(0xFFDDE4EB),
             ),
             boxShadow: [
               BoxShadow(
-                color: _kBlue.withValues(alpha: 0.22),
+                color: const Color(0x142ECC71),
                 blurRadius: 10,
               ),
             ],
@@ -815,7 +640,7 @@ class _HeaderActionButton extends StatelessWidget {
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
-              Icon(icon, color: CrabSenseColors.textPrimary, size: 20),
+              Icon(icon, color: const Color(0xFF1A2E3B), size: 20),
               if (badge != null)
                 Positioned(
                   top: 2,
@@ -840,10 +665,7 @@ class _HeaderActionButton extends StatelessWidget {
                       badge!,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w800,
-                        height: 1.35,
+                        color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800, height: 1.35,
                       ),
                     ),
                   ),

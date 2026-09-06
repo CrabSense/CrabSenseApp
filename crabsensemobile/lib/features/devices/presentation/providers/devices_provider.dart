@@ -1,12 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../../core/di/injection.dart';
+import '../../../../core/network/api_client.dart';
 import '../../data/devices_repository.dart';
 import '../../data/models/iot_device.dart';
 
 final devicesRepositoryProvider = Provider<DevicesRepository>(
-  (ref) => DevicesRepositoryImpl(secureStorage: sl<FlutterSecureStorage>()),
+  (ref) => DevicesRepositoryImpl(api: sl<ApiClient>()),
 );
 
 class DevicesState {

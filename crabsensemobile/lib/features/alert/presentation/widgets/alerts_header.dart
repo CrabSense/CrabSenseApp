@@ -35,7 +35,7 @@ class AlertsHeader extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+              colors: [kHomeSurface, kHomeBg, kHomeBg],
             ),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
@@ -82,7 +82,7 @@ class AlertsHeader extends StatelessWidget {
                       const Text(
                         'CHỌN TRANG TRẠI',
                         style: TextStyle(
-                          color: kHomeBlueLight,
+                          color: kHomePrimaryDark,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1,
                           fontSize: 14,
@@ -109,7 +109,7 @@ class AlertsHeader extends StatelessWidget {
                                 decoration: BoxDecoration(
                                   color: selected
                                       ? kHomeBlue.withValues(alpha: 0.22)
-                                      : kHomeNavyDeep.withValues(alpha: 0.65),
+                                      : kHomeBg.withValues(alpha: 0.65),
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
                                     color: selected
@@ -129,7 +129,7 @@ class AlertsHeader extends StatelessWidget {
                                       child: Text(
                                         f.name,
                                         style: TextStyle(
-                                          color: Colors.white,
+                                          color: kHomeTextMain,
                                           fontWeight: selected
                                               ? FontWeight.w700
                                               : FontWeight.w500,
@@ -206,7 +206,7 @@ class AlertsHeader extends StatelessWidget {
                         child: Text(
                           'CẢNH BÁO',
                           style: TextStyle(
-                            color: kHomeBlueLight,
+                            color: kHomePrimaryDark,
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.2,
@@ -224,7 +224,7 @@ class AlertsHeader extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.45),
+                    color: const Color(0xFF5A7184),
                     fontSize: 12,
                   ),
                 ),
@@ -259,7 +259,7 @@ class AlertsHeader extends StatelessWidget {
                     if (onMarkAllRead != null || onNotificationSettings != null)
                       PopupMenuButton<_OverflowAction>(
                         tooltip: 'Thêm',
-                        color: kHomeNavyLift,
+                        color: kHomeSurface,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                           side: BorderSide(
@@ -280,7 +280,7 @@ class AlertsHeader extends StatelessWidget {
                               value: _OverflowAction.markAllRead,
                               child: Text(
                                 'Đánh dấu tất cả đã xem',
-                                style: TextStyle(color: Colors.white),
+                                style: TextStyle(color: kHomeTextMain),
                               ),
                             ),
                           if (onNotificationSettings != null)
@@ -288,7 +288,7 @@ class AlertsHeader extends StatelessWidget {
                               value: _OverflowAction.notificationSettings,
                               child: Text(
                                 'Cài đặt thông báo',
-                                style: TextStyle(color: Colors.white),
+                                style: TextStyle(color: kHomeTextMain),
                               ),
                             ),
                         ],
@@ -297,7 +297,7 @@ class AlertsHeader extends StatelessWidget {
                           height: 40,
                           margin: const EdgeInsets.only(left: 4),
                           decoration: BoxDecoration(
-                            color: kHomeNavyDeep.withValues(alpha: 0.65),
+                            color: kHomeBg.withValues(alpha: 0.65),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: kHomeBorderBlue.withValues(alpha: 0.45),
@@ -345,7 +345,7 @@ class _FarmSelectorBar extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+              colors: [kHomeSurface, kHomeBg, kHomeBg],
             ),
             borderRadius: BorderRadius.circular(28),
             border: Border.all(
@@ -402,7 +402,7 @@ class _FarmSelectorBar extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: kHomeTextMain,
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
@@ -411,7 +411,7 @@ class _FarmSelectorBar extends StatelessWidget {
                       Icon(
                         Icons.keyboard_arrow_down_rounded,
                         size: 18,
-                        color: Colors.white.withValues(alpha: 0.7),
+                        color: const Color(0xFF5A7184),
                       ),
                     ],
                   ),
@@ -455,7 +455,7 @@ class _HeaderIconButton extends StatelessWidget {
               decoration: BoxDecoration(
                 color: active
                     ? kHomeBlue.withValues(alpha: 0.28)
-                    : kHomeNavyDeep.withValues(alpha: 0.65),
+                    : kHomeBg.withValues(alpha: 0.65),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: active

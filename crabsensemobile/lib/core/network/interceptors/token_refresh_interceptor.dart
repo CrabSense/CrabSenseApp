@@ -33,10 +33,12 @@ import 'auth_interceptor.dart' show AuthInterceptor;
 /// Requirements: 1.3, 1.10, 23.4
 class TokenRefreshInterceptor extends Interceptor {
   TokenRefreshInterceptor({
-    required this._localDataSource,
-    required this._dio,
-    required this._logger,
-  });
+    required AuthLocalDataSource localDataSource,
+    required Dio dio,
+    required Logger logger,
+  })  : _localDataSource = localDataSource,
+        _dio = dio,
+        _logger = logger;
 
   final AuthLocalDataSource _localDataSource;
 
@@ -70,7 +72,13 @@ class TokenRefreshInterceptor extends Interceptor {
     final isUnauthorized = response?.statusCode == 401;
     final isRefreshEndpoint = request.path.contains(ApiConstants.refreshToken);
 
-    if (!isUnauthorized || isRefreshEndpoint) {
+    final authHeader =
+        request.headers['Authorization'] ?? request.headers['authorization'];
+    final hasBearer = authHeader?.toString().startsWith('Bearer ') ?? false;
+
+    // No JWT was sent — refreshing cannot help (and CacheException here
+    // used to surface as a generic "Không thể thực hiện" on Boxes).
+    if (!isUnauthorized || isRefreshEndpoint || !hasBearer) {
       handler.next(err);
       return;
     }

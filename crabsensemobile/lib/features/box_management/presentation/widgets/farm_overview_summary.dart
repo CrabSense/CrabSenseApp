@@ -101,7 +101,7 @@ class FarmOverviewSummary extends StatelessWidget {
                           if (overview.total == 0)
                             Expanded(
                               child: Container(
-                                color: kHomeNavyLift,
+                                color: kHomeSurface,
                               ),
                             ),
                         ],
@@ -127,7 +127,7 @@ class FarmOverviewSummary extends StatelessWidget {
                         Text(
                           '${overview.withAiRecommendation} Box có đề xuất AI',
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.7),
+                            color: const Color(0xFF5A7184),
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -136,7 +136,7 @@ class FarmOverviewSummary extends StatelessWidget {
                         Text(
                           '${((overview.healthy / total) * 100).round()}% ổn định',
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.45),
+                            color: const Color(0xFF5A7184),
                             fontSize: 10,
                           ),
                         ),
@@ -194,7 +194,7 @@ class _Stat extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.45),
+                  color: const Color(0xFF5A7184),
                   fontSize: 9.5,
                   fontWeight: FontWeight.w600,
                 ),

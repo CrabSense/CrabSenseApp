@@ -121,7 +121,7 @@ class SecurityPrivacyScreen extends ConsumerWidget {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+            colors: [kHomeSurface, kHomeBg, kHomeBg],
           ),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
@@ -134,7 +134,7 @@ class SecurityPrivacyScreen extends ConsumerWidget {
             Text(
               title,
               style: const TextStyle(
-                color: Colors.white,
+                color: kHomeTextMain,
                 fontWeight: FontWeight.w800,
                 fontSize: 16,
               ),
@@ -143,7 +143,7 @@ class SecurityPrivacyScreen extends ConsumerWidget {
             Text(
               body,
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7),
+                color: const Color(0xFF5A7184),
                 height: 1.4,
                 fontSize: 14,
               ),
@@ -155,7 +155,7 @@ class SecurityPrivacyScreen extends ConsumerWidget {
                 onPressed: () => Navigator.pop(ctx),
                 style: FilledButton.styleFrom(
                   backgroundColor: kHomeCyan,
-                  foregroundColor: kHomeNavyDeep,
+                  foregroundColor: kHomeBg,
                 ),
                 child: const Text('Đóng'),
               ),

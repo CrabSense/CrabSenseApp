@@ -1,6 +1,6 @@
 // ignore_for_file: lines_longer_than_80_chars
 
-import 'dart:io';
+import 'package:crabsensemobile/core/platform/io_export.dart';
 
 import 'package:logger/logger.dart';
 import 'package:video_compress/video_compress.dart';

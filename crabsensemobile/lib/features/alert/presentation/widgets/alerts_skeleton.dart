@@ -84,7 +84,7 @@ class PriorityAlertSkeleton extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: kHomeNavyLift,
+        color: kHomeSurface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: kHomeBorderBlue),
       ),
@@ -145,7 +145,7 @@ class AlertCardSkeleton extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: kHomeNavyLift,
+        color: kHomeSurface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: kHomeBorderBlue),
       ),
@@ -295,9 +295,9 @@ class _ShimmerBlockState extends State<_ShimmerBlock>
               begin: Alignment(_animation.value - 1, 0),
               end: Alignment(_animation.value, 0),
               colors: const [
-                kHomeNavy,
-                kHomeNavyDeep,
-                kHomeNavy,
+                kHomeBg,
+                kHomeBg,
+                kHomeBg,
               ],
             ),
           ),

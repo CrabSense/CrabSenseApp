@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 
@@ -114,6 +115,7 @@ class BiometricAuthServiceImpl implements BiometricAuthService {
 
   @override
   Future<BiometricResult> checkAvailability() async {
+    if (kIsWeb) return BiometricResult.notAvailable;
     try {
       // isDeviceSupported() returns true even when biometrics are enrolled,
       // but canCheckBiometrics specifically checks biometric hardware.
@@ -141,6 +143,7 @@ class BiometricAuthServiceImpl implements BiometricAuthService {
 
   @override
   Future<List<BiometricType>> getAvailableBiometrics() async {
+    if (kIsWeb) return const [];
     try {
       return await localAuth.getAvailableBiometrics();
     } on Exception {
@@ -152,6 +155,7 @@ class BiometricAuthServiceImpl implements BiometricAuthService {
   Future<BiometricResult> authenticate({
     String localizedReason = 'Authenticate to access CrabSense',
   }) async {
+    if (kIsWeb) return BiometricResult.notAvailable;
     try {
       final result = await localAuth.authenticate(
         localizedReason: localizedReason,

@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:crabsensemobile/core/platform/io_export.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../shared/widgets/local_file_image.dart';
 import '../../../../app/theme.dart';
 import '../../../../core/di/injection.dart';
 import '../../../authentication/domain/entities/user.dart';
@@ -103,7 +104,7 @@ InputDecoration _fieldDecoration({
     hintStyle: const TextStyle(color: CrabSenseColors.textDisabled, fontSize: 13),
     suffixStyle: const TextStyle(color: CrabSenseColors.textSecondary),
     filled: true,
-    fillColor: kHomeNavyDeep.withValues(alpha: 0.75),
+    fillColor: kHomeBg.withValues(alpha: 0.75),
     enabledBorder: border(kHomeBorderBlue.withValues(alpha: 0.4)),
     focusedBorder: border(kHomeBlue, 1.5),
     errorBorder: border(CrabSenseColors.error.withValues(alpha: 0.6)),
@@ -129,7 +130,7 @@ class _HarvestView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF071426),
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         foregroundColor: CrabSenseColors.textPrimary,
@@ -139,7 +140,7 @@ class _HarvestView extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+              colors: [kHomeSurface, kHomeBg, kHomeBg],
             ),
             border: Border(
               bottom: BorderSide(
@@ -166,7 +167,7 @@ class _HarvestView extends StatelessWidget {
             const Text(
               'GHI NHẬN THU HOẠCH',
               style: TextStyle(
-                color: kHomeBlueLight,
+                color: kHomePrimaryDark,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.0,
                 fontSize: 14,
@@ -280,7 +281,7 @@ class _HarvestView extends StatelessWidget {
     return Text(
       title,
       style: const TextStyle(
-        color: kHomeBlueLight,
+        color: kHomePrimaryDark,
         fontSize: 12.5,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.6,
@@ -370,7 +371,7 @@ class _HarvestView extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: kHomeNavyDeep.withValues(alpha: 0.75),
+        color: kHomeBg.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.4)),
       ),
@@ -390,7 +391,7 @@ class _HarvestView extends StatelessWidget {
           Text(
             avgWeight > 0 ? '${avgWeight.toStringAsFixed(2)} kg / con' : '-- kg / con',
             style: TextStyle(
-              color: kHomeBlueLight,
+              color: kHomePrimaryDark,
               fontSize: 14,
               fontWeight: FontWeight.bold,
               shadows: [
@@ -426,7 +427,7 @@ class _HarvestView extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: isSelected
                           ? kHomeBlue.withValues(alpha: 0.18)
-                          : kHomeNavyDeep.withValues(alpha: 0.75),
+                          : kHomeBg.withValues(alpha: 0.75),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isSelected
@@ -505,7 +506,7 @@ class _HarvestView extends StatelessWidget {
                 colorScheme: const ColorScheme.dark(
                   primary: kHomeBlue,
                   onPrimary: Colors.white,
-                  surface: kHomeNavy,
+                  surface: kHomeBg,
                   onSurface: CrabSenseColors.textPrimary,
                 ),
               ),
@@ -524,7 +525,7 @@ class _HarvestView extends StatelessWidget {
                   colorScheme: const ColorScheme.dark(
                     primary: kHomeBlue,
                     onPrimary: Colors.white,
-                    surface: kHomeNavy,
+                    surface: kHomeBg,
                     onSurface: CrabSenseColors.textPrimary,
                   ),
                 ),
@@ -551,7 +552,7 @@ class _HarvestView extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: kHomeNavyDeep.withValues(alpha: 0.75),
+          color: kHomeBg.withValues(alpha: 0.75),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: state.dateError != null
@@ -629,7 +630,7 @@ class _PhotoSection extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [kHomeNavyLift, kHomeNavy, kHomeNavyDeep],
+              colors: [kHomeSurface, kHomeBg, kHomeBg],
             ),
             borderRadius:
                 const BorderRadius.vertical(top: Radius.circular(20)),
@@ -700,7 +701,7 @@ class _PhotoSection extends StatelessWidget {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: kHomeNavyDeep.withValues(alpha: 0.75),
+                    color: kHomeBg.withValues(alpha: 0.75),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: kHomeBlue.withValues(alpha: 0.5),
@@ -721,7 +722,7 @@ class _PhotoSection extends StatelessWidget {
                       Text(
                         'Thêm ảnh',
                         style: TextStyle(
-                            color: kHomeBlueLight, fontSize: 10),
+                            color: kHomePrimaryDark, fontSize: 10),
                       ),
                     ],
                   ),
@@ -749,15 +750,15 @@ class _PhotoThumbnail extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.file(
-              File(path),
+            child: LocalFileImage(
+              path: path,
               width: 80,
               height: 80,
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => Container(
                 width: 80,
                 height: 80,
-                color: kHomeNavyLift,
+                color: kHomeSurface,
                 child: const Icon(Icons.broken_image_outlined,
                     color: CrabSenseColors.textSecondary),
               ),
@@ -828,7 +829,7 @@ class _SubmitButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: kHomeBlue,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: kHomeNavyLift,
+          disabledBackgroundColor: kHomeSurface,
           disabledForegroundColor: CrabSenseColors.textDisabled,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),

@@ -1,5 +1,5 @@
 // ignore_for_file: lines_longer_than_80_chars
-import 'dart:io';
+import 'package:crabsensemobile/core/platform/io_export.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:logger/logger.dart';
 
+import '../../../../shared/widgets/local_file_image.dart';
 import '../../../../app/routes.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 import '../../../../core/di/injection.dart';
@@ -79,17 +80,17 @@ class _InspectionView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kHomeNavyDeep,
+    backgroundColor: kHomeBg,
     appBar: AppBar(
       title: const Text(
         'KIỂM TRA THỦ CÔNG',
         style: TextStyle(
-          color: kHomeBlueLight,
+          color: kHomePrimaryDark,
           fontWeight: FontWeight.w800,
           letterSpacing: 1,
         ),
       ),
-      backgroundColor: kHomeNavy,
+      backgroundColor: kHomeBg,
       foregroundColor: kHomeBlueLight,
       elevation: 0,
     ),
@@ -412,7 +413,7 @@ class _SkeletonLine extends StatelessWidget {
     width: width,
     height: height,
     decoration: BoxDecoration(
-      color: kHomeNavyLift,
+      color: kHomeSurface,
       borderRadius: BorderRadius.circular(4),
     ),
   );
@@ -447,13 +448,13 @@ class _MoltingDropdown extends StatelessWidget {
   Widget build(BuildContext context) => DropdownButtonFormField<MoltingStatus>(
     initialValue: current,
     decoration: const InputDecoration(hintText: 'Chọn trạng thái lột xác'),
-    dropdownColor: kHomeNavy,
-    style: const TextStyle(color: Colors.white),
+    dropdownColor: kHomeBg,
+    style: const TextStyle(color: kHomeTextMain),
     items: MoltingStatus.values
         .map(
           (s) => DropdownMenuItem(
             value: s,
-            child: Text(s.displayName, style: const TextStyle(color: Colors.white)),
+            child: Text(s.displayName, style: const TextStyle(color: kHomeTextMain)),
           ),
         )
         .toList(),
@@ -474,13 +475,13 @@ class _HealthDropdown extends StatelessWidget {
   Widget build(BuildContext context) => DropdownButtonFormField<HealthStatus>(
     initialValue: current,
     decoration: const InputDecoration(hintText: 'Chọn tình trạng sức khỏe'),
-    dropdownColor: kHomeNavy,
-    style: const TextStyle(color: Colors.white),
+    dropdownColor: kHomeBg,
+    style: const TextStyle(color: kHomeTextMain),
     items: HealthStatus.values
         .map(
           (s) => DropdownMenuItem(
             value: s,
-            child: Text(s.displayName, style: const TextStyle(color: Colors.white)),
+            child: Text(s.displayName, style: const TextStyle(color: kHomeTextMain)),
           ),
         )
         .toList(),
@@ -503,7 +504,7 @@ class _WeightInput extends StatelessWidget {
     controller: controller,
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
     inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
-    style: const TextStyle(color: Colors.white),
+    style: const TextStyle(color: kHomeTextMain),
     decoration: InputDecoration(
       hintText: 'e.g. 150.5',
       errorText: errorText,
@@ -523,7 +524,7 @@ class _NotesInput extends StatelessWidget {
   Widget build(BuildContext context) => TextFormField(
     controller: controller,
     maxLines: 4,
-    style: const TextStyle(color: Colors.white),
+    style: const TextStyle(color: kHomeTextMain),
     decoration: const InputDecoration(
       hintText: 'Thêm quan sát hoặc ghi chú...',
       alignLabelWithHint: true,
@@ -570,7 +571,7 @@ class _PhotoCaptureWidget extends StatelessWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: kHomeNavyLift,
+                  color: kHomeSurface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: kHomeCyan.withValues(alpha: 0.4)),
                 ),
@@ -606,15 +607,15 @@ class _PhotoThumbnail extends StatelessWidget {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: Image.file(
-            File(path),
+          child: LocalFileImage(
+            path: path,
             width: 80,
             height: 80,
             fit: BoxFit.cover,
             errorBuilder: (_, _, _) => Container(
               width: 80,
               height: 80,
-              color: kHomeNavyLift,
+              color: kHomeSurface,
               child: const Icon(Icons.broken_image_outlined, color: Colors.white70),
             ),
           ),
@@ -658,7 +659,7 @@ class _AiFeedbackSection extends StatelessWidget {
           const Text(
             'Kết quả AI có chính xác không?',
             style: TextStyle(
-              color: Colors.white,
+              color: kHomeTextMain,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -823,7 +824,7 @@ class _AgreementRateWidget extends StatelessWidget {
               Expanded(
                 child: LinearProgressIndicator(
                   value: agreementRate,
-                  backgroundColor: kHomeNavyLift,
+                  backgroundColor: kHomeSurface,
                   color: kHomeGreen,
                   minHeight: 8,
                   borderRadius: BorderRadius.circular(4),
@@ -833,7 +834,7 @@ class _AgreementRateWidget extends StatelessWidget {
               Text(
                 '${(agreementRate * 100).toStringAsFixed(0)}%',
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: kHomeTextMain,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -863,7 +864,7 @@ class _GlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DecoratedBox(
     decoration: BoxDecoration(
-      color: kHomeNavy,
+      color: kHomeBg,
       borderRadius: BorderRadius.circular(16),
       border: Border.all(color: kHomeCyan.withValues(alpha: 0.2)),
     ),
@@ -905,28 +906,28 @@ class _InspectionChecklistWidgetState extends State<_InspectionChecklistWidget> 
               value: _isSoftShell,
               dense: true,
               activeColor: kHomeCyan,
-              title: const Text('Vỏ mềm (Softshell sẵn sàng)', style: TextStyle(color: Colors.white, fontSize: 12)),
+              title: const Text('Vỏ mềm (Softshell sẵn sàng)', style: TextStyle(color: kHomeTextMain, fontSize: 12)),
               onChanged: (val) => setState(() => _isSoftShell = val ?? false),
             ),
             CheckboxListTile(
               value: _hasGoodReflex,
               dense: true,
               activeColor: kHomeCyan,
-              title: const Text('Phản xạ tốt (Khỏe mạnh)', style: TextStyle(color: Colors.white, fontSize: 12)),
+              title: const Text('Phản xạ tốt (Khỏe mạnh)', style: TextStyle(color: kHomeTextMain, fontSize: 12)),
               onChanged: (val) => setState(() => _hasGoodReflex = val ?? false),
             ),
             CheckboxListTile(
               value: _hasDoubleLine,
               dense: true,
               activeColor: kHomeCyan,
-              title: const Text('Thấy đường đôi (Double line - Sắp lột)', style: TextStyle(color: Colors.white, fontSize: 12)),
+              title: const Text('Thấy đường đôi (Double line - Sắp lột)', style: TextStyle(color: kHomeTextMain, fontSize: 12)),
               onChanged: (val) => setState(() => _hasDoubleLine = val ?? false),
             ),
             CheckboxListTile(
               value: _isMolted,
               dense: true,
               activeColor: kHomeCyan,
-              title: const Text('Đã lột vỏ xong (Post-molt)', style: TextStyle(color: Colors.white, fontSize: 12)),
+              title: const Text('Đã lột vỏ xong (Post-molt)', style: TextStyle(color: kHomeTextMain, fontSize: 12)),
               onChanged: (val) => setState(() => _isMolted = val ?? false),
             ),
           ],

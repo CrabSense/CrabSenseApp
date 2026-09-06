@@ -65,13 +65,13 @@ class _HarvestHistoryViewState extends State<_HarvestHistoryView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: CrabSenseColors.background,
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         title: const Text(
           'Harvest History & Analytics',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: CrabSenseColors.surface,
+        backgroundColor: const Color(0xFFFFFFFF),
         foregroundColor: CrabSenseColors.textPrimary,
         elevation: 0,
         actions: [
@@ -258,7 +258,7 @@ class _HarvestHistoryViewState extends State<_HarvestHistoryView> {
         : 'Filter Date Range';
 
     return Container(
-      color: CrabSenseColors.surface,
+      color: const Color(0xFFFFFFFF),
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -281,7 +281,7 @@ class _HarvestHistoryViewState extends State<_HarvestHistoryView> {
               ),
               backgroundColor: hasDateFilter
                   ? CrabSenseColors.primary.withValues(alpha: 0.1)
-                  : CrabSenseColors.background,
+                  : const Color(0xFFF5F7FA),
               side: BorderSide(
                 color: hasDateFilter ? CrabSenseColors.primary : CrabSenseColors.border,
               ),
@@ -296,7 +296,7 @@ class _HarvestHistoryViewState extends State<_HarvestHistoryView> {
                 'All Grades',
                 style: TextStyle(color: CrabSenseColors.textSecondary, fontSize: 12),
               ),
-              dropdownColor: CrabSenseColors.surface,
+              dropdownColor: const Color(0xFFFFFFFF),
               underline: const SizedBox(),
               icon: const Icon(Icons.arrow_drop_down, color: CrabSenseColors.textSecondary),
               items: [
@@ -357,7 +357,7 @@ class _HarvestHistoryViewState extends State<_HarvestHistoryView> {
             colorScheme: const ColorScheme.dark(
               primary: CrabSenseColors.primary,
               onPrimary: Colors.black,
-              surface: CrabSenseColors.surface,
+              surface: const Color(0xFFFFFFFF),
               onSurface: CrabSenseColors.textPrimary,
             ),
           ),
@@ -384,7 +384,7 @@ class _HarvestHistoryViewState extends State<_HarvestHistoryView> {
 
     return Container(
       decoration: BoxDecoration(
-        color: CrabSenseColors.surface,
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: CrabSenseColors.border),
       ),
@@ -542,7 +542,7 @@ class _HarvestHistoryViewState extends State<_HarvestHistoryView> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
       decoration: BoxDecoration(
-        color: CrabSenseColors.surface,
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(

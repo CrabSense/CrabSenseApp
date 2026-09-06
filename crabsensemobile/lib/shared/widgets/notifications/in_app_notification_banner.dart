@@ -16,6 +16,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../features/home/presentation/widgets/home_palette.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 import '../../services/notification_service.dart';
@@ -227,7 +228,7 @@ class _InAppNotificationBannerState extends State<InAppNotificationBanner>
               child: Container(
                 margin: EdgeInsets.only(top: topPadding + 8, left: 12, right: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0F1F3D).withValues(alpha: 0.96),
+                  color: const Color(0xFFFFFFFF).withValues(alpha: 0.96),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: accent.withValues(alpha: 0.5), width: 1.2),
                   boxShadow: [
@@ -288,7 +289,7 @@ class _InAppNotificationBannerState extends State<InAppNotificationBanner>
                                     Text(
                                       title,
                                       style: const TextStyle(
-                                        color: Colors.white,
+                                        color: kHomeTextMain,
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
                                       ),
