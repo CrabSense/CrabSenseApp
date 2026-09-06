@@ -11,6 +11,7 @@ import '../models/area_environment_metric.dart';
 import '../models/farm_dashboard_overview.dart';
 import '../models/feed_management_overview.dart';
 import '../models/water_quality.dart';
+import '../models/crab_profile.dart';
 import '../models/production_models.dart';
 
 part 'production_cloud_api.dart';
@@ -411,6 +412,29 @@ class CloudApiClient {
     return uri.replace(queryParameters: {'farmingAreaId': farmingAreaId});
   }
 
+  Future<Map<String, dynamic>> _getDataMap(
+    String token,
+    String path, {
+    String? farmingAreaId,
+  }) async {
+    final uri = _areaUri(path, farmingAreaId);
+    final res = await _client.get(
+      uri,
+      headers: authHeaders(token, farmId: farmingAreaId),
+    );
+    final body = _decode(res);
+    if (res.statusCode == 401) {
+      throw CloudApiException('Phiên đăng nhập hết hạn', statusCode: 401);
+    }
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Lỗi API $path (${res.statusCode})',
+        statusCode: res.statusCode,
+      );
+    }
+    return _asMap(_dataOf(body) ?? body);
+  }
+
   Future<List<Map<String, dynamic>>> _getDataList(
     String token,
     String path, {
@@ -450,12 +474,28 @@ class CloudApiClient {
   }) =>
       _getDataList(token, '/api/operations', farmingAreaId: farmingAreaId);
 
+  Future<List<Map<String, dynamic>>> fetchOperationsRecent(
+    String token, {
+    String? farmingAreaId,
+    int limit = 20,
+  }) =>
+      _getDataList(
+        token,
+        '/api/operations/recent',
+        farmingAreaId: farmingAreaId,
+        extraQuery: {'limit': '$limit'},
+      );
+
   Future<Map<String, dynamic>> createOperation(
     String token, {
     required String type,
     required String notes,
     String? operatorName,
     List<String> boxIds = const [],
+    DateTime? timestamp,
+    List<String> photoUrls = const [],
+    String source = 'manual',
+    String? locationLabel,
   }) async {
     final uri = Uri.parse('$_base/api/operations');
     final res = await _client.post(
@@ -466,6 +506,11 @@ class CloudApiClient {
         'notes': notes,
         'boxIds': boxIds,
         if (operatorName != null) 'operatorName': operatorName,
+        if (timestamp != null) 'timestamp': timestamp.toUtc().toIso8601String(),
+        if (photoUrls.isNotEmpty) 'photoUrls': photoUrls,
+        'source': source,
+        if (locationLabel != null && locationLabel.isNotEmpty)
+          'locationLabel': locationLabel,
       }),
     );
     final body = _decode(res);
@@ -478,6 +523,30 @@ class CloudApiClient {
     return _asMap(_dataOf(body) ?? body);
   }
 
+  Future<String?> uploadOperationPhoto(
+    String token,
+    String filePath, {
+    String? boxId,
+  }) async {
+    final uri = Uri.parse('$_base/api/operations/photo');
+    final req = http.MultipartRequest('POST', uri);
+    req.headers.addAll(authHeaders(token));
+    req.files.add(await http.MultipartFile.fromPath('file', filePath));
+    if (boxId != null && boxId.isNotEmpty) req.fields['boxId'] = boxId;
+    final streamed = await _client.send(req);
+    final res = await http.Response.fromStream(streamed);
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không tải ảnh nhật ký',
+        statusCode: res.statusCode,
+      );
+    }
+    final data = _asMap(_dataOf(body) ?? body);
+    final url = data['url'] ?? data['Url'];
+    return url?.toString();
+  }
+
   Future<List<Map<String, dynamic>>> fetchHarvestVouchers(
     String token, {
     String? farmingAreaId,
@@ -488,12 +557,26 @@ class CloudApiClient {
         farmingAreaId: farmingAreaId,
       );
 
+  Future<Map<String, dynamic>> fetchHarvestOverview(
+    String token, {
+    String? farmingAreaId,
+  }) =>
+      _getDataMap(
+        token,
+        '/api/harvest-vouchers/overview',
+        farmingAreaId: farmingAreaId,
+      );
+
   Future<Map<String, dynamic>> createHarvestVoucher(
     String token, {
     required DateTime harvestDate,
     String? notes,
     required int quantity,
     required double totalWeightKg,
+    String? farmingAreaId,
+    String? performedByName,
+    List<Map<String, dynamic>>? lines,
+    List<String> photoUrls = const [],
   }) async {
     final uri = Uri.parse('$_base/api/harvest-vouchers');
     final res = await _client.post(
@@ -502,20 +585,97 @@ class CloudApiClient {
       body: jsonEncode({
         'harvestDate': harvestDate.toUtc().toIso8601String(),
         if (notes != null) 'notes': notes,
-        'lines': [
-          {
-            'weightGram': totalWeightKg * 1000 / (quantity == 0 ? 1 : quantity),
-            'grade': 'M',
-            'isSoftshell': false,
-            'notes': 'x$quantity',
-          }
-        ],
+        if (farmingAreaId != null && farmingAreaId.isNotEmpty)
+          'farmingAreaId': farmingAreaId,
+        if (performedByName != null && performedByName.isNotEmpty)
+          'performedByName': performedByName,
+        if (photoUrls.isNotEmpty) 'photoUrls': photoUrls,
+        'lines': lines ??
+            [
+              {
+                'weightGram':
+                    totalWeightKg * 1000 / (quantity == 0 ? 1 : quantity),
+                'grade': 'M',
+                'isSoftshell': false,
+                'notes': 'x$quantity',
+              }
+            ],
       }),
     );
     final body = _decode(res);
     if (_isApiFailure(res, body)) {
       throw CloudApiException(
         _errorMessage(body) ?? 'Không tạo phiếu thu hoạch',
+        statusCode: res.statusCode,
+      );
+    }
+    return _asMap(_dataOf(body) ?? body);
+  }
+
+  Future<List<Map<String, dynamic>>> fetchSalesOrders(
+    String token, {
+    String? farmingAreaId,
+  }) =>
+      _getDataList(
+        token,
+        '/api/sales-orders',
+        farmingAreaId: farmingAreaId,
+      );
+
+  Future<Map<String, dynamic>> fetchSalesOrderOverview(
+    String token, {
+    String? farmingAreaId,
+  }) =>
+      _getDataMap(
+        token,
+        '/api/sales-orders/overview',
+        farmingAreaId: farmingAreaId,
+      );
+
+  Future<List<Map<String, dynamic>>> fetchSalesInventory(
+    String token, {
+    String? farmingAreaId,
+  }) =>
+      _getDataList(
+        token,
+        '/api/sales-orders/inventory',
+        farmingAreaId: farmingAreaId,
+      );
+
+  Future<List<Map<String, dynamic>>> fetchCustomers(String token) =>
+      _getDataList(token, '/api/customers');
+
+  Future<Map<String, dynamic>> createSalesOrder(
+    String token, {
+    required DateTime orderDate,
+    required String customerName,
+    String? customerPhone,
+    required String paymentStatus,
+    String? sellerName,
+    String? farmingAreaId,
+    String? notes,
+    required List<Map<String, dynamic>> lines,
+  }) async {
+    final uri = Uri.parse('$_base/api/sales-orders');
+    final res = await _client.post(
+      uri,
+      headers: {...authHeaders(token), 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'orderDate': orderDate.toUtc().toIso8601String(),
+        'customerName': customerName,
+        if (customerPhone != null) 'customerPhone': customerPhone,
+        'paymentStatus': paymentStatus,
+        if (sellerName != null) 'sellerName': sellerName,
+        if (farmingAreaId != null && farmingAreaId.isNotEmpty)
+          'farmingAreaId': farmingAreaId,
+        if (notes != null) 'notes': notes,
+        'lines': lines,
+      }),
+    );
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không tạo đơn bán hàng',
         statusCode: res.statusCode,
       );
     }
@@ -588,6 +748,25 @@ class CloudApiClient {
   }) =>
       _getDataList(token, '/api/iot/live', farmingAreaId: farmingAreaId);
 
+  /// CrabSenseBE `GET /api/iot/sensor-data/{sensorId}`
+  Future<List<Map<String, dynamic>>> fetchSensorHistory(
+    String token, {
+    required String sensorId,
+    DateTime? from,
+    DateTime? to,
+    int pageSize = 2000,
+  }) =>
+      _getDataList(
+        token,
+        '/api/iot/sensor-data/$sensorId',
+        extraQuery: {
+          if (from != null) 'from': from.toUtc().toIso8601String(),
+          if (to != null) 'to': to.toUtc().toIso8601String(),
+          'page': '1',
+          'pageSize': '$pageSize',
+        },
+      );
+
   /// CrabSenseBE `GET /api/alerts`
   Future<List<Map<String, dynamic>>> fetchAlerts(
     String token, {
@@ -642,12 +821,100 @@ class CloudApiClient {
     }
   }
 
-  /// CrabSenseBE `GET /api/devices`
+  /// CrabSenseBE `GET /api/devices` (alias `/api/controllers`)
   Future<List<Map<String, dynamic>>> fetchCrabSenseDevices(
     String token, {
     String? farmingAreaId,
   }) =>
       _getDataList(token, '/api/devices', farmingAreaId: farmingAreaId);
+
+  Future<Map<String, dynamic>> fetchControllerDetail(
+    String token,
+    String id,
+  ) async {
+    final uri = Uri.parse('$_base/api/devices/$id');
+    final res = await _client.get(uri, headers: authHeaders(token));
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không tải chi tiết controller',
+        statusCode: res.statusCode,
+      );
+    }
+    return _asMap(_dataOf(body) ?? body);
+  }
+
+  Future<Map<String, dynamic>> createController(
+    String token, {
+    required String deviceCode,
+    String? name,
+    String? deviceType,
+    String? macAddress,
+    String? ipAddress,
+    String? firmwareVersion,
+    String? farmingAreaId,
+  }) async {
+    final uri = Uri.parse('$_base/api/devices');
+    final res = await _client.post(
+      uri,
+      headers: {...authHeaders(token), 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'deviceCode': deviceCode,
+        if (name != null && name.isNotEmpty) 'name': name,
+        'deviceType': deviceType ?? 'esp32-s3',
+        if (macAddress != null && macAddress.isNotEmpty) 'macAddress': macAddress,
+        if (ipAddress != null && ipAddress.isNotEmpty) 'ipAddress': ipAddress,
+        if (firmwareVersion != null && firmwareVersion.isNotEmpty)
+          'firmwareVersion': firmwareVersion,
+        if (farmingAreaId != null && farmingAreaId.isNotEmpty)
+          'farmingAreaId': farmingAreaId,
+      }),
+    );
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không thêm controller',
+        statusCode: res.statusCode,
+      );
+    }
+    return _asMap(_dataOf(body) ?? body);
+  }
+
+  Future<Map<String, dynamic>> fetchWaterAnalysis(
+    String token,
+    String areaId,
+  ) async {
+    final uri = Uri.parse('$_base/api/areas/$areaId/water-analysis');
+    final res = await _client.get(uri, headers: authHeaders(token, farmId: areaId));
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không tải phân tích nước',
+        statusCode: res.statusCode,
+      );
+    }
+    return _asMap(_dataOf(body) ?? body);
+  }
+
+  Future<Map<String, dynamic>> startWaterAnalysis(
+    String token,
+    String areaId,
+  ) async {
+    final uri = Uri.parse('$_base/api/areas/$areaId/water-analysis/start');
+    final res = await _client.post(
+      uri,
+      headers: {...authHeaders(token, farmId: areaId), 'Content-Type': 'application/json'},
+      body: '{}',
+    );
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không bắt đầu phân tích',
+        statusCode: res.statusCode,
+      );
+    }
+    return _asMap(_dataOf(body) ?? body);
+  }
 
   /// CrabSenseBE `GET /api/operations/today`
   Future<List<Map<String, dynamic>>> fetchOperationsToday(

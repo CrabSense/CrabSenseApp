@@ -10,7 +10,7 @@ import '../../theme/dashboard_theme.dart';
 import '../../widgets/crab/crab_box_cameras_tab.dart';
 import '../../widgets/crab/crab_detail_widgets.dart';
 import '../../widgets/crab/crab_management_dialogs.dart';
-import '../../widgets/crab/crab_status_badge.dart';
+import '../../widgets/crab/crab_profile_journey.dart';
 import '../../widgets/dashboard/glass_card.dart';
 
 class CrabManagementDetailPage extends StatefulWidget {
@@ -126,7 +126,7 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage>
               ),
               const SizedBox(height: 4),
               Text(
-                crab.locationLine,
+                widget.service.profileOf(crab.id)?.locationPath ?? crab.locationLine,
                 style: GoogleFonts.notoSans(color: DashboardColors.textMuted),
               ),
               const SizedBox(height: 16),
@@ -157,7 +157,13 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage>
             child: TabBarView(
               controller: _tabs,
               children: [
-                _tabScroll(_ProfileTab(crab: crab)),
+                _tabScroll(
+                  CrabProfileJourney(
+                    crab: crab,
+                    profile: widget.service.profileOf(crab.id),
+                    token: widget.service.token,
+                  ),
+                ),
                 _tabScroll(_HealthHistoryTab(crab: crab)),
                 _tabScroll(CrabMoltTimeline(crab: crab)),
                 _tabScroll(
@@ -266,95 +272,6 @@ class _DetailKpiRow extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ProfileTab extends StatelessWidget {
-  const _ProfileTab({required this.crab});
-
-  final CrabIndividual crab;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, c) {
-        final stack = c.maxWidth < 900;
-        final profile = GlassCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Thông tin cua',
-                style: GoogleFonts.notoSans(fontWeight: FontWeight.w600, fontSize: 16),
-              ),
-              const SizedBox(height: 16),
-              _infoRow('Mã cua', crab.code),
-              _infoRow('Lô cua', crab.batchId),
-              _infoRow('Dãy', crab.rowName),
-              _infoRow('Hộp', crab.boxLabel),
-              _infoRow('Giới tính', crab.gender.label),
-              _infoRow(
-                'Cân nặng',
-                crab.weightGram > 0 ? '${crab.weightGram.toStringAsFixed(0)} g' : '—',
-              ),
-              _infoRow(
-                'Bề ngang mai',
-                crab.carapaceLengthMm > 0
-                    ? '${crab.carapaceLengthMm.toStringAsFixed(1)} mm'
-                    : '—',
-              ),
-              _infoRow(
-                'Bề rộng mai',
-                crab.shellSizeCm > 0
-                    ? '${crab.shellSizeCm.toStringAsFixed(1)} mm'
-                    : '—',
-              ),
-              _infoRow('Giai đoạn', crab.developmentStage.label),
-              _infoRow('Sức khỏe', crab.healthStatus.label),
-              const SizedBox(height: 8),
-              CrabHealthBadge(status: crab.healthStatus),
-              const SizedBox(height: 8),
-              CrabOperationalBadge(status: crab.operationalStatus),
-            ],
-          ),
-        );
-        final note = CrabQuickNoteCard(crab: crab);
-        if (stack) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [profile, const SizedBox(height: 16), note],
-          );
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: profile),
-            const SizedBox(width: 16),
-            Expanded(child: note),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _infoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(
-              label,
-              style: GoogleFonts.notoSans(color: DashboardColors.textMuted, fontSize: 12),
-            ),
-          ),
-          Expanded(
-            child: Text(value, style: GoogleFonts.notoSans(fontWeight: FontWeight.w600)),
-          ),
-        ],
       ),
     );
   }

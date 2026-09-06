@@ -179,7 +179,7 @@ class _AreaDetailPageState extends State<AreaDetailPage>
                         count: d.esp32Count,
                         title: '${d.esp32Count} ESP32',
                         deviceLabel:
-            'Mở menu Điều khiển thiết bị để xem camera gắn hộp',
+            'Mở menu Điều khiển RAS để vận hành bơm / drum / skimmer',
                       ),
                       AreaEnvironmentPanel(
                         service: widget.areaEnvironmentService,

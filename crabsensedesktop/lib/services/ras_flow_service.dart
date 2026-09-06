@@ -68,11 +68,31 @@ class RasFlowService extends ChangeNotifier {
   }
 
   Future<void> loadDiagram(String areaId, {bool silent = false}) async {
-    _diagram = null;
-    _error = silent ? _error : 'CrabSenseBE không có sơ đồ RAS.';
-    _loading = false;
-    _refreshInFlight = false;
-    if (!silent) _notifyDeferred();
+    if (areaId.trim().isEmpty) return;
+    if (!silent) {
+      _loading = true;
+      _error = null;
+      _notifyDeferred();
+    } else {
+      _refreshInFlight = true;
+    }
+    try {
+      final res = await http.get(
+        Uri.parse('${AppEnv.cloudApiUrl}/api/areas/$areaId/ras-flow'),
+        headers: _headers(),
+      );
+      final data = _requireData(res);
+      _diagram = RasFlowDiagram.fromJson(data);
+      _error = null;
+      _lastRefreshedAt = DateTime.now();
+    } catch (e) {
+      _error = e.toString();
+      if (!silent) _diagram = null;
+    } finally {
+      _loading = false;
+      _refreshInFlight = false;
+      _notifyDeferred();
+    }
   }
 
   Object? _parseParamDefaults(String? raw) {
@@ -169,9 +189,69 @@ class RasFlowService extends ChangeNotifier {
     String areaId, {
     bool expectNoContent = false,
   }) async {
-    _error = 'CrabSenseBE không có sơ đồ RAS.';
-    _notifyDeferred();
-    return false;
+    try {
+      final res = await call();
+      if (res.statusCode == 401) {
+        _error = 'Phiên đăng nhập hết hạn';
+        _notifyDeferred();
+        return false;
+      }
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        _error = _messageOf(res) ?? 'Thao tác RAS thất bại (${res.statusCode})';
+        _notifyDeferred();
+        return false;
+      }
+      if (!expectNoContent) {
+        try {
+          final data = _requireData(res);
+          _diagram = RasFlowDiagram.fromJson(data);
+          _lastRefreshedAt = DateTime.now();
+        } catch (_) {
+          await loadDiagram(areaId, silent: true);
+        }
+      } else {
+        await loadDiagram(areaId, silent: true);
+      }
+      _error = null;
+      _notifyDeferred();
+      return true;
+    } catch (e) {
+      _error = '$e';
+      _notifyDeferred();
+      return false;
+    }
+  }
+
+  Map<String, dynamic> _requireData(http.Response res) {
+    if (res.statusCode == 401) {
+      throw StateError('Phiên đăng nhập hết hạn');
+    }
+    final body = _decode(res.body);
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw StateError(body['message']?.toString() ?? 'Lỗi API (${res.statusCode})');
+    }
+    if (body['success'] == false) {
+      throw StateError(body['message']?.toString() ?? 'Thao tác thất bại');
+    }
+    final data = body['data'] ?? body['Data'];
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return body;
+  }
+
+  String? _messageOf(http.Response res) {
+    try {
+      return _decode(res.body)['message']?.toString();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Map<String, dynamic> _decode(String raw) {
+    if (raw.isEmpty) return {};
+    final v = jsonDecode(raw);
+    if (v is Map<String, dynamic>) return v;
+    if (v is Map) return Map<String, dynamic>.from(v);
+    return {};
   }
 
   @override

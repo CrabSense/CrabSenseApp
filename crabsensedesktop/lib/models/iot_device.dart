@@ -328,6 +328,9 @@ class IoTDevice {
     this.areaName,
     this.areaId,
     this.areaCode,
+    this.sensorCount = 0,
+    this.actuatorCount = 0,
+    this.deviceType,
   });
 
   final String id;
@@ -345,6 +348,9 @@ class IoTDevice {
   final String? areaName;
   final String? areaId;
   final String? areaCode;
+  final int sensorCount;
+  final int actuatorCount;
+  final String? deviceType;
 
   factory IoTDevice.fromJson(Map<String, dynamic> json) {
     DateTime? parseDt(dynamic v) {
@@ -362,7 +368,9 @@ class IoTDevice {
           .toString(),
       boxId: (json['boxId'] ?? json['BoxId'])?.toString(),
       deviceCode: (json['deviceCode'] ?? json['DeviceCode'] ?? '').toString(),
-      deviceName: (json['deviceName'] ??
+      deviceName: (json['name'] ??
+              json['Name'] ??
+              json['deviceName'] ??
               json['DeviceName'] ??
               json['deviceCode'] ??
               json['DeviceCode'])
@@ -370,7 +378,11 @@ class IoTDevice {
       macAddress: (json['macAddress'] ?? json['MacAddress'])?.toString(),
       firmwareVersion:
           (json['firmwareVersion'] ?? json['FirmwareVersion'])?.toString(),
-      ipLan: (json['ipLan'] ?? json['IpLan'])?.toString(),
+      ipLan: (json['ipAddress'] ??
+              json['IpAddress'] ??
+              json['ipLan'] ??
+              json['IpLan'])
+          ?.toString(),
       status: (json['status'] ?? json['Status'] ?? 'offline').toString(),
       lastTelemetryAt: parseDt(json['lastTelemetryAt'] ?? json['LastTelemetryAt']),
       lastSeenAt: parseDt(json['lastSeenAt'] ?? json['LastSeenAt']),
@@ -378,6 +390,10 @@ class IoTDevice {
       areaName: (json['areaName'] ?? json['AreaName'])?.toString(),
       areaId: (json['areaId'] ?? json['AreaId'])?.toString(),
       areaCode: (json['areaCode'] ?? json['AreaCode'])?.toString(),
+      sensorCount: (json['sensorCount'] ?? json['SensorCount'] as num?)?.toInt() ?? 0,
+      actuatorCount:
+          (json['actuatorCount'] ?? json['ActuatorCount'] as num?)?.toInt() ?? 0,
+      deviceType: (json['deviceType'] ?? json['DeviceType'])?.toString(),
     );
   }
 
@@ -434,11 +450,14 @@ class IoTDevice {
       areaName: areaName != null ? areaName() : this.areaName,
       areaId: areaId != null ? areaId() : this.areaId,
       areaCode: areaCode != null ? areaCode() : this.areaCode,
+      sensorCount: sensorCount,
+      actuatorCount: actuatorCount,
+      deviceType: deviceType,
     );
   }
 
-  bool get isOnline => status == 'online';
-  bool get isOffline => status == 'offline';
+  bool get isOnline => status.toLowerCase() == 'online';
+  bool get isOffline => !isOnline;
 
   String get statusLabel {
     switch (status) {

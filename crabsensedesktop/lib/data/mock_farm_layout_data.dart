@@ -157,6 +157,7 @@ abstract final class MockFarmLayoutData {
             areaId: '',
             areaCode: b.zone,
             areaName: b.zone,
+            rowId: '',
             rowCode: '—',
             rowName: '—',
             apiStatus: b.status.name,

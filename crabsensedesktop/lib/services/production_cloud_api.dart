@@ -683,6 +683,14 @@ extension ProductionCloudApi on CloudApiClient {
     );
   }
 
+  Future<CrabProfile> fetchCrabProfile(String token, String crabId) async {
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crabs/$crabId/profile');
+    final res = await _client.get(uri, headers: authHeaders(token));
+    _ensureOk(res);
+    final body = _decode(res);
+    return CrabProfile.fromJson(_asMap(_dataOf(body) ?? body));
+  }
+
   Future<Map<String, dynamic>> fetchCrabDetail(String token, String crabId) async {
     final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crabs/$crabId');
     final res = await _client.get(uri, headers: authHeaders(token));

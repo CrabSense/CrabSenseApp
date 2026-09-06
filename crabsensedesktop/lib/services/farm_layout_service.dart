@@ -22,6 +22,7 @@ class FarmLayoutService extends ChangeNotifier {
 
   List<FarmMapBox> boxes = [];
   List<AreaRecord> areas = [];
+  List<RowRecord> rows = [];
   List<String> zones = [];
   final Map<String, int> boxesPerZone = {};
   FarmLayoutSummary summary = const FarmLayoutSummary(
@@ -55,6 +56,7 @@ class FarmLayoutService extends ChangeNotifier {
     selectedAreaId = _areaIdOf(session);
     boxes = [];
     areas = [];
+    rows = [];
     zones = [];
     boxesPerZone.clear();
     _resetSummary();
@@ -96,10 +98,10 @@ class FarmLayoutService extends ChangeNotifier {
             : (areaList.isEmpty ? null : areaList.first.id);
       }
 
-      final rows = await _api.fetchAllRows(token, areaId: selectedAreaId);
+      final fetchedRows = await _api.fetchAllRows(token, areaId: selectedAreaId);
       final rawBoxes = await _api.fetchAllBoxes(token, areaId: selectedAreaId);
       final areaById = {for (final a in areaList) a.id: a};
-      final rowById = {for (final r in rows) r.id: r};
+      final rowById = {for (final r in fetchedRows) r.id: r};
       final merged = <FarmMapBox>[];
       final perZone = <String, int>{};
 
@@ -134,6 +136,7 @@ class FarmLayoutService extends ChangeNotifier {
       });
 
       areas = areaList;
+      rows = fetchedRows;
       boxes = merged;
       zones = [
         for (final a in areaList)
@@ -166,6 +169,11 @@ class FarmLayoutService extends ChangeNotifier {
       if (a.id == id) return a;
     }
     return null;
+  }
+
+  List<RowRecord> rowsForArea(String? areaId) {
+    if (areaId == null || areaId.isEmpty) return List.of(rows);
+    return rows.where((r) => r.areaId == areaId).toList();
   }
 
   String areaChipLabel(AreaRecord a) {

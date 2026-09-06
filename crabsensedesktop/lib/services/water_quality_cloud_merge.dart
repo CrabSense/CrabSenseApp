@@ -166,11 +166,15 @@ abstract final class WaterQualityCloudMerge {
           '${local.minute.toString().padLeft(2, '0')}:'
           '${local.second.toString().padLeft(2, '0')}';
     }
-    if (rangeMinutes <= 60) {
+    if (rangeMinutes <= 360) {
       return '${local.hour.toString().padLeft(2, '0')}:'
           '${local.minute.toString().padLeft(2, '0')}';
     }
-    return '${local.hour.toString().padLeft(2, '0')}:00';
+    if (rangeMinutes <= 1440) {
+      return '${local.hour.toString().padLeft(2, '0')}:00';
+    }
+    return '${local.day.toString().padLeft(2, '0')}/'
+        '${local.month.toString().padLeft(2, '0')}';
   }
 
   static List<WaterHistoryRow> buildHistory(

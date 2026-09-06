@@ -19,15 +19,15 @@ String genderToApi(CrabGender g) => switch (g) {
 
 CrabLifeStatus mapLifeStatus(String api) => switch (api.toLowerCase()) {
       'dead' => CrabLifeStatus.dead,
-      'harvested' || 'sold' => CrabLifeStatus.sold,
-      'ready' => CrabLifeStatus.readyForSale,
+      'sold' => CrabLifeStatus.sold,
+      'harvested' || 'ready' => CrabLifeStatus.readyForSale,
       _ => CrabLifeStatus.raising,
     };
 
 String lifeStatusToApi(CrabLifeStatus life) => switch (life) {
       CrabLifeStatus.dead => 'dead',
-      CrabLifeStatus.sold => 'harvested',
-      CrabLifeStatus.readyForSale => 'ready',
+      CrabLifeStatus.sold => 'sold',
+      CrabLifeStatus.readyForSale => 'harvested',
       _ => 'alive',
     };
 

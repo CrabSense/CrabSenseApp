@@ -56,6 +56,14 @@ class RasFlowNodeLive {
 
     this.levelPercent,
 
+    this.lastCommandAt,
+
+    this.runStartedAt,
+
+    this.type = '',
+
+    this.status = 'active',
+
   });
 
 
@@ -107,6 +115,14 @@ class RasFlowNodeLive {
   final double? tempC;
 
   final double? levelPercent;
+
+  final DateTime? lastCommandAt;
+
+  final DateTime? runStartedAt;
+
+  final String type;
+
+  final String status;
 
 
 
@@ -171,6 +187,18 @@ class RasFlowNodeLive {
 
       levelPercent: _dbl(json['levelPercent'] ?? json['LevelPercent']),
 
+      lastCommandAt: DateTime.tryParse(
+        '${json['lastCommandAt'] ?? json['LastCommandAt'] ?? ''}',
+      ),
+
+      runStartedAt: DateTime.tryParse(
+        '${json['runStartedAt'] ?? json['RunStartedAt'] ?? ''}',
+      ),
+
+      type: '${json['type'] ?? json['Type'] ?? ''}',
+
+      status: '${json['status'] ?? json['Status'] ?? 'active'}',
+
     );
 
   }
@@ -182,6 +210,30 @@ class RasFlowNodeLive {
       v == null ? null : (v as num).toDouble();
 
 
+
+  bool get isAuto =>
+      (controlMode ?? 'auto').toLowerCase() != 'manual';
+
+  bool get isFault =>
+      status == 'alarm' ||
+      status == 'error' ||
+      isOnline == false;
+
+  String get runLabel {
+    if (isFault) return 'Lỗi';
+    if (hasRelay && (isOn ?? false)) return 'Đang hoạt động';
+    if (hasRelay) return 'Đang tắt';
+    return isOnline == false ? 'Ngoại tuyến' : 'Trực tuyến';
+  }
+
+  Color get runColor {
+    if (isFault) return const Color(0xFFEF4444);
+    if (hasRelay && (isOn ?? false)) return const Color(0xFF22C55E);
+    if (alertMessage != null && alertMessage!.isNotEmpty) {
+      return const Color(0xFFEAB308);
+    }
+    return const Color(0xFF94A3B8);
+  }
 
   bool get isControllableOn => hasRelay && (isOn ?? false);
 
@@ -283,6 +335,12 @@ class RasFlowDiagram {
 
     required this.onlineCount,
 
+    this.offCount = 0,
+
+    this.faultCount = 0,
+
+    this.activity = const [],
+
   });
 
 
@@ -302,6 +360,12 @@ class RasFlowDiagram {
   final int controllableCount;
 
   final int onlineCount;
+
+  final int offCount;
+
+  final int faultCount;
+
+  final List<RasControlEvent> activity;
 
 
 
@@ -343,9 +407,71 @@ class RasFlowDiagram {
 
           (json['onlineCount'] ?? json['OnlineCount'] as num?)?.toInt() ?? 0,
 
+      offCount: (json['offCount'] ?? json['OffCount'] as num?)?.toInt() ?? 0,
+
+      faultCount:
+
+          (json['faultCount'] ?? json['FaultCount'] as num?)?.toInt() ?? 0,
+
+      activity: _events(json['activity'] ?? json['Activity']),
+
     );
 
   }
+
+}
+
+class RasControlEvent {
+
+  const RasControlEvent({
+
+    required this.at,
+
+    required this.kind,
+
+    required this.title,
+
+    this.detail,
+
+  });
+
+  final DateTime at;
+
+  final String kind;
+
+  final String title;
+
+  final String? detail;
+
+  factory RasControlEvent.fromJson(Map<String, dynamic> json) {
+
+    return RasControlEvent(
+
+      at: DateTime.tryParse('${json['at'] ?? json['At'] ?? ''}') ?? DateTime.now(),
+
+      kind: '${json['kind'] ?? json['Kind'] ?? ''}',
+
+      title: '${json['title'] ?? json['Title'] ?? ''}',
+
+      detail: (json['detail'] ?? json['Detail'])?.toString(),
+
+    );
+
+  }
+
+}
+
+List<RasControlEvent> _events(dynamic raw) {
+
+  if (raw is! List) return const [];
+
+  return [
+
+    for (final e in raw)
+
+      if (e is Map) RasControlEvent.fromJson(Map<String, dynamic>.from(e)),
+
+  ];
 
 }
 

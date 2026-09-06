@@ -80,6 +80,32 @@ enum WaterSensorType {
         WaterSensorType.waterLevel => 'Mực nước',
         WaterSensorType.ph => 'pH',
       };
+
+  IconData get icon => switch (this) {
+        WaterSensorType.temperature => Icons.thermostat,
+        WaterSensorType.salinity => Icons.water_drop_outlined,
+        WaterSensorType.tds => Icons.opacity_outlined,
+        WaterSensorType.waterLevel => Icons.straighten,
+        WaterSensorType.flow => Icons.waves_outlined,
+        WaterSensorType.dissolvedOxygen => Icons.air,
+        WaterSensorType.ph => Icons.science_outlined,
+        WaterSensorType.orp => Icons.bolt_outlined,
+        WaterSensorType.nh3 => Icons.warning_amber_outlined,
+        WaterSensorType.no2 => Icons.bubble_chart_outlined,
+      };
+
+  Color get accent => switch (this) {
+        WaterSensorType.temperature => const Color(0xFFFF9800),
+        WaterSensorType.salinity => const Color(0xFF26A69A),
+        WaterSensorType.tds => const Color(0xFF4CAF50),
+        WaterSensorType.waterLevel => const Color(0xFF42A5F5),
+        WaterSensorType.flow => const Color(0xFF7C5CFF),
+        WaterSensorType.dissolvedOxygen => const Color(0xFF29B6F6),
+        WaterSensorType.ph => const Color(0xFF2196F3),
+        WaterSensorType.orp => const Color(0xFFFFCA28),
+        WaterSensorType.nh3 => const Color(0xFFF97316),
+        WaterSensorType.no2 => const Color(0xFFEC407A),
+      };
 }
 
 class SensorThreshold {
@@ -104,6 +130,12 @@ class WaterSensorReading {
     required this.status,
     required this.threshold,
     this.offline = false,
+    this.sensorId,
+    this.location,
+    this.previousValue,
+    this.deviceCode,
+    this.deviceStatus,
+    this.measuredAt,
   });
 
   final WaterSensorType type;
@@ -112,6 +144,15 @@ class WaterSensorReading {
   final WaterSensorStatus status;
   final SensorThreshold threshold;
   final bool offline;
+  final String? sensorId;
+  final String? location;
+  final double? previousValue;
+  final String? deviceCode;
+  final String? deviceStatus;
+  final DateTime? measuredAt;
+
+  double? get delta =>
+      previousValue == null ? null : value - previousValue!;
 
   String get displayValue {
     if (type == WaterSensorType.temperature) {
@@ -168,4 +209,52 @@ class WaterTrendPoint {
 
   /// Chỉ có khi fallback mock (API không có DO).
   final double? dissolvedOxygen;
+}
+
+class RealtimeChartPoint {
+  const RealtimeChartPoint({
+    required this.xMinutes,
+    required this.label,
+    required this.timestamp,
+    required this.value,
+  });
+
+  final double xMinutes;
+  final String label;
+  final DateTime timestamp;
+  final double value;
+}
+
+class RealtimeLocationGroup {
+  const RealtimeLocationGroup({
+    required this.name,
+    required this.readings,
+  });
+
+  final String name;
+  final List<WaterSensorReading> readings;
+}
+
+class RealtimeDeviceLink {
+  const RealtimeDeviceLink({
+    required this.code,
+    required this.online,
+    this.lastSeen,
+  });
+
+  final String code;
+  final bool online;
+  final DateTime? lastSeen;
+}
+
+class RealtimeWaterAlert {
+  const RealtimeWaterAlert({
+    required this.title,
+    required this.detail,
+    required this.status,
+  });
+
+  final String title;
+  final String detail;
+  final WaterSensorStatus status;
 }

@@ -17,7 +17,7 @@ extension BoxStatusX on BoxStatus {
         BoxStatus.watch => 'Cần theo dõi',
         BoxStatus.molting => 'Lột xác',
         BoxStatus.alert => 'Cảnh báo',
-        BoxStatus.deceased => 'Cua chết',
+        BoxStatus.deceased => 'Sự cố',
         BoxStatus.empty => 'Hộp trống',
       };
 
@@ -26,16 +26,16 @@ extension BoxStatusX on BoxStatus {
         BoxStatus.watch => 'THEO DÕI',
         BoxStatus.molting => 'LỘT XÁC',
         BoxStatus.alert => 'CẢNH BÁO',
-        BoxStatus.deceased => 'CUA CHẾT',
+        BoxStatus.deceased => 'SỰ CỐ',
         BoxStatus.empty => 'TRỐNG',
       };
 
   Color get color => switch (this) {
-        BoxStatus.normal => DashboardColors.cyan,
+        BoxStatus.normal => DashboardColors.healthy,
         BoxStatus.watch => DashboardColors.monitoring,
-        BoxStatus.molting => const Color(0xFFE879A9),
+        BoxStatus.molting => const Color(0xFFA78BFA),
         BoxStatus.alert => const Color(0xFFFF6B8A),
-        BoxStatus.deceased => const Color(0xFF1E293B),
+        BoxStatus.deceased => const Color(0xFF94A3B8),
         BoxStatus.empty => const Color(0xFF64748B),
       };
 

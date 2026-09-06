@@ -19,6 +19,8 @@ class FarmLayoutRasFlow extends StatefulWidget {
     this.farmLayoutService,
     this.zoneFilter,
     this.areaId,
+    this.compact = false,
+    this.onOpenRasControl,
   });
 
   final RasFlowService rasFlowService;
@@ -28,6 +30,8 @@ class FarmLayoutRasFlow extends StatefulWidget {
   final String? zoneFilter;
   /// Id FarmingArea đang xem trên bản đồ / header.
   final String? areaId;
+  final bool compact;
+  final VoidCallback? onOpenRasControl;
 
   @override
   State<FarmLayoutRasFlow> createState() => _FarmLayoutRasFlowState();
@@ -159,7 +163,9 @@ class _FarmLayoutRasFlowState extends State<FarmLayoutRasFlow> {
             Row(
               children: [
                 Text(
-                  'Sơ đồ RAS — ${area.areaName}',
+                  widget.compact
+                      ? 'RAS — ${area.areaName}'
+                      : 'Sơ đồ RAS — ${area.areaName}',
                   style: GoogleFonts.notoSans(
                     color: DashboardColors.textMuted,
                     fontSize: 12,
@@ -173,17 +179,29 @@ class _FarmLayoutRasFlowState extends State<FarmLayoutRasFlow> {
             const SizedBox(height: 8),
           ],
           RasFlowSection(
+            compact: widget.compact,
             liveNodes: diagram.nodes,
             liveUpdatedAt: svc.lastRefreshedAt,
             liveRefreshing: svc.isRefreshing,
-            onRelayCommand: area != null
-                ? (node, cmd) => svc.sendCommand(
+            onRelayCommand: widget.compact || area == null
+                ? null
+                : (node, cmd) => svc.sendCommand(
                       areaId: area.id,
                       nodeId: node.id,
                       command: cmd,
-                    )
-                : null,
+                    ),
           ),
+          if (widget.onOpenRasControl != null) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: widget.onOpenRasControl,
+                icon: const Icon(Icons.settings_suggest_outlined, size: 16),
+                label: const Text('Xem chi tiết hệ thống RAS'),
+              ),
+            ),
+          ],
         ],
       );
     }
@@ -202,13 +220,33 @@ class _FarmLayoutRasFlowState extends State<FarmLayoutRasFlow> {
               style: GoogleFonts.notoSans(color: DashboardColors.textMuted, fontSize: 11),
             ),
             const SizedBox(height: 12),
-            RasFlowSection(components: MockFarmLayoutData.rasFlow),
+            RasFlowSection(
+              compact: widget.compact,
+              components: MockFarmLayoutData.rasFlow,
+            ),
           ],
         ),
       );
     }
 
-    return RasFlowSection(components: MockFarmLayoutData.rasFlow);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        RasFlowSection(
+          compact: widget.compact,
+          components: MockFarmLayoutData.rasFlow,
+        ),
+        if (widget.onOpenRasControl != null)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: widget.onOpenRasControl,
+              icon: const Icon(Icons.settings_suggest_outlined, size: 16),
+              label: const Text('Xem chi tiết hệ thống RAS'),
+            ),
+          ),
+      ],
+    );
   }
 }
 
