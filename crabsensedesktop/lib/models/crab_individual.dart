@@ -155,14 +155,14 @@ class CrabIndividual {
 
   CrabOperationalStatus get operationalStatus {
     if (lifeStatus == CrabLifeStatus.dead) return CrabOperationalStatus.dead;
-    if (lifeStatus == CrabLifeStatus.sold) {
+    if (lifeStatus == CrabLifeStatus.sold) return CrabOperationalStatus.sold;
+    if (lifeStatus == CrabLifeStatus.readyForSale) {
       return CrabOperationalStatus.harvested;
     }
     if (healthStatus == CrabHealthStatus.molting) {
       return CrabOperationalStatus.molting;
     }
-    if (lifeStatus == CrabLifeStatus.readyForSale ||
-        developmentStage == CrabDevelopmentStage.harvestReady) {
+    if (developmentStage == CrabDevelopmentStage.harvestReady) {
       return CrabOperationalStatus.readyHarvest;
     }
     if (healthStatus == CrabHealthStatus.atRisk ||
@@ -190,7 +190,8 @@ class CrabIndividual {
       case CrabManagementStatusFilter.dead:
         return lifeStatus == CrabLifeStatus.dead;
       case CrabManagementStatusFilter.harvested:
-        return lifeStatus == CrabLifeStatus.sold;
+        return lifeStatus == CrabLifeStatus.readyForSale ||
+            lifeStatus == CrabLifeStatus.sold;
     }
   }
 

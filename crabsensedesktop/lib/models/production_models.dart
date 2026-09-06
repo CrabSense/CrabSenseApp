@@ -1,4 +1,5 @@
 import 'crab_lot_status.dart';
+import 'crab_status.dart';
 import 'farm_record.dart';
 
 class AreaSummaryStats {
@@ -510,10 +511,7 @@ class BatchCrabRecord {
   final String status;
 
   factory BatchCrabRecord.fromJson(Map<String, dynamic> json) {
-    final alive = json['isAlive'] ?? json['IsAlive'];
-    final status = alive is bool
-        ? (alive ? 'alive' : 'dead')
-        : (json['status'] ?? json['Status'] ?? 'alive').toString();
+    final status = resolveCrabLifecycleStatus(json);
     final weightRaw = json['weightGram'] ?? json['WeightGram'] ?? json['weight'] ?? json['Weight'];
     return BatchCrabRecord(
       id: (json['id'] ?? json['Id']).toString(),
@@ -621,11 +619,8 @@ class CrabManagementListItem {
   final String batchStartDate;
 
   factory CrabManagementListItem.fromJson(Map<String, dynamic> json) {
-    final alive = json['isAlive'] ?? json['IsAlive'];
     final molting = (json['moltingStage'] ?? json['MoltingStage'] ?? '').toString();
-    final status = alive is bool
-        ? (alive ? (molting.toLowerCase().contains('molt') ? 'molting' : 'alive') : 'dead')
-        : (json['status'] ?? json['Status'] ?? 'alive').toString();
+    final status = resolveCrabLifecycleStatus(json);
     final weightRaw =
         json['weightGram'] ?? json['WeightGram'] ?? json['weight'] ?? json['Weight'];
     final lotId = (json['crabLotId'] ??

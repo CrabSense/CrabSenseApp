@@ -272,6 +272,7 @@ class InventoryCrab {
     required this.boxCode,
     required this.weightG,
     required this.grade,
+    this.crabType = '',
     this.harvestedAt,
   });
 
@@ -280,7 +281,11 @@ class InventoryCrab {
   final String boxCode;
   final int weightG;
   final String grade;
+  final String crabType;
   final DateTime? harvestedAt;
+
+  String get typeLabel =>
+      crabType.trim().isEmpty ? 'Cua biển' : crabType.trim();
 }
 
 class HarvestSlipDetail extends HarvestSlip {
@@ -371,6 +376,16 @@ class SalesOrderDetail {
     required this.crabCount,
     required this.revenueVnd,
     required this.lines,
+    this.customerAddress = '',
+    this.orderStatus = 'Completed',
+    this.paymentMethod = '',
+    this.deliveryStatus = 'pickup',
+    this.subtotalVnd = 0,
+    this.discountVnd = 0,
+    this.shippingVnd = 0,
+    this.paidVnd = 0,
+    this.totalWeightKg = 0,
+    this.notes,
   });
 
   final String id;
@@ -378,15 +393,70 @@ class SalesOrderDetail {
   final DateTime orderDate;
   final String customerName;
   final String customerPhone;
+  final String customerAddress;
   final String sellerName;
+  final String orderStatus;
   final String paymentStatus;
+  final String paymentMethod;
+  final String deliveryStatus;
   final int crabCount;
+  final int subtotalVnd;
+  final int discountVnd;
+  final int shippingVnd;
   final int revenueVnd;
+  final int paidVnd;
+  final double totalWeightKg;
+  final String? notes;
   final List<SalesOrderLineItem> lines;
 
   bool get isPaid =>
       paymentStatus.toLowerCase() == 'paid' ||
       paymentStatus.toLowerCase().contains('đã thanh');
+
+  bool get isPartial => paymentStatus.toLowerCase().contains('partial');
+
+  bool get isDraft {
+    final s = orderStatus.toLowerCase();
+    return s.contains('draft') || s.contains('quotation') || s.contains('nháp');
+  }
+
+  bool get isCancelled {
+    final s = orderStatus.toLowerCase();
+    return s.contains('cancel') || s.contains('hủy');
+  }
+
+  bool get isCompleted {
+    final s = orderStatus.toLowerCase();
+    return s.contains('complete') || s.contains('hoàn');
+  }
+
+  String get orderStatusLabel {
+    if (isCancelled) return 'Đã hủy';
+    if (isDraft) return 'Nháp';
+    if (isCompleted) return 'Hoàn thành';
+    return 'Đang xử lý';
+  }
+
+  String get paymentStatusLabel {
+    if (isCancelled) return 'Đã hủy';
+    if (isPaid) return 'Đã thanh toán';
+    if (isPartial) return 'Thanh toán một phần';
+    return 'Chưa thanh toán';
+  }
+
+  String get paymentMethodLabel => switch (paymentMethod.toLowerCase()) {
+        'transfer' || 'bank' => 'Chuyển khoản',
+        'unpaid' => 'Chưa thanh toán',
+        'cash' => 'Tiền mặt',
+        _ => isPaid || isPartial ? 'Tiền mặt' : 'Chưa thanh toán',
+      };
+
+  String get deliveryStatusLabel => switch (deliveryStatus.toLowerCase()) {
+        'delivery' => 'Giao hàng',
+        'shipping' => 'Đang giao',
+        'delivered' => 'Đã giao',
+        _ => 'Nhận tại trại',
+      };
 }
 
 class SalesOrderLineItem {
@@ -396,13 +466,19 @@ class SalesOrderLineItem {
     required this.weightG,
     required this.unitPricePerKg,
     required this.totalVnd,
+    this.crabType = '',
+    this.grade = '',
   });
 
   final String crabCode;
+  final String crabType;
+  final String grade;
   final int quantity;
   final int weightG;
   final int unitPricePerKg;
   final int totalVnd;
+
+  String get typeLabel => crabType.trim().isEmpty ? 'Cua biển' : crabType.trim();
 }
 
 String formatVnd(int vnd) {

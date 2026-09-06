@@ -44,6 +44,17 @@ class HarvestSalesService extends ChangeNotifier {
     return 'HAR-${(max + 1).toString().padLeft(3, '0')}';
   }
 
+  String get nextSalePreview {
+    var max = 0;
+    for (final o in _orders) {
+      final code = o.code.toUpperCase();
+      if (!code.startsWith('SALE-')) continue;
+      final n = int.tryParse(code.substring(5));
+      if (n != null && n > max) max = n;
+    }
+    return 'SALE-${(max + 1).toString().padLeft(3, '0')}';
+  }
+
   Future<String?> uploadPhoto(String path) =>
       _api.uploadOperationPhoto(_session.token, path);
   String get areaName => _session.selectedFarm.name;
@@ -119,7 +130,11 @@ class HarvestSalesService extends ChangeNotifier {
           totalWeightKg: o.lines.fold<double>(0, (s, l) => s + l.weightG / 1000),
           pricePerKg: o.lines.isEmpty ? 0 : o.lines.first.unitPricePerKg,
           revenueVnd: o.revenueVnd,
-          status: o.isPaid ? SalesOrderStatus.paid : SalesOrderStatus.newOrder,
+          status: o.isCancelled
+              ? SalesOrderStatus.cancelled
+              : o.isPaid
+                  ? SalesOrderStatus.paid
+                  : SalesOrderStatus.newOrder,
           productType: 'Cua sống',
           batchId: '',
         ),
@@ -309,10 +324,20 @@ class HarvestSalesService extends ChangeNotifier {
     required DateTime orderDate,
     required String customerName,
     String? customerPhone,
+    String? customerAddress,
     required String paymentStatus,
+    String? paymentMethod,
+    String orderStatus = 'Completed',
     required String sellerName,
+    String? notes,
+    int discountAmount = 0,
+    int shippingFee = 0,
+    int paidAmount = 0,
+    String deliveryStatus = 'pickup',
     required List<InventoryCrab> crabs,
-    required int unitPricePerKg,
+    required Map<String, int> weights,
+    required Map<String, String> grades,
+    required Map<String, int> prices,
   }) async {
     if (crabs.isEmpty) throw CloudApiException('Chọn ít nhất một con cua tồn kho');
     if (customerName.trim().isEmpty) {
@@ -325,19 +350,39 @@ class HarvestSalesService extends ChangeNotifier {
       customerPhone: customerPhone?.trim().isEmpty == true
           ? null
           : customerPhone?.trim(),
+      customerAddress: customerAddress?.trim().isEmpty == true
+          ? null
+          : customerAddress?.trim(),
       paymentStatus: paymentStatus,
+      paymentMethod: paymentMethod,
+      orderStatus: orderStatus,
       sellerName: sellerName,
       farmingAreaId: _session.selectedFarm.id,
+      notes: notes?.trim().isEmpty == true ? null : notes?.trim(),
+      discountAmount: discountAmount,
+      shippingFee: shippingFee,
+      paidAmount: paidAmount,
+      deliveryStatus: deliveryStatus,
       lines: [
         for (final c in crabs)
           {
             'crabId': c.id,
-            'unitPricePerKg': unitPricePerKg,
-            'weightGram': c.weightG,
-            'grade': c.grade,
+            'unitPricePerKg': prices[c.id] ?? 0,
+            'weightGram': weights[c.id] ?? c.weightG,
+            'grade': grades[c.id] ?? c.grade,
           },
       ],
     );
+    await load();
+  }
+
+  Future<void> completeSaleOrder(String id) async {
+    await _api.completeSalesOrder(_session.token, id);
+    await load();
+  }
+
+  Future<void> cancelSaleOrder(String id) async {
+    await _api.cancelSalesOrder(_session.token, id);
     await load();
   }
 
@@ -423,6 +468,8 @@ class HarvestSalesService extends ChangeNotifier {
         lines.add(
           SalesOrderLineItem(
             crabCode: (m['crabCode'] ?? m['CrabCode'] ?? '').toString(),
+            crabType: (m['crabType'] ?? m['CrabType'] ?? '').toString(),
+            grade: (m['grade'] ?? m['Grade'] ?? '').toString(),
             quantity: (m['quantity'] ?? m['Quantity'] as num?)?.toInt() ?? 1,
             weightG:
                 (m['weightGram'] ?? m['WeightGram'] as num?)?.toInt() ?? 0,
@@ -443,13 +490,35 @@ class HarvestSalesService extends ChangeNotifier {
           (json['customerName'] ?? json['CustomerName'] ?? '').toString(),
       customerPhone:
           (json['customerPhone'] ?? json['CustomerPhone'] ?? '').toString(),
+      customerAddress:
+          (json['customerAddress'] ?? json['CustomerAddress'] ?? '').toString(),
       sellerName: (json['sellerName'] ?? json['SellerName'] ?? '').toString(),
+      orderStatus: (json['status'] ?? json['Status'] ?? 'Completed').toString(),
       paymentStatus:
           (json['paymentStatus'] ?? json['PaymentStatus'] ?? '').toString(),
+      paymentMethod:
+          (json['paymentMethod'] ?? json['PaymentMethod'] ?? '').toString(),
+      deliveryStatus:
+          (json['deliveryStatus'] ?? json['DeliveryStatus'] ?? 'pickup')
+              .toString(),
       crabCount: (json['crabCount'] ?? json['CrabCount'] as num?)?.toInt() ??
           lines.length,
+      subtotalVnd:
+          (json['subtotalAmount'] ?? json['SubtotalAmount'] as num?)?.toInt() ??
+              (json['totalAmount'] ?? json['TotalAmount'] as num?)?.toInt() ??
+              0,
+      discountVnd:
+          (json['discountAmount'] ?? json['DiscountAmount'] as num?)?.toInt() ??
+              0,
+      shippingVnd:
+          (json['shippingFee'] ?? json['ShippingFee'] as num?)?.toInt() ?? 0,
       revenueVnd:
           (json['totalAmount'] ?? json['TotalAmount'] as num?)?.toInt() ?? 0,
+      paidVnd: (json['paidAmount'] ?? json['PaidAmount'] as num?)?.toInt() ?? 0,
+      totalWeightKg: (json['totalWeightKg'] ?? json['TotalWeightKg'] as num?)
+              ?.toDouble() ??
+          lines.fold<double>(0, (s, l) => s + l.weightG / 1000),
+      notes: (json['notes'] ?? json['Notes'])?.toString(),
       lines: lines,
     );
   }
@@ -461,6 +530,7 @@ class HarvestSalesService extends ChangeNotifier {
       boxCode: (json['boxCode'] ?? json['BoxCode'] ?? '').toString(),
       weightG: (json['weightGram'] ?? json['WeightGram'] as num?)?.toInt() ?? 0,
       grade: (json['grade'] ?? json['Grade'] ?? 'A').toString(),
+      crabType: (json['crabType'] ?? json['CrabType'] ?? '').toString(),
       harvestedAt: DateTime.tryParse(
         (json['harvestedAt'] ?? json['HarvestedAt'] ?? '').toString(),
       ),
