@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_farm_layout_data.dart';
+import '../../models/farm_layout.dart';
 import '../../theme/dashboard_theme.dart';
 
 class FarmKpiStrip extends StatelessWidget {
@@ -17,9 +17,9 @@ class FarmKpiStrip extends StatelessWidget {
       _Kpi('HỘP TRỐNG', '${summary.empty}', DashboardColors.textMuted),
       _Kpi('BÌNH THƯỜNG', '${summary.normal}', DashboardColors.cyan),
       _Kpi('THEO DÕI', '${summary.watch}', DashboardColors.monitoring),
-      _Kpi('LỘT XÁC', '${summary.molting}', const Color(0xFFE879A9)),
+      _Kpi('SẮP / LỘT XÁC', '${summary.molting}', const Color(0xFFA78BFA)),
       _Kpi('CẢNH BÁO', '${summary.alert}', const Color(0xFFFF6B8A)),
-      _Kpi('CUA CHẾT', '${summary.deceased}', DashboardColors.dead),
+      _Kpi('SỰ CỐ', '${summary.deceased}', DashboardColors.dead),
     ];
 
     return LayoutBuilder(

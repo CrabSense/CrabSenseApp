@@ -23,6 +23,11 @@ class AppSidebar extends StatefulWidget {
   static const farmMapIcon = 'assets/icon_tab/tab_camp_map.png';
   static const dashboardIcon = 'assets/icon_tab/tab_dashboard.png';
   static const crabManagementIcon = 'assets/icon_tab/tab_crab_management.png';
+  static const rasControlIcon = 'assets/icon_tab/tab_RAS_control.png';
+  static const controllerIcon = 'assets/icon_tab/tab_manage_controll.png';
+  static const realtimeIcon = 'assets/icon_tab/tab_real-time_monitoring.png';
+  static const waterAnalysisIcon = 'assets/icon_tab/tab_water_analysis.png';
+  static const warningSystemIcon = 'assets/icon_tab/tab_warning_system.png';
 
   @override
   State<AppSidebar> createState() => _AppSidebarState();
@@ -41,7 +46,9 @@ class _AppSidebarState extends State<AppSidebar> {
     AppRoute.inboundLots,
     AppRoute.productionCrabManagement,
     AppRoute.devices,
+    AppRoute.controllers,
     AppRoute.environment,
+    AppRoute.waterAnalysis,
     AppRoute.alerts,
     AppRoute.farmLogs,
     AppRoute.harvestSales,
@@ -72,8 +79,10 @@ class _AppSidebarState extends State<AppSidebar> {
         AppRoute.crabManagementDetail => Icons.set_meal_outlined,
         AppRoute.individuals => Icons.pets_outlined,
         AppRoute.feed => Icons.restaurant_outlined,
-        AppRoute.devices => Icons.sensors_outlined,
-        AppRoute.environment => Icons.water_outlined,
+        AppRoute.devices => Icons.settings_input_component_outlined,
+        AppRoute.controllers => Icons.developer_board_outlined,
+        AppRoute.environment => Icons.ssid_chart,
+        AppRoute.waterAnalysis => Icons.science_outlined,
         AppRoute.alerts => Icons.notifications_active_outlined,
         AppRoute.farmLogs => Icons.history_outlined,
         AppRoute.harvestSales => Icons.shopping_bag_outlined,
@@ -89,6 +98,11 @@ class _AppSidebarState extends State<AppSidebar> {
         AppRoute.productionCrabManagement ||
         AppRoute.crabManagementDetail =>
           AppSidebar.crabManagementIcon,
+        AppRoute.devices => AppSidebar.rasControlIcon,
+        AppRoute.controllers => AppSidebar.controllerIcon,
+        AppRoute.environment => AppSidebar.realtimeIcon,
+        AppRoute.waterAnalysis => AppSidebar.waterAnalysisIcon,
+        AppRoute.alerts => AppSidebar.warningSystemIcon,
         _ => null,
       };
 

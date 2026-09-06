@@ -107,8 +107,8 @@ enum CrabLifeStatus {
 
   String get label => switch (this) {
         CrabLifeStatus.raising => 'Đang nuôi',
-        CrabLifeStatus.readyForSale => 'Sẵn sàng bán',
-        CrabLifeStatus.sold => 'Đã thu hoạch',
+        CrabLifeStatus.readyForSale => 'Đã thu hoạch',
+        CrabLifeStatus.sold => 'Đã bán',
         CrabLifeStatus.dead => 'Đã chết',
       };
 

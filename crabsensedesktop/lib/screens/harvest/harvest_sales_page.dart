@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../models/harvest_sales.dart';
 import '../../services/harvest_sales_service.dart';
 import '../../theme/dashboard_theme.dart';
+import '../../widgets/dashboard/glass_card.dart';
 import '../../widgets/harvest/harvest_sales_dialogs.dart';
-import '../../widgets/harvest/harvest_sales_widgets.dart';
 
 class HarvestSalesPage extends StatefulWidget {
   const HarvestSalesPage({super.key, required this.service});
@@ -15,16 +16,21 @@ class HarvestSalesPage extends StatefulWidget {
   State<HarvestSalesPage> createState() => _HarvestSalesPageState();
 }
 
-class _HarvestSalesPageState extends State<HarvestSalesPage> {
+class _HarvestSalesPageState extends State<HarvestSalesPage>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs;
+
   @override
   void initState() {
     super.initState();
+    _tabs = TabController(length: 2, vsync: this);
     widget.service.addListener(_onUpdate);
   }
 
   @override
   void dispose() {
     widget.service.removeListener(_onUpdate);
+    _tabs.dispose();
     super.dispose();
   }
 
@@ -33,132 +39,346 @@ class _HarvestSalesPageState extends State<HarvestSalesPage> {
   @override
   Widget build(BuildContext context) {
     final service = widget.service;
-    final kpi = service.kpi;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Thu Hoạch & Bán Hàng',
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+          child: Text(
+            'Thu hoạch & Bán hàng',
             style: GoogleFonts.notoSans(
               color: DashboardColors.textPrimary,
-              fontSize: 28,
+              fontSize: 26,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 20),
-          HarvestKpiStrip(kpi: kpi),
-          const SizedBox(height: 20),
-          LayoutBuilder(
-            builder: (context, c) {
-              final wide = c.maxWidth > 1100;
-              final main = Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  LayoutBuilder(
-                    builder: (context, inner) {
-                      final chartWide = inner.maxWidth > 700;
-                      final charts = [
-                        HarvestRevenueChartCard(points: service.monthlyFinance),
-                        HarvestSizePieCard(
-                          segments: service.sizeDistribution,
-                          totalCount: kpi.qualifiedCrabCount,
-                        ),
-                      ];
-                      if (chartWide) {
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(flex: 3, child: charts[0]),
-                            const SizedBox(width: 16),
-                            Expanded(flex: 2, child: charts[1]),
-                          ],
-                        );
-                      }
-                      return Column(
-                        children: [
-                          charts[0],
-                          const SizedBox(height: 16),
-                          charts[1],
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  LayoutBuilder(
-                    builder: (context, inner) {
-                      if (inner.maxWidth > 700) {
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: QualifiedCrabsTableCard(
-                                crabs: service.qualifiedCrabs,
-                                onViewAll: () {},
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: RecentOrdersTableCard(
-                                orders: service.orders,
-                                onOrderTap: (o) =>
-                                    showSalesOrderDetailDialog(context, o),
-                                onFilter: () {},
-                              ),
-                            ),
-                          ],
-                        );
-                      }
-                      return Column(
-                        children: [
-                          QualifiedCrabsTableCard(
-                            crabs: service.qualifiedCrabs,
-                            onViewAll: () {},
-                          ),
-                          const SizedBox(height: 16),
-                          RecentOrdersTableCard(
-                            orders: service.orders,
-                            onOrderTap: (o) =>
-                                showSalesOrderDetailDialog(context, o),
-                            onFilter: () {},
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  HarvestBatchProfitCard(points: service.batchProfits),
-                ],
-              );
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: TabBar(
+            controller: _tabs,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            indicatorColor: DashboardColors.cyan,
+            labelColor: DashboardColors.cyan,
+            unselectedLabelColor: DashboardColors.textMuted,
+            labelStyle: GoogleFonts.notoSans(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+            tabs: const [
+              Tab(text: 'Thu hoạch'),
+              Tab(text: 'Bán hàng'),
+            ],
+          ),
+        ),
+        if (service.error != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+            child: Text(
+              service.error!,
+              style: GoogleFonts.notoSans(color: DashboardColors.risk),
+            ),
+          ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabs,
+            children: [
+              _HarvestTab(service: service),
+              _SalesTab(service: service),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
 
-              final side = HarvestAssistantPanel(
-                insight: service.aiInsight,
-                recommendation: service.aiRecommendation,
-                market: service.market,
-                onCreateHarvest: () =>
-                    showCreateHarvestSlipDialog(context, service),
-              );
+class _HarvestTab extends StatelessWidget {
+  const _HarvestTab({required this.service});
 
-              if (wide) {
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 3, child: main),
-                    const SizedBox(width: 20),
-                    Expanded(flex: 2, child: side),
-                  ],
-                );
-              }
-              return Column(
+  final HarvestSalesService service;
+
+  @override
+  Widget build(BuildContext context) {
+    final kpi = service.harvestKpi;
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _KpiCard('Tổng cua có thể thu hoạch', '${kpi.harvestable}', 'con'),
+            _KpiCard('Đã thu hoạch hôm nay', '${kpi.harvestedToday}', 'con'),
+            _KpiCard('Chờ bán', '${kpi.waitingSale}', 'con'),
+            _KpiCard(
+              'Tổng trọng lượng thu hoạch',
+              kpi.totalWeightKg.toStringAsFixed(2),
+              'kg',
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.icon(
+            onPressed: () => showCreateHarvestSlipDialog(context, service),
+            style: FilledButton.styleFrom(backgroundColor: DashboardColors.cyan),
+            icon: const Icon(Icons.add),
+            label: const Text('+ Tạo phiếu thu hoạch'),
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (service.loading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else if (service.harvestSlips.isEmpty)
+          GlassCard(
+            child: Text(
+              'Chưa có phiếu thu hoạch. Tạo phiếu để chuyển cua Đang nuôi → Đã thu hoạch (tồn kho).',
+              style: GoogleFonts.notoSans(color: DashboardColors.textMuted),
+            ),
+          )
+        else
+          for (final slip in service.harvestSlips) ...[
+            _HarvestSlipCard(slip: slip),
+            const SizedBox(height: 10),
+          ],
+      ],
+    );
+  }
+}
+
+class _SalesTab extends StatelessWidget {
+  const _SalesTab({required this.service});
+
+  final HarvestSalesService service;
+
+  @override
+  Widget build(BuildContext context) {
+    final kpi = service.salesKpi;
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _KpiCard(
+              'Doanh thu hôm nay',
+              formatVnd(kpi.revenueTodayVnd),
+              '',
+            ),
+            _KpiCard('Đã bán', '${kpi.soldToday}', 'cua'),
+            _KpiCard('Tồn kho', '${kpi.inventory}', 'cua'),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.icon(
+            onPressed: () => showCreateSalesOrderDialog(context, service),
+            style: FilledButton.styleFrom(
+              backgroundColor: DashboardColors.purple,
+            ),
+            icon: const Icon(Icons.point_of_sale_outlined),
+            label: const Text('+ Tạo đơn bán hàng'),
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (service.loading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else if (service.salesOrders.isEmpty)
+          GlassCard(
+            child: Text(
+              'Chưa có đơn bán. Cua sau thu hoạch vào tồn kho — chỉ bán khi tạo đơn.',
+              style: GoogleFonts.notoSans(color: DashboardColors.textMuted),
+            ),
+          )
+        else
+          for (final order in service.salesOrders) ...[
+            _SalesOrderCard(order: order),
+            const SizedBox(height: 10),
+          ],
+      ],
+    );
+  }
+}
+
+class _KpiCard extends StatelessWidget {
+  const _KpiCard(this.title, this.value, this.unit);
+
+  final String title;
+  final String value;
+  final String unit;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 220,
+      child: GlassCard(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: GoogleFonts.notoSans(
+                color: DashboardColors.textMuted,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text.rich(
+              TextSpan(
+                text: value,
+                style: GoogleFonts.notoSans(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
                 children: [
-                  side,
-                  const SizedBox(height: 16),
-                  main,
+                  if (unit.isNotEmpty)
+                    TextSpan(
+                      text: ' $unit',
+                      style: GoogleFonts.notoSans(
+                        fontSize: 12,
+                        color: DashboardColors.textMuted,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                 ],
-              );
-            },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HarvestSlipCard extends StatelessWidget {
+  const _HarvestSlipCard({required this.slip});
+
+  final HarvestSlipDetail slip;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      onTap: () => showHarvestSlipDetailDialog(context, slip),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  slip.code,
+                  style: GoogleFonts.notoSans(fontWeight: FontWeight.w800),
+                ),
+              ),
+              Text(
+                slip.statusLabel,
+                style: GoogleFonts.notoSans(
+                  color: DashboardColors.healthy,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            slip.harvestDate,
+            style: GoogleFonts.notoSans(
+              color: DashboardColors.textMuted,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${slip.area} · ${slip.quantity} cua · ${slip.totalWeightKg.toStringAsFixed(2)} kg'
+            ' · TB ${slip.averageWeightG.toStringAsFixed(0)}g · Đạt ${slip.passedCount}',
+            style: GoogleFonts.notoSans(fontSize: 13),
+          ),
+          if (slip.performedBy.isNotEmpty)
+            Text(
+              'Người thực hiện: ${slip.performedBy}',
+              style: GoogleFonts.notoSans(
+                color: DashboardColors.textMuted,
+                fontSize: 12,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SalesOrderCard extends StatelessWidget {
+  const _SalesOrderCard({required this.order});
+
+  final SalesOrderDetail order;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      onTap: () => showSalesOrderDetailDialog(context, order),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  order.code,
+                  style: GoogleFonts.notoSans(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Khách: ${order.customerName}',
+                  style: GoogleFonts.notoSans(fontSize: 13),
+                ),
+                Text(
+                  '${order.crabCount} cua · ${formatHarvestDate(order.orderDate)}',
+                  style: GoogleFonts.notoSans(
+                    color: DashboardColors.textMuted,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                formatVnd(order.revenueVnd),
+                style: GoogleFonts.notoSans(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                order.isPaid ? 'Đã thanh toán' : 'Chưa thanh toán',
+                style: GoogleFonts.notoSans(
+                  color: order.isPaid
+                      ? DashboardColors.healthy
+                      : DashboardColors.monitoring,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
         ],
       ),

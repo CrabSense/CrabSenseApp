@@ -207,3 +207,216 @@ class MarketInfo {
   final double priceTrendPercent;
   final double frozenStockKg;
 }
+
+class HarvestKpi {
+  const HarvestKpi({
+    required this.harvestable,
+    required this.harvestedToday,
+    required this.waitingSale,
+    required this.totalWeightKg,
+  });
+
+  final int harvestable;
+  final int harvestedToday;
+  final int waitingSale;
+  final double totalWeightKg;
+}
+
+class SalesKpi {
+  const SalesKpi({
+    required this.revenueTodayVnd,
+    required this.soldToday,
+    required this.inventory,
+  });
+
+  final int revenueTodayVnd;
+  final int soldToday;
+  final int inventory;
+}
+
+class HarvestableCrab {
+  const HarvestableCrab({
+    required this.id,
+    required this.code,
+    required this.boxCode,
+    required this.weightG,
+    required this.condition,
+    this.areaName = '',
+    this.rowName = '',
+    this.lotCode = '',
+  });
+
+  final String id;
+  final String code;
+  final String boxCode;
+  final int weightG;
+  final String condition;
+  final String areaName;
+  final String rowName;
+  final String lotCode;
+
+  String get locationLine {
+    final parts = [
+      if (areaName.trim().isNotEmpty) areaName.trim(),
+      if (rowName.trim().isNotEmpty) rowName.trim(),
+      if (boxCode.trim().isNotEmpty) boxCode.trim(),
+    ];
+    return parts.isEmpty ? '—' : parts.join(' → ');
+  }
+}
+
+class InventoryCrab {
+  const InventoryCrab({
+    required this.id,
+    required this.code,
+    required this.boxCode,
+    required this.weightG,
+    required this.grade,
+    this.harvestedAt,
+  });
+
+  final String id;
+  final String code;
+  final String boxCode;
+  final int weightG;
+  final String grade;
+  final DateTime? harvestedAt;
+}
+
+class HarvestSlipDetail extends HarvestSlip {
+  HarvestSlipDetail({
+    required super.id,
+    required super.code,
+    required super.harvestDate,
+    required super.batchId,
+    required super.area,
+    required super.quantity,
+    required super.totalWeightKg,
+    required super.performedBy,
+    super.note,
+    required this.status,
+    required this.lines,
+    this.passedCount = 0,
+    this.failedCount = 0,
+    this.averageWeightG = 0,
+    this.photoUrls = const [],
+  });
+
+  final String status;
+  final List<HarvestLineItem> lines;
+  final int passedCount;
+  final int failedCount;
+  final double averageWeightG;
+  final List<String> photoUrls;
+
+  String get statusLabel {
+    final s = status.toLowerCase();
+    if (s.contains('cancel')) return 'Đã hủy';
+    if (s.contains('complete') || s.contains('hoàn')) return 'Hoàn thành';
+    if (s.contains('progress')) return 'Đang thu';
+    return 'Nháp';
+  }
+}
+
+class HarvestLineItem {
+  const HarvestLineItem({
+    required this.crabId,
+    required this.crabCode,
+    required this.boxCode,
+    required this.weightG,
+    required this.grade,
+    required this.condition,
+    this.photoCount = 0,
+    this.note,
+    this.areaName = '',
+    this.rowName = '',
+    this.lotCode = '',
+    this.result = 'passed',
+  });
+
+  final String? crabId;
+  final String crabCode;
+  final String boxCode;
+  final int weightG;
+  final String grade;
+  final String condition;
+  final int photoCount;
+  final String? note;
+  final String areaName;
+  final String rowName;
+  final String lotCode;
+  final String result;
+
+  bool get passed => result.toLowerCase() != 'failed';
+
+  String get locationLine {
+    final parts = [
+      if (areaName.trim().isNotEmpty) areaName.trim(),
+      if (rowName.trim().isNotEmpty) rowName.trim(),
+      if (boxCode.trim().isNotEmpty) boxCode.trim(),
+    ];
+    return parts.isEmpty ? (boxCode.isEmpty ? '—' : boxCode) : parts.join(' → ');
+  }
+}
+
+class SalesOrderDetail {
+  const SalesOrderDetail({
+    required this.id,
+    required this.code,
+    required this.orderDate,
+    required this.customerName,
+    required this.customerPhone,
+    required this.sellerName,
+    required this.paymentStatus,
+    required this.crabCount,
+    required this.revenueVnd,
+    required this.lines,
+  });
+
+  final String id;
+  final String code;
+  final DateTime orderDate;
+  final String customerName;
+  final String customerPhone;
+  final String sellerName;
+  final String paymentStatus;
+  final int crabCount;
+  final int revenueVnd;
+  final List<SalesOrderLineItem> lines;
+
+  bool get isPaid =>
+      paymentStatus.toLowerCase() == 'paid' ||
+      paymentStatus.toLowerCase().contains('đã thanh');
+}
+
+class SalesOrderLineItem {
+  const SalesOrderLineItem({
+    required this.crabCode,
+    required this.quantity,
+    required this.weightG,
+    required this.unitPricePerKg,
+    required this.totalVnd,
+  });
+
+  final String crabCode;
+  final int quantity;
+  final int weightG;
+  final int unitPricePerKg;
+  final int totalVnd;
+}
+
+String formatVnd(int vnd) {
+  final s = vnd.toString();
+  final buf = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
+    buf.write(s[i]);
+  }
+  return '${buf.toString()}đ';
+}
+
+String formatHarvestDate(DateTime at) =>
+    '${at.day.toString().padLeft(2, '0')}/${at.month.toString().padLeft(2, '0')}/${at.year}';
+
+String formatHarvestDateTime(DateTime at) =>
+    '${formatHarvestDate(at)}  ${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}';

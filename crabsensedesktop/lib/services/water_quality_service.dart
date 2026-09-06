@@ -2,67 +2,49 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../config/app_env.dart';
-import '../data/mock_water_quality_data.dart';
 import '../models/auth_models.dart';
 import '../models/water_quality.dart';
-import 'cloud_api_client.dart';
+import '../utils/water_quality_evaluator.dart';
 import '../utils/water_trend_window.dart';
+import 'cloud_api_client.dart';
+import 'water_quality_cloud_merge.dart';
 
+/// Poll `/api/iot/live` — chỉ giữ cảm biến thật, không mock.
 class WaterQualityService extends ChangeNotifier {
   WaterQualityService({
     required AuthSession session,
     CloudApiClient? api,
-    String? deviceMac,
   })  : _session = session,
-        _api = api ?? CloudApiClient(),
-        _mac = CloudApiClient.normalizeMac(
-          deviceMac ?? AppEnv.defaultDeviceMac ?? '',
-        ) {
-    _readings = MockWaterQualityData.randomReadings();
-    _seedTrendBuffer();
-    _history = MockWaterQualityData.historyRows();
-  }
-
-  void _seedTrendBuffer() {
-    _trendBuffer
-      ..clear()
-      ..addAll(MockWaterQualityData.trendForRange(chartRangeMinutesValue));
-    _trendPoints = WaterTrendWindow.project(_trendBuffer, chartRangeMinutesValue);
-  }
+        _api = api ?? CloudApiClient();
 
   AuthSession _session;
   final CloudApiClient _api;
-  final String _mac;
 
   void updateSession(AuthSession session) {
     _session = session;
-    notifyListeners();
+    if (_pollActive) {
+      unawaited(_liveCycle(full: true));
+    } else {
+      notifyListeners();
+    }
   }
 
   static const _pollInterval = Duration(seconds: 3);
+  static const _staleAfter = Duration(minutes: 2);
 
-  static const chartRangeLabels = ['30 phút', '1 giờ', '24 giờ'];
-  static const chartRangeMinutes = [30, 60, 24 * 60];
+  static const chartRangeLabels = ['1H', '6H', '24H', '7 Ngày'];
+  static const chartRangeMinutes = [60, 6 * 60, 24 * 60, 7 * 24 * 60];
 
   List<WaterSensorReading> _readings = [];
-  List<WaterTrendPoint> _trendPoints = [];
-  final List<WaterTrendPoint> _trendBuffer = [];
-  List<WaterHistoryRow> _history = [];
-
-  String _area = 'Khu A';
-  String _device = 'Sensor-01';
-  String _timeRange = '24h';
-  String _statusFilter = 'Tất cả';
+  List<RealtimeChartPoint> _chartSeries = [];
+  List<RealtimeDeviceLink> _devices = [];
+  WaterSensorType? _chartMetric;
   int _chartRangeIndex = 0;
 
-  bool _chartLoading = false;
-  String? _trendError;
-
   bool _loading = false;
+  bool _chartLoading = false;
   bool _cloudLive = false;
   String? _cloudError;
-  String? _historyError;
   String? _deviceCode;
   DateTime? _lastRealtimeAt;
 
@@ -72,52 +54,91 @@ class WaterQualityService extends ChangeNotifier {
   bool _trendBusy = false;
 
   List<WaterSensorReading> get readings => List.unmodifiable(_readings);
-  String get area => _area;
-  String get device => _device;
-  String get timeRange => _timeRange;
-  String get statusFilter => _statusFilter;
+  List<RealtimeChartPoint> get chartSeries => List.unmodifiable(_chartSeries);
+  List<RealtimeDeviceLink> get devices => List.unmodifiable(_devices);
+  List<WaterSensorType> get availableMetrics =>
+      {for (final r in _readings) r.type}.toList()
+        ..sort(
+          (a, b) => WaterSensorType.cloudFirst
+              .indexOf(a)
+              .compareTo(WaterSensorType.cloudFirst.indexOf(b)),
+        );
+
+  WaterSensorType? get chartMetric => _chartMetric;
   int get chartRangeIndex => _chartRangeIndex;
   String get chartRangeLabel => chartRangeLabels[_chartRangeIndex];
   int get chartRangeMinutesValue => chartRangeMinutes[_chartRangeIndex];
   bool get isLoading => _loading;
   bool get chartLoading => _chartLoading;
-  String? get trendError => _trendError;
   bool get cloudLive => _cloudLive;
   String? get cloudError => _cloudError;
-  String? get historyError => _historyError;
-  String? get deviceMac => _mac.isEmpty ? null : _mac;
   String? get deviceCode => _deviceCode;
   DateTime? get lastRealtimeAt => _lastRealtimeAt;
 
-  List<WaterSensorReading> get filteredReadings {
-    var list = _readings;
-    if (_statusFilter == 'Bình thường') {
-      list = list
-          .where(
-            (r) =>
-                r.status == WaterSensorStatus.normal ||
-                r.status == WaterSensorStatus.good,
-          )
-          .toList();
-    } else if (_statusFilter == 'Cảnh báo') {
-      list = list
-          .where(
-            (r) =>
-                r.status == WaterSensorStatus.exceeded ||
-                r.status == WaterSensorStatus.danger ||
-                r.status == WaterSensorStatus.monitoring,
-          )
-          .toList();
-    } else if (_statusFilter == 'Offline') {
-      list = list.where((r) => r.offline).toList();
-    }
-    return list;
+  bool get isFresh {
+    final at = _lastRealtimeAt;
+    if (at == null) return false;
+    return DateTime.now().difference(at) < _staleAfter;
   }
 
-  List<WaterTrendPoint> get trendPoints => _trendPoints;
-  List<WaterHistoryRow> get history => _history;
+  bool get isLive => _cloudLive && isFresh && _readings.isNotEmpty;
 
-  /// Bật poll realtime mỗi 3s (gọi từ màn Cảm biến môi trường).
+  bool get deviceOnline =>
+      _devices.any((d) => d.online) || (isFresh && _readings.isNotEmpty);
+
+  String get lastUpdateLabel {
+    final at = _lastRealtimeAt;
+    if (at == null) return 'Chưa có dữ liệu';
+    final ago = DateTime.now().difference(at);
+    if (ago.inSeconds < 15) return 'Vừa xong';
+    if (ago.inMinutes < 1) return '${ago.inSeconds} giây trước';
+    if (ago.inMinutes < 60) return '${ago.inMinutes} phút trước';
+    return '${at.hour.toString().padLeft(2, '0')}:'
+        '${at.minute.toString().padLeft(2, '0')}:'
+        '${at.second.toString().padLeft(2, '0')}';
+  }
+
+  String get lastUpdateClock {
+    final at = _lastRealtimeAt;
+    if (at == null) return '—';
+    return '${at.hour.toString().padLeft(2, '0')}:'
+        '${at.minute.toString().padLeft(2, '0')}:'
+        '${at.second.toString().padLeft(2, '0')}';
+  }
+
+  List<RealtimeLocationGroup> get locationGroups {
+    final byLoc = <String, List<WaterSensorReading>>{};
+    for (final r in _readings) {
+      final key = (r.location ?? '').trim();
+      if (key.isEmpty) continue;
+      byLoc.putIfAbsent(key, () => []).add(r);
+    }
+    if (byLoc.length < 2) return const [];
+    return byLoc.entries
+        .map((e) => RealtimeLocationGroup(name: e.key, readings: e.value))
+        .toList();
+  }
+
+  List<RealtimeWaterAlert> get thresholdAlerts {
+    return _readings
+        .where(
+          (r) =>
+              r.status == WaterSensorStatus.exceeded ||
+              r.status == WaterSensorStatus.danger ||
+              r.status == WaterSensorStatus.offline,
+        )
+        .map(
+          (r) => RealtimeWaterAlert(
+            title: r.status == WaterSensorStatus.offline
+                ? '${r.type.label} mất tín hiệu'
+                : '${r.type.label} ${r.status.label.toLowerCase()}',
+            detail: r.offline ? 'Không nhận được mẫu' : 'Hiện tại: ${r.displayValue}',
+            status: r.status,
+          ),
+        )
+        .toList();
+  }
+
   void startLiveUpdates() {
     if (_pollActive) return;
     _pollActive = true;
@@ -136,7 +157,9 @@ class WaterQualityService extends ChangeNotifier {
 
   Future<void> _liveCycle({required bool full}) async {
     await refresh(full: full);
-    await refreshTrend(quiet: !full);
+    if (full || _chartSeries.isEmpty) {
+      await refreshTrend(quiet: !full);
+    }
   }
 
   @override
@@ -145,12 +168,10 @@ class WaterQualityService extends ChangeNotifier {
     super.dispose();
   }
 
-  /// [full]: true = realtime + history; false = chỉ realtime (poll).
   Future<void> refresh({bool full = true}) async {
     if (full) {
       _loading = true;
       _cloudError = null;
-      _historyError = null;
       notifyListeners();
     } else if (_realtimeBusy) {
       return;
@@ -162,73 +183,138 @@ class WaterQualityService extends ChangeNotifier {
         _session.token,
         farmingAreaId: _session.selectedFarm.id,
       );
-      if (live.isEmpty) {
-        _cloudLive = true;
-        _cloudError = null;
-        _readings = [];
-        _lastRealtimeAt = DateTime.now();
-      } else {
-        _readings = _readingsFromLive(live);
-        _device = (live.first['deviceCode'] ?? live.first['DeviceCode'] ?? _device)
-            .toString();
-        _deviceCode = _device;
-        DateTime? latest;
-        for (final row in live) {
-          final raw = row['latestMeasuredAt'] ?? row['LatestMeasuredAt'];
-          final dt = raw == null ? null : DateTime.tryParse(raw.toString());
-          if (dt != null && (latest == null || dt.isAfter(latest))) latest = dt;
-        }
-        _lastRealtimeAt = latest ?? DateTime.now();
-        _cloudLive = true;
-        _cloudError = null;
-        _pushLiveTrendTick(_readings, _lastRealtimeAt!);
+      _cloudLive = true;
+      _cloudError = null;
+      _readings = _readingsFromLive(live);
+      _devices = _devicesFromLive(live);
+      _deviceCode = _devices.isEmpty ? null : _devices.first.code;
+
+      DateTime? latest;
+      for (final r in _readings) {
+        final dt = r.measuredAt;
+        if (dt != null && (latest == null || dt.isAfter(latest))) latest = dt;
       }
+      _lastRealtimeAt = latest;
+
+      _ensureChartMetric();
+      _appendLiveTick();
       notifyListeners();
     } on CloudApiException catch (e) {
       _cloudLive = false;
       _cloudError = e.message;
-      if (full) _applyMockOnly();
+      if (full) {
+        _readings = [];
+        _devices = [];
+        _chartSeries = [];
+      }
       notifyListeners();
     } catch (e) {
       _cloudLive = false;
       _cloudError = 'Realtime: $e';
-      if (full) _applyMockOnly();
+      if (full) {
+        _readings = [];
+        _devices = [];
+        _chartSeries = [];
+      }
       notifyListeners();
     } finally {
       _realtimeBusy = false;
-    }
-
-    if (!full) return;
-
-    if (full) {
-      _loading = false;
-      notifyListeners();
+      if (full) {
+        _loading = false;
+        notifyListeners();
+      }
     }
   }
 
+  List<RealtimeDeviceLink> _devicesFromLive(List<Map<String, dynamic>> live) {
+    final map = <String, RealtimeDeviceLink>{};
+    for (final row in live) {
+      final code = (row['deviceCode'] ?? row['DeviceCode'] ?? '').toString();
+      if (code.isEmpty) continue;
+      final status =
+          (row['deviceStatus'] ?? row['DeviceStatus'] ?? '').toString();
+      final seen = DateTime.tryParse(
+        (row['sensorLastSeenAt'] ??
+                row['SensorLastSeenAt'] ??
+                row['latestMeasuredAt'] ??
+                row['LatestMeasuredAt'] ??
+                '')
+            .toString(),
+      );
+      final online = status.toLowerCase() == 'online' ||
+          (seen != null && DateTime.now().difference(seen) < _staleAfter);
+      final prev = map[code];
+      if (prev == null || (online && !prev.online)) {
+        map[code] = RealtimeDeviceLink(
+          code: code,
+          online: online,
+          lastSeen: seen ?? prev?.lastSeen,
+        );
+      }
+    }
+    return map.values.toList();
+  }
+
   List<WaterSensorReading> _readingsFromLive(List<Map<String, dynamic>> live) {
-    return live.map((m) {
-      final type = _mapSensorType((m['sensorType'] ?? '').toString());
-      final value = (m['latestValue'] as num?)?.toDouble() ?? 0;
+    final prevById = {for (final r in _readings) if (r.sensorId != null) r.sensorId!: r};
+    final out = <WaterSensorReading>[];
+    for (final m in live) {
+      final rawVal = m['latestValue'] ?? m['LatestValue'];
+      if (rawVal is! num) continue;
+      final type = _mapSensorType((m['sensorType'] ?? m['SensorType'] ?? '').toString());
+      final id = (m['sensorId'] ?? m['SensorId'] ?? '').toString();
       final unit = (m['unit'] ?? m['Unit'] ?? '').toString();
       final alarm = (m['alarm'] ?? m['Alarm'])?.toString();
+      final deviceStatus =
+          (m['deviceStatus'] ?? m['DeviceStatus'] ?? '').toString();
       final offline = (m['isActive'] == false) ||
-          (m['deviceStatus'] ?? '').toString().toLowerCase() == 'offline';
-      return WaterSensorReading(
-        type: type,
-        value: value,
-        unit: unit.isEmpty ? _defaultUnit(type) : unit,
-        status: offline
-            ? WaterSensorStatus.offline
-            : (alarm != null && alarm.isNotEmpty)
-                ? WaterSensorStatus.exceeded
-                : WaterSensorStatus.good,
-        threshold: SensorThreshold(
-          goodRangeLabel: alarm == null || alarm.isEmpty ? 'OK' : alarm,
-        ),
-        offline: offline,
+          deviceStatus.toLowerCase() == 'offline';
+      final min = (m['minThreshold'] ?? m['MinThreshold'] as num?)?.toDouble();
+      final max = (m['maxThreshold'] ?? m['MaxThreshold'] as num?)?.toDouble();
+      final fallback = WaterQualityEvaluator.thresholdFor(type);
+      final threshold = SensorThreshold(
+        goodRangeLabel: (alarm == null || alarm.isEmpty)
+            ? fallback.goodRangeLabel
+            : alarm,
+        min: min ?? fallback.min,
+        max: max ?? fallback.max,
       );
-    }).toList();
+      WaterSensorStatus status;
+      if (offline) {
+        status = WaterSensorStatus.offline;
+      } else if (alarm != null && alarm.isNotEmpty) {
+        status = alarm.contains('below') || alarm.contains('above')
+            ? WaterSensorStatus.exceeded
+            : WaterSensorStatus.exceeded;
+      } else {
+        status = WaterQualityEvaluator.evaluate(type, rawVal.toDouble());
+      }
+      final measured = DateTime.tryParse(
+        (m['latestMeasuredAt'] ?? m['LatestMeasuredAt'] ?? '').toString(),
+      );
+      out.add(
+        WaterSensorReading(
+          type: type,
+          value: rawVal.toDouble(),
+          unit: unit.isEmpty ? _defaultUnit(type) : unit,
+          status: status,
+          threshold: threshold,
+          offline: offline,
+          sensorId: id.isEmpty ? null : id,
+          location: (m['locationName'] ?? m['LocationName'] ?? '').toString(),
+          previousValue: prevById[id]?.value,
+          deviceCode: (m['deviceCode'] ?? m['DeviceCode'])?.toString(),
+          deviceStatus: deviceStatus,
+          measuredAt: measured,
+        ),
+      );
+    }
+    out.sort(
+      (a, b) => WaterSensorType.cloudFirst
+          .indexOf(a.type)
+          .compareTo(WaterSensorType.cloudFirst.indexOf(b.type)),
+    );
+    return out;
   }
 
   WaterSensorType _mapSensorType(String raw) {
@@ -237,8 +323,12 @@ class WaterQualityService extends ChangeNotifier {
     if (t.contains('temp')) return WaterSensorType.temperature;
     if (t.contains('tds')) return WaterSensorType.tds;
     if (t.contains('flow')) return WaterSensorType.flow;
-    if (t.contains('level') || t.contains('muc')) return WaterSensorType.waterLevel;
-    if (t.contains('do') || t.contains('oxy')) return WaterSensorType.dissolvedOxygen;
+    if (t.contains('level') || t.contains('muc')) {
+      return WaterSensorType.waterLevel;
+    }
+    if (t.contains('do') || t.contains('oxy')) {
+      return WaterSensorType.dissolvedOxygen;
+    }
     if (t.contains('salin') || t.contains('salt') || t.contains('man')) {
       return WaterSensorType.salinity;
     }
@@ -253,7 +343,7 @@ class WaterQualityService extends ChangeNotifier {
         WaterSensorType.temperature => '°C',
         WaterSensorType.tds => 'ppm',
         WaterSensorType.flow => 'L/min',
-        WaterSensorType.waterLevel => 'cm',
+        WaterSensorType.waterLevel => '%',
         WaterSensorType.dissolvedOxygen => 'mg/L',
         WaterSensorType.salinity => 'ppt',
         WaterSensorType.orp => 'mV',
@@ -261,57 +351,91 @@ class WaterQualityService extends ChangeNotifier {
         WaterSensorType.no2 => 'mg/L',
       };
 
-  void _pushLiveTrendTick(List<WaterSensorReading> readings, DateTime at) {
-    double v(WaterSensorType t) {
-      for (final r in readings) {
-        if (r.type == t) return r.value;
-      }
-      return 0;
+  void _ensureChartMetric() {
+    final available = availableMetrics;
+    if (available.isEmpty) {
+      _chartMetric = null;
+      return;
     }
-
-    _trendBuffer.add(
-      WaterTrendPoint(
-        xMinutes: 0,
-        label:
-            '${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}',
-        timestamp: at,
-        ph: v(WaterSensorType.ph),
-        temperature: v(WaterSensorType.temperature),
-        tds: v(WaterSensorType.tds),
-        flow: v(WaterSensorType.flow),
-        dissolvedOxygen: v(WaterSensorType.dissolvedOxygen),
-      ),
-    );
-    while (_trendBuffer.length > 60) {
-      _trendBuffer.removeAt(0);
+    if (_chartMetric == null || !available.contains(_chartMetric)) {
+      _chartMetric = available.contains(WaterSensorType.temperature)
+          ? WaterSensorType.temperature
+          : available.first;
     }
-    _trendPoints = WaterTrendWindow.project(_trendBuffer, chartRangeMinutesValue);
   }
 
-  /// Cửa sổ realtime [now - range, now] — poll mỗi 3s cùng gauge.
+  WaterSensorReading? get _selectedReading {
+    final metric = _chartMetric;
+    if (metric == null) return null;
+    for (final r in _readings) {
+      if (r.type == metric) return r;
+    }
+    return null;
+  }
+
+  void _appendLiveTick() {
+    final reading = _selectedReading;
+    final at = reading?.measuredAt ?? _lastRealtimeAt;
+    if (reading == null || at == null) return;
+    final start = WaterTrendWindow.windowStart(chartRangeMinutesValue);
+    if (at.isBefore(start)) return;
+    _chartSeries = [
+      ..._chartSeries.where((p) => !p.timestamp.isBefore(start)),
+      RealtimeChartPoint(
+        xMinutes: at.difference(start).inSeconds / 60.0,
+        label: WaterQualityCloudMerge.axisLabelFor(at, chartRangeMinutesValue),
+        timestamp: at,
+        value: reading.value,
+      ),
+    ];
+    _chartSeries = _downsample(_chartSeries, chartRangeMinutesValue);
+  }
+
   Future<void> refreshTrend({bool quiet = false}) async {
     if (_trendBusy) return;
+    final reading = _selectedReading;
+    if (reading?.sensorId == null) {
+      _chartSeries = [];
+      if (!quiet) notifyListeners();
+      return;
+    }
+
     _trendBusy = true;
-
-    final range = chartRangeMinutesValue;
-    final now = DateTime.now();
-
     if (!quiet) {
       _chartLoading = true;
-      _trendError = null;
       notifyListeners();
     }
 
     try {
-      if (_trendBuffer.isEmpty) {
-        _pushMockTrendTick(now, range);
-      } else {
-        _trendPoints = WaterTrendWindow.project(_trendBuffer, range, now);
-        _trendError = null;
+      final range = chartRangeMinutesValue;
+      final now = DateTime.now();
+      final from = now.subtract(Duration(minutes: range));
+      final rows = await _api.fetchSensorHistory(
+        _session.token,
+        sensorId: reading!.sensorId!,
+        from: from,
+        to: now,
+      );
+      final points = <RealtimeChartPoint>[];
+      for (final row in rows) {
+        final val = row['value'] ?? row['Value'];
+        final rawAt = row['measuredAt'] ?? row['MeasuredAt'];
+        if (val is! num || rawAt == null) continue;
+        final at = DateTime.tryParse(rawAt.toString());
+        if (at == null) continue;
+        points.add(
+          RealtimeChartPoint(
+            xMinutes: at.difference(from).inSeconds / 60.0,
+            label: WaterQualityCloudMerge.axisLabelFor(at, range),
+            timestamp: at.toLocal(),
+            value: val.toDouble(),
+          ),
+        );
       }
-    } catch (e) {
-      _trendError = '$e';
-      _pushMockTrendTick(now, range);
+      points.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      _chartSeries = _downsample(points, range);
+    } catch (_) {
+      _appendLiveTick();
     } finally {
       _trendBusy = false;
       if (!quiet) _chartLoading = false;
@@ -319,98 +443,49 @@ class WaterQualityService extends ChangeNotifier {
     }
   }
 
-  void _pushMockTrendTick(DateTime now, int rangeMinutes) {
-    final sample = _trendPointFromReadingsOrMock(now);
-    _trendBuffer.add(sample);
-    final pruned = WaterTrendWindow.prune(_trendBuffer, rangeMinutes, now);
-    _trendBuffer
-      ..clear()
-      ..addAll(pruned);
-    _trendPoints = WaterTrendWindow.project(_trendBuffer, rangeMinutes, now);
-  }
-
-  WaterTrendPoint _trendPointFromReadingsOrMock(DateTime now) {
-    double? v(WaterSensorType t) {
-      for (final r in _readings) {
-        if (r.type == t) return r.value;
-      }
-      return null;
+  List<RealtimeChartPoint> _downsample(
+    List<RealtimeChartPoint> points,
+    int rangeMinutes,
+  ) {
+    final max = WaterTrendWindow.maxDisplayPoints(rangeMinutes);
+    if (points.length <= max) return points;
+    final step = points.length / max;
+    final out = <RealtimeChartPoint>[];
+    for (var i = 0; i < max; i++) {
+      out.add(points[(i * step).floor().clamp(0, points.length - 1)]);
     }
-
-    final mock = MockWaterQualityData.trendLiveSample(now);
-    return WaterTrendPoint(
-      xMinutes: 0,
-      label: mock.label,
-      timestamp: now,
-      ph: v(WaterSensorType.ph) ?? mock.ph,
-      temperature: v(WaterSensorType.temperature) ?? mock.temperature,
-      tds: v(WaterSensorType.tds) ?? mock.tds,
-      flow: v(WaterSensorType.flow) ?? mock.flow,
-      dissolvedOxygen: mock.dissolvedOxygen,
-    );
+    if (out.isNotEmpty && out.last.timestamp != points.last.timestamp) {
+      out[out.length - 1] = points.last;
+    }
+    return out;
   }
 
-  /// Tải lại biểu đồ (đổi khoảng thời gian).
-  Future<void> loadTrendChart() => refreshTrend(quiet: false);
+  String get area => _session.selectedFarm.name;
+  String get device => _deviceCode ?? '';
+  String get timeRange => chartRangeLabel;
+  String get statusFilter => 'Tất cả';
+  List<WaterSensorReading> get filteredReadings => readings;
+  List<WaterTrendPoint> get trendPoints => const [];
+  List<WaterHistoryRow> get history => const [];
+  String get aiInsight => '';
+  List<String> get aiRecommendations => const [];
+  void setArea(String v) {}
+  void setDevice(String v) {}
+  void setTimeRange(String v) => refresh(full: true);
+  void setStatusFilter(String v) {}
 
-  Future<void> _loadHistoryTable() async {
-    _historyError = null;
-    _history = const [];
-  }
-
-  void _applyMockOnly() {
-    _readings = MockWaterQualityData.randomReadings();
-    _seedTrendBuffer();
-    _history = MockWaterQualityData.historyRows();
-  }
-
-  int _minutesForFilterRange(String range) => switch (range) {
-        '7 ngày' => 60 * 24 * 7,
-        '30 ngày' => 60 * 24 * 30,
-        _ => 60 * 24,
-      };
-
-  void setArea(String v) {
-    _area = v;
+  void setChartMetric(WaterSensorType type) {
+    if (_chartMetric == type) return;
+    _chartMetric = type;
+    _chartSeries = [];
     notifyListeners();
-  }
-
-  void setDevice(String v) {
-    _device = v;
-    notifyListeners();
-  }
-
-  void setTimeRange(String v) {
-    _timeRange = v;
-    refresh(full: true);
-  }
-
-  void setStatusFilter(String v) {
-    _statusFilter = v;
-    notifyListeners();
+    unawaited(refreshTrend(quiet: false));
   }
 
   void setChartRangeIndex(int i) {
     _chartRangeIndex = i.clamp(0, chartRangeLabels.length - 1);
-    _seedTrendBuffer();
-    refreshTrend(quiet: false);
+    _chartSeries = [];
+    notifyListeners();
+    unawaited(refreshTrend(quiet: false));
   }
-
-  String get aiInsight => _cloudLive
-      ? 'Realtime Cloud mỗi ${_pollInterval.inSeconds}s — '
-          'nhiệt, pH, TDS, lưu lượng, mực nước từ $_mac. '
-          'DO/mặn/ORP/NH3/NO2: mock.'
-      : MockWaterQualityData.aiInsight;
-
-  List<String> get aiRecommendations => _cloudLive
-      ? [
-          'Nguồn: ${AppEnv.cloudApiUrl}/api/iot/live',
-          if (_lastRealtimeAt != null)
-            'Cập nhật gần nhất: $_lastRealtimeAt',
-          if (_trendError != null) 'Biểu đồ: $_trendError',
-          if (_historyError != null) 'Lịch sử: $_historyError',
-          if (_cloudError != null) 'Lỗi: $_cloudError',
-          ...MockWaterQualityData.aiRecommendations,
-        ]
-      : MockWaterQualityData.aiRecommendations;
 }

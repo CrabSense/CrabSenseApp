@@ -31,6 +31,7 @@ FarmMapBox toFarmMapBox({
           id: code,
           zone: area.areaCode,
           status: uiStatus,
+          crabId: box.crabTag ?? box.crabId,
           healthScore: switch (uiStatus) {
             BoxStatus.normal => 90,
             BoxStatus.watch => 75,
@@ -48,8 +49,13 @@ FarmMapBox toFarmMapBox({
     areaId: area.id,
     areaCode: area.areaCode,
     areaName: area.areaName,
+    rowId: row.id,
     rowCode: row.rowCode,
     rowName: row.rowName,
     apiStatus: box.status,
+    crabCount: box.hasCrab ? 1 : 0,
+    alertCount: box.alertCount,
+    aiSummary: box.aiSummary,
+    source: box,
   );
 }

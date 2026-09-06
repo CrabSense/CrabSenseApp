@@ -31,10 +31,14 @@ import '../services/area_management_service.dart';
 import '../services/row_management_service.dart';
 import '../services/box_management_service.dart';
 import 'health/health_monitoring_page.dart';
-import 'environment/water_quality_page.dart';
+import 'environment/realtime_monitor_page.dart';
+import 'environment/water_analysis_page.dart';
+import '../services/water_analysis_service.dart';
 import '../models/box_list_item.dart';
 import 'box/box_detail_page.dart';
-import 'devices/iot_control_page.dart';
+import 'devices/ras_control_page.dart';
+import 'devices/controller_management_page.dart';
+import '../services/controller_service.dart';
 import 'alerts/alert_system_page.dart';
 import 'logs/farm_activity_log_page.dart';
 import 'harvest/harvest_sales_page.dart';
@@ -81,16 +85,22 @@ class _MainShellScreenState extends State<MainShellScreen> {
   late final CrabLotInboundService _inboundLotService;
   late final FarmDashboardService _farmDashboardService;
   late final WaterQualityService _waterQualityService;
+  WaterAnalysisService? _waterAnalysisServiceInstance;
   late final FarmManagementService _farmManagementService;
   late final ProductionManagementService _productionManagementService;
   late final AreaManagementService _areaManagementService;
   late final RowManagementService _rowManagementService;
   late final BoxManagementService _boxManagementService;
   late final IotDeviceService _iotDeviceService;
+  late final ControllerService _controllerService;
   late final CameraDeviceService _cameraDeviceService;
   AreaEnvironmentService? _areaEnvironmentServiceInstance;
   RasFlowService? _rasFlowServiceInstance;
   FarmLayoutService? _farmLayoutServiceInstance;
+
+  WaterAnalysisService get _waterAnalysisService =>
+      _waterAnalysisServiceInstance ??=
+          WaterAnalysisService(session: _session);
 
   AreaEnvironmentService get _areaEnvironmentService =>
       _areaEnvironmentServiceInstance ??=
@@ -114,6 +124,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
   String? _selectedLotId;
   String? _selectedAreaId;
   BoxListItem? _selectedBoxItem;
+  AppRoute _boxDetailBack = AppRoute.boxManagement;
 
   @override
   void initState() {
@@ -125,6 +136,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
     _connectivityLinkService =
         ConnectivityLinkService(session: _session);
     _waterQualityService = WaterQualityService(session: _session);
+    _waterAnalysisServiceInstance = WaterAnalysisService(session: _session);
     _farmManagementService = FarmManagementService(session: _session);
     _productionManagementService =
         ProductionManagementService(session: _session);
@@ -132,6 +144,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
     _rowManagementService = RowManagementService(session: _session);
     _boxManagementService = BoxManagementService(session: _session);
     _iotDeviceService = IotDeviceService(session: _session);
+    _controllerService = ControllerService(session: _session);
     _alertService = AlertService(session: _session);
     _farmLogService = FarmLogService(session: _session);
     _harvestSalesService = HarvestSalesService(session: _session);
@@ -169,12 +182,14 @@ class _MainShellScreenState extends State<MainShellScreen> {
   void _applySessionToServices() {
     _connectivityLinkService.updateSession(_session);
     _waterQualityService.updateSession(_session);
+    _waterAnalysisServiceInstance?.updateSession(_session);
     _farmManagementService.updateSession(_session);
     _productionManagementService.updateSession(_session);
     _areaManagementService.updateSession(_session);
     _rowManagementService.updateSession(_session);
     _boxManagementService.updateSession(_session);
     _iotDeviceService.updateSession(_session);
+    _controllerService.updateSession(_session);
     _cameraDeviceService.updateSession(_session);
     _areaEnvironmentServiceInstance?.updateSession(_session);
     _rasFlowServiceInstance?.updateSession(_session);
@@ -259,6 +274,12 @@ class _MainShellScreenState extends State<MainShellScreen> {
     switch (_route) {
       case AppRoute.dashboard:
         _farmDashboardService.load(force: true);
+        _farmLayoutService.load();
+        _waterQualityService.refresh();
+        _waterAnalysisService.load();
+        _alertService.load();
+        _farmLogService.load();
+        _rasFlowService.startLiveRefresh(_session.selectedFarm.id);
       case AppRoute.farmAreas:
         _farmLayoutService.load(force: true);
         _areaManagementService.load();
@@ -276,11 +297,14 @@ class _MainShellScreenState extends State<MainShellScreen> {
       case AppRoute.individuals:
         _crabService.load();
       case AppRoute.devices:
-        _iotDeviceService.loadUiDevices();
-        _cameraDeviceService.loadCameras();
+        _rasFlowService.startLiveRefresh(_session.selectedFarm.id);
+      case AppRoute.controllers:
+        _controllerService.load();
       case AppRoute.environment:
         _waterQualityService.refresh();
         _areaEnvironmentService.loadByArea(_session.selectedFarm.id);
+      case AppRoute.waterAnalysis:
+        _waterAnalysisService.load();
       case AppRoute.farmLogs:
         _farmLogService.load();
       case AppRoute.harvestSales:
@@ -356,11 +380,16 @@ class _MainShellScreenState extends State<MainShellScreen> {
       _iotDeviceService.loadUiDevices();
     }
     if (route == AppRoute.devices) {
-      _iotDeviceService.loadUiDevices();
-      _cameraDeviceService.loadCameras();
+      _rasFlowService.startLiveRefresh(_session.selectedFarm.id);
+    }
+    if (route == AppRoute.controllers) {
+      _controllerService.load();
     }
     if (route == AppRoute.environment) {
       _waterQualityService.refresh();
+    }
+    if (route == AppRoute.waterAnalysis) {
+      _waterAnalysisService.load();
     }
     if (route == AppRoute.alerts) {
       _alertService.load();
@@ -374,6 +403,12 @@ class _MainShellScreenState extends State<MainShellScreen> {
     }
     if (route == AppRoute.dashboard) {
       _farmDashboardService.load(force: true);
+      _farmLayoutService.load();
+      _waterQualityService.refresh();
+      _waterAnalysisService.load();
+      _alertService.load();
+      _farmLogService.load();
+      _rasFlowService.startLiveRefresh(_session.selectedFarm.id);
     } else {
       _farmDashboardService.stopLiveRefresh();
     }
@@ -686,10 +721,23 @@ class _MainShellScreenState extends State<MainShellScreen> {
       );
     }
 
+    if (_route == AppRoute.waterAnalysis) {
+      return _shellTopBar(
+        searchHint: 'Phân tích hóa học...',
+        centerTitle: const SizedBox.shrink(),
+      );
+    }
+
     if (_route == AppRoute.devices) {
       return _shellTopBar(
-        searchHint: 'Tìm kiếm thiết bị...',
-        onSearchChanged: _iotDeviceService.setSearch,
+        searchHint: 'Tìm thiết bị RAS...',
+        centerTitle: const SizedBox.shrink(),
+      );
+    }
+
+    if (_route == AppRoute.controllers) {
+      return _shellTopBar(
+        searchHint: 'Tìm ESP32 / controller...',
         centerTitle: const SizedBox.shrink(),
       );
     }
@@ -739,6 +787,14 @@ class _MainShellScreenState extends State<MainShellScreen> {
         return DashboardContent(
           displayName: _session.user.displayName,
           dashboardService: _farmDashboardService,
+          farmLayoutService: _farmLayoutService,
+          waterQualityService: _waterQualityService,
+          waterAnalysisService: _waterAnalysisService,
+          rasFlowService: _rasFlowService,
+          alertService: _alertService,
+          farmLogService: _farmLogService,
+          areaId: _session.selectedFarm.id,
+          onNavigate: _navigate,
         );
       case AppRoute.batches:
         return BatchListPage(
@@ -760,6 +816,13 @@ class _MainShellScreenState extends State<MainShellScreen> {
           rasFlowService: _rasFlowService,
           areaService: _areaManagementService,
           deviceService: _iotDeviceService,
+          farmName: _session.selectedFarm.name,
+          onOpenRas: () => _navigate(AppRoute.devices),
+          onOpenBox: (item) {
+            _selectedBoxItem = item;
+            _boxDetailBack = AppRoute.farmAreas;
+            _navigate(AppRoute.boxDetail);
+          },
         );
       case AppRoute.farmManagement:
         return FarmManagementPage(
@@ -805,6 +868,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
           onNavigate: _navigate,
           onBoxTap: (item) {
             _selectedBoxItem = item;
+            _boxDetailBack = AppRoute.boxManagement;
             _navigate(AppRoute.boxDetail);
           },
         );
@@ -819,7 +883,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
             crabProfileService: _crabProfileService,
             cameraService: _cameraDeviceService,
             areaEnvironmentService: _areaEnvironmentService,
-            onBack: () => _navigate(AppRoute.boxManagement),
+            onBack: () => _navigate(_boxDetailBack),
           );
         }
         return const SizedBox.shrink();
@@ -923,13 +987,34 @@ class _MainShellScreenState extends State<MainShellScreen> {
           ),
         );
       case AppRoute.environment:
-        return WaterQualityPage(service: _waterQualityService);
+        return RealtimeMonitorPage(
+          service: _waterQualityService,
+          alertService: _alertService,
+        );
+      case AppRoute.waterAnalysis:
+        return WaterAnalysisPage(
+          service: _waterAnalysisService,
+          areaName: _session.selectedFarm.name,
+        );
       case AppRoute.devices:
-        return IotControlPage(service: _iotDeviceService);
+        return RasControlPage(
+          service: _rasFlowService,
+          areaId: _session.selectedFarm.id,
+          areaName: _session.selectedFarm.name,
+        );
+      case AppRoute.controllers:
+        return ControllerManagementPage(
+          service: _controllerService,
+          areaName: _session.selectedFarm.name,
+        );
       case AppRoute.alerts:
         return AlertSystemPage(service: _alertService);
       case AppRoute.farmLogs:
-        return FarmActivityLogPage(service: _farmLogService);
+        return FarmActivityLogPage(
+          service: _farmLogService,
+          layoutService: _farmLayoutService,
+          crabService: _crabService,
+        );
       case AppRoute.harvestSales:
         return HarvestSalesPage(service: _harvestSalesService);
       case AppRoute.aiInsight:

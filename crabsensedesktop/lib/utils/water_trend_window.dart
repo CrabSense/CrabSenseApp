@@ -6,7 +6,9 @@ abstract final class WaterTrendWindow {
   static int maxDisplayPoints(int rangeMinutes) => switch (rangeMinutes) {
         <= 30 => 220,
         <= 60 => 280,
-        _ => 400,
+        <= 360 => 320,
+        <= 1440 => 400,
+        _ => 420,
       };
 
   static DateTime windowStart(int rangeMinutes, [DateTime? now]) {

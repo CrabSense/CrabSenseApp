@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../data/mock_crab_data.dart';
 import '../models/auth_models.dart';
 import '../models/crab_individual.dart';
+import '../models/crab_profile.dart';
 import '../models/crab_status.dart';
 import '../models/production_models.dart';
 import '../utils/crab_management_mapper.dart';
@@ -81,6 +82,7 @@ class CrabService extends ChangeNotifier {
     _crabs = [];
     _rowsInArea = [];
     _lots = [];
+    _profiles.clear();
     _summary = const CrabManagementSummary(
       total: 0,
       alive: 0,
@@ -176,6 +178,9 @@ class CrabService extends ChangeNotifier {
   }
 
   List<CrabManagementListItem> _lastListItems = [];
+  final Map<String, CrabProfile> _profiles = {};
+
+  CrabProfile? profileOf(String crabId) => _profiles[crabId];
 
   List<CrabIndividual> get filteredCrabs {
     var list = _crabs;
@@ -263,10 +268,32 @@ class CrabService extends ChangeNotifier {
 
   Future<void> loadDetail(String crabId) async {
     try {
+      try {
+        _profiles[crabId] = await _api.fetchCrabProfile(token, crabId);
+      } catch (_) {}
       final body = await _api.fetchCrabDetail(token, crabId);
+      final urls = parseCrabImageUrls(body['imageUrls'] ?? body['ImageUrls']);
+      final existingProfile = _profiles[crabId];
+      if (existingProfile == null) {
+        _profiles[crabId] = CrabProfile.fromJson({
+          'crab': body,
+          'imageUrls': urls,
+        });
+      } else if (urls.isNotEmpty) {
+        _profiles[crabId] = existingProfile.withImageUrls(urls);
+      }
       final base = getById(crabId);
       if (base == null) return;
-      final merged = mergeCrabDetail(base, body);
+      final profile = _profiles[crabId];
+      var merged = mergeCrabDetail(base, body);
+      if (profile != null) {
+        merged = merged.copyWith(
+          areaName: profile.areaName.isNotEmpty ? profile.areaName : merged.areaName,
+          rowName: profile.rowName.isNotEmpty ? profile.rowName : merged.rowName,
+          boxName: profile.boxCode.isNotEmpty ? profile.boxCode : merged.boxName,
+          batchId: profile.lotCode.isNotEmpty ? profile.lotCode : merged.batchId,
+        );
+      }
       final i = _crabs.indexWhere((c) => c.id == crabId);
       if (i >= 0) {
         _crabs = [..._crabs]..[i] = merged;

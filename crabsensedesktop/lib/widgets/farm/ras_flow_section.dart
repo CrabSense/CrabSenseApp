@@ -16,6 +16,7 @@ class RasFlowSection extends StatefulWidget {
     this.liveCirculation = true,
     this.liveUpdatedAt,
     this.liveRefreshing = false,
+    this.compact = false,
   }) : assert(
           (components != null && liveNodes == null) ||
               (components == null && liveNodes != null),
@@ -28,6 +29,8 @@ class RasFlowSection extends StatefulWidget {
   final bool liveCirculation;
   final DateTime? liveUpdatedAt;
   final bool liveRefreshing;
+  /// Bản đồ trại: chỉ hiện luồng, không điều khiển sâu.
+  final bool compact;
 
   @override
   State<RasFlowSection> createState() => _RasFlowSectionState();
@@ -94,17 +97,17 @@ class _RasFlowSectionState extends State<RasFlowSection>
     }
 
     return GlassCard(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(widget.compact ? 14 : 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Text(
-                'Sơ Đồ Hệ Thống RAS',
+                widget.compact ? 'Hệ thống RAS' : 'Sơ Đồ Hệ Thống RAS',
                 style: GoogleFonts.notoSans(
                   color: DashboardColors.textPrimary,
-                  fontSize: 15,
+                  fontSize: widget.compact ? 13 : 15,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -112,7 +115,7 @@ class _RasFlowSectionState extends State<RasFlowSection>
               if (widget.liveCirculation) _buildLiveHeader(nodes),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: widget.compact ? 10 : 16),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -127,9 +130,10 @@ class _RasFlowSectionState extends State<RasFlowSection>
                       ),
                       component: nodes[i].toRasComponent(),
                       isOn: nodes[i].isOn ?? false,
-                      onToggle: nodes[i].hasRelay
-                          ? () => _toggleLive(nodes[i])
-                          : null,
+                      compact: widget.compact,
+                      onToggle: widget.compact || !nodes[i].hasRelay
+                          ? null
+                          : () => _toggleLive(nodes[i]),
                     ),
                     if (i < nodes.length - 1) _flowArrow(),
                   ]
@@ -138,9 +142,10 @@ class _RasFlowSectionState extends State<RasFlowSection>
                     _RasNode(
                       component: mock[i],
                       isOn: _mockStates[mock[i].name] ?? mock[i].isOn,
-                      onToggle: mock[i].hasControl
-                          ? () => _toggleMock(mock[i].name)
-                          : null,
+                      compact: widget.compact,
+                      onToggle: widget.compact || !mock[i].hasControl
+                          ? null
+                          : () => _toggleMock(mock[i].name),
                     ),
                     if (i < mock.length - 1) _flowArrow(),
                   ],
@@ -233,14 +238,17 @@ class _RasNode extends StatelessWidget {
     required this.component,
     required this.isOn,
     this.onToggle,
+    this.compact = false,
   });
 
   final RasComponent component;
   final bool isOn;
   final VoidCallback? onToggle;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    if (compact) return _compactChip();
     final hasControl = component.hasControl;
     final powerWatts = component.powerWatts;
     final currentAmps = component.currentAmps;
@@ -456,6 +464,47 @@ class _RasNode extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _compactChip() {
+    final on = component.hasControl ? isOn : true;
+    final color = on ? DashboardColors.healthy : DashboardColors.risk;
+    return Container(
+      width: 108,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: DashboardColors.darkNavy.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(component.icon, color: color, size: 16),
+          const SizedBox(height: 4),
+          Text(
+            component.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.notoSans(
+              color: DashboardColors.textPrimary,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            component.hasControl ? (isOn ? 'Bật' : 'Tắt') : 'Trực tuyến',
+            style: GoogleFonts.notoSans(
+              color: color,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );

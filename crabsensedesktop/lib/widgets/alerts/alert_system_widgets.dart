@@ -556,7 +556,35 @@ class AlertFrequencyChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxY = points.map((p) => p.count).reduce((a, b) => a > b ? a : b).toDouble();
+    if (points.isEmpty) {
+      return GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Tần suất cảnh báo (24h qua)',
+              style: GoogleFonts.notoSans(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 140,
+              child: Center(
+                child: Text(
+                  'Chưa có dữ liệu tần suất cảnh báo',
+                  style: GoogleFonts.notoSans(color: DashboardColors.textMuted),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final maxY = points
+        .map((p) => p.count)
+        .fold<int>(0, (a, b) => a > b ? a : b)
+        .toDouble();
 
     return GlassCard(
       child: Column(

@@ -21,7 +21,9 @@ enum AppRoute {
   feed,
   cameraAi,
   devices,
+  controllers,
   environment,
+  waterAnalysis,
   alerts,
   farmLogs,
   harvestSales,
@@ -54,8 +56,10 @@ extension AppRouteX on AppRoute {
         AppRoute.individualHealth => 'Health Monitoring',
         AppRoute.feed => 'Thức ăn',
         AppRoute.cameraAi => 'Camera AI',
-        AppRoute.devices => 'Điều khiển thiết bị',
-        AppRoute.environment => 'Cảm biến môi trường',
+        AppRoute.devices => 'Điều khiển RAS',
+        AppRoute.controllers => 'Quản lý Controller',
+        AppRoute.environment => 'Giám sát thời gian thực',
+        AppRoute.waterAnalysis => 'Phân tích nước',
         AppRoute.alerts => 'Hệ thống cảnh báo',
         AppRoute.farmLogs => 'Nhật ký',
         AppRoute.harvestSales => 'Thu hoạch & Bán hàng',
@@ -84,7 +88,9 @@ extension AppRouteX on AppRoute {
       this == AppRoute.inboundLotDetail ||
       this == AppRoute.crabManagementDetail ||
       this == AppRoute.environment ||
+      this == AppRoute.waterAnalysis ||
       this == AppRoute.devices ||
+      this == AppRoute.controllers ||
       this == AppRoute.alerts ||
       this == AppRoute.farmLogs ||
       this == AppRoute.harvestSales ||
