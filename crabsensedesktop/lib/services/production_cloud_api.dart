@@ -668,9 +668,11 @@ extension ProductionCloudApi on CloudApiClient {
           ),
         )
         .toList();
-    final alive = crabs.where((c) => c.status != 'dead').length;
     final dead = crabs.where((c) => c.status == 'dead').length;
     final molting = crabs.where((c) => c.status == 'molting').length;
+    final harvested = crabs.where((c) =>
+        c.status == 'harvested' || c.status == 'sold').length;
+    final alive = crabs.length - dead - harvested;
     return (
       summary: CrabManagementSummaryDto(
         total: crabs.length,

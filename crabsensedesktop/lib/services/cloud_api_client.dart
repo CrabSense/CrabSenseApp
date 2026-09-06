@@ -650,10 +650,17 @@ class CloudApiClient {
     required DateTime orderDate,
     required String customerName,
     String? customerPhone,
+    String? customerAddress,
     required String paymentStatus,
+    String? paymentMethod,
+    String? orderStatus,
     String? sellerName,
     String? farmingAreaId,
     String? notes,
+    int? discountAmount,
+    int? shippingFee,
+    int? paidAmount,
+    String? deliveryStatus,
     required List<Map<String, dynamic>> lines,
   }) async {
     final uri = Uri.parse('$_base/api/sales-orders');
@@ -664,11 +671,18 @@ class CloudApiClient {
         'orderDate': orderDate.toUtc().toIso8601String(),
         'customerName': customerName,
         if (customerPhone != null) 'customerPhone': customerPhone,
+        if (customerAddress != null) 'customerAddress': customerAddress,
         'paymentStatus': paymentStatus,
+        if (paymentMethod != null) 'paymentMethod': paymentMethod,
+        if (orderStatus != null) 'orderStatus': orderStatus,
         if (sellerName != null) 'sellerName': sellerName,
         if (farmingAreaId != null && farmingAreaId.isNotEmpty)
           'farmingAreaId': farmingAreaId,
         if (notes != null) 'notes': notes,
+        if (discountAmount != null) 'discountAmount': discountAmount,
+        if (shippingFee != null) 'shippingFee': shippingFee,
+        if (paidAmount != null) 'paidAmount': paidAmount,
+        if (deliveryStatus != null) 'deliveryStatus': deliveryStatus,
         'lines': lines,
       }),
     );
@@ -676,6 +690,32 @@ class CloudApiClient {
     if (_isApiFailure(res, body)) {
       throw CloudApiException(
         _errorMessage(body) ?? 'Không tạo đơn bán hàng',
+        statusCode: res.statusCode,
+      );
+    }
+    return _asMap(_dataOf(body) ?? body);
+  }
+
+  Future<Map<String, dynamic>> completeSalesOrder(String token, String id) async {
+    final uri = Uri.parse('$_base/api/sales-orders/$id/complete');
+    final res = await _client.post(uri, headers: authHeaders(token));
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không xác nhận đơn bán',
+        statusCode: res.statusCode,
+      );
+    }
+    return _asMap(_dataOf(body) ?? body);
+  }
+
+  Future<Map<String, dynamic>> cancelSalesOrder(String token, String id) async {
+    final uri = Uri.parse('$_base/api/sales-orders/$id/cancel');
+    final res = await _client.post(uri, headers: authHeaders(token));
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không hủy đơn bán',
         statusCode: res.statusCode,
       );
     }

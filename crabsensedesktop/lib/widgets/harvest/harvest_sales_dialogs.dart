@@ -99,58 +99,17 @@ Future<void> showCreateSalesOrderDialog(
   );
 }
 
-Future<void> showSalesOrderDetailDialog(BuildContext context, Object order) {
+Future<void> showSalesOrderDetailDialog(
+  BuildContext context,
+  Object order, {
+  HarvestSalesService? service,
+}) {
   if (order is SalesOrderDetail) {
     return showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: DashboardColors.card,
-        title: Text(
-          'Đơn ${order.code}',
-          style: GoogleFonts.notoSans(fontWeight: FontWeight.bold),
-        ),
-        content: SizedBox(
-          width: 480,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _kv('Khách hàng', order.customerName),
-              if (order.customerPhone.isNotEmpty)
-                _kv('Số điện thoại', order.customerPhone),
-              _kv('Ngày bán', formatHarvestDate(order.orderDate)),
-              _kv('Người bán', order.sellerName),
-              _kv(
-                'Thanh toán',
-                order.isPaid ? 'Đã thanh toán' : 'Chưa thanh toán',
-              ),
-              _kv('Tổng', formatVnd(order.revenueVnd)),
-              const SizedBox(height: 10),
-              Text(
-                'Cua trong đơn',
-                style: GoogleFonts.notoSans(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 6),
-              for (final line in order.lines)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    '${line.crabCode} · ${line.weightG}g · ${formatVnd(line.unitPricePerKg)}/kg → ${formatVnd(line.totalVnd)}',
-                    style: GoogleFonts.notoSans(fontSize: 12),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Đóng'),
-          ),
-        ],
+      builder: (ctx) => _SalesOrderDetailDialog(
+        order: order,
+        service: service,
       ),
     );
   }
@@ -675,6 +634,124 @@ class _PickHarvestCrabsDialogState extends State<_PickHarvestCrabsDialog> {
   }
 }
 
+class _SalesOrderDetailDialog extends StatefulWidget {
+  const _SalesOrderDetailDialog({required this.order, this.service});
+
+  final SalesOrderDetail order;
+  final HarvestSalesService? service;
+
+  @override
+  State<_SalesOrderDetailDialog> createState() => _SalesOrderDetailDialogState();
+}
+
+class _SalesOrderDetailDialogState extends State<_SalesOrderDetailDialog> {
+  var _busy = false;
+
+  Future<void> _run(Future<void> Function() action, String ok) async {
+    setState(() => _busy = true);
+    try {
+      await action();
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok)));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final order = widget.order;
+    final service = widget.service;
+    return AlertDialog(
+      backgroundColor: DashboardColors.card,
+      title: Text(
+        'Đơn ${order.code}',
+        style: GoogleFonts.notoSans(fontWeight: FontWeight.bold),
+      ),
+      content: SizedBox(
+        width: 560,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _kv('Trạng thái đơn', order.orderStatusLabel),
+              _kv('Ngày giờ', formatHarvestDateTime(order.orderDate)),
+              _kv('Người bán', order.sellerName.isEmpty ? '—' : order.sellerName),
+              _kv('Khách hàng', order.customerName),
+              if (order.customerPhone.isNotEmpty)
+                _kv('Số điện thoại', order.customerPhone),
+              if (order.customerAddress.isNotEmpty)
+                _kv('Địa chỉ', order.customerAddress),
+              _kv('Thanh toán', order.paymentStatusLabel),
+              _kv('Phương thức', order.paymentMethodLabel),
+              _kv('Giao hàng', order.deliveryStatusLabel),
+              if (order.notes != null && order.notes!.isNotEmpty)
+                _kv('Ghi chú', order.notes!),
+              const SizedBox(height: 10),
+              Text(
+                'Danh sách cua',
+                style: GoogleFonts.notoSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 6),
+              for (final line in order.lines)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    '${line.crabCode}  ·  ${line.weightG}g  ·  ${line.typeLabel}'
+                    '${line.grade.isEmpty ? '' : '  ·  Loại ${line.grade}'}\n'
+                    '${formatVnd(line.unitPricePerKg)}/kg  →  ${formatVnd(line.totalVnd)}',
+                    style: GoogleFonts.notoSans(fontSize: 12),
+                  ),
+                ),
+              const SizedBox(height: 8),
+              _kv('Tổng trọng lượng', '${order.totalWeightKg.toStringAsFixed(2)} kg'),
+              _kv('Tạm tính', formatVnd(order.subtotalVnd)),
+              if (order.discountVnd > 0) _kv('Giảm giá', formatVnd(order.discountVnd)),
+              if (order.shippingVnd > 0)
+                _kv('Phí vận chuyển', formatVnd(order.shippingVnd)),
+              _kv('Tổng cộng', formatVnd(order.revenueVnd)),
+              if (order.isPartial) _kv('Đã thu', formatVnd(order.paidVnd)),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.pop(context),
+          child: const Text('Đóng'),
+        ),
+        if (service != null && !order.isCancelled && order.isDraft)
+          FilledButton(
+            onPressed: _busy
+                ? null
+                : () => _run(
+                      () => service.completeSaleOrder(order.id),
+                      'Đã xác nhận bán. Cua chuyển sang Đã bán.',
+                    ),
+            style: FilledButton.styleFrom(backgroundColor: DashboardColors.purple),
+            child: Text(_busy ? 'Đang lưu…' : 'Xác nhận bán hàng'),
+          ),
+        if (service != null && !order.isCancelled)
+          TextButton(
+            onPressed: _busy
+                ? null
+                : () => _run(
+                      () => service.cancelSaleOrder(order.id),
+                      'Đã hủy đơn. Cua trở lại kho nếu đã bán.',
+                    ),
+            child: const Text('Hủy đơn'),
+          ),
+      ],
+    );
+  }
+}
+
 class _CreateSaleDialog extends StatefulWidget {
   const _CreateSaleDialog({required this.service});
 
@@ -685,68 +762,165 @@ class _CreateSaleDialog extends StatefulWidget {
 }
 
 class _CreateSaleDialogState extends State<_CreateSaleDialog> {
+  late DateTime _when;
   late final TextEditingController _customer;
   late final TextEditingController _phone;
-  late final TextEditingController _price;
-  late final TextEditingController _search;
-  var _paid = true;
-  final _selected = <String>{};
+  late final TextEditingController _address;
+  late final TextEditingController _note;
+  late final TextEditingController _discount;
+  late final TextEditingController _shipping;
+  late final TextEditingController _paid;
+  final _selected = <InventoryCrab>[];
+  final _grades = <String, String>{};
+  final _weights = <String, TextEditingController>{};
+  final _prices = <String, TextEditingController>{};
+  var _paymentStatus = 'Paid';
+  var _paymentMethod = 'cash';
+  var _delivery = 'pickup';
   var _saving = false;
 
   @override
   void initState() {
     super.initState();
+    _when = DateTime.now();
     _customer = TextEditingController();
     _phone = TextEditingController();
-    _price = TextEditingController(text: '250000');
-    _search = TextEditingController();
+    _address = TextEditingController();
+    _note = TextEditingController();
+    _discount = TextEditingController(text: '0');
+    _shipping = TextEditingController(text: '0');
+    _paid = TextEditingController(text: '0');
   }
 
   @override
   void dispose() {
     _customer.dispose();
     _phone.dispose();
-    _price.dispose();
-    _search.dispose();
+    _address.dispose();
+    _note.dispose();
+    _discount.dispose();
+    _shipping.dispose();
+    _paid.dispose();
+    for (final c in _weights.values) {
+      c.dispose();
+    }
+    for (final c in _prices.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
-  List<InventoryCrab> get _filtered {
-    final q = _search.text.trim().toLowerCase();
-    return widget.service.inventory.where((c) {
-      if (q.isEmpty) return true;
-      return c.code.toLowerCase().contains(q) ||
-          c.boxCode.toLowerCase().contains(q);
-    }).toList();
+  int _weightOf(InventoryCrab c) =>
+      int.tryParse(_weights[c.id]?.text.trim() ?? '') ?? c.weightG;
+
+  int _priceOf(InventoryCrab c) =>
+      int.tryParse(_prices[c.id]?.text.trim() ?? '') ?? 300000;
+
+  int _lineTotal(InventoryCrab c) =>
+      ((_weightOf(c) / 1000) * _priceOf(c)).round();
+
+  int get _subtotal => _selected.fold<int>(0, (s, c) => s + _lineTotal(c));
+
+  int get _discountVnd => int.tryParse(_discount.text.trim()) ?? 0;
+
+  int get _shippingVnd => int.tryParse(_shipping.text.trim()) ?? 0;
+
+  int get _grand => (_subtotal - _discountVnd + _shippingVnd).clamp(0, 1 << 31);
+
+  double get _totalKg =>
+      _selected.fold<double>(0, (s, c) => s + _weightOf(c) / 1000);
+
+  Future<void> _pickWhen() async {
+    final d = await showDatePicker(
+      context: context,
+      initialDate: _when,
+      firstDate: DateTime(2024),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+    );
+    if (d == null || !mounted) return;
+    final t = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_when),
+    );
+    if (!mounted) return;
+    setState(() {
+      _when = DateTime(
+        d.year,
+        d.month,
+        d.day,
+        t?.hour ?? _when.hour,
+        t?.minute ?? _when.minute,
+      );
+    });
   }
 
-  int get _total {
-    final price = int.tryParse(_price.text) ?? 0;
-    return widget.service.inventory
-        .where((c) => _selected.contains(c.id))
-        .fold<int>(0, (s, c) => s + ((c.weightG / 1000) * price).round());
+  Future<void> _pickCrabs() async {
+    final chosen = await showDialog<Set<String>>(
+      context: context,
+      builder: (_) => _PickInventoryCrabsDialog(
+        crabs: widget.service.inventory,
+        already: _selected.map((c) => c.id).toSet(),
+      ),
+    );
+    if (chosen == null) return;
+    setState(() {
+      for (final c in widget.service.inventory) {
+        if (!chosen.contains(c.id)) continue;
+        if (_selected.any((e) => e.id == c.id)) continue;
+        _selected.add(c);
+        _grades.putIfAbsent(c.id, () => c.grade.isEmpty ? 'A' : c.grade);
+        _weights.putIfAbsent(
+          c.id,
+          () => TextEditingController(text: '${c.weightG}'),
+        );
+        _prices.putIfAbsent(
+          c.id,
+          () => TextEditingController(text: '300000'),
+        );
+      }
+      _selected.removeWhere((c) => !chosen.contains(c.id));
+    });
   }
 
-  Future<void> _save() async {
-    final crabs = widget.service.inventory
-        .where((c) => _selected.contains(c.id))
-        .toList();
-    if (crabs.isEmpty || _customer.text.trim().isEmpty) return;
+  Future<void> _save(String status) async {
+    if (_selected.isEmpty || _customer.text.trim().isEmpty) return;
+    if (_selected.any((c) => _weightOf(c) <= 0)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mỗi con cua cần trọng lượng > 0')),
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       await widget.service.createSaleOrder(
-        orderDate: DateTime.now(),
+        orderDate: _when,
         customerName: _customer.text.trim(),
         customerPhone: _phone.text.trim(),
-        paymentStatus: _paid ? 'Paid' : 'Pending',
+        customerAddress: _address.text.trim(),
+        paymentStatus: _paymentStatus,
+        paymentMethod: _paymentMethod,
+        orderStatus: status,
         sellerName: widget.service.performerName,
-        crabs: crabs,
-        unitPricePerKg: int.tryParse(_price.text) ?? 0,
+        notes: _note.text.trim(),
+        discountAmount: _discountVnd,
+        shippingFee: _shippingVnd,
+        paidAmount: int.tryParse(_paid.text.trim()) ?? 0,
+        deliveryStatus: _delivery,
+        crabs: _selected,
+        weights: {for (final c in _selected) c.id: _weightOf(c)},
+        grades: _grades,
+        prices: {for (final c in _selected) c.id: _priceOf(c)},
       );
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã tạo đơn. Cua chuyển sang Đã bán.')),
+        SnackBar(
+          content: Text(
+            status == 'Draft'
+                ? 'Đã lưu nháp. Cua vẫn còn trong kho.'
+                : 'Đã xác nhận bán. Cua chuyển sang Đã bán.',
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -757,7 +931,6 @@ class _CreateSaleDialogState extends State<_CreateSaleDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final crabs = _filtered;
     return AlertDialog(
       backgroundColor: DashboardColors.card,
       title: Text(
@@ -765,94 +938,191 @@ class _CreateSaleDialogState extends State<_CreateSaleDialog> {
         style: GoogleFonts.notoSans(fontWeight: FontWeight.bold),
       ),
       content: SizedBox(
-        width: 680,
+        width: 720,
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Mã đơn tự động · Người bán: ${widget.service.performerName}',
+                'Mã đơn: ${widget.service.nextSalePreview}  ·  Người bán: ${widget.service.performerName}',
                 style: GoogleFonts.notoSans(
                   color: DashboardColors.textMuted,
                   fontSize: 12,
                 ),
               ),
               const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: _pickWhen,
+                icon: const Icon(Icons.schedule, size: 16),
+                label: Text(formatHarvestDateTime(_when)),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Khách hàng',
+                style: GoogleFonts.notoSans(fontWeight: FontWeight.w800),
+              ),
               TextField(
                 controller: _customer,
-                decoration: const InputDecoration(labelText: 'Khách hàng'),
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(labelText: 'Tên khách hàng *'),
               ),
               TextField(
                 controller: _phone,
                 decoration: const InputDecoration(labelText: 'Số điện thoại'),
               ),
               TextField(
-                controller: _price,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Đơn giá (đ/kg)'),
-                onChanged: (_) => setState(() {}),
+                controller: _address,
+                decoration: const InputDecoration(labelText: 'Địa chỉ (tuỳ chọn)'),
               ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Đã thanh toán'),
-                value: _paid,
-                onChanged: (v) => setState(() => _paid = v),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Text(
+                    'Danh sách cua',
+                    style: GoogleFonts.notoSans(fontWeight: FontWeight.w800),
+                  ),
+                  const Spacer(),
+                  FilledButton.tonalIcon(
+                    onPressed: _pickCrabs,
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Chọn cua từ kho'),
+                  ),
+                ],
               ),
-              TextField(
-                controller: _search,
-                onChanged: (_) => setState(() {}),
+              const SizedBox(height: 8),
+              if (_selected.isEmpty)
+                Text(
+                  'Chọn cua đã thu hoạch / tồn kho. Đơn giá nhập theo kg, hệ thống tự tính thành tiền.',
+                  style: GoogleFonts.notoSans(
+                    color: DashboardColors.textMuted,
+                    fontSize: 12,
+                  ),
+                )
+              else
+                for (final c in _selected)
+                  _SaleCrabCard(
+                    crab: c,
+                    grade: _grades[c.id] ?? 'A',
+                    weightCtrl: _weights[c.id]!,
+                    priceCtrl: _prices[c.id]!,
+                    lineTotal: _lineTotal(c),
+                    onGrade: (g) => setState(() => _grades[c.id] = g),
+                    onChanged: () => setState(() {}),
+                    onRemove: () => setState(() {
+                      _selected.removeWhere((e) => e.id == c.id);
+                    }),
+                  ),
+              const SizedBox(height: 12),
+              Text(
+                'Thanh toán',
+                style: GoogleFonts.notoSans(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Tổng trọng lượng: ${_totalKg.toStringAsFixed(2)} kg',
+                style: GoogleFonts.notoSans(fontSize: 12),
+              ),
+              Text(
+                'Tạm tính: ${formatVnd(_subtotal)}',
+                style: GoogleFonts.notoSans(fontSize: 12),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _discount,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Giảm giá (đ)',
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _shipping,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Phí vận chuyển (đ)',
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Tổng cộng: ${formatVnd(_grand)}',
+                style: GoogleFonts.notoSans(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _paymentMethod,
                 decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search, size: 18),
-                  hintText: 'Tìm cua tồn kho…',
+                  labelText: 'Phương thức',
                   isDense: true,
                 ),
+                items: const [
+                  DropdownMenuItem(value: 'cash', child: Text('Tiền mặt')),
+                  DropdownMenuItem(value: 'transfer', child: Text('Chuyển khoản')),
+                  DropdownMenuItem(value: 'unpaid', child: Text('Chưa thanh toán')),
+                ],
+                onChanged: (v) => setState(() {
+                  _paymentMethod = v ?? 'cash';
+                  if (_paymentMethod == 'unpaid') _paymentStatus = 'Pending';
+                }),
               ),
               const SizedBox(height: 8),
-              Text(
-                'Cua tồn kho — đã thu hoạch, chưa bán (${_selected.length})',
-                style: GoogleFonts.notoSans(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
+              DropdownButtonFormField<String>(
+                value: _paymentStatus,
+                decoration: const InputDecoration(
+                  labelText: 'Trạng thái thanh toán',
+                  isDense: true,
                 ),
+                items: const [
+                  DropdownMenuItem(value: 'Paid', child: Text('Đã thanh toán')),
+                  DropdownMenuItem(
+                    value: 'Partial',
+                    child: Text('Thanh toán một phần'),
+                  ),
+                  DropdownMenuItem(value: 'Pending', child: Text('Chưa thanh toán')),
+                ],
+                onChanged: (v) => setState(() => _paymentStatus = v ?? 'Paid'),
               ),
-              Container(
-                constraints: const BoxConstraints(maxHeight: 260),
-                child: crabs.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(
-                          'Chưa có cua tồn kho. Hãy thu hoạch trước.',
-                          style: GoogleFonts.notoSans(
-                            color: DashboardColors.textMuted,
-                          ),
-                        ),
-                      )
-                    : ListView(
-                        shrinkWrap: true,
-                        children: [
-                          for (final c in crabs)
-                            CheckboxListTile(
-                              dense: true,
-                              value: _selected.contains(c.id),
-                              onChanged: (v) => setState(() {
-                                if (v == true) {
-                                  _selected.add(c.id);
-                                } else {
-                                  _selected.remove(c.id);
-                                }
-                              }),
-                              title: Text(
-                                '${c.code} · ${c.weightG}g · Loại ${c.grade}',
-                                style: GoogleFonts.notoSans(fontSize: 13),
-                              ),
-                            ),
-                        ],
-                      ),
-              ),
+              if (_paymentStatus == 'Partial')
+                TextField(
+                  controller: _paid,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(
+                    labelText: 'Số tiền đã thu (đ)',
+                    isDense: true,
+                  ),
+                ),
               const SizedBox(height: 8),
-              Text(
-                'Thành tiền: ${formatVnd(_total)}',
-                style: GoogleFonts.notoSans(fontWeight: FontWeight.w800),
+              DropdownButtonFormField<String>(
+                value: _delivery,
+                decoration: const InputDecoration(
+                  labelText: 'Giao hàng',
+                  isDense: true,
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'pickup', child: Text('Nhận tại trại')),
+                  DropdownMenuItem(value: 'delivery', child: Text('Giao hàng')),
+                  DropdownMenuItem(value: 'shipping', child: Text('Đang giao')),
+                  DropdownMenuItem(value: 'delivered', child: Text('Đã giao')),
+                ],
+                onChanged: (v) => setState(() => _delivery = v ?? 'pickup'),
+              ),
+              TextField(
+                controller: _note,
+                maxLines: 2,
+                decoration: const InputDecoration(labelText: 'Ghi chú'),
               ),
             ],
           ),
@@ -863,14 +1133,242 @@ class _CreateSaleDialogState extends State<_CreateSaleDialog> {
           onPressed: _saving ? null : () => Navigator.pop(context),
           child: const Text('Hủy'),
         ),
+        TextButton(
+          onPressed: _saving ||
+                  _selected.isEmpty ||
+                  _customer.text.trim().isEmpty
+              ? null
+              : () => _save('Draft'),
+          child: const Text('Lưu nháp'),
+        ),
         FilledButton(
           onPressed: _saving ||
                   _selected.isEmpty ||
                   _customer.text.trim().isEmpty
               ? null
-              : _save,
+              : () => _save('Completed'),
           style: FilledButton.styleFrom(backgroundColor: DashboardColors.purple),
-          child: Text(_saving ? 'Đang lưu…' : 'Tạo đơn'),
+          child: Text(_saving ? 'Đang lưu…' : 'Xác nhận bán hàng'),
+        ),
+      ],
+    );
+  }
+}
+
+class _SaleCrabCard extends StatelessWidget {
+  const _SaleCrabCard({
+    required this.crab,
+    required this.grade,
+    required this.weightCtrl,
+    required this.priceCtrl,
+    required this.lineTotal,
+    required this.onGrade,
+    required this.onChanged,
+    required this.onRemove,
+  });
+
+  final InventoryCrab crab;
+  final String grade;
+  final TextEditingController weightCtrl;
+  final TextEditingController priceCtrl;
+  final int lineTotal;
+  final ValueChanged<String> onGrade;
+  final VoidCallback onChanged;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: DashboardColors.cardBorder),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  crab.code,
+                  style: GoogleFonts.notoSans(fontWeight: FontWeight.w800),
+                ),
+              ),
+              IconButton(
+                onPressed: onRemove,
+                icon: const Icon(Icons.close, size: 16),
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+          Text(
+            '${crab.typeLabel}${crab.boxCode.isEmpty ? '' : '  ·  ${crab.boxCode}'}',
+            style: GoogleFonts.notoSans(
+              color: DashboardColors.textMuted,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: weightCtrl,
+                  onChanged: (_) => onChanged(),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(
+                    labelText: 'Trọng lượng (g)',
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              DropdownButton<String>(
+                value: ['A', 'B', 'C'].contains(grade) ? grade : 'A',
+                items: const [
+                  DropdownMenuItem(value: 'A', child: Text('Loại A')),
+                  DropdownMenuItem(value: 'B', child: Text('Loại B')),
+                  DropdownMenuItem(value: 'C', child: Text('Loại C')),
+                ],
+                onChanged: (v) {
+                  if (v != null) onGrade(v);
+                },
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: priceCtrl,
+                  onChanged: (_) => onChanged(),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(
+                    labelText: 'Đơn giá (đ/kg)',
+                    isDense: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '= ${formatVnd(lineTotal)}',
+            style: GoogleFonts.notoSans(fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PickInventoryCrabsDialog extends StatefulWidget {
+  const _PickInventoryCrabsDialog({
+    required this.crabs,
+    required this.already,
+  });
+
+  final List<InventoryCrab> crabs;
+  final Set<String> already;
+
+  @override
+  State<_PickInventoryCrabsDialog> createState() =>
+      _PickInventoryCrabsDialogState();
+}
+
+class _PickInventoryCrabsDialogState extends State<_PickInventoryCrabsDialog> {
+  late final Set<String> _sel;
+  final _q = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _sel = {...widget.already};
+  }
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final q = _q.text.trim().toLowerCase();
+    final items = widget.crabs.where((c) {
+      if (q.isEmpty) return true;
+      return c.code.toLowerCase().contains(q) ||
+          c.boxCode.toLowerCase().contains(q) ||
+          c.typeLabel.toLowerCase().contains(q);
+    }).toList();
+    return AlertDialog(
+      backgroundColor: DashboardColors.card,
+      title: Text(
+        'Chọn cua từ kho',
+        style: GoogleFonts.notoSans(fontWeight: FontWeight.bold),
+      ),
+      content: SizedBox(
+        width: 520,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _q,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search, size: 18),
+                hintText: 'Tìm mã cua / loại / hộp…',
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 360),
+              child: items.isEmpty
+                  ? Text(
+                      'Chưa có cua tồn kho. Hãy thu hoạch trước.',
+                      style: GoogleFonts.notoSans(
+                        color: DashboardColors.textMuted,
+                      ),
+                    )
+                  : ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final c in items)
+                          CheckboxListTile(
+                            dense: true,
+                            value: _sel.contains(c.id),
+                            onChanged: (v) => setState(() {
+                              if (v == true) {
+                                _sel.add(c.id);
+                              } else {
+                                _sel.remove(c.id);
+                              }
+                            }),
+                            title: Text(
+                              c.code,
+                              style: GoogleFonts.notoSans(fontSize: 13),
+                            ),
+                            subtitle: Text(
+                              '${c.typeLabel} · ${c.weightG}g · Loại ${c.grade.isEmpty ? '—' : c.grade}',
+                              style: GoogleFonts.notoSans(fontSize: 11),
+                            ),
+                          ),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _sel),
+          child: Text('Thêm ${_sel.length} cua'),
         ),
       ],
     );

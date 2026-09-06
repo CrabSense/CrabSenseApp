@@ -202,13 +202,13 @@ class _SalesTab extends StatelessWidget {
         else if (service.salesOrders.isEmpty)
           GlassCard(
             child: Text(
-              'Chưa có đơn bán. Cua sau thu hoạch vào tồn kho — chỉ bán khi tạo đơn.',
+              'Chưa có đơn bán. Cua sau thu hoạch vào kho — chọn cua tồn kho để tạo SALE-001.',
               style: GoogleFonts.notoSans(color: DashboardColors.textMuted),
             ),
           )
         else
           for (final order in service.salesOrders) ...[
-            _SalesOrderCard(order: order),
+            _SalesOrderCard(order: order, service: service),
             const SizedBox(height: 10),
           ],
       ],
@@ -327,23 +327,47 @@ class _HarvestSlipCard extends StatelessWidget {
 }
 
 class _SalesOrderCard extends StatelessWidget {
-  const _SalesOrderCard({required this.order});
+  const _SalesOrderCard({required this.order, required this.service});
 
   final SalesOrderDetail order;
+  final HarvestSalesService service;
 
   @override
   Widget build(BuildContext context) {
+    final statusColor = order.isCancelled
+        ? DashboardColors.risk
+        : order.isDraft
+            ? DashboardColors.monitoring
+            : DashboardColors.healthy;
+    final payColor = order.isPaid
+        ? DashboardColors.healthy
+        : order.isPartial
+            ? DashboardColors.monitoring
+            : DashboardColors.risk;
     return GlassCard(
-      onTap: () => showSalesOrderDetailDialog(context, order),
+      onTap: () => showSalesOrderDetailDialog(context, order, service: service),
       child: Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  order.code,
-                  style: GoogleFonts.notoSans(fontWeight: FontWeight.w800),
+                Row(
+                  children: [
+                    Text(
+                      order.code,
+                      style: GoogleFonts.notoSans(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      order.orderStatusLabel,
+                      style: GoogleFonts.notoSans(
+                        color: statusColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -351,7 +375,8 @@ class _SalesOrderCard extends StatelessWidget {
                   style: GoogleFonts.notoSans(fontSize: 13),
                 ),
                 Text(
-                  '${order.crabCount} cua · ${formatHarvestDate(order.orderDate)}',
+                  '${order.crabCount} cua · ${order.totalWeightKg.toStringAsFixed(2)} kg'
+                  ' · ${formatHarvestDateTime(order.orderDate)}',
                   style: GoogleFonts.notoSans(
                     color: DashboardColors.textMuted,
                     fontSize: 12,
@@ -369,11 +394,9 @@ class _SalesOrderCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                order.isPaid ? 'Đã thanh toán' : 'Chưa thanh toán',
+                order.paymentStatusLabel,
                 style: GoogleFonts.notoSans(
-                  color: order.isPaid
-                      ? DashboardColors.healthy
-                      : DashboardColors.monitoring,
+                  color: payColor,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
