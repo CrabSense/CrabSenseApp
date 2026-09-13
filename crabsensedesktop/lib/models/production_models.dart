@@ -279,6 +279,17 @@ class BoxRecord {
           : boxCode;
 
   bool get hasCrab {
+    final life = (crabStatus ?? '').trim().toLowerCase();
+    final cond = (crabCondition ?? '').trim().toLowerCase();
+    if (life == 'dead' ||
+        life == 'harvested' ||
+        life == 'missing' ||
+        life == 'sold' ||
+        cond == 'dead' ||
+        cond == 'harvested' ||
+        cond == 'sold') {
+      return false;
+    }
     if (crabId != null && crabId!.isNotEmpty && crabId != 'null') return true;
     if (crabTag != null && crabTag!.trim().isNotEmpty) return true;
     return isOccupied && status.toLowerCase() != 'empty';
