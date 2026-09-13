@@ -42,6 +42,7 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
 
   String? _endCase;
   String _eat = 'many';
+  String _condition = 'normal';
   String _activity = 'active';
   XFile? _video;
   bool _videoConfirmed = false;
@@ -246,6 +247,7 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
             _video = null;
             _videoConfirmed = false;
             _eat = 'many';
+            _condition = 'normal';
             _activity = 'active';
             _endCase = null;
           });
@@ -346,13 +348,15 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
 
     final feedType = _feedTypeCtrl.text.trim();
     final grams = _feedGramCtrl.text.trim();
+    // Ghi kèm dạng text cho các màn cũ (timeline hộp, nhật ký vận hành) đọc được.
     final notes = [
       'Phiếu hộp ${widget.boxCode}',
       'Cua: $tag',
       'Ăn: ${_eatLabel(_eat)}',
+      'Đánh dấu: ${_conditionLabel(_condition)}',
       if (feedType.isNotEmpty) 'Thức ăn: $feedType',
       if (grams.isNotEmpty) 'Lượng: ${grams}g',
-      'Tình trạng: ${_activityLabel(_activity)}',
+      'Hoạt động: ${_activityLabel(_activity)}',
       if (videoUrl != null && videoUrl.isNotEmpty) 'Video: $videoUrl',
       if (_videoConfirmed && _video != null && (videoUrl == null || videoUrl.isEmpty))
         'Video: đã xác nhận (${_video!.name}) — chờ Drive',
@@ -360,9 +364,16 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
     ].join('\n');
 
     final qty = double.tryParse(grams);
+    final crabId = widget.crab.id;
     await _api.post<dynamic>('/operations', data: {
       'type': qty != null ? 'feeding' : 'inspection',
       'boxIds': [widget.boxId],
+      // Dữ liệu có cấu trúc để xem lại lịch sử ăn theo từng con cua.
+      if (crabId.isNotEmpty) 'crabIds': [crabId],
+      'appetite': _eat,
+      // BE cập nhật luôn tình trạng con cua + ghi lịch sử.
+      'condition': _condition,
+      if (feedType.isNotEmpty) 'foodType': feedType,
       'notes': notes,
       if (qty != null) 'quantity': qty,
       if (qty != null) 'unit': 'g',
@@ -520,7 +531,24 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
           const SizedBox(height: 10),
           _field(_feedGramCtrl, 'Bao nhiêu gam'),
           const SizedBox(height: 14),
-          _section('Tình trạng'),
+          _section('Đánh dấu tình trạng'),
+          _pillsWrap(
+            value: _condition,
+            options: const {
+              'normal': 'Bình thường',
+              'premolt': 'Sắp lột',
+              'attention': 'Cần chú ý',
+              'weak': 'Yếu',
+            },
+            onChanged: (v) => setState(() => _condition = v),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Cập nhật luôn tình trạng của con cua',
+            style: TextStyle(fontSize: 11, color: kHomeTextSub),
+          ),
+          const SizedBox(height: 14),
+          _section('Hoạt động'),
           _pillsWrap(
             value: _activity,
             options: const {
@@ -753,6 +781,13 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
         'little' => 'ít',
         'none' => 'không ăn',
         _ => 'ăn nhiều',
+      };
+
+  String _conditionLabel(String v) => switch (v) {
+        'premolt' => 'sắp lột',
+        'attention' => 'cần chú ý',
+        'weak' => 'yếu',
+        _ => 'bình thường',
       };
 
   String _activityLabel(String v) => switch (v) {

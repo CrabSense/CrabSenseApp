@@ -40,6 +40,7 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
   Map<String, dynamic>? _ai;
   List<_TimelineItem> _timeline = [];
   List<_WeightPt> _weights = [];
+  List<_FeedItem> _feedings = [];
   List<_AlertItem> _alerts = [];
   List<String> _photos = [];
 
@@ -86,6 +87,13 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
         final wRes =
             await api.get<dynamic>(ApiConstants.crabWeights(widget.crabId));
         _weights = _parseWeights(wRes.data);
+      } catch (_) {}
+
+      try {
+        final fRes = await api.get<dynamic>(
+          ApiConstants.operationsForCrab(widget.crabId),
+        );
+        _feedings = _parseFeedings(fRes.data);
       } catch (_) {}
 
       // Profile chưa gồm chuyển hộp — luôn ghép allocations.
@@ -201,6 +209,33 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
       }
     }
     out.sort((a, b) => a.at.compareTo(b.at));
+    return out;
+  }
+
+  /// Phiếu chăm sóc ghi theo cua — dùng cho mục "Lịch sử ăn".
+  static List<_FeedItem> _parseFeedings(dynamic raw) {
+    final data = _unwrap(raw);
+    if (data is! List) return const [];
+    final out = <_FeedItem>[];
+    for (final item in data) {
+      if (item is! Map) continue;
+      final at = DateTime.tryParse(
+        (item['timestamp'] ?? item['Timestamp'] ?? '').toString(),
+      )?.toLocal();
+      if (at == null) continue;
+      final qty = item['quantity'] ?? item['Quantity'];
+      out.add(
+        _FeedItem(
+          at: at,
+          appetite: (item['appetite'] ?? item['Appetite'])?.toString(),
+          condition: (item['condition'] ?? item['Condition'])?.toString(),
+          foodType: (item['foodType'] ?? item['FoodType'])?.toString(),
+          quantity: qty is num ? qty.toDouble() : null,
+          unit: (item['unit'] ?? item['Unit'])?.toString(),
+        ),
+      );
+    }
+    out.sort((a, b) => b.at.compareTo(a.at)); // mới nhất trước
     return out;
   }
 
@@ -421,6 +456,14 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
                           '${_weights.first.grams.round()} g · ${DateFormat('dd/MM/yyyy HH:mm').format(_weights.first.at)}',
                         ),
                     ],
+                    if (_feedings.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      _sectionTitle('Lịch sử ăn'),
+                      const SizedBox(height: 8),
+                      _AppetiteChart(feedings: _feedings),
+                      const SizedBox(height: 8),
+                      ..._feedings.take(20).map(_feedingTile),
+                    ],
                     if (_alerts.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       _sectionTitle('Cảnh báo'),
@@ -574,6 +617,94 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
     );
   }
 
+  Widget _feedingTile(_FeedItem f) {
+    final time = DateFormat('dd/MM HH:mm').format(f.at);
+    final bits = [
+      if (f.foodType != null && f.foodType!.trim().isNotEmpty) f.foodType!.trim(),
+      if (f.quantity != null)
+        '${f.quantity!.toStringAsFixed(f.quantity! % 1 == 0 ? 0 : 1)}'
+            '${f.unit ?? 'g'}',
+    ];
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: kHomeSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kHomeBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: _appetiteColor(f.appetite),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        _appetiteLabel(f.appetite),
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                          color: _appetiteColor(f.appetite),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    _chip(
+                      _conditionLabel(f.condition),
+                      _conditionColor(f.condition),
+                    ),
+                  ],
+                ),
+                if (bits.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      bits.join(' · '),
+                      style: const TextStyle(fontSize: 12, color: kHomeTextSub),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Text(
+            time,
+            style: const TextStyle(fontSize: 11, color: kHomeTextHint),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chip(String text, Color color) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.5)),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
+      );
+
   Widget _infoCard(List<Widget> rows) => Container(
         decoration: BoxDecoration(
           color: kHomeSurface,
@@ -628,6 +759,143 @@ class _WeightPt {
   const _WeightPt({required this.at, required this.grams});
   final DateTime at;
   final double grams;
+}
+
+/// Một phiếu chăm sóc/cho ăn của con cua.
+class _FeedItem {
+  const _FeedItem({
+    required this.at,
+    this.appetite,
+    this.condition,
+    this.foodType,
+    this.quantity,
+    this.unit,
+  });
+  final DateTime at;
+  final String? appetite;
+  final String? condition;
+  final String? foodType;
+  final double? quantity;
+  final String? unit;
+}
+
+String _appetiteLabel(String? v) => switch ((v ?? '').toLowerCase()) {
+      'many' => 'Ăn nhiều',
+      'little' => 'Ăn ít',
+      'none' => 'Không ăn',
+      _ => 'Chưa ghi',
+    };
+
+Color _appetiteColor(String? v) => switch ((v ?? '').toLowerCase()) {
+      'many' => const Color(0xFF2E7D32),
+      'little' => const Color(0xFFF9A825),
+      'none' => kHomeDanger,
+      _ => kHomeTextSub,
+    };
+
+String _conditionLabel(String? v) => switch ((v ?? '').toLowerCase()) {
+      'premolt' => 'Sắp lột',
+      'attention' => 'Cần chú ý',
+      'weak' => 'Yếu',
+      'normal' => 'Bình thường',
+      _ => '—',
+    };
+
+Color _conditionColor(String? v) => switch ((v ?? '').toLowerCase()) {
+      'premolt' => const Color(0xFFF9A825),
+      'attention' => kHomeDanger,
+      'weak' => const Color(0xFFEF6C00),
+      'normal' => const Color(0xFF2E7D32),
+      _ => kHomeTextSub,
+    };
+
+/// Điểm mức ăn để vẽ trục tung: 0 = không ăn, 1 = ít, 2 = nhiều.
+double _appetiteScore(String? v) => switch ((v ?? '').toLowerCase()) {
+      'many' => 2,
+      'little' => 1,
+      _ => 0,
+    };
+
+Widget _appetiteAxisLabel(double value, TitleMeta meta) {
+  final text = switch (value.round()) {
+    0 => 'Không',
+    1 => 'Ít',
+    2 => 'Nhiều',
+    _ => '',
+  };
+  if (text.isEmpty) return const SizedBox.shrink();
+  return Text(
+    text,
+    style: const TextStyle(fontSize: 9, color: kHomeTextSub),
+  );
+}
+
+/// Cột mức ăn theo ngày — nhìn nhanh con cua ăn tăng hay giảm dần.
+class _AppetiteChart extends StatelessWidget {
+  const _AppetiteChart({required this.feedings});
+  final List<_FeedItem> feedings;
+
+  static const int _maxBars = 14;
+
+  @override
+  Widget build(BuildContext context) {
+    // feedings: mới nhất trước → đảo lại để trục thời gian tăng dần.
+    final recent = feedings.take(_maxBars).toList().reversed.toList();
+    return Container(
+      height: 138,
+      padding: const EdgeInsets.fromLTRB(6, 12, 12, 6),
+      decoration: BoxDecoration(
+        color: kHomeSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kHomeBorder),
+      ),
+      child: BarChart(
+        BarChartData(
+          maxY: 2.4,
+          alignment: BarChartAlignment.spaceAround,
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            getDrawingHorizontalLine: (_) => FlLine(
+              color: kHomeBorder.withValues(alpha: 0.6),
+              strokeWidth: 1,
+            ),
+          ),
+          borderData: FlBorderData(show: false),
+          titlesData: FlTitlesData(
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 40,
+                interval: 1,
+                getTitlesWidget: _appetiteAxisLabel,
+              ),
+            ),
+          ),
+          barGroups: [
+            for (var i = 0; i < recent.length; i++)
+              BarChartGroupData(
+                x: i,
+                barRods: [
+                  BarChartRodData(
+                    toY: _appetiteScore(recent[i].appetite),
+                    width: 10,
+                    borderRadius: BorderRadius.circular(3),
+                    color: _appetiteColor(recent[i].appetite),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _AlertItem {

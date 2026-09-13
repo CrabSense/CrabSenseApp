@@ -242,6 +242,10 @@ class ApiConstants {
       '/operations/$operationId';
   static String operationsForBox(String boxId) => '/operations/box/$boxId';
 
+  /// Phiếu chăm sóc (cho ăn) của một con cua — lịch sử ăn.
+  static String operationsForCrab(String crabId) =>
+      '/operations/crab/$crabId';
+
   /// Prefer POST /operations (create) and PUT /operations/{id} (update).
   static const String createOperation = '/operations';
   static String updateOperation(String operationId) =>
