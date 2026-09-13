@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/production_models.dart';
+import '../../services/cloud_api_client.dart';
 import '../../services/production_management_service.dart';
 import '../../theme/dashboard_theme.dart';
 
@@ -107,6 +108,53 @@ Future<bool> confirmDelete(
     ),
   );
   return ok == true;
+}
+
+/// Xoá khu, tự xử lý bước "khu còn dữ liệu".
+///
+/// BE chặn 409 khi khu còn dãy. Lúc đó hỏi lại người dùng, đồng ý thì gọi
+/// lại kèm cascade=true để xoá luôn dãy/hộp/cua.
+/// Hiện snackbar kết quả hoặc lỗi. Trả về true nếu đã xoá.
+Future<bool> deleteAreaFlow(
+  BuildContext context, {
+  required String areaName,
+  required Future<void> Function({bool cascade}) remove,
+}) async {
+  final messenger = ScaffoldMessenger.of(context);
+  void snack(String message) =>
+      messenger.showSnackBar(SnackBar(content: Text(message)));
+
+  try {
+    await remove(cascade: false);
+    snack('Đã xóa khu $areaName');
+    return true;
+  } on CloudApiException catch (e) {
+    if (e.statusCode != 409) {
+      snack(e.message);
+      return false;
+    }
+  } catch (e) {
+    snack('$e');
+    return false;
+  }
+
+  if (!context.mounted) return false;
+  final force = await confirmDelete(
+    context,
+    title: 'Khu $areaName vẫn còn dữ liệu',
+    message: 'Xóa khu sẽ xóa luôn toàn bộ dãy, hộp và cua bên trong.\n\n'
+        'Không khôi phục được.',
+  );
+  if (!force) return false;
+
+  try {
+    await remove(cascade: true);
+    snack('Đã xóa khu $areaName và toàn bộ dữ liệu bên trong');
+    return true;
+  } catch (e) {
+    snack('$e');
+    return false;
+  }
 }
 
 class _AreaFormDialog extends StatefulWidget {

@@ -36,6 +36,13 @@ String farmApiMessage(Object error) {
   return 'Không thể thực hiện. Kiểm tra dữ liệu rồi thử lại.';
 }
 
+/// BE tra 409 "Cannot delete area that still has rows." khi khu con du lieu.
+bool _areaHasChildren(Object error) {
+  if (error is DioException && error.response?.statusCode == 409) return true;
+  final text = error.toString();
+  return text.contains('has rows') || text.contains('no rows');
+}
+
 class FarmStructureManageSheet extends ConsumerStatefulWidget {
   const FarmStructureManageSheet({super.key});
 
@@ -413,10 +420,28 @@ class _FarmStructureManageSheetState
                             'Chỉ xóa được khi khu không còn dãy.',
                           );
                           if (!ok) return;
-                          await _run(
-                            () => ref.read(boxesStateProvider.notifier).deleteArea(area.id),
-                            'Đã xóa khu ${area.name}',
-                          );
+                          try {
+                            await ref.read(boxesStateProvider.notifier).deleteArea(area.id);
+                            await _loadRows();
+                            if (mounted) _snack('Đã xóa khu ${area.name}');
+                          } catch (error) {
+                            // Khu con du lieu: hoi lai truoc khi xoa ca cay.
+                            if (!_areaHasChildren(error)) {
+                              if (mounted) _snack(farmApiMessage(error));
+                              return;
+                            }
+                            final force = await _confirm(
+                              'Khu ${area.name} vẫn còn dữ liệu',
+                              'Khu này còn dãy/hộp/cua. Xóa khu sẽ xóa luôn toàn bộ '
+                                  'dãy, hộp và cua bên trong.\n\nKhông khôi phục được.',
+                            );
+                            if (!force) return;
+                            await _run(
+                              () => ref.read(boxesStateProvider.notifier)
+                                  .deleteArea(area.id, cascade: true),
+                              'Đã xóa khu ${area.name} và toàn bộ dữ liệu bên trong',
+                            );
+                          }
                         },
                       ),
                       _RowList(

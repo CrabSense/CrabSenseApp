@@ -55,7 +55,9 @@ abstract class BoxesRepository {
     bool isActive = true,
   });
 
-  Future<BoxesStateData> deleteArea(String id);
+  /// Xoá khu. Mặc định chỉ xoá được khi khu đã hết dãy.
+  /// [cascade] = true: xoá luôn cả dãy, hộp và cua bên trong (không khôi phục được).
+  Future<BoxesStateData> deleteArea(String id, {bool cascade = false});
 
   Future<BoxesStateData> createRow({
     required String farmingAreaId,

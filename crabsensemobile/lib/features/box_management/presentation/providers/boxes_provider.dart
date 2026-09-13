@@ -303,8 +303,8 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
         ),
       );
 
-  Future<void> deleteArea(String id) =>
-      _applyMutation(() => _repository.deleteArea(id));
+  Future<void> deleteArea(String id, {bool cascade = false}) =>
+      _applyMutation(() => _repository.deleteArea(id, cascade: cascade));
 
   Future<void> createRow({
     required String farmingAreaId,

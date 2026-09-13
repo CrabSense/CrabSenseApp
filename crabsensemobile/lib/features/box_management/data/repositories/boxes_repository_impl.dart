@@ -107,8 +107,11 @@ class BoxesRepositoryImpl implements BoxesRepository {
   }
 
   @override
-  Future<BoxesStateData> deleteArea(String id) async {
-    await _api.delete(ApiConstants.farmDetails(id));
+  Future<BoxesStateData> deleteArea(String id, {bool cascade = false}) async {
+    await _api.delete(
+      ApiConstants.farmDetails(id),
+      queryParameters: cascade ? const {'cascade': true} : null,
+    );
     return _reload();
   }
 
