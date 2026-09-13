@@ -18,6 +18,12 @@ import '../widgets/boxes_skeleton.dart';
 import '../widgets/box_qr_sheet.dart';
 import '../widgets/farm_structure_manage_sheet.dart';
 
+/// Số cột của lưới hộp — dùng chung cho cả lưới và hàm sắp thứ tự đánh số.
+const int _boxGridColumns = 4;
+
+/// Màu cho tình trạng "Yếu" — dùng chung cho thẻ hộp và chú thích.
+const Color _kConditionWeak = Color(0xFFEF6C00);
+
 /// Boxes tab — Farm map view, light theme.
 class BoxesScreen extends ConsumerStatefulWidget {
   const BoxesScreen({super.key});
@@ -597,9 +603,16 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
                     title: 'Hộp nuôi (${boxes.length})',
                   ),
                 ),
-                const _CompactLegend(),
+                _BoxLayoutOrderBar(
+                  value: data.boxLayoutOrder,
+                  onChanged: (o) => ref
+                      .read(boxesStateProvider.notifier)
+                      .setBoxLayoutOrder(o),
+                ),
               ],
             ),
+            const SizedBox(height: 8),
+            const _CompactLegend(),
             const SizedBox(height: 10),
 
             if (boxes.isEmpty)
@@ -609,7 +622,11 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
               )
             else
               _BoxFarmGrid(
-                boxes: boxes,
+                boxes: applyBoxLayoutOrder(
+                  boxes,
+                  data.boxLayoutOrder,
+                  _boxGridColumns,
+                ),
                 onBoxTap: _handleBoxTap,
                 onBoxLongPress: data.canEditBox ? _handleBoxManage : null,
               ),
@@ -1090,18 +1107,40 @@ class _BoxFarmGrid extends StatelessWidget {
   final void Function(BoxSummary) onBoxTap;
   final void Function(BoxSummary)? onBoxLongPress;
 
+  /// Màu theo tình trạng cua nông dân đánh dấu hằng ngày. Null = chưa đánh dấu
+  /// (hộp trống hoặc dữ liệu cũ) → rơi về màu theo điểm sức khỏe hộp.
+  ///
+  /// Trước đây thẻ chỉ tô theo health score; vì mọi hộp trong khu đều 0% thiết
+  /// bị nên điểm giống nhau và cả lưới cùng một màu.
+  Color? _conditionColor(BoxSummary box) => switch (box.crabCondition) {
+        'dead' || 'problem' => kHomeDanger,
+        'weak' => _kConditionWeak,
+        'premolt' || 'molting' || 'softshell' => kHomeWarning,
+        'normal' => kHomePrimary,
+        _ => null,
+      };
+
   Color _bgColor(BoxSummary box) {
     if (box.alerts.hasAlerts || box.status == BoxHealthStatus.critical) {
       return kHomeDangerBg;
     }
     if (box.crabCount == 0) return const Color(0xFFF0F4F8);
-    if (box.status == BoxHealthStatus.warning) return kHomeWarningBg;
-    switch (box.status) {
-      case BoxHealthStatus.critical: return kHomeDangerBg;
-      case BoxHealthStatus.warning: return kHomeWarningBg;
-      case BoxHealthStatus.offline: return const Color(0xFFF0F4F8);
-      default: return kHomePrimaryBg;
+    switch (box.crabCondition) {
+      case 'dead':
+      case 'problem':
+        return kHomeDangerBg;
+      case 'weak':
+        return const Color(0xFFFFF3E0);
+      case 'premolt':
+      case 'molting':
+      case 'softshell':
+        return kHomeWarningBg;
+      case 'normal':
+        return kHomePrimaryBg;
     }
+    if (box.status == BoxHealthStatus.warning) return kHomeWarningBg;
+    if (box.status == BoxHealthStatus.offline) return const Color(0xFFF0F4F8);
+    return kHomePrimaryBg;
   }
 
   Color _borderColor(BoxSummary box) {
@@ -1109,13 +1148,11 @@ class _BoxFarmGrid extends StatelessWidget {
       return kHomeDanger;
     }
     if (box.crabCount == 0) return kHomeBorder;
+    final condition = _conditionColor(box);
+    if (condition != null) return condition;
     if (box.status == BoxHealthStatus.warning) return kHomeWarning;
-    switch (box.status) {
-      case BoxHealthStatus.critical: return kHomeDanger;
-      case BoxHealthStatus.warning: return kHomeWarning;
-      case BoxHealthStatus.offline: return kHomeBorder;
-      default: return kHomePrimary;
-    }
+    if (box.status == BoxHealthStatus.offline) return kHomeBorder;
+    return kHomePrimary;
   }
 
   Color _accentColor(BoxSummary box) {
@@ -1123,17 +1160,11 @@ class _BoxFarmGrid extends StatelessWidget {
       return kHomeDanger;
     }
     if (box.crabCount == 0) return kHomeTextHint;
+    final condition = _conditionColor(box);
+    if (condition != null) return condition;
     if (box.status == BoxHealthStatus.warning) return kHomeWarning;
-    switch (box.status) {
-      case BoxHealthStatus.critical:
-        return kHomeDanger;
-      case BoxHealthStatus.warning:
-        return kHomeWarning;
-      case BoxHealthStatus.offline:
-        return kHomeTextHint;
-      default:
-        return kHomePrimaryDark;
-    }
+    if (box.status == BoxHealthStatus.offline) return kHomeTextHint;
+    return kHomePrimaryDark;
   }
 
   String _boxLabel(BoxSummary box) {
@@ -1152,7 +1183,7 @@ class _BoxFarmGrid extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
+        crossAxisCount: _boxGridColumns,
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
         childAspectRatio: 0.92,
@@ -1291,17 +1322,78 @@ class _CompactLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
-      mainAxisSize: MainAxisSize.min,
+    return const Wrap(
+      spacing: 10,
+      runSpacing: 6,
       children: [
         _DotHint(color: kHomePrimary, tip: 'Ổn'),
-        SizedBox(width: 6),
         _DotHint(color: kHomeWarning, tip: 'Lột'),
-        SizedBox(width: 6),
-        _DotHint(color: kHomeDanger, tip: 'CB'),
-        SizedBox(width: 6),
+        _DotHint(color: kHomeDanger, tip: 'Chú ý'),
+        _DotHint(color: _kConditionWeak, tip: 'Yếu'),
         _DotHint(color: Color(0xFFB0B8B2), tip: 'Trống'),
       ],
+    );
+  }
+}
+
+/// Chọn hướng đánh số hộp trên lưới — biểu diễn bằng mũi tên, không dùng chữ.
+class _BoxLayoutOrderBar extends StatelessWidget {
+  const _BoxLayoutOrderBar({required this.value, required this.onChanged});
+
+  final BoxLayoutOrder value;
+  final ValueChanged<BoxLayoutOrder> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: kHomeSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kHomeBorder),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final o in BoxLayoutOrder.values) ...[
+            if (o != BoxLayoutOrder.values.first) const SizedBox(width: 2),
+            Tooltip(
+              message: o.tooltip,
+              child: InkWell(
+                onTap: () => onChanged(o),
+                borderRadius: BorderRadius.circular(9),
+                child: Container(
+                  width: 32,
+                  height: 26,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: value == o ? kHomePrimaryBg : Colors.transparent,
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(
+                      color: value == o ? kHomePrimary : Colors.transparent,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        o.firstArrow,
+                        size: 11,
+                        color: value == o ? kHomePrimaryDark : kHomeTextHint,
+                      ),
+                      Icon(
+                        o.secondArrow,
+                        size: 11,
+                        color: value == o ? kHomePrimaryDark : kHomeTextHint,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

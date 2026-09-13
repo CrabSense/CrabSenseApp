@@ -13,6 +13,7 @@ class BoxesRepositoryImpl implements BoxesRepository {
 
   BoxesStateData? _cached;
   BoxesViewMode _viewMode = BoxesViewMode.grid;
+  BoxLayoutOrder _layoutOrder = BoxLayoutOrder.rowLtr;
   final List<String> _recentSearches = [];
 
   @override
@@ -21,6 +22,14 @@ class BoxesRepositoryImpl implements BoxesRepository {
   @override
   Future<void> saveViewMode(BoxesViewMode mode) async {
     _viewMode = mode;
+  }
+
+  @override
+  BoxLayoutOrder get savedBoxLayoutOrder => _layoutOrder;
+
+  @override
+  Future<void> saveBoxLayoutOrder(BoxLayoutOrder order) async {
+    _layoutOrder = order;
   }
 
   @override
@@ -271,6 +280,7 @@ class BoxesRepositoryImpl implements BoxesRepository {
             : quickFilters,
         advancedFilter: advancedFilter,
         viewMode: _viewMode,
+        boxLayoutOrder: _layoutOrder,
         isOnline: true,
         isOfflineCached: false,
         lastSyncedAt: overview.syncedAt ?? DateTime.now(),
@@ -794,6 +804,7 @@ class BoxesRepositoryImpl implements BoxesRepository {
       crabCount: crabCount,
       crabType: map['crabType']?.toString(),
       batch: map['batch']?.toString(),
+      crabCondition: map['crabCondition']?.toString(),
       water: BoxWaterSnapshot(
         temperature: (waterMap?['temperature'] as num?)?.toDouble(),
         ph: (waterMap?['ph'] as num?)?.toDouble(),

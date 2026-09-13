@@ -31,6 +31,11 @@ abstract class BoxesRepository {
 
   BoxesViewMode get savedViewMode;
 
+  /// Hướng đánh số hộp người dùng chọn — giữ trong phiên như [savedViewMode].
+  Future<void> saveBoxLayoutOrder(BoxLayoutOrder order);
+
+  BoxLayoutOrder get savedBoxLayoutOrder;
+
   /// Creates a box on a farming row (Admin/Manager). Returns updated summary.
   Future<BoxesStateData> createBox({
     required String farmingRowId,
