@@ -56,7 +56,7 @@ class DashboardHeader extends StatelessWidget {
                     color: DashboardColors.textMuted,
                     fontSize: 13,
                   ),
-                  prefixIcon: const Icon(
+                  prefixIcon: Icon(
                     Icons.search,
                     color: DashboardColors.textMuted,
                     size: 20,
