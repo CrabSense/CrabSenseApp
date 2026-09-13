@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:hive/hive.dart';
 
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/api_client.dart';
@@ -11,9 +12,14 @@ class BoxesRepositoryImpl implements BoxesRepository {
 
   final ApiClient _api;
 
+  /// Box Hive nhỏ cho lựa chọn UI (mở lazily, không cần sửa main.dart).
+  static const _uiPrefsBox = 'ui_prefs';
+  static const _layoutOrderKey = 'boxLayoutOrder';
+
   BoxesStateData? _cached;
   BoxesViewMode _viewMode = BoxesViewMode.grid;
   BoxLayoutOrder _layoutOrder = BoxLayoutOrder.rowLtr;
+  bool _layoutOrderLoaded = false;
   final List<String> _recentSearches = [];
 
   @override
@@ -27,9 +33,31 @@ class BoxesRepositoryImpl implements BoxesRepository {
   @override
   BoxLayoutOrder get savedBoxLayoutOrder => _layoutOrder;
 
+  /// Đọc hướng đánh số đã lưu. Không có/lỗi → mặc định trái→phải.
+  Future<void> _loadLayoutOrder() async {
+    if (_layoutOrderLoaded) return;
+    _layoutOrderLoaded = true;
+    try {
+      final box = await Hive.openBox<dynamic>(_uiPrefsBox);
+      final saved = box.get(_layoutOrderKey);
+      _layoutOrder = BoxLayoutOrder.values.firstWhere(
+        (o) => o.name == saved,
+        orElse: () => BoxLayoutOrder.rowLtr,
+      );
+    } catch (_) {
+      // ponytail: Hive chưa sẵn sàng thì dùng mặc định, không chặn tải hộp.
+    }
+  }
+
   @override
   Future<void> saveBoxLayoutOrder(BoxLayoutOrder order) async {
     _layoutOrder = order;
+    try {
+      final box = await Hive.openBox<dynamic>(_uiPrefsBox);
+      await box.put(_layoutOrderKey, order.name);
+    } catch (_) {
+      // ponytail: không ghi được thì chỉ mất lựa chọn sau khi mở lại app.
+    }
   }
 
   @override
@@ -253,6 +281,7 @@ class BoxesRepositoryImpl implements BoxesRepository {
     }
 
     try {
+      await _loadLayoutOrder();
       final farms = await _fetchFarms();
       final selected = _resolveFarm(
         farms,
