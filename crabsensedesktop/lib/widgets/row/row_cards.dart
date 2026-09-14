@@ -76,7 +76,7 @@ class RowOverviewCard extends StatelessWidget {
               ),
               const SizedBox(width: 20),
               Text(
-                '🦀  ${row.crabCount} Cua',
+                '🦀  ${row.crabCount} cua trong hộp',
                 style: GoogleFonts.notoSans(
                   color: DashboardColors.textPrimary,
                   fontSize: 14,
@@ -199,7 +199,7 @@ Future<void> showRowDetailDialog(
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _DetailStat(emoji: '🦀', label: 'Cua đang nuôi', value: '${row.crabCount}'),
+                  child: _DetailStat(emoji: '🦀', label: 'Cua trong hộp', value: '${row.crabCount}'),
                 ),
               ],
             ),

@@ -193,7 +193,7 @@ class FarmOverviewStats extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: _StatChip(emoji: '🦀', label: 'Tổng cua', value: farm.crabCount),
+          child: _StatChip(emoji: '🦀', label: 'Cua trong hộp', value: farm.crabCount),
         ),
         const SizedBox(width: 8),
         Expanded(
@@ -225,7 +225,7 @@ class _CardStats extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: _StatChip(emoji: '🦀', label: 'Tổng cua', value: farm.crabCount),
+          child: _StatChip(emoji: '🦀', label: 'Cua trong hộp', value: farm.crabCount),
         ),
         const SizedBox(width: 8),
         Expanded(
