@@ -658,6 +658,7 @@ class CrabService extends ChangeNotifier {
       final y = date.year.toString().padLeft(4, '0');
       final m = date.month.toString().padLeft(2, '0');
       final d = date.day.toString().padLeft(2, '0');
+      final crab = getById(id);
       await _api.recordCrabMolt(
         token,
         id,
@@ -665,6 +666,7 @@ class CrabService extends ChangeNotifier {
         moltNumber: moltCount,
         condition: moltConditionToApi(condition),
         note: note,
+        boxId: crab?.boxId,
       );
       await load();
       await loadDetail(id);
@@ -676,16 +678,56 @@ class CrabService extends ChangeNotifier {
     }
   }
 
-  Future<bool> markHarvested(String id, {String? note}) async {
+  Future<bool> markHarvested(String id, {String? note}) =>
+      harvestToInventory(id, isSoftshell: false, note: note);
+
+  Future<bool> exportSoftshell(String id, {String? note}) =>
+      harvestToInventory(id, isSoftshell: true, note: note);
+
+  Future<bool> harvestToInventory(
+    String id, {
+    required bool isSoftshell,
+    String? note,
+  }) async {
     final crab = getById(id);
     if (crab == null) return false;
-    return updateCrab(
-      crab.copyWith(
-        lifeStatus: CrabLifeStatus.sold,
-        quickNote: note ?? 'Đã thu hoạch ${MockCrabData.formatDate(DateTime.now())}',
-        updatedAt: DateTime.now(),
-      ),
-    );
+    if (crab.lifeStatus != CrabLifeStatus.raising) {
+      _error = 'Chỉ xuất cua đang nuôi';
+      notifyListeners();
+      return false;
+    }
+    try {
+      final grams = crab.weightGram.round();
+      await _api.createHarvestVoucher(
+        token,
+        harvestDate: DateTime.now(),
+        notes: note ??
+            (isSoftshell
+                ? 'Xuất cua lột ${crab.code}'
+                : 'Thu hoạch ${crab.code}'),
+        quantity: 1,
+        totalWeightKg: grams / 1000,
+        farmingAreaId: farmId,
+        performedByName: _session.user.displayName,
+        lines: [
+          {
+            'crabId': id,
+            'weightGram': grams <= 0 ? 1 : grams,
+            'grade': 'A',
+            'isSoftshell': isSoftshell,
+            'conditionLabel': isSoftshell ? 'Cua lột' : crab.healthStatus.label,
+            'result': 'passed',
+          },
+        ],
+      );
+      await load();
+      await loadDetail(id);
+      return true;
+    } on CloudApiException catch (e) {
+      _error = e.message;
+      notifyListeners();
+      return false;
+    }
   }
 
   Future<bool> markDead(String id, {required String cause, required DateTime date}) async {

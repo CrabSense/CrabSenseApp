@@ -684,7 +684,11 @@ class CrabManagementListItem {
               json['lastMoltDate'] ??
               json['LastMoltDate'])
           ?.toString(),
-      healthStatus: (json['healthStatus'] ?? json['HealthStatus'] ?? molting)
+      healthStatus: (json['healthStatus'] ??
+              json['HealthStatus'] ??
+              json['condition'] ??
+              json['Condition'] ??
+              molting)
           ?.toString(),
       growthStage: (json['growthStage'] ?? json['GrowthStage'])?.toString(),
       profileNote: (json['profileNote'] ?? json['ProfileNote'])?.toString(),

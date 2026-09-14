@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../data/mock_crab_data.dart';
 import '../../models/crab_individual.dart';
+import '../../models/crab_status.dart';
 import '../../services/camera_device_service.dart';
 import '../../services/crab_service.dart';
 import '../../services/gateway_service.dart';
@@ -113,14 +114,63 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage>
                       onPressed: _loadDetail,
                       icon: const Icon(Icons.refresh),
                     ),
-                  OutlinedButton.icon(
-                    onPressed: () => showCrabManagementFormDialog(
-                      context,
-                      widget.service,
-                      existing: crab,
+                  Flexible(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.end,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () => showCrabManagementFormDialog(
+                            context,
+                            widget.service,
+                            existing: crab,
+                          ),
+                          icon: const Icon(Icons.edit_outlined, size: 16),
+                          label: const Text('Chỉnh sửa'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => showRecordMoltDialog(
+                            context,
+                            widget.service,
+                            crab,
+                          ),
+                          icon: const Icon(Icons.sync_outlined, size: 16),
+                          label: const Text('Ghi nhận lột'),
+                        ),
+                        if (crab.lifeStatus == CrabLifeStatus.raising)
+                          FilledButton.icon(
+                            onPressed: () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              if (!await confirmCrabAction(
+                                context,
+                                title: 'Xuất cua lột?',
+                                message:
+                                    'Xuất ${crab.code} ra tồn kho với loại cua lột.',
+                                confirmLabel: 'Xuất',
+                              )) {
+                                return;
+                              }
+                              final ok = await widget.service
+                                  .exportSoftshell(crab.id);
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    ok
+                                        ? 'Đã xuất cua lột vào tồn kho'
+                                        : (widget.service.error ?? 'Lỗi'),
+                                  ),
+                                ),
+                              );
+                            },
+                            style: FilledButton.styleFrom(
+                              backgroundColor: DashboardColors.purple,
+                            ),
+                            icon: const Icon(Icons.outbox_outlined, size: 16),
+                            label: const Text('Xuất cua lột'),
+                          ),
+                      ],
                     ),
-                    icon: const Icon(Icons.edit_outlined, size: 16),
-                    label: const Text('Chỉnh sửa'),
                   ),
                 ],
               ),
