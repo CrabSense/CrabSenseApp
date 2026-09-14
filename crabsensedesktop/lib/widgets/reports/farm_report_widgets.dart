@@ -2,7 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_farm_report_data.dart';
+import '../../utils/app_formatters.dart';
 import '../../models/farm_report.dart';
 import '../../services/farm_report_service.dart';
 import '../../theme/dashboard_theme.dart';
@@ -185,17 +185,17 @@ class ReportKpiGrid extends StatelessWidget {
     final row2 = [
       _Kpi(
         title: 'Tổng Doanh thu',
-        value: '${MockFarmReportData.formatVndShort(kpi.totalRevenueVnd)} VND',
+        value: '${formatVndShort(kpi.totalRevenueVnd)} VND',
         subtitle: 'Dự kiến +${kpi.revenueForecastPercent}% vs Q1',
       ),
       _Kpi(
         title: 'Tổng Chi phí',
-        value: '${MockFarmReportData.formatVndShort(kpi.totalCostVnd)} VND',
+        value: '${formatVndShort(kpi.totalCostVnd)} VND',
         subtitle: 'Thức ăn chiếm ${kpi.feedCostSharePercent.round()}%',
       ),
       _Kpi(
         title: 'Lợi nhuận ròng',
-        value: MockFarmReportData.formatVndFull(kpi.netProfitVnd),
+        value: formatVndFull(kpi.netProfitVnd),
         subtitle: 'ROI hiện tại ${kpi.roiPercent}%',
         highlight: true,
       ),
@@ -747,7 +747,7 @@ class ReportDailyTableCard extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              MockFarmReportData.formatVndFull(r.costVnd),
+              formatVndFull(r.costVnd),
               style: GoogleFonts.notoSans(fontSize: 11),
             ),
           ),

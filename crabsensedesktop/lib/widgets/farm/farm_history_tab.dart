@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_farm_history_data.dart';
 import '../../models/farm_history_event.dart';
 import '../../theme/dashboard_theme.dart';
 import '../dashboard/glass_card.dart';
@@ -31,7 +30,7 @@ class _FarmHistoryTabState extends State<FarmHistoryTab> {
   ];
 
   List<FarmHistoryEvent> get _filtered {
-    var list = MockFarmHistoryData.events();
+    var list = const <FarmHistoryEvent>[];
     if (_eventFilter != 'Tất cả loại') {
       list = list.where((e) {
         return switch (_eventFilter) {
@@ -180,7 +179,7 @@ class _Breadcrumb extends StatelessWidget {
         ),
         Text('  >  ', style: GoogleFonts.notoSans(color: DashboardColors.textMuted)),
         Text(
-          MockFarmHistoryData.pondId,
+          'Khu đang chọn',
           style: GoogleFonts.notoSans(color: DashboardColors.cyan, fontSize: 13),
         ),
       ],
@@ -462,8 +461,8 @@ class _EventCard extends StatelessWidget {
 class _SummaryPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final summaries = MockFarmHistoryData.eventSummaries();
-    final heatmap = MockFarmHistoryData.activityHeatmap();
+    const summaries = <HistoryEventSummary>[];
+    const heatmap = <List<double>>[];
     const barColors = [
       Color(0xFFFF6B8A),
       DashboardColors.blue,
@@ -587,7 +586,7 @@ class _SummaryPanel extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                MockFarmHistoryData.aiInsight(),
+                'Chưa có lịch sử hoạt động.',
                 style: GoogleFonts.notoSans(
                   color: DashboardColors.textMuted,
                   fontSize: 12,

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_batch_data.dart';
 import '../../models/crab_batch.dart';
 import '../../services/batch_service.dart';
 import '../../theme/dashboard_theme.dart';
@@ -25,7 +24,7 @@ class BatchListPage extends StatelessWidget {
     return ListenableBuilder(
       listenable: service,
       builder: (context, _) {
-        final kpis = MockBatchData.summaryKpis(service.batches);
+        final kpis = service.summaryKpis();
         final pageItems = service.paginatedBatches;
         final start = service.totalCount == 0
             ? 0

@@ -2,8 +2,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_health_monitoring_data.dart';
 import '../../models/health_monitoring.dart';
+import '../../utils/app_formatters.dart';
 import '../../theme/dashboard_theme.dart';
 import '../dashboard/glass_card.dart';
 import '../shared/ai_assistant_avatar.dart';
@@ -411,7 +411,7 @@ class HealthTrendChart extends StatelessWidget {
                           return const SizedBox.shrink();
                         }
                         return Text(
-                          MockHealthMonitoringData.formatDate(profile.trend[i].date)
+                          formatDate(profile.trend[i].date)
                               .substring(0, 5),
                           style: GoogleFonts.notoSans(
                             color: DashboardColors.textMuted,
@@ -549,7 +549,7 @@ class MonitorDetailCards extends StatelessWidget {
         icon: Icons.sync_outlined,
         rows: [
           _MonitorRow('Lần lột xác', '${p.molting.moltCount}'),
-          _MonitorRow('Gần nhất', MockHealthMonitoringData.formatDate(p.molting.lastMoltDate)),
+          _MonitorRow('Gần nhất', formatDate(p.molting.lastMoltDate)),
           _MonitorRow('Chu kỳ', '${p.molting.cycleDays} ngày'),
           _MonitorRow('Hồi phục', '${p.molting.recoveryHours} giờ'),
           _MonitorRow('Trạng thái', p.molting.status.label),

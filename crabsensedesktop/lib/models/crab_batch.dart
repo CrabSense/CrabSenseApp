@@ -85,6 +85,34 @@ class CrabBatch {
   }
 }
 
+class BatchSummaryKpi {
+  const BatchSummaryKpi({
+    required this.label,
+    required this.value,
+    required this.subtext,
+    required this.icon,
+    required this.accentColor,
+  });
+
+  final String label;
+  final String value;
+  final String subtext;
+  final IconData icon;
+  final Color accentColor;
+}
+
+class BatchStatusDistribution {
+  const BatchStatusDistribution({
+    required this.label,
+    required this.percent,
+    required this.color,
+  });
+
+  final String label;
+  final double percent;
+  final Color color;
+}
+
 class BatchTimelineEvent {
   const BatchTimelineEvent({
     required this.date,

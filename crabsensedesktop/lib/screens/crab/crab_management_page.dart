@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_crab_data.dart';
+import '../../utils/crab_management_mapper.dart';
 import '../../models/crab_individual.dart';
 import '../../models/crab_status.dart';
 import '../../navigation/app_route.dart';
@@ -157,7 +157,7 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
   @override
   Widget build(BuildContext context) {
     final svc = widget.service;
-    final kpis = MockCrabData.managementSummaryKpis(svc.summary);
+    final kpis = crabManagementSummaryKpis(svc.summary);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),

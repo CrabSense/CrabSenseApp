@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_batch_data.dart';
+import '../../models/crab_batch.dart';
 import '../../models/farming_batch_group.dart';
 import '../../models/batch_status.dart';
 import '../../navigation/app_route.dart';
@@ -371,7 +371,7 @@ class _InsightCards extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  MockBatchData.aiTip,
+                  'Chưa có gợi ý từ dữ liệu lứa nuôi.',
                   style: GoogleFonts.notoSans(
                     color: DashboardColors.textMuted,
                     fontSize: 13,
@@ -388,7 +388,7 @@ class _InsightCards extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  MockBatchData.marketForecast,
+                  'Chưa có dự báo thị trường.',
                   style: GoogleFonts.notoSans(
                     color: DashboardColors.textMuted,
                     fontSize: 13,

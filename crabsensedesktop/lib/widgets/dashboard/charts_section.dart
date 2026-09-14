@@ -2,7 +2,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_dashboard_data.dart';
 import '../../models/farm_dashboard_overview.dart';
 import '../../services/dashboard_env_trend_service.dart';
 import '../../services/farm_dashboard_service.dart';
@@ -45,19 +44,19 @@ class _ChartsSectionState extends State<ChartsSection> {
     if (svc.liveDoSeries.isNotEmpty) return svc.liveDoSeries;
     final charts = svc.charts;
     if (charts != null && charts.do24h.isNotEmpty) return charts.do24h;
-    return MockDashboardData.do24h;
+    return const [];
   }
 
   List<double> get _growthData {
     final charts = svc.charts;
     if (charts != null && charts.growthBars.isNotEmpty) return charts.growthBars;
-    return MockDashboardData.growthBars;
+    return const [];
   }
 
   List<String> get _chartLabels {
     final charts = svc.charts;
     if (charts != null && charts.labels.isNotEmpty) return charts.labels;
-    return MockDashboardData.chartLabels;
+    return const [];
   }
 
   @override
@@ -370,19 +369,8 @@ class _HealthMultiLineChartCardState extends State<HealthMultiLineChartCard> {
     DashboardColors.healthy,
   ];
 
-  static const _mockMeta = <(String, Color)>[
-    ('Lứa 01', DashboardColors.cyan),
-    ('Lứa 02', DashboardColors.blue),
-    ('Lứa 03', DashboardColors.purple),
-    ('Toàn trại', DashboardColors.healthy),
-  ];
-
-  static final _mockDatasets = [
-    MockDashboardData.batch01Health,
-    MockDashboardData.batch02Health,
-    MockDashboardData.batch03Health,
-    MockDashboardData.farmHealth,
-  ];
+  static const _emptyMeta = <(String, Color)>[];
+  static const _emptyDatasets = <List<double>>[];
 
   @override
   void initState() {
@@ -410,7 +398,7 @@ class _HealthMultiLineChartCardState extends State<HealthMultiLineChartCard> {
 
   List<(String, Color)> get _seriesMeta {
     final c = widget.charts;
-    if (c == null) return _mockMeta;
+    if (c == null) return _emptyMeta;
     final meta = <(String, Color)>[];
     for (var i = 0; i < c.batchHealth.length; i++) {
       if (c.batchHealth[i].values.isEmpty) continue;
@@ -419,18 +407,18 @@ class _HealthMultiLineChartCardState extends State<HealthMultiLineChartCard> {
     if (c.farmHealth.isNotEmpty) {
       meta.add(('Toàn trại', DashboardColors.healthy));
     }
-    return meta.isEmpty ? _mockMeta : meta;
+    return meta.isEmpty ? _emptyMeta : meta;
   }
 
   List<List<double>> get _datasets {
     final c = widget.charts;
-    if (c == null) return _mockDatasets;
+    if (c == null) return _emptyDatasets;
     final list = <List<double>>[
       for (final b in c.batchHealth)
         if (b.values.isNotEmpty) b.values,
       if (c.farmHealth.isNotEmpty) c.farmHealth,
     ];
-    return list.isEmpty ? _mockDatasets : list;
+    return list.isEmpty ? _emptyDatasets : list;
   }
 
   @override
@@ -547,7 +535,7 @@ FlTitlesData _titlesData([List<String>? labels]) => FlTitlesData(
           interval: 2,
           getTitlesWidget: (v, _) {
             final i = v.toInt();
-            final chartLabels = labels ?? MockDashboardData.chartLabels;
+            final chartLabels = labels ?? const <String>[];
             if (i < 0 || i >= chartLabels.length) {
               return const SizedBox.shrink();
             }

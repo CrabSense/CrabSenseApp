@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_camera_ai_data.dart';
 import '../../models/camera_ai.dart';
 import '../../services/camera_ai_service.dart';
 import '../../theme/dashboard_theme.dart';
@@ -59,6 +58,7 @@ class _CameraAiPageState extends State<CameraAiPage> {
           ),
           const SizedBox(height: 20),
           _CameraTabs(
+            tabs: service.cameraTabs,
             selected: service.cameraTab,
             onSelect: service.setCameraTab,
           ),
@@ -165,15 +165,20 @@ class _CameraAiPageState extends State<CameraAiPage> {
 }
 
 class _CameraTabs extends StatelessWidget {
-  const _CameraTabs({required this.selected, required this.onSelect});
+  const _CameraTabs({
+    required this.tabs,
+    required this.selected,
+    required this.onSelect,
+  });
 
+  final List<String> tabs;
   final String selected;
   final ValueChanged<String> onSelect;
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: MockCameraAiData.cameraTabs.map((tab) {
+      children: tabs.map((tab) {
         final active = tab == selected;
         return Padding(
           padding: const EdgeInsets.only(right: 24),
@@ -257,10 +262,10 @@ class _FilterBar extends StatelessWidget {
         runSpacing: 12,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          _dropdown('Camera', MockCameraAiData.cameraFilterOptions, service.setCameraFilter),
-          _dropdown('Phát hiện', MockCameraAiData.typeFilterOptions, service.setTypeFilter),
-          _dropdown('Mức độ', MockCameraAiData.levelFilterOptions, service.setLevelFilter),
-          _dropdown('Trạng thái', MockCameraAiData.statusFilterOptions, service.setStatusFilter),
+          _dropdown('Camera', service.cameraFilterOptions, service.setCameraFilter),
+          _dropdown('Phát hiện', CameraAiService.typeFilterOptions, service.setTypeFilter),
+          _dropdown('Mức độ', CameraAiService.levelFilterOptions, service.setLevelFilter),
+          _dropdown('Trạng thái', CameraAiService.statusFilterOptions, service.setStatusFilter),
         ],
       ),
     );

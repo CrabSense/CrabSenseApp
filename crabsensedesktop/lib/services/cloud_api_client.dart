@@ -811,13 +811,17 @@ class CloudApiClient {
   Future<List<Map<String, dynamic>>> fetchAlerts(
     String token, {
     String? farmingAreaId,
+    String? boxId,
     bool activeOnly = true,
   }) =>
       _getDataList(
         token,
         '/api/alerts',
         farmingAreaId: farmingAreaId,
-        extraQuery: {'activeOnly': '$activeOnly'},
+        extraQuery: {
+          'activeOnly': '$activeOnly',
+          if (boxId != null && boxId.isNotEmpty) 'boxId': boxId,
+        },
       );
 
   /// CrabSenseBE `GET /api/alerts/history`

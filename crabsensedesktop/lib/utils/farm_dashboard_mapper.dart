@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../data/mock_dashboard_data.dart';
 import '../models/area_environment_metric.dart';
+import '../models/dashboard_ui.dart';
 import '../models/farm_dashboard_overview.dart';
 import '../models/water_quality.dart';
 import '../theme/dashboard_theme.dart';

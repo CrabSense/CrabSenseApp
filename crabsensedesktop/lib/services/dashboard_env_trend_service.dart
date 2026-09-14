@@ -3,12 +3,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
-import '../data/mock_water_quality_data.dart';
 import '../models/water_quality.dart';
 import '../utils/live_trend_bootstrap.dart';
 import '../utils/water_trend_window.dart';
 
-/// Xu hướng pH & nhiệt độ — mock 3s hoặc buffer realtime từ sensor Cloud.
+/// Xu hướng pH & nhiệt độ từ sensor Cloud.
 class DashboardEnvTrendService extends ChangeNotifier {
   static const rangeMinutes = 30;
   static const liveWindowMinutes = 30;
@@ -110,15 +109,11 @@ class DashboardEnvTrendService extends ChangeNotifier {
     _points = WaterTrendWindow.project(_buffer, liveWindowMinutes, now);
   }
 
-  void start({bool useMockWhenEmpty = true}) {
+  void start() {
     if (_active && _liveApi) return;
     if (_active) return;
     _active = true;
-    if (useMockWhenEmpty) _seed();
     _timer?.cancel();
-    if (!_liveApi) {
-      _timer = Timer.periodic(pollInterval, (_) => tick());
-    }
   }
 
   void stop() {
@@ -134,27 +129,7 @@ class DashboardEnvTrendService extends ChangeNotifier {
     super.dispose();
   }
 
-  void _seed() {
-    _emaState = null;
-    final seed = MockWaterQualityData.trendForRange(rangeMinutes);
-    _buffer
-      ..clear()
-      ..addAll(seed);
-    _points = WaterTrendWindow.project(_buffer, rangeMinutes);
-    notifyListeners();
-  }
-
-  void tick() {
-    final now = DateTime.now();
-    final raw = MockWaterQualityData.trendLiveSample(now);
-    _buffer.add(_smoothPoint(raw, now));
-    final pruned = WaterTrendWindow.prune(_buffer, rangeMinutes, now);
-    _buffer
-      ..clear()
-      ..addAll(pruned);
-    _points = WaterTrendWindow.project(_buffer, rangeMinutes, now);
-    notifyListeners();
-  }
+  void tick() {}
 
   WaterTrendPoint _smoothPoint(WaterTrendPoint raw, DateTime now) {
     final prev = _emaState;

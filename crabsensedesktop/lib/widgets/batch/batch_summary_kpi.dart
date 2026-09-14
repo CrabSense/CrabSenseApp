@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_batch_data.dart';
+import '../../models/crab_batch.dart';
 import '../../theme/dashboard_theme.dart';
 import '../dashboard/glass_card.dart';
 

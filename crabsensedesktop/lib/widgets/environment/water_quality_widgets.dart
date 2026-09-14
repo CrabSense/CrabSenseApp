@@ -845,14 +845,33 @@ class WaterQualityFilterBar extends StatelessWidget {
       runSpacing: 12,
       alignment: WrapAlignment.end,
       children: [
-        _filter('Khu nuôi', service.area, MockWaterQualityFilterOptions.areas,
-            service.setArea),
-        _filter('Thiết bị', service.device, MockWaterQualityFilterOptions.devices,
-            service.setDevice),
-        _filter('Thời gian', service.timeRange,
-            MockWaterQualityFilterOptions.times, service.setTimeRange),
-        _filter('Trạng thái', service.statusFilter,
-            MockWaterQualityFilterOptions.statuses, service.setStatusFilter),
+        _filter(
+          'Khu nuôi',
+          service.area.isEmpty ? 'Tất cả' : service.area,
+          [if (service.area.isNotEmpty) service.area else 'Tất cả'],
+          service.setArea,
+        ),
+        _filter(
+          'Thiết bị',
+          service.device.isEmpty ? 'Tất cả' : service.device,
+          [
+            'Tất cả',
+            if (service.device.isNotEmpty) service.device,
+          ],
+          service.setDevice,
+        ),
+        _filter(
+          'Thời gian',
+          service.timeRange,
+          WaterQualityFilterOptions.times,
+          service.setTimeRange,
+        ),
+        _filter(
+          'Trạng thái',
+          service.statusFilter,
+          WaterQualityFilterOptions.statuses,
+          service.setStatusFilter,
+        ),
       ],
     );
   }
@@ -906,10 +925,7 @@ class WaterQualityFilterBar extends StatelessWidget {
   }
 }
 
-/// Filter option lists for UI (mirrors mock data).
-abstract final class MockWaterQualityFilterOptions {
-  static const areas = ['Tất cả', 'Khu A', 'Khu B', 'Khu C'];
-  static const devices = ['Tất cả', 'Sensor-01', 'Sensor-02', 'Sensor-03'];
+abstract final class WaterQualityFilterOptions {
   static const times = ['24h', '7 ngày', '30 ngày'];
   static const statuses = ['Tất cả', 'Bình thường', 'Cảnh báo', 'Offline'];
 }
