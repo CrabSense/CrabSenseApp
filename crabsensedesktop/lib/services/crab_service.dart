@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
-import '../data/mock_crab_data.dart';
 import '../models/auth_models.dart';
+import '../utils/app_formatters.dart';
 import '../models/crab_individual.dart';
 import '../models/crab_profile.dart';
 import '../models/crab_status.dart';
@@ -49,10 +49,10 @@ class CrabService extends ChangeNotifier {
   String? _error;
 
   String _searchQuery = '';
-  String _areaFilter = MockCrabData.allOption;
-  String _rowFilter = MockCrabData.allOption;
-  String _boxFilter = MockCrabData.allOption;
-  String _batchFilter = MockCrabData.allOption;
+  String _areaFilter = kAllFilter;
+  String _rowFilter = kAllFilter;
+  String _boxFilter = kAllFilter;
+  String _batchFilter = kAllFilter;
   CrabManagementStatusFilter _statusFilter = CrabManagementStatusFilter.all;
 
   static const _pageSize = 10;
@@ -92,21 +92,21 @@ class CrabService extends ChangeNotifier {
       aliveRate: 0,
     );
     _currentPage = 1;
-    _areaFilter = MockCrabData.allOption;
-    _rowFilter = MockCrabData.allOption;
-    _boxFilter = MockCrabData.allOption;
+    _areaFilter = kAllFilter;
+    _rowFilter = kAllFilter;
+    _boxFilter = kAllFilter;
     notifyListeners();
   }
 
   List<String> get areaOptions => [
-        MockCrabData.allOption,
+        kAllFilter,
         ..._crabs.map((c) => c.areaName).toSet(),
       ];
 
   List<String> get rowOptions {
     if (_rowsInArea.isNotEmpty) {
       return [
-        MockCrabData.allOption,
+        kAllFilter,
         ..._rowsInArea.map((r) {
           final name = r.rowName.trim();
           return name.isNotEmpty ? name : r.rowCode;
@@ -114,24 +114,24 @@ class CrabService extends ChangeNotifier {
       ];
     }
     return [
-      MockCrabData.allOption,
+      kAllFilter,
       ..._crabs.map((c) => c.rowName).where((n) => n.trim().isNotEmpty).toSet(),
     ];
   }
 
   List<String> get boxOptions {
     var list = _crabs;
-    if (_areaFilter != MockCrabData.allOption) {
+    if (_areaFilter != kAllFilter) {
       list = list.where((c) => c.areaName == _areaFilter).toList();
     }
-    if (_rowFilter != MockCrabData.allOption) {
+    if (_rowFilter != kAllFilter) {
       list = list.where((c) => c.rowName == _rowFilter).toList();
     }
-    return [MockCrabData.allOption, ...list.map((c) => c.boxLabel).toSet()];
+    return [kAllFilter, ...list.map((c) => c.boxLabel).toSet()];
   }
 
   List<String> get batchOptions => [
-        MockCrabData.allOption,
+        kAllFilter,
         ...{
           ..._lots.map((l) => l.batchCode),
           ..._crabs.map((c) => c.batchId),
@@ -184,16 +184,16 @@ class CrabService extends ChangeNotifier {
 
   List<CrabIndividual> get filteredCrabs {
     var list = _crabs;
-    if (_areaFilter != MockCrabData.allOption) {
+    if (_areaFilter != kAllFilter) {
       list = list.where((c) => c.areaName == _areaFilter).toList();
     }
-    if (_rowFilter != MockCrabData.allOption) {
+    if (_rowFilter != kAllFilter) {
       list = list.where((c) => c.rowName == _rowFilter).toList();
     }
-    if (_boxFilter != MockCrabData.allOption) {
+    if (_boxFilter != kAllFilter) {
       list = list.where((c) => c.boxLabel == _boxFilter).toList();
     }
-    if (_batchFilter != MockCrabData.allOption) {
+    if (_batchFilter != kAllFilter) {
       list = list.where((c) => c.batchId == _batchFilter).toList();
     }
     if (_statusFilter != CrabManagementStatusFilter.all) {
@@ -313,15 +313,15 @@ class CrabService extends ChangeNotifier {
 
   void setAreaFilter(String value) {
     _areaFilter = value;
-    _rowFilter = MockCrabData.allOption;
-    _boxFilter = MockCrabData.allOption;
+    _rowFilter = kAllFilter;
+    _boxFilter = kAllFilter;
     _currentPage = 1;
     notifyListeners();
   }
 
   void setRowFilter(String value) {
     _rowFilter = value;
-    _boxFilter = MockCrabData.allOption;
+    _boxFilter = kAllFilter;
     _currentPage = 1;
     notifyListeners();
   }
@@ -349,7 +349,7 @@ class CrabService extends ChangeNotifier {
     notifyListeners();
   }
 
-  CrabIndividual? getById(String id) => MockCrabData.findById(_crabs, id);
+  CrabIndividual? getById(String id) => findCrabById(_crabs, id);
 
   List<CrabIndividual> crabsInLot({required String lotId, String? lotCode}) {
     final ids = _lastListItems
@@ -658,6 +658,7 @@ class CrabService extends ChangeNotifier {
       final y = date.year.toString().padLeft(4, '0');
       final m = date.month.toString().padLeft(2, '0');
       final d = date.day.toString().padLeft(2, '0');
+      final crab = getById(id);
       await _api.recordCrabMolt(
         token,
         id,
@@ -665,6 +666,7 @@ class CrabService extends ChangeNotifier {
         moltNumber: moltCount,
         condition: moltConditionToApi(condition),
         note: note,
+        boxId: crab?.boxId,
       );
       await load();
       await loadDetail(id);
@@ -676,16 +678,56 @@ class CrabService extends ChangeNotifier {
     }
   }
 
-  Future<bool> markHarvested(String id, {String? note}) async {
+  Future<bool> markHarvested(String id, {String? note}) =>
+      harvestToInventory(id, isSoftshell: false, note: note);
+
+  Future<bool> exportSoftshell(String id, {String? note}) =>
+      harvestToInventory(id, isSoftshell: true, note: note);
+
+  Future<bool> harvestToInventory(
+    String id, {
+    required bool isSoftshell,
+    String? note,
+  }) async {
     final crab = getById(id);
     if (crab == null) return false;
-    return updateCrab(
-      crab.copyWith(
-        lifeStatus: CrabLifeStatus.sold,
-        quickNote: note ?? 'Đã thu hoạch ${MockCrabData.formatDate(DateTime.now())}',
-        updatedAt: DateTime.now(),
-      ),
-    );
+    if (crab.lifeStatus != CrabLifeStatus.raising) {
+      _error = 'Chỉ xuất cua đang nuôi';
+      notifyListeners();
+      return false;
+    }
+    try {
+      final grams = crab.weightGram.round();
+      await _api.createHarvestVoucher(
+        token,
+        harvestDate: DateTime.now(),
+        notes: note ??
+            (isSoftshell
+                ? 'Xuất cua lột ${crab.code}'
+                : 'Thu hoạch ${crab.code}'),
+        quantity: 1,
+        totalWeightKg: grams / 1000,
+        farmingAreaId: farmId,
+        performedByName: _session.user.displayName,
+        lines: [
+          {
+            'crabId': id,
+            'weightGram': grams <= 0 ? 1 : grams,
+            'grade': 'A',
+            'isSoftshell': isSoftshell,
+            'conditionLabel': isSoftshell ? 'Cua lột' : crab.healthStatus.label,
+            'result': 'passed',
+          },
+        ],
+      );
+      await load();
+      await loadDetail(id);
+      return true;
+    } on CloudApiException catch (e) {
+      _error = e.message;
+      notifyListeners();
+      return false;
+    }
   }
 
   Future<bool> markDead(String id, {required String cause, required DateTime date}) async {
@@ -697,7 +739,7 @@ class CrabService extends ChangeNotifier {
         healthStatus: CrabHealthStatus.atRisk,
         healthScore: 0,
         updatedAt: date,
-        quickNote: 'Đã chết ($cause) — ${MockCrabData.formatDate(date)}',
+        quickNote: 'Đã chết ($cause) — ${formatDate(date)}',
       ),
     );
   }

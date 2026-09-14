@@ -2,7 +2,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_alerts_data.dart';
 import '../../models/farm_alert.dart';
 import '../../services/alert_service.dart';
 import '../../theme/dashboard_theme.dart';
@@ -149,7 +148,14 @@ class AlertFilterChips extends StatelessWidget {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: MockAlertsData.filterOptions.map((f) {
+        children: const [
+          'Tất cả',
+          'Info',
+          'Warning',
+          'Critical',
+          'Chưa xử lý',
+          'Đã xử lý',
+        ].map((f) {
           final active = f == selected;
           return Padding(
             padding: const EdgeInsets.only(right: 8),

@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_crab_data.dart';
+import '../../utils/app_formatters.dart';
 import '../../models/crab_individual.dart';
 import '../../models/crab_status.dart';
 import '../../models/production_models.dart';
@@ -527,7 +527,7 @@ class _AddCrabFormDialogState extends State<_AddCrabFormDialog> {
                             color: DashboardColors.textMuted,
                           ),
                         ),
-                        subtitle: Text(MockCrabData.formatDate(_stockedAt)),
+                        subtitle: Text(formatDate(_stockedAt)),
                         trailing: IconButton(
                           icon: const Icon(Icons.calendar_today_outlined, size: 18),
                           onPressed: () async {
@@ -624,7 +624,7 @@ Future<void> showRecordHealthDialog(
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text('Thời gian ghi nhận', style: GoogleFonts.notoSans(fontSize: 12, color: DashboardColors.textMuted)),
-                subtitle: Text(MockCrabData.formatDate(recordedAt)),
+                subtitle: Text(formatDate(recordedAt)),
                 trailing: IconButton(
                   icon: const Icon(Icons.calendar_today_outlined, size: 18),
                   onPressed: () async {
@@ -702,7 +702,7 @@ Future<void> showRecordMoltDialog(
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Ngày lột xác'),
-                subtitle: Text(MockCrabData.formatDate(moltDate)),
+                subtitle: Text(formatDate(moltDate)),
                 trailing: IconButton(
                   icon: const Icon(Icons.calendar_today_outlined),
                   onPressed: () async {
@@ -750,7 +750,11 @@ Future<void> showRecordMoltDialog(
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success ? 'Đã ghi nhận lột xác' : (service.error ?? 'Lỗi')),
+          content: Text(
+            success
+                ? 'Đã ghi nhận lột xác. Xuất cua lột ở Thu hoạch & Bán hàng hoặc menu cua.'
+                : (service.error ?? 'Lỗi'),
+          ),
         ),
       );
     }

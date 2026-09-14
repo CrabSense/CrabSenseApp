@@ -250,6 +250,7 @@ class BoxRecord {
     this.crabCondition,
     this.alertCount = 0,
     this.aiSummary,
+    this.crabCount = 0,
   });
 
   final String id;
@@ -272,6 +273,7 @@ class BoxRecord {
   final String? crabCondition;
   final int alertCount;
   final String? aiSummary;
+  final int crabCount;
 
   String get title =>
       (displayName != null && displayName!.trim().isNotEmpty)
@@ -279,6 +281,18 @@ class BoxRecord {
           : boxCode;
 
   bool get hasCrab {
+    if (crabCount > 0) return true;
+    final life = (crabStatus ?? '').trim().toLowerCase();
+    final cond = (crabCondition ?? '').trim().toLowerCase();
+    if (life == 'dead' ||
+        life == 'harvested' ||
+        life == 'missing' ||
+        life == 'sold' ||
+        cond == 'dead' ||
+        cond == 'harvested' ||
+        cond == 'sold') {
+      return false;
+    }
     if (crabId != null && crabId!.isNotEmpty && crabId != 'null') return true;
     if (crabTag != null && crabTag!.trim().isNotEmpty) return true;
     return isOccupied && status.toLowerCase() != 'empty';
@@ -324,6 +338,7 @@ class BoxRecord {
       crabCondition: _boxStr(json, const ['crabCondition', 'CrabCondition']),
       alertCount: _boxInt(json, 'alertCount', 'AlertCount'),
       aiSummary: _boxStr(json, const ['aiSummary', 'AiSummary']),
+      crabCount: _boxInt(json, 'crabCount', 'CrabCount'),
     );
   }
 
@@ -673,7 +688,11 @@ class CrabManagementListItem {
               json['lastMoltDate'] ??
               json['LastMoltDate'])
           ?.toString(),
-      healthStatus: (json['healthStatus'] ?? json['HealthStatus'] ?? molting)
+      healthStatus: (json['healthStatus'] ??
+              json['HealthStatus'] ??
+              json['condition'] ??
+              json['Condition'] ??
+              molting)
           ?.toString(),
       growthStage: (json['growthStage'] ?? json['GrowthStage'])?.toString(),
       profileNote: (json['profileNote'] ?? json['ProfileNote'])?.toString(),

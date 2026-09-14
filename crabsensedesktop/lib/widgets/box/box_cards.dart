@@ -79,7 +79,7 @@ class BoxOverviewCard extends StatelessWidget {
           const SizedBox(height: 12),
           if (occupied) ...[
             Text(
-              '🦀  ${item.box.crabTag?.trim().isNotEmpty == true ? item.box.crabTag : 'Có cua'}',
+              '🦀  ${item.box.crabCount > 1 ? '${item.box.crabCount} cua' : (item.box.crabTag?.trim().isNotEmpty == true ? item.box.crabTag : '1 cua')}',
               style: GoogleFonts.notoSans(
                 color: DashboardColors.textPrimary,
                 fontSize: 14,

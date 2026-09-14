@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_farm_layout_data.dart';
 import '../../models/production_models.dart';
 import '../../services/area_management_service.dart';
 import '../../services/farm_layout_service.dart';
@@ -216,36 +215,19 @@ class _FarmLayoutRasFlowState extends State<FarmLayoutRasFlow> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Hiển thị sơ đồ mẫu',
+              'Chưa có sơ đồ RAS cho khu này.',
               style: GoogleFonts.notoSans(color: DashboardColors.textMuted, fontSize: 11),
-            ),
-            const SizedBox(height: 12),
-            RasFlowSection(
-              compact: widget.compact,
-              components: MockFarmLayoutData.rasFlow,
             ),
           ],
         ),
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        RasFlowSection(
-          compact: widget.compact,
-          components: MockFarmLayoutData.rasFlow,
-        ),
-        if (widget.onOpenRasControl != null)
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: widget.onOpenRasControl,
-              icon: const Icon(Icons.settings_suggest_outlined, size: 16),
-              label: const Text('Xem chi tiết hệ thống RAS'),
-            ),
-          ),
-      ],
+    return _RasFlowShell(
+      child: Text(
+        'Chưa có sơ đồ RAS cho khu này.',
+        style: GoogleFonts.notoSans(color: DashboardColors.textMuted, fontSize: 13),
+      ),
     );
   }
 }

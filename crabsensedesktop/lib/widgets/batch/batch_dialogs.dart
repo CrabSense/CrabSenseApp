@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_batch_data.dart';
 import '../../models/batch_status.dart';
 import '../../models/crab_batch.dart';
 import '../../services/batch_service.dart';
@@ -19,8 +18,8 @@ Future<void> showCreateBatchDialog(
   final weightCtrl = TextEditingController();
   final notesCtrl = TextEditingController();
   DateTime releaseDate = DateTime.now();
-  String? farmArea = MockBatchData.farmAreas.first;
-  String? pond = MockBatchData.ponds.first;
+  final farmAreaCtrl = TextEditingController();
+  final pondCtrl = TextEditingController();
 
   await showDialog<void>(
     context: context,
@@ -57,14 +56,8 @@ Future<void> showCreateBatchDialog(
                     keyboard: TextInputType.number, validator: _required),
                 const SizedBox(height: 12),
                 _sectionTitle('Khu nuôi'),
-                _dropdown(
-                  'Khu nuôi',
-                  farmArea!,
-                  MockBatchData.farmAreas,
-                  (v) => farmArea = v,
-                ),
-                const SizedBox(height: 8),
-                _dropdown('Bể nuôi', pond!, MockBatchData.ponds, (v) => pond = v),
+                _field(farmAreaCtrl, 'Khu nuôi'),
+                _field(pondCtrl, 'Dãy / bể nuôi'),
                 const SizedBox(height: 12),
                 _sectionTitle('Ghi chú'),
                 _field(notesCtrl, 'Ghi chú', maxLines: 3),
@@ -93,8 +86,12 @@ Future<void> showCreateBatchDialog(
                 initialWeightGram: weight,
                 avgWeightGram: weight,
                 source: sourceCtrl.text.trim(),
-                farmArea: farmArea,
-                pond: pond,
+                farmArea: farmAreaCtrl.text.trim().isEmpty
+                    ? null
+                    : farmAreaCtrl.text.trim(),
+                pond: pondCtrl.text.trim().isEmpty
+                    ? null
+                    : pondCtrl.text.trim(),
                 status: BatchStatus.raising,
                 notes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text,
                 cycleProgress: 0.05,
@@ -235,30 +232,6 @@ Widget _field(
         ),
       ),
     ),
-  );
-}
-
-Widget _dropdown(
-  String label,
-  String value,
-  List<String> items,
-  ValueChanged<String> onChanged,
-) {
-  return DropdownButtonFormField<String>(
-    value: value,
-    dropdownColor: DashboardColors.card,
-    style: GoogleFonts.notoSans(color: DashboardColors.textPrimary, fontSize: 13),
-    decoration: InputDecoration(
-      labelText: label,
-      labelStyle: GoogleFonts.notoSans(color: DashboardColors.textMuted, fontSize: 12),
-      filled: true,
-      fillColor: DashboardColors.darkNavy,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-    ),
-    items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-    onChanged: (v) {
-      if (v != null) onChanged(v);
-    },
   );
 }
 

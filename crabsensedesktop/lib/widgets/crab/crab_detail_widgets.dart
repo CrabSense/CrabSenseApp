@@ -2,7 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_crab_data.dart';
+import '../../utils/app_formatters.dart';
 import '../../models/crab_individual.dart';
 import '../../models/crab_status.dart';
 import '../../theme/dashboard_theme.dart';
@@ -49,7 +49,7 @@ class CrabInfoCard extends StatelessWidget {
           _row('Mã hộp', 'Hộp ${crab.boxId}', highlight: true),
           _row('Mã lứa', crab.batchId),
           _row('Giới tính', crab.gender.label),
-          _row('Ngày thả', MockCrabData.formatDate(crab.releaseDate)),
+          _row('Ngày thả', formatDate(crab.releaseDate)),
           _row('Tuổi nuôi', '${crab.ageDays} ngày'),
           _row(
             'Cân nặng',
@@ -63,7 +63,7 @@ class CrabInfoCard extends StatelessWidget {
             'Bề rộng mai',
             crab.shellSizeCm > 0 ? '${crab.shellSizeCm} mm' : '—',
           ),
-          _row('Lột xác cuối', crab.lastMoltDate == null ? '—' : MockCrabData.formatDate(crab.lastMoltDate!)),
+          _row('Lột xác cuối', crab.lastMoltDate == null ? '—' : formatDate(crab.lastMoltDate!)),
         ],
       ),
     );
@@ -363,7 +363,7 @@ class CrabWeightChart extends StatelessWidget {
                         final i = v.toInt();
                         if (i < 0 || i >= points.length) return const SizedBox.shrink();
                         return Text(
-                          MockCrabData.formatDate(points[i].date).substring(0, 5),
+                          formatDate(points[i].date).substring(0, 5),
                           style: GoogleFonts.notoSans(color: DashboardColors.textMuted, fontSize: 8),
                         );
                       },
@@ -426,7 +426,7 @@ class CrabFeedingTable extends StatelessWidget {
                     SizedBox(
                       width: 72,
                       child: Text(
-                        MockCrabData.formatDate(f.date),
+                        formatDate(f.date),
                         style: GoogleFonts.notoSans(color: DashboardColors.textMuted, fontSize: 11),
                       ),
                     ),
@@ -542,7 +542,7 @@ class CrabMoltTimeline extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  MockCrabData.formatDate(m.date),
+                  formatDate(m.date),
                   style: GoogleFonts.notoSans(color: DashboardColors.textMuted, fontSize: 10),
                 ),
                 if (m.note != null)
@@ -590,7 +590,7 @@ class CrabDiseaseList extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${MockCrabData.formatDate(d.date)} | ${d.name}',
+                            '${formatDate(d.date)} | ${d.name}',
                             style: GoogleFonts.notoSans(fontSize: 12, fontWeight: FontWeight.w500),
                           ),
                           Text(

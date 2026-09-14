@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_crab_data.dart';
+import '../../utils/crab_management_mapper.dart';
 import '../../models/crab_individual.dart';
 import '../../models/crab_status.dart';
 import '../../navigation/app_route.dart';
@@ -97,11 +97,33 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
             ),
           );
         }
+      case CrabManagementAction.exportSoftshell:
+        if (!await confirmCrabAction(
+          context,
+          title: 'Xuất cua lột?',
+          message:
+              'Xuất ${crab.code} ra tồn kho với loại cua lột. Sau đó bán ở tab Bán hàng.',
+          confirmLabel: 'Xuất',
+        )) {
+          return;
+        }
+        final exported = await svc.exportSoftshell(crab.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                exported
+                    ? 'Đã xuất cua lột vào tồn kho'
+                    : (svc.error ?? 'Lỗi'),
+              ),
+            ),
+          );
+        }
       case CrabManagementAction.recordHarvest:
         if (!await confirmCrabAction(
           context,
           title: 'Ghi nhận thu hoạch?',
-          message: 'Xác nhận thu hoạch cua ${crab.code}?',
+          message: 'Xác nhận thu hoạch cua ${crab.code} vào tồn kho?',
         )) {
           return;
         }
@@ -135,7 +157,7 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
   @override
   Widget build(BuildContext context) {
     final svc = widget.service;
-    final kpis = MockCrabData.managementSummaryKpis(svc.summary);
+    final kpis = crabManagementSummaryKpis(svc.summary);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),

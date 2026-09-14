@@ -758,8 +758,9 @@ extension ProductionCloudApi on CloudApiClient {
     String crabId, {
     required String moltDate,
     required int moltNumber,
-    String condition = 'normal',
+    String condition = 'success',
     String? note,
+    String? boxId,
   }) async {
     final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crabs/$crabId/moltings');
     final at = DateTime.tryParse(moltDate)?.toUtc().toIso8601String();
@@ -769,6 +770,7 @@ extension ProductionCloudApi on CloudApiClient {
       body: jsonEncode({
         'crabId': crabId,
         if (at != null) 'moltTime': at,
+        if (boxId != null && boxId.isNotEmpty) 'boxId': boxId,
         'result': condition,
         'source': 'desktop',
         if (note != null) 'notes': note,

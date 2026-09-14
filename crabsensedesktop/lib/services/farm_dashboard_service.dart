@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../data/mock_dashboard_data.dart';
 import '../models/auth_models.dart';
+import '../models/dashboard_ui.dart';
 import '../models/farm_dashboard_overview.dart';
 import '../services/dashboard_env_trend_service.dart';
 import '../theme/dashboard_theme.dart';

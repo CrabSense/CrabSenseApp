@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/app_env.dart';
-import '../data/mock_iot_devices_data.dart';
 import '../models/iot_device.dart';
 import '../models/auth_models.dart';
 import 'cloud_api_client.dart';
@@ -16,13 +15,13 @@ class IotDeviceService extends IoTDeviceService {
   String? _selectedDeviceId;
   bool _emergencyStop = false;
 
-  List<IotDevice> _mockDevices = [];
+  List<IotDevice> _uiDevices = [];
   List<IotAutomationRule> _rules = [];
 
   @override
   void updateSession(AuthSession session) {
     super.updateSession(session);
-    _mockDevices = [];
+    _uiDevices = [];
     _selectedDeviceId = null;
   }
 
@@ -40,7 +39,7 @@ class IotDeviceService extends IoTDeviceService {
 
   IotDevice? get selectedDevice {
     if (_selectedDeviceId == null) return null;
-    final list = _getMockDevices();
+    final list = _uiList();
     final idx = list.indexWhere((d) => d.id == _selectedDeviceId);
     return idx >= 0 ? list[idx] : null;
   }
@@ -51,7 +50,7 @@ class IotDeviceService extends IoTDeviceService {
   }
 
   List<IotDevice> get filteredIotDevices {
-    var list = _getMockDevices();
+    var list = _uiList();
     if (_category != 'Tất cả') {
       list = list.where((d) => d.typeLabel.contains(_category)).toList();
     }
@@ -64,10 +63,10 @@ class IotDeviceService extends IoTDeviceService {
     return list;
   }
 
-  List<IotDevice> _getMockDevices() => _mockDevices;
+  List<IotDevice> _uiList() => _uiDevices;
 
   IotDeviceOverview get overview {
-    final list = _getMockDevices();
+    final list = _uiList();
     final online =
         list.where((d) => d.connection == IotConnectionStatus.online).length;
     final running =
@@ -92,22 +91,23 @@ class IotDeviceService extends IoTDeviceService {
       error: o.error,
     );
   }
-  List<IotActivityLog> get activityLogs => MockIotDevicesData.activityLogs();
-  List<IotScheduleEntry> get schedule => MockIotDevicesData.defaultSchedule();
-  List<IotCalendarBlock> get calendarBlocks => MockIotDevicesData.calendarBlocks();
-  IotDeviceStats get stats => MockIotDevicesData.deviceStats;
-  String get aiInsight => MockIotDevicesData.aiInsight;
-  String get aiRecommendation => MockIotDevicesData.aiRecommendation;
-  int get coreCpuPercent => MockIotDevicesData.coreCpuPercent;
-  int get zigbeeSignalPercent => MockIotDevicesData.zigbeeSignalPercent;
-  List<IotDeviceAlert> get alerts => MockIotDevicesData.systemAlerts();
+  List<IotActivityLog> get activityLogs => const [];
+  List<IotScheduleEntry> get schedule => const [];
+  List<IotCalendarBlock> get calendarBlocks => const [];
+  IotDeviceStats get stats => const IotDeviceStats(
+        totalRuntimeHours: 0,
+        totalEnergyKwh: 0,
+        powerOnCount: 0,
+        errorCount: 0,
+        efficiencyPercent: 0,
+      );
+  String get aiInsight => '';
+  String get aiRecommendation => '';
+  int get coreCpuPercent => 0;
+  int get zigbeeSignalPercent => 0;
+  List<IotDeviceAlert> get alerts => const [];
 
-  List<IotAutomationRule> get rules {
-    if (_rules.isEmpty) {
-      _rules = MockIotDevicesData.automationRules();
-    }
-    return _rules;
-  }
+  List<IotAutomationRule> get rules => _rules;
 
   bool get emergencyStop => _emergencyStop;
 
@@ -122,32 +122,32 @@ class IotDeviceService extends IoTDeviceService {
   }
 
   void togglePower(String id) {
-    final list = _getMockDevices();
+    final list = _uiList();
     final idx = list.indexWhere((d) => d.id == id);
     if (idx >= 0) {
-      _mockDevices[idx] = list[idx].copyWithTogglePower();
+      _uiDevices[idx] = list[idx].copyWithTogglePower();
       notifyListeners();
     }
   }
 
   void toggleMode(String id) {
-    final list = _getMockDevices();
+    final list = _uiList();
     final idx = list.indexWhere((d) => d.id == id);
     if (idx >= 0) {
       final d = list[idx];
       final next = d.mode == IotControlMode.auto
           ? IotControlMode.manual
           : IotControlMode.auto;
-      _mockDevices[idx] = d.copyWithMode(next);
+      _uiDevices[idx] = d.copyWithMode(next);
       notifyListeners();
     }
   }
 
   void setMode(String id, IotControlMode mode) {
-    final list = _getMockDevices();
+    final list = _uiList();
     final idx = list.indexWhere((d) => d.id == id);
     if (idx >= 0) {
-      _mockDevices[idx] = list[idx].copyWithMode(mode);
+      _uiDevices[idx] = list[idx].copyWithMode(mode);
       notifyListeners();
     }
   }
@@ -159,7 +159,7 @@ class IotDeviceService extends IoTDeviceService {
 
   Future<void> loadUiDevices() async {
     await loadDevices();
-    _mockDevices = devices.map(_toUiDevice).toList();
+    _uiDevices = devices.map(_toUiDevice).toList();
     notifyListeners();
   }
 

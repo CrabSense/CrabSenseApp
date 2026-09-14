@@ -2,7 +2,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_batch_feed_data.dart';
 import '../../models/batch_feed_history.dart';
 import '../../models/farming_batch_group.dart';
 import '../../theme/dashboard_theme.dart';
@@ -15,10 +14,21 @@ class FarmingBatchFeedHistoryTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final summary = MockBatchFeedData.summaryFor(group);
-    final logs = MockBatchFeedData.logsFor(group);
-    final ai = MockBatchFeedData.aiInsightFor(group);
-    final fcr = MockBatchFeedData.fcrLast7Days();
+    const summary = BatchFeedHistorySummary(
+      totalFeedKg: 0,
+      totalTrendPercent: 0,
+      todayKg: 0,
+      avgFcr: 0,
+      nextFeedingTime: '—',
+      nextFeedingSubtitle: 'Chưa có lịch',
+    );
+    const logs = <BatchFeedingLogEntry>[];
+    const ai = BatchFeedAiInsight(
+      message: 'Chưa có dữ liệu cho ăn của lứa này.',
+      doMgL: 0,
+      temperatureC: 0,
+    );
+    const fcr = <double>[];
 
     return SingleChildScrollView(
       child: Column(

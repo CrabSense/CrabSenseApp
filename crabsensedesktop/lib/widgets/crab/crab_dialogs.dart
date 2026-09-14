@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_crab_data.dart';
+import '../../utils/app_formatters.dart';
 import '../../models/crab_individual.dart';
 import '../../models/crab_status.dart';
 import '../../services/crab_service.dart';
@@ -33,7 +33,7 @@ Future<void> showUpdateWeightDialog(BuildContext context, CrabService service, C
           _field(shellCtrl, 'Kích thước mai (cm)', isNumber: true),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text('Ngày đo: ${MockCrabData.formatDate(date)}', style: GoogleFonts.notoSans(fontSize: 12)),
+            title: Text('Ngày đo: ${formatDate(date)}', style: GoogleFonts.notoSans(fontSize: 12)),
             trailing: TextButton(
               onPressed: () async {
                 final picked = await showDatePicker(
@@ -85,7 +85,7 @@ Future<void> showRecordMoltDialog(BuildContext context, CrabService service, Cra
         children: [
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text('Ngày: ${MockCrabData.formatDate(date)}', style: GoogleFonts.notoSans(fontSize: 12)),
+            title: Text('Ngày: ${formatDate(date)}', style: GoogleFonts.notoSans(fontSize: 12)),
             trailing: TextButton(
               onPressed: () async {
                 final p = await showDatePicker(context: context, initialDate: date, firstDate: crab.releaseDate, lastDate: DateTime.now());

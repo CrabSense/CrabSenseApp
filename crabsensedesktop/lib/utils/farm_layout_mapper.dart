@@ -17,13 +17,25 @@ BoxStatus mapBoxApiStatus(String status) {
   };
 }
 
+bool isInactiveCrab(String? crabStatus, String? crabCondition) {
+  bool matches(String? raw, Set<String> values) =>
+      values.contains((raw ?? '').trim().toLowerCase());
+  return matches(crabStatus, const {'dead', 'harvested', 'missing', 'sold'}) ||
+      matches(crabCondition, const {'dead', 'harvested', 'sold'});
+}
+
 FarmMapBox toFarmMapBox({
   required BoxRecord box,
   required AreaRecord area,
   required RowRecord row,
 }) {
-  final uiStatus = mapBoxApiStatus(box.status);
+  var uiStatus = mapBoxApiStatus(box.status);
+  if (box.crabCount <= 0 && isInactiveCrab(box.crabStatus, box.crabCondition)) {
+    uiStatus = BoxStatus.empty;
+  }
   final code = box.boxCode.trim().isNotEmpty ? box.boxCode : box.id;
+  final showCrab = box.crabCount > 0 || (uiStatus != BoxStatus.empty && box.hasCrab);
+  final crabCount = box.crabCount > 0 ? box.crabCount : (showCrab ? 1 : 0);
 
   final display = uiStatus == BoxStatus.empty
       ? CrabBox(id: code, zone: area.areaCode, status: uiStatus)
@@ -53,7 +65,7 @@ FarmMapBox toFarmMapBox({
     rowCode: row.rowCode,
     rowName: row.rowName,
     apiStatus: box.status,
-    crabCount: box.hasCrab ? 1 : 0,
+    crabCount: crabCount,
     alertCount: box.alertCount,
     aiSummary: box.aiSummary,
     source: box,

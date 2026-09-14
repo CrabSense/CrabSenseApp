@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import '../data/mock_feed_data.dart';
 import '../models/auth_models.dart';
 import '../models/feed_management.dart';
 import '../models/feed_management_overview.dart';
@@ -54,7 +53,6 @@ class FeedService extends ChangeNotifier {
 
   List<String> get areas {
     if (_areas.isNotEmpty) return _areas;
-    if (!hasApiData) return const ['Khu A', 'Khu B'];
     return const [];
   }
 
@@ -63,17 +61,34 @@ class FeedService extends ChangeNotifier {
       .map((b) => b.batchCode)
       .toList();
   List<String> get feedNames =>
-      _feedTypes.isNotEmpty ? _feedTypes : MockFeedData.inventory().map((e) => e.name).toList();
+      _feedTypes.isNotEmpty ? _feedTypes : const [];
 
-  FeedKpi get kpi => _kpi ?? MockFeedData.kpi;
-  String get aiInsight =>
-      _aiInsight.isNotEmpty ? _aiInsight : MockFeedData.aiInsight;
-  String get aiRecommendation =>
-      _aiRecommendation.isNotEmpty
-          ? _aiRecommendation
-          : MockFeedData.aiRecommendation;
+  static const _emptyKpi = FeedKpi(
+    totalStockKg: 0,
+    stockTrendPercent: 0,
+    consumedTodayKg: 0,
+    weeklyAvgKg: 0,
+    avgFcr: 0,
+    fcrTarget: 0,
+    feedingsPerDay: 0,
+    feedingsCompleted: 0,
+    lowStockCount: 0,
+    monthlyConsumedKg: 0,
+  );
+
+  FeedKpi get kpi => _kpi ?? _emptyKpi;
+  String get aiInsight => _aiInsight;
+  String get aiRecommendation => _aiRecommendation;
   FeedPortionSuggestion get portion =>
-      _portion ?? MockFeedData.portionSuggestion();
+      _portion ??
+      const FeedPortionSuggestion(
+        batchId: '',
+        aliveCount: 0,
+        avgWeightG: 0,
+        totalBiomassKg: 0,
+        dailyPercent: 0,
+        dailyFeedKg: 0,
+      );
 
   bool get fcrByBatch => _fcrByBatch;
   DateTime get focusedMonth => _focusedMonth;
@@ -90,12 +105,12 @@ class FeedService extends ChangeNotifier {
   List<BatchFeedConsumption> get batchConsumption =>
       _batchConsumption.isNotEmpty
           ? List.unmodifiable(_batchConsumption)
-          : MockFeedData.batchConsumption();
+          : const [];
 
   List<DailyFeedConsumption> get dailyConsumption =>
       _dailyConsumption.isNotEmpty
           ? List.unmodifiable(_dailyConsumption)
-          : MockFeedData.dailyConsumption();
+          : const [];
 
   List<FeedInventoryItem> get inventory {
     if (_search.trim().isEmpty) return List.unmodifiable(_inventory);
