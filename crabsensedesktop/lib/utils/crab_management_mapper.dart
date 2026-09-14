@@ -71,15 +71,20 @@ String growthStageToApi(CrabDevelopmentStage s) => switch (s) {
 
 MoltCondition mapMoltCondition(String api) {
   final s = api.toLowerCase();
-  if (s.contains('watch')) return MoltCondition.needsWatch;
-  if (s.contains('weak') || s.contains('yếu')) return MoltCondition.weak;
+  if (s.contains('watch') || s.contains('incomplete')) {
+    return MoltCondition.needsWatch;
+  }
+  if (s.contains('weak') || s.contains('yếu') || s.contains('fail')) {
+    return MoltCondition.weak;
+  }
   return MoltCondition.normal;
 }
 
+/// BE chỉ nhận success | failed | incomplete.
 String moltConditionToApi(MoltCondition c) => switch (c) {
-      MoltCondition.normal => 'normal',
-      MoltCondition.weak => 'weak',
-      MoltCondition.needsWatch => 'needs_watch',
+      MoltCondition.normal => 'success',
+      MoltCondition.weak => 'failed',
+      MoltCondition.needsWatch => 'incomplete',
     };
 
 DateTime? parseApiDate(String? value) {

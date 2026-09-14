@@ -11,11 +11,15 @@ const _grades = ['A', 'B', 'C'];
 
 Future<void> showCreateHarvestSlipDialog(
   BuildContext context,
-  HarvestSalesService service,
-) {
+  HarvestSalesService service, {
+  bool softshellMode = false,
+}) {
   return showDialog<void>(
     context: context,
-    builder: (_) => _CreateHarvestDialog(service: service),
+    builder: (_) => _CreateHarvestDialog(
+      service: service,
+      softshellMode: softshellMode,
+    ),
   );
 }
 
@@ -56,6 +60,7 @@ Future<void> showHarvestSlipDetailDialog(
                     '${line.crabCode.isEmpty ? '—' : line.crabCode}  ·  ${line.locationLine}\n'
                     '${line.weightG}g  ·  Loại ${line.grade.isEmpty ? '—' : line.grade}'
                     '${line.lotCode.isEmpty ? '' : '  ·  Lô ${line.lotCode}'}'
+                    '${line.isSoftshell ? '  ·  Cua lột' : ''}'
                     '  ·  ${line.passed ? 'Đạt' : 'Không đạt'}',
                     style: GoogleFonts.notoSans(fontSize: 12),
                   ),
@@ -145,9 +150,13 @@ Future<void> showSalesOrderDetailDialog(
 }
 
 class _CreateHarvestDialog extends StatefulWidget {
-  const _CreateHarvestDialog({required this.service});
+  const _CreateHarvestDialog({
+    required this.service,
+    this.softshellMode = false,
+  });
 
   final HarvestSalesService service;
+  final bool softshellMode;
 
   @override
   State<_CreateHarvestDialog> createState() => _CreateHarvestDialogState();
@@ -159,6 +168,7 @@ class _CreateHarvestDialogState extends State<_CreateHarvestDialog> {
   final _selected = <HarvestableCrab>[];
   final _gradesById = <String, String>{};
   final _resultsById = <String, String>{};
+  final _softshellById = <String, bool>{};
   final _weights = <String, TextEditingController>{};
   final _photos = <String>[];
   var _saving = false;
@@ -218,6 +228,7 @@ class _CreateHarvestDialogState extends State<_CreateHarvestDialog> {
       builder: (_) => _PickHarvestCrabsDialog(
         crabs: widget.service.harvestableCrabs,
         already: _selected.map((c) => c.id).toSet(),
+        softshellOnly: widget.softshellMode,
       ),
     );
     if (chosen == null) return;
@@ -228,6 +239,10 @@ class _CreateHarvestDialogState extends State<_CreateHarvestDialog> {
         _selected.add(c);
         _gradesById.putIfAbsent(c.id, () => 'A');
         _resultsById.putIfAbsent(c.id, () => 'passed');
+        _softshellById.putIfAbsent(
+          c.id,
+          () => widget.softshellMode || c.isSoftshell,
+        );
         _weights.putIfAbsent(
           c.id,
           () => TextEditingController(text: '${c.weightG}'),
@@ -274,13 +289,18 @@ class _CreateHarvestDialogState extends State<_CreateHarvestDialog> {
         conditions: {for (final c in _picked) c.id: c.condition},
         weights: {for (final c in _picked) c.id: _weightOf(c)},
         results: _resultsById,
+        softshell: _softshellById,
         photoUrls: _photos.where((p) => p.startsWith('http')).toList(),
       );
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đã thu hoạch. Cua vào tồn kho, chưa bán.'),
+        SnackBar(
+          content: Text(
+            widget.softshellMode
+                ? 'Đã xuất cua lột vào tồn kho, chưa bán.'
+                : 'Đã thu hoạch. Cua vào tồn kho, chưa bán.',
+          ),
         ),
       );
     } catch (e) {
@@ -297,7 +317,9 @@ class _CreateHarvestDialogState extends State<_CreateHarvestDialog> {
     return AlertDialog(
       backgroundColor: DashboardColors.card,
       title: Text(
-        'Tạo phiếu thu hoạch',
+        widget.softshellMode
+            ? 'Xuất cua lột'
+            : 'Tạo phiếu thu hoạch',
         style: GoogleFonts.notoSans(fontWeight: FontWeight.bold),
       ),
       content: SizedBox(
@@ -342,7 +364,9 @@ class _CreateHarvestDialogState extends State<_CreateHarvestDialog> {
               const SizedBox(height: 8),
               if (_picked.isEmpty)
                 Text(
-                  'Chọn nhiều cua cùng lúc. Mỗi con lưu trọng lượng và chất lượng riêng.',
+                    widget.softshellMode
+                        ? 'Chọn cua đã lột / đang lột để xuất ra tồn kho.'
+                        : 'Chọn nhiều cua cùng lúc. Mỗi con lưu trọng lượng và chất lượng riêng.',
                   style: GoogleFonts.notoSans(
                     color: DashboardColors.textMuted,
                     fontSize: 12,
@@ -355,8 +379,12 @@ class _CreateHarvestDialogState extends State<_CreateHarvestDialog> {
                     weightCtrl: _weights[c.id]!,
                     grade: _gradesById[c.id] ?? 'A',
                     result: _resultsById[c.id] ?? 'passed',
+                    isSoftshell: _softshellById[c.id] ??
+                        (widget.softshellMode || c.isSoftshell),
                     onGrade: (v) => setState(() => _gradesById[c.id] = v),
                     onResult: (v) => setState(() => _resultsById[c.id] = v),
+                    onSoftshell: (v) =>
+                        setState(() => _softshellById[c.id] = v),
                     onRemove: () => setState(() {
                       _selected.removeWhere((e) => e.id == c.id);
                     }),
@@ -407,7 +435,13 @@ class _CreateHarvestDialogState extends State<_CreateHarvestDialog> {
         FilledButton(
           onPressed: _saving || _picked.isEmpty ? null : _save,
           style: FilledButton.styleFrom(backgroundColor: DashboardColors.cyan),
-          child: Text(_saving ? 'Đang lưu…' : 'Xác nhận thu hoạch'),
+          child: Text(
+            _saving
+                ? 'Đang lưu…'
+                : (widget.softshellMode
+                    ? 'Xác nhận xuất cua lột'
+                    : 'Xác nhận thu hoạch'),
+          ),
         ),
       ],
     );
@@ -420,8 +454,10 @@ class _HarvestCrabCard extends StatelessWidget {
     required this.weightCtrl,
     required this.grade,
     required this.result,
+    required this.isSoftshell,
     required this.onGrade,
     required this.onResult,
+    required this.onSoftshell,
     required this.onRemove,
     required this.onWeight,
   });
@@ -430,8 +466,10 @@ class _HarvestCrabCard extends StatelessWidget {
   final TextEditingController weightCtrl;
   final String grade;
   final String result;
+  final bool isSoftshell;
   final ValueChanged<String> onGrade;
   final ValueChanged<String> onResult;
+  final ValueChanged<bool> onSoftshell;
   final VoidCallback onRemove;
   final VoidCallback onWeight;
 
@@ -516,6 +554,17 @@ class _HarvestCrabCard extends StatelessWidget {
               ),
             ],
           ),
+          CheckboxListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            value: isSoftshell,
+            onChanged: (v) => onSoftshell(v ?? false),
+            title: Text(
+              'Cua lột',
+              style: GoogleFonts.notoSans(fontSize: 13),
+            ),
+            controlAffinity: ListTileControlAffinity.leading,
+          ),
         ],
       ),
     );
@@ -526,10 +575,12 @@ class _PickHarvestCrabsDialog extends StatefulWidget {
   const _PickHarvestCrabsDialog({
     required this.crabs,
     required this.already,
+    this.softshellOnly = false,
   });
 
   final List<HarvestableCrab> crabs;
   final Set<String> already;
+  final bool softshellOnly;
 
   @override
   State<_PickHarvestCrabsDialog> createState() => _PickHarvestCrabsDialogState();
@@ -555,6 +606,7 @@ class _PickHarvestCrabsDialogState extends State<_PickHarvestCrabsDialog> {
   Widget build(BuildContext context) {
     final q = _q.text.trim().toLowerCase();
     final items = widget.crabs.where((c) {
+      if (widget.softshellOnly && !c.readyForSoftshellExport) return false;
       if (q.isEmpty) return true;
       return c.code.toLowerCase().contains(q) ||
           c.boxCode.toLowerCase().contains(q) ||
@@ -563,7 +615,7 @@ class _PickHarvestCrabsDialogState extends State<_PickHarvestCrabsDialog> {
     return AlertDialog(
       backgroundColor: DashboardColors.card,
       title: Text(
-        'Chọn cua thu hoạch',
+        widget.softshellOnly ? 'Chọn cua lột' : 'Chọn cua thu hoạch',
         style: GoogleFonts.notoSans(fontWeight: FontWeight.bold),
       ),
       content: SizedBox(
@@ -585,7 +637,9 @@ class _PickHarvestCrabsDialogState extends State<_PickHarvestCrabsDialog> {
               constraints: const BoxConstraints(maxHeight: 360),
               child: items.isEmpty
                   ? Text(
-                      'Không còn cua đang nuôi.',
+                      widget.softshellOnly
+                          ? 'Chưa có cua lột. Ghi nhận lột xác trong Quản lý cua trước.'
+                          : 'Không còn cua đang nuôi.',
                       style: GoogleFonts.notoSans(
                         color: DashboardColors.textMuted,
                       ),
@@ -610,7 +664,8 @@ class _PickHarvestCrabsDialogState extends State<_PickHarvestCrabsDialog> {
                             ),
                             subtitle: Text(
                               '${c.locationLine} · ${c.weightG}g'
-                              '${c.lotCode.isEmpty ? '' : ' · ${c.lotCode}'}',
+                              '${c.lotCode.isEmpty ? '' : ' · ${c.lotCode}'}'
+                              '${c.readyForSoftshellExport ? ' · Cua lột' : ''}',
                               style: GoogleFonts.notoSans(fontSize: 11),
                             ),
                           ),

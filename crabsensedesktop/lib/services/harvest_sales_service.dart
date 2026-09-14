@@ -64,6 +64,8 @@ class HarvestSalesService extends ChangeNotifier {
   HarvestKpi get harvestKpi => _harvestKpi;
   SalesKpi get salesKpi => _salesKpi;
   List<HarvestableCrab> get harvestableCrabs => List.unmodifiable(_harvestable);
+  List<HarvestableCrab> get softshellHarvestable =>
+      _harvestable.where((c) => c.readyForSoftshellExport).toList();
   List<InventoryCrab> get inventory => List.unmodifiable(_inventory);
 
   HarvestSalesKpi get kpi => HarvestSalesKpi(
@@ -207,6 +209,7 @@ class HarvestSalesService extends ChangeNotifier {
               areaName: c.areaName.isEmpty ? c.areaCode : c.areaName,
               rowName: c.rowName.isEmpty ? c.rowCode : c.rowName,
               lotCode: c.batchCode,
+              isSoftshell: _isSoftshell(c.status, c.healthStatus),
             ),
           )
           .toList();
@@ -292,6 +295,7 @@ class HarvestSalesService extends ChangeNotifier {
     required Map<String, String> conditions,
     required Map<String, int> weights,
     Map<String, String> results = const {},
+    Map<String, bool> softshell = const {},
     List<String> photoUrls = const [],
   }) async {
     if (crabs.isEmpty) throw CloudApiException('Chọn ít nhất một con cua');
@@ -311,7 +315,7 @@ class HarvestSalesService extends ChangeNotifier {
             'crabId': c.id,
             'weightGram': weights[c.id] ?? c.weightG,
             'grade': grades[c.id] ?? 'A',
-            'isSoftshell': false,
+            'isSoftshell': softshell[c.id] ?? c.isSoftshell,
             'conditionLabel': conditions[c.id] ?? c.condition,
             'result': results[c.id] ?? 'passed',
           },
@@ -413,6 +417,8 @@ class HarvestSalesService extends ChangeNotifier {
             rowName: (m['rowName'] ?? m['RowName'] ?? '').toString(),
             lotCode: (m['lotCode'] ?? m['LotCode'] ?? '').toString(),
             result: (m['result'] ?? m['Result'] ?? 'passed').toString(),
+            isSoftshell: m['isSoftshell'] == true ||
+                m['IsSoftshell'] == true,
           ),
         );
       }
@@ -546,13 +552,18 @@ class HarvestSalesService extends ChangeNotifier {
   }
 
   String _conditionLabel(String status, String? health) {
-    final s = status.toLowerCase();
-    if (s.contains('molt')) return 'Đang lột';
-    if (s.contains('soft')) return 'Cua mềm';
-    if ((health ?? '').toLowerCase().contains('tốt') ||
-        (health ?? '').toLowerCase().contains('good')) {
-      return 'Tốt';
-    }
+    final t = '${status.toLowerCase()} ${(health ?? '').toLowerCase()}';
+    if (_isSoftshell(status, health)) return 'Cua lột';
+    if (t.contains('molt') || t.contains('lột')) return 'Đang lột';
+    if (t.contains('tốt') || t.contains('good')) return 'Tốt';
     return 'Tốt';
+  }
+
+  bool _isSoftshell(String status, String? health) {
+    final t = '${status.toLowerCase()} ${(health ?? '').toLowerCase()}';
+    return t.contains('soft') ||
+        t.contains('postmolt') ||
+        t.contains('cua lột') ||
+        t.contains('lột mềm');
   }
 }

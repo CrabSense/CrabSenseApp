@@ -244,6 +244,7 @@ class HarvestableCrab {
     this.areaName = '',
     this.rowName = '',
     this.lotCode = '',
+    this.isSoftshell = false,
   });
 
   final String id;
@@ -254,6 +255,12 @@ class HarvestableCrab {
   final String areaName;
   final String rowName;
   final String lotCode;
+  final bool isSoftshell;
+
+  bool get readyForSoftshellExport =>
+      isSoftshell ||
+      condition.toLowerCase().contains('lột') ||
+      condition.toLowerCase().contains('molt');
 
   String get locationLine {
     final parts = [
@@ -337,6 +344,7 @@ class HarvestLineItem {
     this.rowName = '',
     this.lotCode = '',
     this.result = 'passed',
+    this.isSoftshell = false,
   });
 
   final String? crabId;
@@ -351,6 +359,7 @@ class HarvestLineItem {
   final String rowName;
   final String lotCode;
   final String result;
+  final bool isSoftshell;
 
   bool get passed => result.toLowerCase() != 'failed';
 

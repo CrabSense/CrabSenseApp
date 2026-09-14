@@ -13,6 +13,7 @@ enum CrabManagementAction {
   recordMolt,
   recordDead,
   recordHarvest,
+  exportSoftshell,
   delete,
 }
 
@@ -152,6 +153,7 @@ class CrabManagementDataTable extends StatelessWidget {
         _menuItem(CrabManagementAction.edit, Icons.edit_outlined, 'Chỉnh sửa'),
         _menuItem(CrabManagementAction.recordHealth, Icons.monitor_heart_outlined, 'Ghi nhận sức khỏe'),
         _menuItem(CrabManagementAction.recordMolt, Icons.sync_outlined, 'Ghi nhận lột xác'),
+        _menuItem(CrabManagementAction.exportSoftshell, Icons.outbox_outlined, 'Xuất cua lột'),
         _menuItem(CrabManagementAction.recordDead, Icons.heart_broken_outlined, 'Ghi nhận chết'),
         _menuItem(CrabManagementAction.recordHarvest, Icons.shopping_basket_outlined, 'Ghi nhận thu hoạch'),
         const PopupMenuDivider(),

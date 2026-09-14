@@ -97,11 +97,33 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
             ),
           );
         }
+      case CrabManagementAction.exportSoftshell:
+        if (!await confirmCrabAction(
+          context,
+          title: 'Xuất cua lột?',
+          message:
+              'Xuất ${crab.code} ra tồn kho với loại cua lột. Sau đó bán ở tab Bán hàng.',
+          confirmLabel: 'Xuất',
+        )) {
+          return;
+        }
+        final exported = await svc.exportSoftshell(crab.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                exported
+                    ? 'Đã xuất cua lột vào tồn kho'
+                    : (svc.error ?? 'Lỗi'),
+              ),
+            ),
+          );
+        }
       case CrabManagementAction.recordHarvest:
         if (!await confirmCrabAction(
           context,
           title: 'Ghi nhận thu hoạch?',
-          message: 'Xác nhận thu hoạch cua ${crab.code}?',
+          message: 'Xác nhận thu hoạch cua ${crab.code} vào tồn kho?',
         )) {
           return;
         }

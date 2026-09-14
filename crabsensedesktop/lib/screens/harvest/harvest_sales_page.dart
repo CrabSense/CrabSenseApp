@@ -111,6 +111,11 @@ class _HarvestTab extends StatelessWidget {
           runSpacing: 12,
           children: [
             _KpiCard('Tổng cua có thể thu hoạch', '${kpi.harvestable}', 'con'),
+            _KpiCard(
+              'Cua lột chờ xuất',
+              '${service.softshellHarvestable.length}',
+              'con',
+            ),
             _KpiCard('Đã thu hoạch hôm nay', '${kpi.harvestedToday}', 'con'),
             _KpiCard('Chờ bán', '${kpi.waitingSale}', 'con'),
             _KpiCard(
@@ -121,14 +126,31 @@ class _HarvestTab extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: FilledButton.icon(
-            onPressed: () => showCreateHarvestSlipDialog(context, service),
-            style: FilledButton.styleFrom(backgroundColor: DashboardColors.cyan),
-            icon: const Icon(Icons.add),
-            label: const Text('+ Tạo phiếu thu hoạch'),
-          ),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            FilledButton.icon(
+              onPressed: () => showCreateHarvestSlipDialog(context, service),
+              style: FilledButton.styleFrom(
+                backgroundColor: DashboardColors.cyan,
+              ),
+              icon: const Icon(Icons.add),
+              label: const Text('+ Tạo phiếu thu hoạch'),
+            ),
+            FilledButton.icon(
+              onPressed: () => showCreateHarvestSlipDialog(
+                context,
+                service,
+                softshellMode: true,
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: DashboardColors.purple,
+              ),
+              icon: const Icon(Icons.outbox_outlined),
+              label: const Text('Xuất cua lột'),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         if (service.loading)
@@ -141,7 +163,7 @@ class _HarvestTab extends StatelessWidget {
         else if (service.harvestSlips.isEmpty)
           GlassCard(
             child: Text(
-              'Chưa có phiếu thu hoạch. Tạo phiếu để chuyển cua Đang nuôi → Đã thu hoạch (tồn kho).',
+              'Chưa có phiếu. Thu hoạch cứng hoặc Xuất cua lột để đưa cua vào tồn kho.',
               style: GoogleFonts.notoSans(color: DashboardColors.textMuted),
             ),
           )
@@ -309,7 +331,8 @@ class _HarvestSlipCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             '${slip.area} · ${slip.quantity} cua · ${slip.totalWeightKg.toStringAsFixed(2)} kg'
-            ' · TB ${slip.averageWeightG.toStringAsFixed(0)}g · Đạt ${slip.passedCount}',
+            ' · TB ${slip.averageWeightG.toStringAsFixed(0)}g · Đạt ${slip.passedCount}'
+            '${slip.lines.where((l) => l.isSoftshell).isEmpty ? '' : ' · Cua lột ${slip.lines.where((l) => l.isSoftshell).length}'}',
             style: GoogleFonts.notoSans(fontSize: 13),
           ),
           if (slip.performedBy.isNotEmpty)

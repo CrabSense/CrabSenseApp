@@ -750,7 +750,11 @@ Future<void> showRecordMoltDialog(
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success ? 'Đã ghi nhận lột xác' : (service.error ?? 'Lỗi')),
+          content: Text(
+            success
+                ? 'Đã ghi nhận lột xác. Xuất cua lột ở Thu hoạch & Bán hàng hoặc menu cua.'
+                : (service.error ?? 'Lỗi'),
+          ),
         ),
       );
     }
