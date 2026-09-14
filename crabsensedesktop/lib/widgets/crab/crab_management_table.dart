@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_crab_data.dart';
+import '../../utils/app_formatters.dart';
 import '../../models/crab_individual.dart';
 import '../../theme/dashboard_theme.dart';
 import 'crab_status_badge.dart';
@@ -202,6 +202,6 @@ class CrabManagementDataTable extends StatelessWidget {
     }
     if (diff.inDays == 1) return 'Hôm qua';
     if (diff.inDays < 7) return '${diff.inDays} ngày trước';
-    return MockCrabData.formatDate(d);
+    return formatDate(d);
   }
 }

@@ -2,7 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_batch_data.dart';
+import '../../services/batch_service.dart';
 import '../../models/crab_batch.dart';
 import '../../theme/dashboard_theme.dart';
 import '../dashboard/glass_card.dart';
@@ -168,8 +168,8 @@ class WeightGrowthChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final actual = MockBatchData.weightGrowthGrams(batch);
-    final expected = MockBatchData.expectedWeightGrowth(batch);
+    final actual = BatchService.weightGrowthGrams(batch);
+    final expected = BatchService.expectedWeightGrowth(batch);
 
     return GlassCard(
       child: Column(
@@ -258,8 +258,8 @@ class SurvivalChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final data = MockBatchData.survivalHistory(batch);
-    final labels = MockBatchData.survivalLabels(batch);
+    final data = BatchService.survivalHistory(batch);
+    final labels = BatchService.survivalLabels(batch);
 
     return GlassCard(
       child: Column(
@@ -357,7 +357,7 @@ class CrabDistributionChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final segments = MockBatchData.crabDistribution(batch);
+    final segments = BatchService.crabDistribution(batch);
 
     return GlassCard(
       child: Column(
@@ -502,7 +502,7 @@ class BatchTimelineWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final events = MockBatchData.timeline(batch);
+    final events = BatchService.timeline(batch);
 
     return GlassCard(
       child: Column(

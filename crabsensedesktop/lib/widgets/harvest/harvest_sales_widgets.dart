@@ -2,7 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_harvest_sales_data.dart';
+import '../../utils/app_formatters.dart';
 import '../../models/harvest_sales.dart';
 import '../../theme/dashboard_theme.dart';
 import '../dashboard/glass_card.dart';
@@ -18,13 +18,13 @@ class HarvestKpiStrip extends StatelessWidget {
     final cards = [
       _Kpi(
         title: 'Doanh thu tháng',
-        value: MockHarvestSalesData.formatVndShort(kpi.monthlyRevenueVnd),
+        value: formatVndShort(kpi.monthlyRevenueVnd),
         trend: '+${kpi.revenueTrendPercent.round()}%',
         trendUp: true,
       ),
       _Kpi(
         title: 'Lợi nhuận',
-        value: MockHarvestSalesData.formatVndShort(kpi.monthlyProfitVnd),
+        value: formatVndShort(kpi.monthlyProfitVnd),
         trend: '+${kpi.profitTrendPercent.round()}%',
         trendUp: true,
       ),
@@ -475,7 +475,7 @@ class RecentOrdersTableCard extends StatelessWidget {
             ),
             Expanded(
               child: Text(
-                MockHarvestSalesData.formatVndShort(o.revenueVnd),
+                formatVndShort(o.revenueVnd),
                 style: GoogleFonts.notoSans(fontSize: 12, fontWeight: FontWeight.w600),
               ),
             ),
@@ -649,7 +649,7 @@ class HarvestAssistantPanel extends StatelessWidget {
               const SizedBox(height: 12),
               _marketTile(
                 market.priceLabel,
-                '${MockHarvestSalesData.formatVndFull(market.pricePerKg)}/kg',
+                '${formatVndFull(market.pricePerKg)}/kg',
                 '+${market.priceTrendPercent.round()}%',
               ),
               const SizedBox(height: 10),

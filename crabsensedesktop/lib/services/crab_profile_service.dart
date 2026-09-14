@@ -262,4 +262,16 @@ class CrabProfileService extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<List<Map<String, dynamic>>> fetchBoxAlerts({
+    required String boxId,
+    String? farmingAreaId,
+  }) {
+    return _api.fetchAlerts(
+      _session.token,
+      boxId: boxId,
+      farmingAreaId: farmingAreaId,
+      activeOnly: false,
+    );
+  }
 }

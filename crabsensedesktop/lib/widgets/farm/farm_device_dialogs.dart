@@ -435,8 +435,8 @@ Future<void> showExportHistoryReportDialog(
   required String eventType,
 }) async {
   final report = '''
-BÁO CÁO LỊCH SỬ HOẠT ĐỘNG — ${MockFarmDevicesDataRef.areaLabel}
-Khu vực: ${MockFarmDevicesDataRef.pondLabel}
+BÁO CÁO LỊCH SỬ HOẠT ĐỘNG
+Khu vực: Khu đang chọn
 Thời gian: $timeRange
 Loại sự kiện: $eventType
 Tổng sự kiện: $eventCount
@@ -497,12 +497,6 @@ Xuất lúc: ${DateTime.now()}
       ],
     ),
   );
-}
-
-/// Tránh import vòng — nhãn báo cáo lịch sử.
-abstract final class MockFarmDevicesDataRef {
-  static const areaLabel = 'Khu vực Nuôi';
-  static const pondLabel = 'Khu A — H-04';
 }
 
 class _DeviceFilterSheet extends StatefulWidget {

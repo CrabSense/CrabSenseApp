@@ -1,19 +1,48 @@
 import 'package:flutter/foundation.dart';
 
-import '../data/mock_device_setup_data.dart';
 import '../models/device_setup.dart';
 
 class DeviceSetupService extends ChangeNotifier {
   DeviceSetupService() {
-    _device = MockDeviceSetupData.defaultDevice();
-    _wifi = MockDeviceSetupData.wifi();
-    _wifiNetworks = List.of(MockDeviceSetupData.wifiNetworks());
-    _mqtt = MockDeviceSetupData.mqtt(_device.id);
-    _sensorMappings = List.of(MockDeviceSetupData.sensorMappings());
-    _relayMappings = List.of(MockDeviceSetupData.relayMappings());
-    _fallbackRules = MockDeviceSetupData.fallbackRules();
-    _testResult = MockDeviceSetupData.testResult();
-    _ota = MockDeviceSetupData.ota();
+    _device = const Esp32Device(
+      id: '',
+      name: '',
+      type: Esp32DeviceType.sensor,
+      area: '',
+      assignment: '',
+      firmwareVersion: '',
+      status: DeviceOnlineStatus.offline,
+      lastSeen: '—',
+      macAddress: '',
+      localIp: '',
+      uptime: '—',
+      hardwareVersion: '',
+    );
+    _wifi = const WifiConfig(ssid: '', password: '');
+    _wifiNetworks = [];
+    _mqtt = const MqttConfig(
+      brokerUrl: '',
+      port: 1883,
+      username: '',
+      password: '',
+      clientId: '',
+      topicPublish: '',
+      topicSubscribe: '',
+      qos: 0,
+      keepAlive: 60,
+      cleanSession: true,
+      tlsEnabled: false,
+    );
+    _sensorMappings = [];
+    _relayMappings = [];
+    _fallbackRules = [];
+    _testResult = null;
+    _ota = const OtaFirmwareInfo(
+      currentVersion: '',
+      latestVersion: '',
+      updateAvailable: false,
+      history: [],
+    );
   }
 
   DeviceSetupSection _section = DeviceSetupSection.wifi;
@@ -31,7 +60,7 @@ class DeviceSetupService extends ChangeNotifier {
   bool _mqttPasswordVisible = false;
   bool _busy = false;
   String? _statusMessage;
-  String _wifiPasswordPlain = 'CrabFarm2026!';
+  String _wifiPasswordPlain = '';
 
   DeviceSetupSection get section => _section;
   Esp32Device get device => _device;
@@ -47,15 +76,20 @@ class DeviceSetupService extends ChangeNotifier {
   bool get mqttPasswordVisible => _mqttPasswordVisible;
   bool get busy => _busy;
   String? get statusMessage => _statusMessage;
-  List<String> get mqttTopicTemplates =>
-      MockDeviceSetupData.mqttTopicTemplates(_device.id);
-  String get nodeStatusLabel => MockDeviceSetupData.nodeStatusLabel();
+  List<String> get mqttTopicTemplates => _device.id.isEmpty
+      ? const []
+      : [
+          'crabfarm/device/${_device.id}/sensor',
+          'crabfarm/device/${_device.id}/command',
+        ];
+  String get nodeStatusLabel =>
+      _device.status == DeviceOnlineStatus.online ? 'Đang kết nối' : 'Chưa kết nối';
 
   String get wifiPasswordDisplay =>
       _wifiPasswordVisible ? _wifiPasswordPlain : _wifi.password;
 
   String get mqttPasswordDisplay =>
-      _mqttPasswordVisible ? 'mqtt_secret_2026' : _mqtt.password;
+      _mqttPasswordVisible ? _mqtt.password : _mqtt.password;
 
   void selectSection(DeviceSetupSection s) {
     if (_section == s) return;
@@ -120,9 +154,9 @@ class DeviceSetupService extends ChangeNotifier {
     _statusMessage = 'Đang quét WiFi...';
     notifyListeners();
     await Future<void>.delayed(const Duration(milliseconds: 900));
-    _wifiNetworks = List.of(MockDeviceSetupData.wifiNetworks());
+    _wifiNetworks = [];
     _busy = false;
-    _statusMessage = 'Đã quét ${_wifiNetworks.length} mạng';
+    _statusMessage = 'Chưa có mạng WiFi. Quét từ thiết bị khi đã kết nối.';
     notifyListeners();
   }
 
@@ -216,11 +250,11 @@ class DeviceSetupService extends ChangeNotifier {
     };
     notifyListeners();
     await Future<void>.delayed(const Duration(milliseconds: 1100));
-    _testResult = MockDeviceSetupData.testResult();
+    _testResult = null;
     _busy = false;
-    _statusMessage = 'Kiểm tra hoàn tất';
+    _statusMessage = 'Chưa kết nối thiết bị để kiểm tra.';
     notifyListeners();
-    return true;
+    return false;
   }
 
   Future<bool> saveWifiToDevice() async {
@@ -257,11 +291,8 @@ class DeviceSetupService extends ChangeNotifier {
     _busy = true;
     notifyListeners();
     await Future<void>.delayed(const Duration(milliseconds: 600));
-    _ota = MockDeviceSetupData.ota();
     _busy = false;
-    _statusMessage = _ota.updateAvailable
-        ? 'Có bản ${_ota.latestVersion}'
-        : 'Firmware đã mới nhất';
+    _statusMessage = 'Chưa có thông tin firmware từ thiết bị.';
     notifyListeners();
     return _ota.updateAvailable;
   }

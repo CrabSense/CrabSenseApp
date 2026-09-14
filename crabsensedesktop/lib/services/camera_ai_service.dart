@@ -1,27 +1,91 @@
 import 'package:flutter/foundation.dart';
 
-import '../data/mock_camera_ai_data.dart';
+import '../config/app_env.dart';
 import '../models/camera_ai.dart';
 
 class CameraAiService extends ChangeNotifier {
   CameraAiService() {
-    _events = MockCameraAiData.events();
+    _events = const [];
     reloadCameras();
   }
 
   late List<AiCameraEvent> _events;
   late List<CameraFeed> _cameras;
 
-  /// Đọc lại URL từ `.env` (sau khi sửa cấu hình / hot restart).
+  static const typeFilterOptions = [
+    'Tất cả',
+    'Lột xác',
+    'Chết',
+    'Bỏ ăn',
+    'Thoát hộp',
+    'Rong bám',
+    'Bất thường',
+  ];
+  static const levelFilterOptions = ['Tất cả', 'Theo dõi', 'Cảnh báo', 'Khẩn cấp'];
+  static const statusFilterOptions = [
+    'Tất cả',
+    'Chưa xử lý',
+    'Đã xác nhận',
+    'Báo sai AI',
+  ];
+
   void reloadCameras() {
-    _cameras = MockCameraAiData.cameras();
+    _cameras = _configuredCameras();
+    if (_cameras.isNotEmpty &&
+        !_cameraTabs.contains(_cameraTab) &&
+        _cameraTab != 'Tất cả camera') {
+      _cameraTab = _cameras.first.name;
+    }
     notifyListeners();
+  }
+
+  static List<CameraFeed> _configuredCameras() {
+    return [
+      CameraFeed(
+        id: 'cam1',
+        name: 'Camera 1',
+        area: '—',
+        status: CameraStatus.online,
+        fps: 24,
+        resolution: '1080p',
+        lastUpdateSeconds: 0,
+        ipAddress: AppEnv.camera1Ip,
+        streamUrl: AppEnv.camera1StreamUrl,
+        snapshotFallbackUrl: AppEnv.camera1SnapshotFallbackUrl,
+        overlays: const [],
+      ),
+      CameraFeed(
+        id: 'cam2',
+        name: 'Camera 2',
+        area: '—',
+        status: CameraStatus.online,
+        fps: 24,
+        resolution: '1080p',
+        lastUpdateSeconds: 0,
+        ipAddress: AppEnv.camera2Ip,
+        streamUrl: AppEnv.camera2StreamUrl,
+        snapshotFallbackUrl: AppEnv.camera2SnapshotFallbackUrl,
+        snapshotOnly: AppEnv.camera2SnapshotOnly,
+        htmlPageMode: AppEnv.camera2HtmlPage,
+        overlays: const [],
+      ),
+    ];
   }
 
   List<CameraFeed> get cameras => List.unmodifiable(_cameras);
   List<AiCameraEvent> get events => List.unmodifiable(_events);
 
-  String _cameraTab = MockCameraAiData.cameraTabs.first;
+  List<String> get cameraTabs => [
+        ..._cameras.map((c) => c.name),
+        'Tất cả camera',
+      ];
+
+  List<String> get cameraFilterOptions => [
+        'Tất cả',
+        ..._cameras.map((c) => c.name),
+      ];
+
+  String _cameraTab = 'Camera 1';
   String get cameraTab => _cameraTab;
 
   String _cameraFilter = 'Tất cả';
@@ -30,7 +94,14 @@ class CameraAiService extends ChangeNotifier {
   String _statusFilter = 'Tất cả';
   String _search = '';
 
-  String? get activeCameraId => MockCameraAiData.cameraIdFromTab(_cameraTab);
+  List<String> get _cameraTabs => cameraTabs;
+
+  String? get activeCameraId {
+    for (final c in _cameras) {
+      if (c.name == _cameraTab) return c.id;
+    }
+    return null;
+  }
 
   void setCameraTab(String tab) {
     _cameraTab = tab;
@@ -62,8 +133,17 @@ class CameraAiService extends ChangeNotifier {
     notifyListeners();
   }
 
-  List<AiDetectionCount> get detectionCounts =>
-      MockCameraAiData.detectionCountsFor(activeCameraId);
+  List<AiDetectionCount> get detectionCounts {
+    final list = filteredEvents;
+    return AiDetectionType.values
+        .map(
+          (t) => AiDetectionCount(
+            type: t,
+            count: list.where((e) => e.detectionType == t).length,
+          ),
+        )
+        .toList();
+  }
 
   List<AiCameraEvent> get filteredEvents {
     var list = _events;
@@ -71,11 +151,24 @@ class CameraAiService extends ChangeNotifier {
     if (tabCam != null) {
       list = list.where((e) => e.cameraId == tabCam).toList();
     }
-    final filterCam = MockCameraAiData.cameraIdFromFilter(_cameraFilter);
-    if (filterCam != null) {
-      list = list.where((e) => e.cameraId == filterCam).toList();
+    if (_cameraFilter != 'Tất cả') {
+      final id = _cameras
+          .where((c) => c.name == _cameraFilter)
+          .map((c) => c.id)
+          .firstOrNull;
+      if (id != null) {
+        list = list.where((e) => e.cameraId == id).toList();
+      }
     }
-    final type = MockCameraAiData.typeFromFilter(_typeFilter);
+    final type = switch (_typeFilter) {
+      'Lột xác' => AiDetectionType.molting,
+      'Chết' => AiDetectionType.dead,
+      'Bỏ ăn' => AiDetectionType.skippedMeal,
+      'Thoát hộp' => AiDetectionType.escaped,
+      'Rong bám' => AiDetectionType.algae,
+      'Bất thường' => AiDetectionType.abnormal,
+      _ => null,
+    };
     if (type != null) {
       list = list.where((e) => e.detectionType == type).toList();
     }
@@ -106,18 +199,32 @@ class CameraAiService extends ChangeNotifier {
     return list;
   }
 
-  CameraFeed get primaryCamera {
+  CameraFeed? get primaryCameraOrNull {
     final id = activeCameraId;
     if (id != null) {
       for (final c in _cameras) {
         if (c.id == id) return c;
       }
     }
-    return _cameras.first;
+    return _cameras.isEmpty ? null : _cameras.first;
   }
 
+  CameraFeed get primaryCamera =>
+      primaryCameraOrNull ??
+      const CameraFeed(
+        id: '',
+        name: 'Chưa có camera',
+        area: '—',
+        status: CameraStatus.offline,
+        fps: 0,
+        resolution: '—',
+        lastUpdateSeconds: 0,
+        overlays: [],
+      );
+
   List<CameraFeed> get thumbnailCameras {
-    final primary = primaryCamera;
+    final primary = primaryCameraOrNull;
+    if (primary == null) return const [];
     return _cameras.where((c) => c.id != primary.id).toList();
   }
 
@@ -129,6 +236,7 @@ class CameraAiService extends ChangeNotifier {
     }
   }
 
-  String get aiInsight => MockCameraAiData.aiInsightFor(activeCameraId);
-  String get aiRecommendation => MockCameraAiData.aiRecommendation();
+  String get aiInsight =>
+      'Chưa có sự kiện AI. Kết nối camera và mô hình phát hiện để xem cảnh báo.';
+  String get aiRecommendation => '';
 }

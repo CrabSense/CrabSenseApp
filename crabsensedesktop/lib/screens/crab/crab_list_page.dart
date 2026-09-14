@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_crab_data.dart';
 import '../../models/crab_individual.dart';
+import '../../utils/crab_management_mapper.dart';
 import '../../services/crab_service.dart';
 import '../../theme/dashboard_theme.dart';
 import '../../widgets/crab/crab_dialogs.dart';
@@ -27,7 +27,7 @@ class CrabListPage extends StatelessWidget {
     return ListenableBuilder(
       listenable: service,
       builder: (context, _) {
-        final kpis = MockCrabData.summaryKpis(service.crabs);
+        final kpis = crabSummaryKpis(service.crabs);
         final pageItems = service.paginatedCrabs;
         final start = service.filteredCount == 0
             ? 0
@@ -112,7 +112,7 @@ class CrabListPage extends StatelessWidget {
                         Row(
                           children: [
                             Text(
-                              'Hiển thị $start–$end của ${MockCrabData.totalPopulation} cá thể',
+                              'Hiển thị $start–$end của ${service.crabs.length} cá thể',
                               style: GoogleFonts.notoSans(
                                 color: DashboardColors.textMuted,
                                 fontSize: 12,

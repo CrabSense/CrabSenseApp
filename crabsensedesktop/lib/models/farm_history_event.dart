@@ -47,3 +47,17 @@ extension HistoryEventTypeX on HistoryEventType {
         HistoryEventType.environment => 'Môi trường',
       };
 }
+
+class HistoryEventSummary {
+  const HistoryEventSummary({
+    required this.label,
+    required this.count,
+    required this.maxCount,
+  });
+
+  final String label;
+  final int count;
+  final int maxCount;
+
+  double get fraction => maxCount == 0 ? 0 : count / maxCount;
+}

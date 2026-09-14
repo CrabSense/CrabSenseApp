@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_farm_report_data.dart';
 import '../../models/farm_report.dart';
+import '../../utils/app_formatters.dart';
 import '../../services/farm_report_service.dart';
 import '../../theme/dashboard_theme.dart';
 import '../../widgets/reports/farm_report_widgets.dart';
@@ -50,7 +50,7 @@ class _FarmReportPageState extends State<FarmReportPage> {
         final bar = SurvivalGrowthBarChartCard(periods: service.survivalGrowthBars);
         final pie = ReportCostPieCard(
           segments: service.costAllocation,
-          totalLabel: MockFarmReportData.formatVndShort(kpi.totalCostVnd),
+          totalLabel: formatVndShort(kpi.totalCostVnd),
         );
         final resources = ReportResourcesCard(items: service.resources);
 

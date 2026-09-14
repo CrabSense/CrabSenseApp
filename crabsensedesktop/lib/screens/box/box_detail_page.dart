@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/production_models.dart';
 import '../../models/camera_device.dart';
-import '../../data/mock_box_detail_data.dart';
+import '../../models/box_alert.dart';
 import '../../models/area_environment_metric.dart';
 import '../../services/area_environment_service.dart';
 import '../../services/crab_profile_service.dart';
@@ -46,7 +46,8 @@ class BoxDetailPage extends StatefulWidget {
 class _BoxDetailPageState extends State<BoxDetailPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  late List<BoxAlert> _alerts;
+  List<BoxAlert> _alerts = const [];
+  var _alertsLoading = false;
 
   CrabProfileService get _svc => widget.crabProfileService;
   CrabProfileData? get _crab => _svc.data;
@@ -55,9 +56,9 @@ class _BoxDetailPageState extends State<BoxDetailPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 6, vsync: this);
-    _alerts = MockBoxDetailData.sampleAlerts();
     _svc.addListener(_onUpdate);
     _svc.loadByBox(widget.box.id);
+    _loadAlerts();
     widget.cameraService.addListener(_onUpdate);
     widget.cameraService.loadCamerasByBox(widget.box.id);
     widget.areaEnvironmentService.addListener(_onUpdate);
@@ -72,6 +73,56 @@ class _BoxDetailPageState extends State<BoxDetailPage>
     widget.areaEnvironmentService.stopLiveRefresh(notify: false);
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadAlerts() async {
+    setState(() => _alertsLoading = true);
+    try {
+      final rows = await _svc.fetchBoxAlerts(
+        boxId: widget.box.id,
+        farmingAreaId: widget.areaId,
+      );
+      final mapped = rows.map(_alertFromJson).toList();
+      if (!mounted) return;
+      setState(() {
+        _alerts = mapped;
+        _alertsLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _alerts = const [];
+        _alertsLoading = false;
+      });
+    }
+  }
+
+  BoxAlert _alertFromJson(Map<String, dynamic> json) {
+    final sev = (json['severity'] ?? json['Severity'] ?? 'info')
+        .toString()
+        .toLowerCase();
+    final at = DateTime.tryParse(
+      (json['createdAt'] ?? json['CreatedAt'] ?? '').toString(),
+    );
+    String time = '';
+    if (at != null) {
+      final l = at.toLocal();
+      time =
+          '${l.day.toString().padLeft(2, '0')}/${l.month.toString().padLeft(2, '0')}/${l.year} '
+          '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+    }
+    return BoxAlert(
+      severity: sev.contains('crit')
+          ? 'critical'
+          : (sev.contains('warn') ? 'warning' : 'info'),
+      message: (json['message'] ??
+              json['Message'] ??
+              json['title'] ??
+              json['Title'] ??
+              '')
+          .toString(),
+      time: time,
+    );
   }
 
   void _onUpdate() {
@@ -523,7 +574,18 @@ class _BoxDetailPageState extends State<BoxDetailPage>
               ],
             ),
             const SizedBox(height: 12),
-            ..._alerts.take(3).map(_alertTile),
+            if (_alertsLoading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              )
+            else if (_alerts.isEmpty)
+              Text(
+                'Chưa có cảnh báo cho hộp này.',
+                style: _font(size: 13, color: DashboardColors.textMuted),
+              )
+            else
+              ..._alerts.take(3).map(_alertTile),
           ],
         ),
       );
@@ -919,7 +981,15 @@ class _BoxDetailPageState extends State<BoxDetailPage>
               children: [
                 Text('Tất cả cảnh báo', style: _font(size: 16, weight: FontWeight.w700)),
                 const SizedBox(height: 12),
-                ..._alerts.map(_alertDetailTile),
+                if (_alertsLoading)
+                  const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                else if (_alerts.isEmpty)
+                  Text(
+                    'Chưa có cảnh báo cho hộp này.',
+                    style: _font(size: 13, color: DashboardColors.textMuted),
+                  )
+                else
+                  ..._alerts.map(_alertDetailTile),
               ],
             ),
           ),

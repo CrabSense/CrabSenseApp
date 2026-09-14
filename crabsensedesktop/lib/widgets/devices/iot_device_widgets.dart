@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_iot_devices_data.dart';
 import '../../models/iot_device.dart';
 import '../../services/iot_device_service.dart';
 import '../../theme/dashboard_theme.dart';
@@ -186,7 +185,17 @@ class IotCategoryChips extends StatelessWidget {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: MockIotDevicesData.categoryFilters.map((c) {
+        children: const [
+          'Tất cả',
+          'Máy bơm',
+          'Drum Filter',
+          'Skimmer',
+          'Oxy',
+          'UV',
+          'Fan',
+          'Feeder',
+          'Valve',
+        ].map((c) {
           final active = c == selected;
           return Padding(
             padding: const EdgeInsets.only(right: 8),

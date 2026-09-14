@@ -1,14 +1,11 @@
-import '../data/mock_water_quality_data.dart';
 import '../models/cloud_telemetry.dart';
 import '../models/water_quality.dart';
 import '../utils/water_quality_evaluator.dart';
 
-/// Gộp 5 pin Cloud với mock cho sensor không có trên API.
+/// Gộp pin Cloud — chỉ hiện cảm biến có số liệu thật.
 abstract final class WaterQualityCloudMerge {
   static List<WaterSensorReading> mergeReadings(CloudTelemetryRealtime? cloud) {
-    final map = {
-      for (final r in MockWaterQualityData.randomReadings()) r.type: r,
-    };
+    final map = <WaterSensorType, WaterSensorReading>{};
 
     if (cloud != null) {
       _apply(map, WaterSensorType.temperature, cloud.temp, '°C');
@@ -48,13 +45,9 @@ abstract final class WaterQualityCloudMerge {
   static List<WaterTrendPoint> buildTrend(
     List<CloudTelemetryHistoryPoint> history,
     int rangeMinutes,
-    List<WaterTrendPoint> mockFallback,
   ) {
     if (history.isEmpty) {
-      return _scaleMockTrend(
-        mockFallback,
-        rangeMinutes,
-      );
+      return const [];
     }
 
     final now = DateTime.now().toUtc();
@@ -63,10 +56,7 @@ abstract final class WaterQualityCloudMerge {
       ..sort((a, b) => a.time.compareTo(b.time));
 
     if (filtered.isEmpty) {
-      return _scaleMockTrend(
-        mockFallback,
-        rangeMinutes,
-      );
+      return const [];
     }
 
     // Realtime: giữ độ phân giải ~3s cho 30p/1h; 24h gom bucket lớn hơn.
@@ -138,27 +128,6 @@ abstract final class WaterQualityCloudMerge {
     }).toList();
   }
 
-  static List<WaterTrendPoint> _scaleMockTrend(
-    List<WaterTrendPoint> mock,
-    int rangeMinutes,
-  ) {
-    if (mock.isEmpty) return mock;
-    final step = rangeMinutes / (mock.length - 1).clamp(1, 999);
-    return List.generate(mock.length, (i) {
-      final m = mock[i];
-      return WaterTrendPoint(
-        xMinutes: i * step,
-        label: m.label,
-        timestamp: m.timestamp,
-        temperature: m.temperature,
-        ph: m.ph,
-        tds: m.tds,
-        flow: m.flow,
-        dissolvedOxygen: m.dissolvedOxygen,
-      );
-    });
-  }
-
   static String axisLabelFor(DateTime t, int rangeMinutes) {
     final local = t.toLocal();
     if (rangeMinutes <= 30) {
@@ -179,15 +148,10 @@ abstract final class WaterQualityCloudMerge {
 
   static List<WaterHistoryRow> buildHistory(
     List<CloudTelemetryHistoryPoint> history,
-    List<WaterHistoryRow> mockFallback,
   ) {
-    if (history.isEmpty) return mockFallback;
+    if (history.isEmpty) return const [];
 
     final byTime = <String, Map<WaterSensorType, String>>{};
-    final mockByType = {
-      for (final row in mockFallback)
-        for (final e in row.values.entries) e.key: e.value,
-    };
 
     for (final p in history) {
       final key = _formatTime(p.time);
@@ -198,8 +162,7 @@ abstract final class WaterQualityCloudMerge {
     }
 
     return byTime.entries.map((e) {
-      final values = Map<WaterSensorType, String>.from(mockByType);
-      values.addAll(e.value);
+      final values = Map<WaterSensorType, String>.from(e.value);
       return WaterHistoryRow(time: e.key, values: values);
     }).toList()
       ..sort((a, b) => a.time.compareTo(b.time));

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_dashboard_data.dart';
+import '../../models/dashboard_ui.dart';
 import '../../theme/dashboard_theme.dart';
 import '../shared/ai_assistant_avatar.dart';
 import 'glass_card.dart';

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_farm_activity_log_data.dart';
 import '../../models/farm_activity_log.dart';
 import '../../services/farm_log_service.dart';
 import '../../theme/dashboard_theme.dart';
@@ -164,25 +163,34 @@ class FarmLogFilterRow extends StatelessWidget {
           _FilterField(
             prefix: 'Thời gian',
             value: service.timeFilter,
-            items: MockFarmActivityLogData.timeFilters,
+            items: const ['Hôm nay', '7 ngày', '30 ngày', 'Tùy chọn'],
             onChanged: service.setTimeFilter,
           ),
           _FilterField(
             prefix: 'Loại thao tác',
             value: service.typeFilter,
-            items: MockFarmActivityLogData.typeFilters,
+            items: const [
+              'Tất cả',
+              'Cho ăn',
+              'Thay nước',
+              'Cân cua',
+              'Lột xác',
+              'Điều trị',
+              'Bảo trì',
+              'Thu hoạch',
+            ],
             onChanged: service.setTypeFilter,
           ),
           _FilterField(
             prefix: 'Người thực hiện',
             value: service.performerFilter,
-            items: MockFarmActivityLogData.performerFilters,
+            items: const ['Tất cả'],
             onChanged: service.setPerformerFilter,
           ),
           _FilterField(
             prefix: 'Khu vực',
             value: service.areaFilter,
-            items: MockFarmActivityLogData.areaFilters,
+            items: const ['Tất cả'],
             onChanged: service.setAreaFilter,
           ),
         ];
@@ -447,6 +455,7 @@ class FarmLogDetailSheet extends StatelessWidget {
   static Future<void> show(BuildContext context, FarmActivityLogEntry entry) {
     return showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: DashboardColors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -457,12 +466,16 @@ class FarmLogDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+    final maxH = MediaQuery.sizeOf(context).height * 0.85;
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxH),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
           Row(
             children: [
               FarmLogTypePill(type: entry.type),
@@ -505,7 +518,9 @@ class FarmLogDetailSheet extends StatelessWidget {
                   .toList(),
             ),
           ],
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }

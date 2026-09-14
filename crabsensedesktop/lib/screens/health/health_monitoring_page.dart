@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_health_monitoring_data.dart';
 import '../../models/health_monitoring.dart';
 import '../../theme/dashboard_theme.dart';
 import '../../widgets/health/health_monitoring_widgets.dart';
@@ -21,8 +20,8 @@ class HealthMonitoringPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final profile = MockHealthMonitoringData.profileFor(crabId);
-    final alerts = MockHealthMonitoringData.autoAlerts(profile);
+    final profile = HealthMonitoringProfile.empty(crabId);
+    final alerts = profile.autoAlerts;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),

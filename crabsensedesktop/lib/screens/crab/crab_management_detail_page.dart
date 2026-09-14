@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../data/mock_crab_data.dart';
+import '../../utils/app_formatters.dart';
 import '../../models/crab_individual.dart';
 import '../../models/crab_status.dart';
 import '../../services/camera_device_service.dart';
@@ -356,7 +356,7 @@ class _HealthHistoryTab extends StatelessWidget {
               subtitle: Text(
                 'Mai: ${crab.healthLogs[i].shellCondition} · Bệnh: ${crab.healthLogs[i].diseaseNote}',
               ),
-              trailing: Text(MockCrabData.formatDate(crab.healthLogs[i].recordedAt)),
+              trailing: Text(formatDate(crab.healthLogs[i].recordedAt)),
             ),
           ],
         ],

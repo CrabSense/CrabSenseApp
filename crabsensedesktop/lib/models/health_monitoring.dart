@@ -162,6 +162,76 @@ class HealthMonitoringProfile {
   double get healthScore => components.total;
 
   HealthLevel get level => HealthLevel.fromScore(healthScore);
+
+  factory HealthMonitoringProfile.empty(String crabId) {
+    const components = HealthScoreComponents(
+      activity: 0,
+      feeding: 0,
+      growth: 0,
+      waterQuality: 0,
+      diseaseStatus: 0,
+    );
+    return HealthMonitoringProfile(
+      crabId: crabId,
+      boxId: '—',
+      batchId: '—',
+      components: components,
+      trend: const [],
+      contributions: const [],
+      diseaseRisk: DiseaseRiskLevel.low,
+      molting: MoltingMonitorData(
+        moltCount: 0,
+        lastMoltDate: DateTime.fromMillisecondsSinceEpoch(0),
+        cycleDays: 0,
+        recoveryHours: 0,
+        status: MoltingMonitorStatus.normal,
+      ),
+      activity: const ActivityMonitorData(
+        movementPercent: 0,
+        frequencyPerHour: 0,
+        restHoursPerDay: 0,
+        feedingMinutesPerDay: 0,
+        feedingReaction: '—',
+        abnormalBehavior: '—',
+        statusLabel: 'Chưa có dữ liệu',
+      ),
+      feeding: const FeedingMonitorData(
+        suppliedGram: 0,
+        leftoverGram: 0,
+        eatingRatePercent: 0,
+        mealsPerDay: 0,
+        fcr: 0,
+        statusLabel: 'Chưa có dữ liệu',
+      ),
+      growth: const GrowthMonitorData(
+        currentWeightGram: 0,
+        weeklyGainGram: 0,
+        adgGram: 0,
+        growthRatePercent: 0,
+        statusLabel: 'Chưa có dữ liệu',
+      ),
+      diseaseSurveillance: const [],
+      aiInsight: 'Chưa có dữ liệu theo dõi sức khỏe cho cua này.',
+      aiRecommendation: '',
+    );
+  }
+
+  List<String> get autoAlerts {
+    final alerts = <String>[];
+    if (healthScore > 0 && healthScore < 60) {
+      alerts.add('Health Score giảm dưới 60');
+    }
+    if (feeding.leftoverGram > 2) {
+      alerts.add('Thức ăn thừa cao — kiểm tra khẩu phần');
+    }
+    if (activity.movementPercent > 0 && activity.movementPercent < 50) {
+      alerts.add('Activity giảm bất thường');
+    }
+    if (molting.recoveryHours > 48) {
+      alerts.add('Sau lột xác hồi phục quá 48h');
+    }
+    return alerts;
+  }
 }
 
 class MoltingMonitorData {

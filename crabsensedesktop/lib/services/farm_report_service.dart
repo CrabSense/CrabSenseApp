@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import '../data/mock_farm_report_data.dart';
 import '../models/farm_report.dart';
 
 class FarmReportService extends ChangeNotifier {
@@ -15,18 +14,32 @@ class FarmReportService extends ChangeNotifier {
   String get areaFilter => _areaFilter;
   ReportType get reportType => _reportType;
 
-  FarmReportKpi get kpi => MockFarmReportData.kpi;
-  String get aiSummary => MockFarmReportData.aiSummary;
-  List<String> get aiAnalysis => MockFarmReportData.aiAnalysis;
-  List<ReportAiAction> get aiActions => MockFarmReportData.aiActions;
-  List<SurvivalGrowthPeriod> get survivalGrowthBars =>
-      MockFarmReportData.survivalGrowthBars();
-  List<CostAllocationSegment> get costAllocation =>
-      MockFarmReportData.costAllocation();
-  List<ResourceUsageItem> get resources => MockFarmReportData.resources();
+  FarmReportKpi get kpi => const FarmReportKpi(
+        survivalRatePercent: 0,
+        survivalTrendPercent: 0,
+        avgGrowthPerWeekG: 0,
+        avgHealthScore: 0,
+        opsEfficiencyPercent: 0,
+        totalRevenueVnd: 0,
+        revenueForecastPercent: 0,
+        totalCostVnd: 0,
+        feedCostSharePercent: 0,
+        netProfitVnd: 0,
+        roiPercent: 0,
+        electricityKwh: 0,
+        electricityTrendPercent: 0,
+        waterM3: 0,
+        carbonReductionPercent: 0,
+      );
+  String get aiSummary => 'Chưa có dữ liệu báo cáo.';
+  List<String> get aiAnalysis => const [];
+  List<ReportAiAction> get aiActions => const [];
+  List<SurvivalGrowthPeriod> get survivalGrowthBars => const [];
+  List<CostAllocationSegment> get costAllocation => const [];
+  List<ResourceUsageItem> get resources => const [];
 
   List<DailyReportRow> get dailyRows {
-    var rows = MockFarmReportData.dailyRows();
+    var rows = const <DailyReportRow>[];
     if (_batchFilter != 'Tất cả') {
       rows = rows.where((r) => r.batchId == _batchFilter).toList();
     }
