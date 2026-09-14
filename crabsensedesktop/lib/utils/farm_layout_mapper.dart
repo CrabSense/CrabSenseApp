@@ -30,11 +30,12 @@ FarmMapBox toFarmMapBox({
   required RowRecord row,
 }) {
   var uiStatus = mapBoxApiStatus(box.status);
-  if (isInactiveCrab(box.crabStatus, box.crabCondition)) {
+  if (box.crabCount <= 0 && isInactiveCrab(box.crabStatus, box.crabCondition)) {
     uiStatus = BoxStatus.empty;
   }
   final code = box.boxCode.trim().isNotEmpty ? box.boxCode : box.id;
-  final showCrab = uiStatus != BoxStatus.empty && box.hasCrab;
+  final showCrab = box.crabCount > 0 || (uiStatus != BoxStatus.empty && box.hasCrab);
+  final crabCount = box.crabCount > 0 ? box.crabCount : (showCrab ? 1 : 0);
 
   final display = uiStatus == BoxStatus.empty
       ? CrabBox(id: code, zone: area.areaCode, status: uiStatus)
@@ -64,7 +65,7 @@ FarmMapBox toFarmMapBox({
     rowCode: row.rowCode,
     rowName: row.rowName,
     apiStatus: box.status,
-    crabCount: showCrab ? 1 : 0,
+    crabCount: crabCount,
     alertCount: box.alertCount,
     aiSummary: box.aiSummary,
     source: box,
