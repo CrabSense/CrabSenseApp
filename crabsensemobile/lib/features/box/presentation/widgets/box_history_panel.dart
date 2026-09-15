@@ -27,8 +27,13 @@ class BoxHistoryPanel extends StatefulWidget {
 class BoxHistoryPanelState extends State<BoxHistoryPanel> {
   bool _loading = true;
   String? _error;
-  List<_DayPoint> _days = [];
+  List<BoxCareDayPoint> _days = [];
   List<_ProductSlice> _products = [];
+
+  /// Có ngày nào trong cửa sổ 7 ngày thực sự có số liệu không. Không có ⇒ đừng vẽ
+  /// biểu đồ rỗng: 7 ngày toàn `null` sẽ bị fl_chart ném lỗi (`firstWhere` không có
+  /// `orElse`) và trước đó thì vẽ thành "Không ăn" — sai sự thật.
+  bool _hasRecords = false;
 
   @override
   void initState() {
@@ -49,7 +54,7 @@ class BoxHistoryPanelState extends State<BoxHistoryPanel> {
       );
       final records = _asList(opsRes.data)
           .map(_fromOp)
-          .whereType<_CareRec>()
+          .whereType<BoxCareRecord>()
           .toList()
         ..sort((a, b) => a.at.compareTo(b.at));
 
@@ -63,15 +68,7 @@ class BoxHistoryPanelState extends State<BoxHistoryPanel> {
               e.at.month == d.month &&
               e.at.day == d.day,
         );
-        int eat = 0;
-        int act = 0;
-        var grams = 0.0;
-        for (final e in ofDay) {
-          if (e.eat != null) eat = e.eat!;
-          if (e.act != null) act = e.act!;
-          grams += e.grams ?? 0;
-        }
-        return _DayPoint(day: d, eat: eat, act: act, grams: grams);
+        return mergeDay(d, ofDay);
       });
 
       final productMap = <String, double>{};
@@ -89,6 +86,8 @@ class BoxHistoryPanelState extends State<BoxHistoryPanel> {
       setState(() {
         _days = days;
         _products = products;
+        _hasRecords =
+            days.any((d) => d.eat != null || d.act != null || d.grams > 0);
         _loading = false;
       });
     } catch (e) {
@@ -116,7 +115,27 @@ class BoxHistoryPanelState extends State<BoxHistoryPanel> {
     return body is List ? body : const [];
   }
 
-  static _CareRec? _fromOp(dynamic item) {
+  /// Gộp các phiếu trong MỘT ngày thành một điểm biểu đồ.
+  ///
+  /// Điểm mấu chốt: ngày KHÔNG có phiếu (hoặc phiếu không ghi mục đó) trả `null`,
+  /// KHÔNG trả 0. Trả 0 là bịa ra một lần đánh giá "Không ăn"/"Yếu" mà nông dân
+  /// chưa từng thực hiện — đúng lỗi đã thấy trên hộp trống.
+  static BoxCareDayPoint mergeDay(
+    DateTime day,
+    Iterable<BoxCareRecord> ofDay,
+  ) {
+    int? eat;
+    int? act;
+    var grams = 0.0;
+    for (final e in ofDay) {
+      if (e.eat != null) eat = e.eat;
+      if (e.act != null) act = e.act;
+      grams += e.grams ?? 0;
+    }
+    return BoxCareDayPoint(day: day, eat: eat, act: act, grams: grams);
+  }
+
+  static BoxCareRecord? _fromOp(dynamic item) {
     if (item is! Map) return null;
     final notes = (item['notes'] ?? item['Notes'] ?? '').toString();
     final atRaw = item['timestamp'] ??
@@ -129,7 +148,7 @@ class BoxHistoryPanelState extends State<BoxHistoryPanel> {
     final qty = qtyRaw is num
         ? qtyRaw.toDouble()
         : double.tryParse(qtyRaw?.toString() ?? '');
-    return _CareRec(
+    return BoxCareRecord(
       at: at,
       eat: _scoreEat(notes),
       act: _scoreAct(notes),
@@ -219,13 +238,22 @@ class BoxHistoryPanelState extends State<BoxHistoryPanel> {
             )
           else if (_error != null)
             Text(_error!, style: const TextStyle(color: kHomeDanger, fontSize: 12))
+          else if (!_hasRecords)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Text(
+                'Chưa có phiếu nào trong 7 ngày qua nên chưa có gì để vẽ. '
+                'Điền phiếu chăm sóc ở trên để biểu đồ bắt đầu ghi.',
+                style: TextStyle(color: kHomeTextSub, fontSize: 13, height: 1.4),
+              ),
+            )
           else ...[
             const _ChartTitle('Mức ăn (7 ngày)'),
             SizedBox(
               height: 160,
               child: _ScoreChart(
                 days: _days,
-                values: [for (final d in _days) d.eat.toDouble()],
+                values: [for (final d in _days) d.eat?.toDouble()],
                 color: const Color(0xFF2E7D32),
                 labels: const ['Không', 'Ít', 'Nhiều'],
               ),
@@ -236,7 +264,7 @@ class BoxHistoryPanelState extends State<BoxHistoryPanel> {
               height: 160,
               child: _ScoreChart(
                 days: _days,
-                values: [for (final d in _days) d.act.toDouble()],
+                values: [for (final d in _days) d.act?.toDouble()],
                 color: const Color(0xFF1565C0),
                 labels: const ['Yếu', 'Vừa', 'Nhiều'],
               ),
@@ -294,8 +322,9 @@ class BoxHistoryPanelState extends State<BoxHistoryPanel> {
   }
 }
 
-class _CareRec {
-  const _CareRec({
+/// Một phiếu chăm sóc đã đọc từ API. `null` = phiếu đó không ghi mục tương ứng.
+class BoxCareRecord {
+  const BoxCareRecord({
     required this.at,
     this.eat,
     this.act,
@@ -309,16 +338,17 @@ class _CareRec {
   final String? product;
 }
 
-class _DayPoint {
-  const _DayPoint({
+/// Một ngày trên biểu đồ. `null` = ngày đó KHÔNG có số liệu (khác hẳn 0 = "Không ăn").
+class BoxCareDayPoint {
+  const BoxCareDayPoint({
     required this.day,
     required this.eat,
     required this.act,
     required this.grams,
   });
   final DateTime day;
-  final int eat;
-  final int act;
+  final int? eat;
+  final int? act;
   final double grams;
 }
 
@@ -356,14 +386,27 @@ class _ScoreChart extends StatelessWidget {
     required this.labels,
   });
 
-  final List<_DayPoint> days;
-  final List<double> values;
+  final List<BoxCareDayPoint> days;
+  final List<double?> values;
   final Color color;
   final List<String> labels;
 
   @override
   Widget build(BuildContext context) {
     final fmt = DateFormat('dd/MM');
+
+    // Toàn bộ 7 ngày đều không có số liệu ⇒ không vẽ gì. Vẽ sẽ ra đường phẳng ở
+    // "Không ăn"/"Yếu" (sai sự thật), còn để fl_chart tự xử lý thì nó ném lỗi vì
+    // `firstWhere` tìm spot khác null mà không có `orElse`.
+    if (values.every((v) => v == null)) {
+      return const Center(
+        child: Text(
+          'Chưa ghi mục này trên phiếu nào.',
+          style: TextStyle(color: kHomeTextHint, fontSize: 12),
+        ),
+      );
+    }
+
     return LineChart(
       LineChartData(
         minY: 0,
@@ -417,8 +460,13 @@ class _ScoreChart extends StatelessWidget {
         lineBarsData: [
           LineChartBarData(
             spots: [
+              // `nullSpot` cắt đường tại ngày không có phiếu — để lộ khoảng trống
+              // thay vì nối liền và ngụ ý đã đo được số 0.
               for (var i = 0; i < values.length; i++)
-                FlSpot(i.toDouble(), values[i]),
+                if (values[i] == null)
+                  FlSpot.nullSpot
+                else
+                  FlSpot(i.toDouble(), values[i]!),
             ],
             isCurved: true,
             color: color,
@@ -437,7 +485,7 @@ class _ScoreChart extends StatelessWidget {
 
 class _GramsChart extends StatelessWidget {
   const _GramsChart({required this.days});
-  final List<_DayPoint> days;
+  final List<BoxCareDayPoint> days;
 
   @override
   Widget build(BuildContext context) {
