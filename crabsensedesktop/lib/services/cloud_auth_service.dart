@@ -120,7 +120,7 @@ class CloudAuthService {
       return _mergeMe(session, me, stored.username);
     } on CloudApiException catch (e) {
       if (e.statusCode != 401) {
-        return _offlineFallback(session);
+        return await _offlineFallback(session);
       }
       final refresh = session.refreshToken?.trim();
       if (refresh == null || refresh.isEmpty) {
@@ -141,15 +141,22 @@ class CloudAuthService {
         return null;
       }
     } catch (_) {
-      return _offlineFallback(session);
+      return await _offlineFallback(session);
     }
   }
 
   /// Không gọi được API (BE tắt / mất mạng). Chỉ dùng cache khi token còn hạn;
   /// token hết hạn thì trả null để AuthGate đưa về màn đăng nhập.
+  ///
+  /// Đây là đường lui nên KHÔNG được ném lỗi: xoá cache hỏng cũng phải trả kết
+  /// quả bình thường, nếu không lỗi storage sẽ làm hỏng luôn phiên khởi động.
   Future<AuthSession?> _offlineFallback(AuthSession session) async {
     if (!tokenExpired(session.token)) return session;
-    await _store.clearTokensKeepUsername();
+    try {
+      await _store.clearTokensKeepUsername();
+    } catch (_) {
+      // Bỏ qua: token đã chết thì dù xoá được hay không vẫn phải về đăng nhập.
+    }
     return null;
   }
 
