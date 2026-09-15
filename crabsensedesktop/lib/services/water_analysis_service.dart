@@ -97,7 +97,14 @@ class WaterAnalysisService extends ChangeNotifier {
       _snapshot = WaterAnalysisSnapshot.fromJson(raw);
       if (!isRunning) _poll?.cancel();
       notifyListeners();
-    } catch (_) {}
+    } catch (e) {
+      // Token hết hạn: dừng poll, nếu không Timer 1s sẽ gọi 401 mãi mãi.
+      if (e is CloudApiException && e.statusCode == 401) {
+        _poll?.cancel();
+        _error = 'Phiên đăng nhập hết hạn';
+        notifyListeners();
+      }
+    }
   }
 
   @override

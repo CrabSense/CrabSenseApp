@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+
 import '../config/app_env.dart';
 import '../models/auth_models.dart';
 import 'auth_session_store.dart';
@@ -104,7 +108,8 @@ class CloudAuthService {
   Future<void> logoutRemote(String token) => _api.logout(token);
 
   /// Khôi phục phiên đã lưu. Access token hết hạn (1h) thì refresh (7 ngày).
-  /// API tắt / lỗi mạng → vẫn vào bằng session cache.
+  /// API tắt / lỗi mạng → vẫn vào bằng session cache, nhưng CHỈ khi token còn
+  /// hạn: token chết mà vẫn vào thì mọi API trả 401 và app chỉ toàn lỗi kết nối.
   Future<AuthSession?> restorePersistedSession() async {
     final stored = await _store.load();
     if (stored == null) return null;
@@ -115,7 +120,7 @@ class CloudAuthService {
       return _mergeMe(session, me, stored.username);
     } on CloudApiException catch (e) {
       if (e.statusCode != 401) {
-        return session;
+        return _offlineFallback(session);
       }
       final refresh = session.refreshToken?.trim();
       if (refresh == null || refresh.isEmpty) {
@@ -136,7 +141,33 @@ class CloudAuthService {
         return null;
       }
     } catch (_) {
-      return session;
+      return _offlineFallback(session);
+    }
+  }
+
+  /// Không gọi được API (BE tắt / mất mạng). Chỉ dùng cache khi token còn hạn;
+  /// token hết hạn thì trả null để AuthGate đưa về màn đăng nhập.
+  Future<AuthSession?> _offlineFallback(AuthSession session) async {
+    if (!tokenExpired(session.token)) return session;
+    await _store.clearTokensKeepUsername();
+    return null;
+  }
+
+  /// Đọc claim `exp` của JWT, không cần gọi mạng. Token hỏng / thiếu `exp`
+  /// cũng coi là hết hạn — thà bắt đăng nhập lại hơn là chạy bằng token chết.
+  @visibleForTesting
+  static bool tokenExpired(String token) {
+    final parts = token.split('.');
+    if (parts.length != 3) return true;
+    try {
+      final payload = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+      );
+      final exp = payload is Map ? payload['exp'] : null;
+      if (exp is! num) return true;
+      return DateTime.now().millisecondsSinceEpoch >= exp.toInt() * 1000;
+    } catch (_) {
+      return true;
     }
   }
 

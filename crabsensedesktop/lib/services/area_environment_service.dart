@@ -156,7 +156,11 @@ class AreaEnvironmentService extends ChangeNotifier {
         _lastRefreshedAt = DateTime.now();
       }
     } catch (e) {
-      if (!silent) {
+      if (e is CloudApiException && e.statusCode == 401) {
+        // Token hết hạn: dừng poll, nếu không Timer 2s sẽ gọi 401 mãi mãi.
+        _error = 'Phiên đăng nhập hết hạn';
+        stopLiveRefresh(notify: false);
+      } else if (!silent) {
         _data = null;
         _error = '$e';
       }

@@ -81,6 +81,12 @@ class RasFlowService extends ChangeNotifier {
         Uri.parse('${AppEnv.cloudApiUrl}/api/areas/$areaId/ras-flow'),
         headers: _headers(),
       );
+      if (res.statusCode == 401) {
+        // Token hết hạn: dừng poll ngay, nếu không Timer 2s sẽ gọi 401 mãi mãi.
+        _error = 'Phiên đăng nhập hết hạn';
+        stopLiveRefresh(notify: false);
+        return;
+      }
       final data = _requireData(res);
       _diagram = RasFlowDiagram.fromJson(data);
       _error = null;
@@ -193,6 +199,7 @@ class RasFlowService extends ChangeNotifier {
       final res = await call();
       if (res.statusCode == 401) {
         _error = 'Phiên đăng nhập hết hạn';
+        stopLiveRefresh(notify: false);
         _notifyDeferred();
         return false;
       }
