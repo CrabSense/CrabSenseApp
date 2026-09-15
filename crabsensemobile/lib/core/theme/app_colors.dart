@@ -43,16 +43,10 @@ class CrabSenseColors {
   static const Color infoLight      = Color(0xFFD6EFF9);
   static const Color normal         = Color(0xFF2ECC71); // Bình thường
 
-  // ── Crab Health Status Colors ──────────────────────────────────────
-  static const Color healthNormal   = Color(0xFF2ECC71); // Bình thường
-  static const Color healthMolting  = Color(0xFFF39C12); // Sắp lột xác
-  static const Color healthAlert    = Color(0xFFE74C3C); // Cảnh báo
-
-  // ── Box Status Colors (sơ đồ trang trại) ─────────────────────────
-  static const Color boxNormal      = Color(0xFF2ECC71); // Xanh lá = bình thường
-  static const Color boxMolting     = Color(0xFFF39C12); // Cam = sắp lột
-  static const Color boxAlert       = Color(0xFFE74C3C); // Đỏ = cảnh báo
-  static const Color boxEmpty       = Color(0xFFBDC3C7); // Xám = trống
+  // ── Crab Condition Colors (nguồn duy nhất: shared/models/crab_condition.dart) ──
+  /// Tím = cua đang lột. Dùng chung cho thẻ hộp, chú giải và chi tiết cua.
+  static const Color molt            = Color(0xFFA78BFA);
+  static const Color moltLight       = Color(0xFFF3EEFF);
 
   // ── Water Quality Indicator Colors ────────────────────────────────
   static const Color wqGood         = Color(0xFF2ECC71);

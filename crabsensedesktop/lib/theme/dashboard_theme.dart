@@ -85,6 +85,9 @@ abstract final class DashboardColors {
   static const healthy = Color(0xFF22C55E);
   static const monitoring = Color(0xFFEAB308);
   static const molting = Color(0xFFF97316);
+
+  /// Tím cho hộp cua đang lột xác (quy ước: lột = tím).
+  static const moltPurple = Color(0xFFA78BFA);
   static const risk = Color(0xFFEF4444);
   static const dead = Color(0xFF64748B);
 

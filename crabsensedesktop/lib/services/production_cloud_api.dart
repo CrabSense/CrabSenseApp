@@ -147,8 +147,10 @@ extension ProductionCloudApi on CloudApiClient {
     return _parseSingle(res, 'area', AreaRecord.fromJson);
   }
 
-  Future<void> deleteArea(String token, String areaId) async {
-    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/farming-areas/$areaId');
+  /// Xoá khu. [cascade] = true xoá luôn dãy, hộp và cua bên trong.
+  Future<void> deleteArea(String token, String areaId, {bool cascade = false}) async {
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/farming-areas/$areaId')
+        .replace(queryParameters: cascade ? const {'cascade': 'true'} : null);
     final res = await _client.delete(uri, headers: authHeaders(token));
     _ensureOk(res);
   }

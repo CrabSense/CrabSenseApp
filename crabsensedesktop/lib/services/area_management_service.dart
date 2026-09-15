@@ -164,8 +164,8 @@ class AreaManagementService extends ChangeNotifier {
     return a;
   }
 
-  Future<void> deleteArea(AreaRecord item) async {
-    await _api.deleteArea(token, item.id);
+  Future<void> deleteArea(AreaRecord item, {bool cascade = false}) async {
+    await _api.deleteArea(token, item.id, cascade: cascade);
     await load();
   }
 

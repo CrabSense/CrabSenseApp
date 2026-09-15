@@ -324,8 +324,8 @@ class ProductionManagementService extends ChangeNotifier {
     return a;
   }
 
-  Future<void> deleteArea(AreaRecord item) async {
-    await _api.deleteArea(token, item.id);
+  Future<void> deleteArea(AreaRecord item, {bool cascade = false}) async {
+    await _api.deleteArea(token, item.id, cascade: cascade);
     areas = areas.where((x) => x.id != item.id).toList();
     if (selectedAreaId == item.id) selectArea(null);
     notifyListeners();

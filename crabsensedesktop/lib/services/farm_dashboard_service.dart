@@ -131,8 +131,14 @@ class FarmDashboardService extends ChangeNotifier {
       }
 
       notifyListeners();
-    } catch (_) {
-      if (!silent) rethrow;
+    } catch (e) {
+      if (e is CloudApiException && e.statusCode == 401) {
+        // Token hết hạn: dừng poll, nếu không Timer sẽ gọi 401 mãi mãi.
+        error = 'Phiên đăng nhập hết hạn';
+        stopLiveRefresh();
+      } else if (!silent) {
+        rethrow;
+      }
     }
   }
 

@@ -26,18 +26,22 @@ class FarmLayoutPage extends StatefulWidget {
     required this.rasFlowService,
     required this.areaService,
     required this.deviceService,
-    this.farmName,
-    this.onOpenRas,
-    this.onOpenBox,
-  });
+      this.farmName,
+      this.onOpenRas,
+      this.onOpenBox,
+      this.onExportMolting,
+    });
 
-  final FarmLayoutService farmLayoutService;
-  final RasFlowService rasFlowService;
-  final AreaManagementService areaService;
-  final IoTDeviceService deviceService;
-  final String? farmName;
-  final VoidCallback? onOpenRas;
-  final ValueChanged<BoxListItem>? onOpenBox;
+    final FarmLayoutService farmLayoutService;
+    final RasFlowService rasFlowService;
+    final AreaManagementService areaService;
+    final IoTDeviceService deviceService;
+    final String? farmName;
+    final VoidCallback? onOpenRas;
+    final ValueChanged<BoxListItem>? onOpenBox;
+
+    /// Xuất bán cua đang lột ở hộp này (hướng còn lại là để lại nuôi tiếp).
+    final ValueChanged<FarmMapBox>? onExportMolting;
 
   @override
   State<FarmLayoutPage> createState() => _FarmLayoutPageState();
@@ -151,6 +155,9 @@ class _FarmLayoutPageState extends State<FarmLayoutPage>
                   context,
                   item,
                   onViewDetail: widget.onOpenBox,
+                  onExportMolting: widget.onExportMolting == null
+                      ? null
+                      : () => widget.onExportMolting!(item),
                 ),
               ),
               FarmDevicesTab(

@@ -1,14 +1,18 @@
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../app/routes.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/models/crab_condition.dart';
+import '../../../../shared/widgets/local_file_image.dart';
 import '../../data/datasources/box_remote_data_source.dart';
 import '../../data/models/crab_model.dart';
 import '../../domain/entities/crab.dart';
@@ -27,6 +31,40 @@ const _textMain = kHomeTextMain;
 const _textSub = kHomeTextSub;
 const _border = kHomeBorder;
 const _danger = kHomeDanger;
+
+/// Trần ảnh mỗi lần nhập cua — khớp giới hạn desktop (take(10)) và request 30MB của BE.
+const _maxImages = 6;
+
+/// Tình trạng cua — nhãn + key lấy từ [CrabCondition], một nguồn duy nhất nên
+/// không lệch với thẻ hộp, chú giải và phiếu chăm sóc.
+final _conditionOptions = <String, String>{
+  for (final c in CrabCondition.selectable) c.apiKey: c.label,
+};
+
+/// Dòng chính của một lựa chọn lô: "LOT-001 · Cua Cù Mau".
+/// Mã lô một mình không đủ để người nuôi nhận ra lô nào.
+String lotOptionLabel(({String id, String code, String name, String meta}) lot) =>
+    lot.name.isEmpty ? lot.code : '${lot.code} · ${lot.name}';
+
+/// Dòng phụ: "còn 0/2 · 04/09" — số còn lại trong lô + ngày nhập.
+String lotOptionMeta(dynamic quantity, dynamic placed, String importDate) {
+  final parts = <String>[];
+
+  final q = int.tryParse('${quantity ?? ''}');
+  if (q != null && q > 0) {
+    final p = int.tryParse('${placed ?? ''}') ?? 0;
+    parts.add('còn ${(q - p).clamp(0, q)}/$q');
+  }
+
+  final d = DateTime.tryParse(importDate);
+  if (d != null) {
+    parts.add(
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}',
+    );
+  }
+
+  return parts.join(' · ');
+}
 const _warning = kHomeWarning;
 
 /// Danh sách cua trong một hộp nuôi.
@@ -145,13 +183,14 @@ class _CrabListScreenState extends State<CrabListScreen> {
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ));
-    if (result == 'ended') {
-      await Future<void>.delayed(const Duration(milliseconds: 250));
-      if (!mounted) return;
-      if (context.canPop()) context.pop();
-      return;
-    }
-    await _refresh();
+
+    // Lưu xong là quay về danh sách hộp — đúng dòng gợi ý trong phiếu ("lưu xong sẽ
+    // quay về danh sách hộp") để nông dân đi tiếp hộp khác. Danh sách hộp tự làm mới
+    // khi nhận lại quyền điều hướng (xem `_handleBoxTap` trong boxes_screen), nên
+    // không cần `_refresh()` ở đây nữa.
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    if (!mounted) return;
+    if (context.canPop()) context.pop();
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -206,12 +245,18 @@ class _CrabListScreenState extends State<CrabListScreen> {
                           onResult: _onCareResult,
                         ),
                       ],
-                      const SizedBox(height: 16),
-                      BoxHistoryPanel(
-                        key: _historyKey,
-                        boxId: widget.boxId,
-                        boxCode: widget.boxCode,
-                      ),
+                      // Chưa có cua ⇒ KHÔNG hiện biểu đồ. Không có cua thì không có phiếu,
+                      // và biểu đồ sẽ dựng 7 ngày giá trị 0 rồi vẽ thành đường phẳng ở
+                      // "Không ăn"/"Yếu" — trông như đã theo dõi và cua bỏ ăn, trong khi
+                      // thực tế hộp trống.
+                      if (_crabs.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        BoxHistoryPanel(
+                          key: _historyKey,
+                          boxId: widget.boxId,
+                          boxCode: widget.boxCode,
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -521,12 +566,15 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
   final _lengthCtrl = TextEditingController();
   final _widthCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
+  final _crabTypeCtrl = TextEditingController();
   String _gender = 'male';
   String _shell = 'hard';
   String _spots = 'few';
+  String _condition = 'normal';
+  final List<XFile> _images = [];
   bool _submitting = false;
   bool _loadingLots = true;
-  List<({String id, String code})> _lots = [];
+  List<({String id, String code, String name, String meta})> _lots = [];
   String? _selectedLotId;
   bool _createNewLot = false;
   final _newLotCtrl = TextEditingController();
@@ -541,7 +589,7 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
     try {
       final res = await _api.get<dynamic>(ApiConstants.crabLots);
       final decoded = jsonDecode(jsonEncode(res.data));
-      final list = <({String id, String code})>[];
+      final list = <({String id, String code, String name, String meta})>[];
       dynamic raw = decoded;
       if (decoded is Map) raw = decoded['data'] ?? decoded;
       if (raw is List) {
@@ -551,7 +599,17 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
           final code =
               (item['lotCode'] ?? item['LotCode'] ?? item['code'])?.toString() ??
                   '';
-          if (id.isNotEmpty) list.add((id: id, code: code.isEmpty ? id : code));
+          if (id.isEmpty) continue;
+          list.add((
+            id: id,
+            code: code.isEmpty ? id : code,
+            name: (item['name'] ?? item['Name'])?.toString() ?? '',
+            meta: lotOptionMeta(
+              item['quantity'] ?? item['Quantity'],
+              item['placedCount'] ?? item['PlacedCount'],
+              (item['importDate'] ?? item['ImportDate'])?.toString() ?? '',
+            ),
+          ));
         }
       }
       if (mounted) {
@@ -591,14 +649,196 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
     return null;
   }
 
+  /// Hỏi nguồn ảnh trước: chụp tại chỗ hay lấy ảnh có sẵn.
+  Future<ImageSource?> _askImageSource() => showModalBottomSheet<ImageSource>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => Container(
+          margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _border),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: _border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Thêm ảnh cua',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: _textMain,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _sourceTile(
+                icon: Icons.photo_camera_outlined,
+                label: 'Chụp ảnh',
+                hint: 'Mở camera chụp trực tiếp',
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              const SizedBox(height: 10),
+              _sourceTile(
+                icon: Icons.photo_library_outlined,
+                label: 'Chọn từ thư viện',
+                hint: 'Lấy tối đa $_maxImages ảnh có sẵn',
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      );
+
+  Widget _sourceTile({
+    required IconData icon,
+    required String label,
+    required String hint,
+    required VoidCallback onTap,
+  }) =>
+      Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: kHomeBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _border),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, color: _primaryDk),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: _textMain,
+                        ),
+                      ),
+                      Text(
+                        hint,
+                        style: const TextStyle(fontSize: 12, color: _textSub),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+  Future<void> _pickImages() async {
+    if (_images.length >= _maxImages) return;
+    final source = await _askImageSource();
+    if (source == null || !mounted) return;
+
+    final picker = ImagePicker();
+    List<XFile> picked = const [];
+    try {
+      if (source == ImageSource.camera) {
+        final shot = await picker.pickImage(
+          source: ImageSource.camera,
+          imageQuality: 70,
+        );
+        if (shot != null) picked = [shot];
+      } else {
+        picked = await picker.pickMultiImage(imageQuality: 70);
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          source == ImageSource.camera
+              ? 'Không mở được camera: $error'
+              : 'Không chọn được ảnh: $error',
+        ),
+        backgroundColor: _danger,
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    if (!mounted || picked.isEmpty) return;
+    setState(() {
+      for (final f in picked) {
+        if (_images.length >= _maxImages) break;
+        _images.add(f);
+      }
+    });
+  }
+
+  /// Đẩy ảnh lên S3 trước, lấy URL để gửi kèm khi tạo cua (BE không nhận file thô).
+  Future<List<String>> _uploadImages() async {
+    if (_images.isEmpty) return const [];
+    final form = FormData.fromMap({
+      'files': [
+        for (final f in _images)
+          MultipartFile.fromBytes(
+            await f.readAsBytes(),
+            filename: f.name.isNotEmpty
+                ? f.name
+                : 'crab_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          ),
+      ],
+    });
+    final res =
+        await _api.dio.post<dynamic>(ApiConstants.crabImages, data: form);
+    final decoded = jsonDecode(jsonEncode(res.data));
+    dynamic raw = decoded is Map ? (decoded['data'] ?? decoded) : decoded;
+    if (raw is Map) raw = raw['items'] ?? raw['data'] ?? raw;
+    final urls = <String>[];
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is! Map) continue;
+        final url = (item['url'] ??
+                item['Url'] ??
+                item['storageKey'] ??
+                item['StorageKey'])
+            ?.toString();
+        if (url != null && url.isNotEmpty) urls.add(url);
+      }
+    }
+    if (urls.isEmpty) throw Exception('Upload ảnh không trả về URL');
+    return urls;
+  }
+
   @override
   void dispose() {
     _weightCtrl.dispose();
     _lengthCtrl.dispose();
     _widthCtrl.dispose();
     _notesCtrl.dispose();
+    _crabTypeCtrl.dispose();
     _newLotCtrl.dispose();
     super.dispose();
+  }
+
+  /// UI nhập cm nhưng BE lưu mm (CarapaceLengthMm / CarapaceWidthMm).
+  double? _toMm(TextEditingController c) {
+    final v = double.tryParse(c.text.trim());
+    return v == null ? null : v * 10;
   }
 
   Future<void> _submit() async {
@@ -614,19 +854,29 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
       } catch (_) {
         lotId = null; // BE may auto-create lot when omitted.
       }
-      final res = await _api.post<dynamic>('/boxes/${widget.boxId}/crabs', data: {
-        'weightGram': weight,
-        'tag': crabTag,
-        'gender': _gender,
-        if (lotId != null && lotId.isNotEmpty) 'crabLotId': lotId,
-        if (isMale) 'moltingStage': _shell,
-        if (!isMale) 'roeStatus': _spots,
-        if (_lengthCtrl.text.trim().isNotEmpty)
-          'lengthCm': double.tryParse(_lengthCtrl.text.trim()),
-        if (_widthCtrl.text.trim().isNotEmpty)
-          'widthCm': double.tryParse(_widthCtrl.text.trim()),
-        if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
-      });
+      final imageUrls = await _uploadImages();
+      final lengthMm = _toMm(_lengthCtrl);
+      final widthMm = _toMm(_widthCtrl);
+      final crabType = _crabTypeCtrl.text.trim();
+      final notes = _notesCtrl.text.trim();
+
+      final res = await _api.post<dynamic>(
+        ApiConstants.addCrabToBox(widget.boxId),
+        data: {
+          'weightGram': weight,
+          'tag': crabTag,
+          'gender': _gender,
+          'condition': _condition,
+          if (crabType.isNotEmpty) 'crabType': crabType,
+          if (lotId != null && lotId.isNotEmpty) 'crabLotId': lotId,
+          if (isMale) 'moltingStage': _shell,
+          if (!isMale) 'roeStatus': _spots,
+          if (lengthMm != null) 'carapaceLengthMm': lengthMm,
+          if (widthMm != null) 'carapaceWidthMm': widthMm,
+          if (notes.isNotEmpty) 'notes': notes,
+          if (imageUrls.isNotEmpty) 'imageUrls': imageUrls,
+        },
+      );
       final decoded = jsonDecode(jsonEncode(res.data));
       if (decoded is Map && decoded['success'] == false) {
         throw decoded['message'] ?? 'Không lưu được cua';
@@ -740,12 +990,52 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
                 if (!_createNewLot && _lots.isNotEmpty)
                   DropdownButtonFormField<String>(
                     value: _selectedLotId,
+                    isExpanded: true,
+                    // Ô đã chọn chỉ cao 24px -> phải là bản 1 dòng, nếu không sẽ tràn.
+                    selectedItemBuilder: (_) => [
+                      for (final lot in _lots)
+                        Text(
+                          lotOptionLabel(lot),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: _textMain,
+                          ),
+                        ),
+                    ],
                     decoration: _deco('Lô cua'),
                     items: [
                       for (final lot in _lots)
                         DropdownMenuItem(
                           value: lot.id,
-                          child: Text(lot.code),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                lotOptionLabel(lot),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: _textMain,
+                                ),
+                              ),
+                              if (lot.meta.isNotEmpty)
+                                Text(
+                                  lot.meta,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: _textSub,
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                     ],
                     onChanged: (v) => setState(() => _selectedLotId = v),
@@ -841,6 +1131,59 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
                 ),
               const SizedBox(height: 16),
               const Text(
+                'Loại cua',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: _textMain,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _crabTypeCtrl,
+                decoration: _deco('VD: Cua biển'),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Tình trạng cua',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: _textMain,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Quyết định màu hộp và cách chăm sóc.',
+                style: TextStyle(fontSize: 12, color: _textSub),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final entry in _conditionOptions.entries)
+                    ChoiceChip(
+                      label: Text(entry.value),
+                      selected: _condition == entry.key,
+                      onSelected: (_) =>
+                          setState(() => _condition = entry.key),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Ảnh cua (${_images.length}/$_maxImages)',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: _textMain,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _imagePicker(),
+              const SizedBox(height: 16),
+              const Text(
                 'Ghi chú',
                 style: TextStyle(
                   fontSize: 13,
@@ -891,6 +1234,73 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
       ),
     );
   }
+
+  Widget _imagePicker() => SizedBox(
+        height: 84,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: _images.length + (_images.length < _maxImages ? 1 : 0),
+          separatorBuilder: (_, _) => const SizedBox(width: 10),
+          itemBuilder: (_, i) {
+            if (i >= _images.length) {
+              return InkWell(
+                onTap: _pickImages,
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  width: 84,
+                  decoration: BoxDecoration(
+                    color: kHomeBg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: _border),
+                  ),
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add_a_photo_outlined, color: _primaryDk),
+                      SizedBox(height: 4),
+                      Text(
+                        'Thêm ảnh',
+                        style: TextStyle(fontSize: 11, color: _textSub),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+            return Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: LocalFileImage(
+                    path: _images[i].path,
+                    width: 84,
+                    height: 84,
+                  ),
+                ),
+                Positioned(
+                  top: 2,
+                  right: 2,
+                  child: InkWell(
+                    onTap: () => setState(() => _images.removeAt(i)),
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      );
 
   Widget _numberField(TextEditingController controller, String label) =>
       TextFormField(

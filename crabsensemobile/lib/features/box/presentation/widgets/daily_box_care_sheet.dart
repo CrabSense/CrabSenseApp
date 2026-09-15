@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/models/crab_condition.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 import '../../data/models/crab_model.dart';
 import 'crab_avatar.dart';
@@ -42,6 +43,7 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
 
   String? _endCase;
   String _eat = 'many';
+  String _condition = 'normal';
   String _activity = 'active';
   XFile? _video;
   bool _videoConfirmed = false;
@@ -246,6 +248,7 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
             _video = null;
             _videoConfirmed = false;
             _eat = 'many';
+            _condition = 'normal';
             _activity = 'active';
             _endCase = null;
           });
@@ -346,13 +349,15 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
 
     final feedType = _feedTypeCtrl.text.trim();
     final grams = _feedGramCtrl.text.trim();
+    // Ghi kèm dạng text cho các màn cũ (timeline hộp, nhật ký vận hành) đọc được.
     final notes = [
       'Phiếu hộp ${widget.boxCode}',
       'Cua: $tag',
       'Ăn: ${_eatLabel(_eat)}',
+      'Đánh dấu: ${_conditionLabel(_condition)}',
       if (feedType.isNotEmpty) 'Thức ăn: $feedType',
       if (grams.isNotEmpty) 'Lượng: ${grams}g',
-      'Tình trạng: ${_activityLabel(_activity)}',
+      'Hoạt động: ${_activityLabel(_activity)}',
       if (videoUrl != null && videoUrl.isNotEmpty) 'Video: $videoUrl',
       if (_videoConfirmed && _video != null && (videoUrl == null || videoUrl.isEmpty))
         'Video: đã xác nhận (${_video!.name}) — chờ Drive',
@@ -360,9 +365,16 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
     ].join('\n');
 
     final qty = double.tryParse(grams);
+    final crabId = widget.crab.id;
     await _api.post<dynamic>('/operations', data: {
       'type': qty != null ? 'feeding' : 'inspection',
       'boxIds': [widget.boxId],
+      // Dữ liệu có cấu trúc để xem lại lịch sử ăn theo từng con cua.
+      if (crabId.isNotEmpty) 'crabIds': [crabId],
+      'appetite': _eat,
+      // BE cập nhật luôn tình trạng con cua + ghi lịch sử.
+      'condition': _condition,
+      if (feedType.isNotEmpty) 'foodType': feedType,
       'notes': notes,
       if (qty != null) 'quantity': qty,
       if (qty != null) 'unit': 'g',
@@ -520,7 +532,22 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
           const SizedBox(height: 10),
           _field(_feedGramCtrl, 'Bao nhiêu gam'),
           const SizedBox(height: 14),
-          _section('Tình trạng'),
+          _section('Đánh dấu tình trạng'),
+          _pillsWrap(
+            value: _condition,
+            options: {
+              for (final c in CrabCondition.selectable) c.apiKey: c.label,
+            },
+            colorOf: (key) => CrabCondition.tryParse(key)?.color,
+            onChanged: (v) => setState(() => _condition = v),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Cập nhật luôn tình trạng của con cua',
+            style: TextStyle(fontSize: 11, color: kHomeTextSub),
+          ),
+          const SizedBox(height: 14),
+          _section('Hoạt động'),
           _pillsWrap(
             value: _activity,
             options: const {
@@ -705,10 +732,13 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
     );
   }
 
+  /// [colorOf] cho phép chip đang chọn tô đúng màu trạng thái (lột = tím,
+  /// nguy cơ = đỏ…) thay vì màu primary, để phiếu chăm sóc khớp màu thẻ hộp.
   Widget _pillsWrap({
     required String value,
     required Map<String, String> options,
     required ValueChanged<String> onChanged,
+    Color? Function(String key)? colorOf,
   }) {
     return Wrap(
       spacing: 8,
@@ -718,32 +748,37 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
           InkWell(
             onTap: () => onChanged(e.key),
             borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: value == e.key
-                    ? CrabSenseColors.primary
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: value == e.key
-                      ? CrabSenseColors.primary
-                      : kHomeBorder,
-                  width: value == e.key ? 1.5 : 1,
+            child: Builder(builder: (context) {
+              final selected = value == e.key;
+              final accent =
+                  colorOf?.call(e.key) ?? CrabSenseColors.primary;
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: selected ? accent : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: selected ? accent : kHomeBorder,
+                    width: selected ? 1.5 : 1,
+                  ),
                 ),
-              ),
-              child: Text(
-                e.value,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: value == e.key
-                      ? CrabSenseColors.textOnPrimary
-                      : kHomeTextMain,
+                child: Text(
+                  e.value,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    // Chữ đậm trên nền lime, nhưng phải là chữ trắng khi nền là
+                    // màu trạng thái đậm (xanh lá / tím / đỏ).
+                    color: !selected
+                        ? kHomeTextMain
+                        : (colorOf == null
+                            ? CrabSenseColors.textOnPrimary
+                            : Colors.white),
+                  ),
                 ),
-              ),
-            ),
+              );
+            }),
           ),
       ],
     );
@@ -754,6 +789,9 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
         'none' => 'không ăn',
         _ => 'ăn nhiều',
       };
+
+  String _conditionLabel(String v) =>
+      CrabCondition.tryParse(v)?.label.toLowerCase() ?? 'bình thường';
 
   String _activityLabel(String v) => switch (v) {
         'still' => 'không di chuyển',

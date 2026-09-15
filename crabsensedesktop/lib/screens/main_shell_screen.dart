@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/crab_batch.dart';
 import '../models/crab_individual.dart';
+import '../models/farm_layout.dart';
 import '../models/production_models.dart';
 import '../navigation/app_route.dart';
 import '../services/batch_service.dart';
@@ -222,6 +223,31 @@ class _MainShellScreenState extends State<MainShellScreen> {
     } catch (_) {
       // Giữ danh sách từ /api/auth/me nếu refresh thất bại.
     }
+  }
+
+  /// Cua lột có 2 hướng: xuất bán ngay (tạo phiếu thu hoạch cua lột), hoặc
+  /// để lại nuôi tiếp — hướng thứ hai chỉ cần đóng drawer, không gọi API.
+  Future<void> _exportMoltingCrab(FarmMapBox item) async {
+    final crabId = item.source?.crabId;
+    if (crabId == null || crabId.isEmpty) {
+      _snack('Hộp ${item.display.id} chưa gắn cá thể cua nào.');
+      return;
+    }
+    final ok = await _crabService.exportSoftshell(crabId);
+    if (!mounted) return;
+    if (!ok) {
+      _snack(_crabService.error ?? 'Không xuất được cua lột.');
+      return;
+    }
+    await _farmLayoutService.load(force: true);
+    if (!mounted) return;
+    _snack('Đã xuất bán cua lột ở hộp ${item.display.id}.');
+  }
+
+  void _snack(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -823,6 +849,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
             _boxDetailBack = AppRoute.farmAreas;
             _navigate(AppRoute.boxDetail);
           },
+          onExportMolting: _exportMoltingCrab,
         );
       case AppRoute.farmManagement:
         return FarmManagementPage(

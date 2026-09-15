@@ -7,6 +7,7 @@ class QuickActionsGrid extends StatelessWidget {
   final VoidCallback onWaterTestPressed;
   final VoidCallback onHarvestPressed;
   final VoidCallback? onTrackingPressed;
+  final VoidCallback? onMineralDosingPressed;
 
   const QuickActionsGrid({
     super.key,
@@ -15,6 +16,7 @@ class QuickActionsGrid extends StatelessWidget {
     required this.onWaterTestPressed,
     required this.onHarvestPressed,
     this.onTrackingPressed,
+    this.onMineralDosingPressed,
   });
 
   static const List<_ActionDef> _extraActions = [
@@ -76,6 +78,13 @@ class QuickActionsGrid extends StatelessWidget {
               bgColor: const Color(0xFFE0F7FA),
               iconColor: kHomeCyan,
               onTap: onWaterTestPressed,
+            ),
+            _QuickBtn(
+              label: 'Liều khoáng',
+              icon: Icons.scale_rounded,
+              bgColor: const Color(0xFFE0F2F1),
+              iconColor: kHomeInfo,
+              onTap: onMineralDosingPressed ?? () {},
             ),
             _QuickBtn(
               label: 'Thu hoạch',

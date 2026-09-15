@@ -43,6 +43,7 @@ import '../features/profile/presentation/screens/notification_settings_screen.da
 import '../features/devices/presentation/screens/devices_screen.dart';
 import '../features/ai_center/presentation/screens/ai_center_screen.dart';
 import '../features/ai_center/data/models/ai_center_models.dart';
+import '../features/mineral_dosing/presentation/screens/mineral_dosing_screen.dart';
 import '../features/reports/data/models/report_models.dart';
 import '../features/reports/presentation/screens/reports_hub_screen.dart';
 import '../features/profile/presentation/screens/offline_sync_screen.dart';
@@ -415,6 +416,11 @@ GoRouter createRouter(AuthBloc authBloc) {
           };
           return AiCenterScreen(initialTab: tab);
         },
+      ),
+      GoRoute(
+        path: RoutePaths.mineralDosing,
+        name: RouteNames.mineralDosing,
+        builder: (context, state) => const MineralDosingScreen(),
       ),
       GoRoute(
         path: RoutePaths.reports,

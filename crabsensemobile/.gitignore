@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Bộ icon thiết kế chưa khai báo trong pubspec (chỉ khai assets/images/).
+# Bỏ dòng dưới khi thật sự nối icon vào app.
+/assets/icons/

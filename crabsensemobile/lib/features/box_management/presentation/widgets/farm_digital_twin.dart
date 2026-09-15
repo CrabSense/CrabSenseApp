@@ -351,13 +351,13 @@ class _AreaChip extends StatelessWidget {
         label: Text(label),
         selected: selected,
         onSelected: (_) => onTap(),
-        selectedcolor: const Color(0xFFD5F5E3),
+        selectedColor: const Color(0xFFD5F5E3),
         labelStyle: TextStyle(
           color: selected ? const Color(0xFF27AE60) : const Color(0xFF5A7184),
           fontSize: 11,
           fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
         ),
-        backgroundcolor: const Color(0xFFF5F7FA),
+        backgroundColor: const Color(0xFFF5F7FA),
         visualDensity: VisualDensity.compact,
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         side: BorderSide(

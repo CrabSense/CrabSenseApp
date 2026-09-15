@@ -230,6 +230,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               context.push(RoutePaths.harvest),
                           onTrackingPressed: () =>
                               context.push(RoutePaths.crabTracking),
+                          onMineralDosingPressed: () =>
+                              context.push(RoutePaths.mineralDosing),
                         ),
                         const SizedBox(height: 24),
 

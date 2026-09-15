@@ -18,6 +18,10 @@ const Color kHomeWarning     = CrabSenseColors.warning;
 const Color kHomeWarningBg   = CrabSenseColors.warningLight;
 const Color kHomeDanger      = CrabSenseColors.danger;
 const Color kHomeDangerBg    = CrabSenseColors.dangerLight;
+
+/// Tím cho cua đang lột (quy ước: lột = tím) — dùng chung thẻ hộp và chi tiết cua.
+const Color kHomeMolt        = CrabSenseColors.molt;
+const Color kHomeMoltBg      = CrabSenseColors.moltLight;
 const Color kHomeInfo        = CrabSenseColors.teal;
 const Color kHomeInfoBg      = CrabSenseColors.secondaryLight;
 const Color kHomeShadow      = CrabSenseColors.shadow;

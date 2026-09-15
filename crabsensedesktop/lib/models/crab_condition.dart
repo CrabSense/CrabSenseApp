@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../theme/dashboard_theme.dart';
 
 /// Trạng thái cua Owner trên card hộp.
+/// Quy ước màu: lột (sắp lột / đang lột / lột mềm) = tím, nguy cơ (có vấn đề /
+/// cua yếu) = đỏ, bình thường = xanh, chết hoặc đã bán = trống hộp.
 enum CrabCondition {
   empty,
   normal,
@@ -10,6 +12,7 @@ enum CrabCondition {
   molting,
   softshell,
   problem,
+  weak,
 }
 
 extension CrabConditionX on CrabCondition {
@@ -20,24 +23,27 @@ extension CrabConditionX on CrabCondition {
         CrabCondition.molting => 'Đang lột',
         CrabCondition.softshell => 'Cua lột mềm',
         CrabCondition.problem => 'Có vấn đề',
+        CrabCondition.weak => 'Cua yếu',
       };
 
   String get emoji => switch (this) {
         CrabCondition.empty => '⚪',
         CrabCondition.normal => '🟢',
-        CrabCondition.premolt => '🟡',
-        CrabCondition.molting => '🔵',
+        CrabCondition.premolt => '🟣',
+        CrabCondition.molting => '🟣',
         CrabCondition.softshell => '🟣',
         CrabCondition.problem => '🔴',
+        CrabCondition.weak => '🔴',
       };
 
   Color get color => switch (this) {
         CrabCondition.empty => DashboardColors.textMuted,
         CrabCondition.normal => DashboardColors.healthy,
-        CrabCondition.premolt => DashboardColors.warning,
-        CrabCondition.molting => DashboardColors.oceanBlue,
-        CrabCondition.softshell => DashboardColors.purple,
+        CrabCondition.premolt => DashboardColors.moltPurple,
+        CrabCondition.molting => DashboardColors.moltPurple,
+        CrabCondition.softshell => DashboardColors.moltPurple,
         CrabCondition.problem => DashboardColors.risk,
+        CrabCondition.weak => DashboardColors.risk,
       };
 
   static CrabCondition parse({
@@ -60,14 +66,19 @@ extension CrabConditionX on CrabCondition {
         return CrabCondition.softshell;
       case 'problem':
         return CrabCondition.problem;
+      case 'weak':
+        return CrabCondition.weak;
+      // Cua chết / đã bán ⇒ BE trả hộp về trống.
+      case 'dead' || 'harvested' || 'sold':
+        return CrabCondition.empty;
     }
     if (!hasCrab) return CrabCondition.empty;
 
     final status = (crabStatus ?? '').trim().toLowerCase();
-    if (status == 'dead' ||
-        status == 'missing' ||
-        status == 'quarantined' ||
-        status == 'harvested') {
+    if (status == 'dead' || status == 'harvested' || status == 'sold') {
+      return CrabCondition.empty;
+    }
+    if (status == 'missing' || status == 'quarantined') {
       return CrabCondition.problem;
     }
     if (status == 'molting') return CrabCondition.molting;
@@ -104,6 +115,7 @@ enum CrabConditionFilter {
   molting,
   softshell,
   problem,
+  weak,
 }
 
 extension CrabConditionFilterX on CrabConditionFilter {
@@ -114,6 +126,7 @@ extension CrabConditionFilterX on CrabConditionFilter {
         CrabConditionFilter.molting => 'Đang lột',
         CrabConditionFilter.softshell => 'Cua lột mềm',
         CrabConditionFilter.problem => 'Có vấn đề',
+        CrabConditionFilter.weak => 'Cua yếu',
       };
 
   CrabCondition? get condition => switch (this) {
@@ -123,5 +136,6 @@ extension CrabConditionFilterX on CrabConditionFilter {
         CrabConditionFilter.molting => CrabCondition.molting,
         CrabConditionFilter.softshell => CrabCondition.softshell,
         CrabConditionFilter.problem => CrabCondition.problem,
+        CrabConditionFilter.weak => CrabCondition.weak,
       };
 }

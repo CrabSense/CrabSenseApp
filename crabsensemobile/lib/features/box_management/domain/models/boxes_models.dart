@@ -85,6 +85,85 @@ extension BoxTrendX on BoxTrend {
 
 enum BoxesViewMode { grid, list, farmMap }
 
+/// Hướng đánh số hộp trên giàn. Lưới luôn vẽ theo thứ tự đọc (trái→phải rồi
+/// xuống dòng); enum này đổi thứ tự phần tử để số hộp tăng đúng theo cách
+/// nông dân dán số ngoài giàn thật.
+enum BoxLayoutOrder { rowLtr, rowRtl, columnLtr, columnRtl }
+
+extension BoxLayoutOrderX on BoxLayoutOrder {
+  /// Mũi tên thứ nhất: hướng đi trong dòng (hoặc trong cột).
+  IconData get firstArrow => switch (this) {
+        BoxLayoutOrder.rowLtr => Icons.arrow_forward_rounded,
+        BoxLayoutOrder.rowRtl => Icons.arrow_back_rounded,
+        BoxLayoutOrder.columnLtr => Icons.south_rounded,
+        BoxLayoutOrder.columnRtl => Icons.south_rounded,
+      };
+
+  /// Mũi tên thứ hai: hướng sang dòng (hoặc cột) kế tiếp.
+  IconData get secondArrow => switch (this) {
+        BoxLayoutOrder.rowLtr => Icons.south_rounded,
+        BoxLayoutOrder.rowRtl => Icons.south_rounded,
+        BoxLayoutOrder.columnLtr => Icons.arrow_forward_rounded,
+        BoxLayoutOrder.columnRtl => Icons.arrow_back_rounded,
+      };
+
+  String get tooltip => switch (this) {
+        BoxLayoutOrder.rowLtr => 'Ngang trái → phải, rồi xuống dòng',
+        BoxLayoutOrder.rowRtl => 'Ngang phải → trái, rồi xuống dòng',
+        BoxLayoutOrder.columnLtr => 'Dọc trên → xuống, cột trái → phải',
+        BoxLayoutOrder.columnRtl => 'Dọc trên → xuống, cột phải → trái',
+      };
+}
+
+/// Sắp lại danh sách hộp cho khớp [order] khi lưới vẽ với [columns] cột.
+///
+/// Lưới tiêu thụ danh sách theo thứ tự đọc (trái→phải, trên→xuống), nên hộp
+/// thứ i được đặt vào ô thứ i theo hướng [order]; kết quả trả về đã ở thứ tự
+/// đọc. Ô cuối dòng có thể thiếu nên phải bỏ qua ô trống.
+List<T> applyBoxLayoutOrder<T>(
+  List<T> boxes,
+  BoxLayoutOrder order,
+  int columns,
+) {
+  if (order == BoxLayoutOrder.rowLtr || boxes.length < 2 || columns < 2) {
+    return boxes;
+  }
+  final n = boxes.length;
+  final rows = (n + columns - 1) ~/ columns;
+  if (rows < 2) return boxes;
+
+  final out = List<T?>.filled(n, null);
+  var i = 0;
+  void place(int r, int c) {
+    if (r * columns + c >= n) return; // ô trống ở dòng cuối
+    out[r * columns + c] = boxes[i++];
+  }
+
+  switch (order) {
+    case BoxLayoutOrder.rowLtr:
+      break; // đã trả sớm ở trên
+    case BoxLayoutOrder.rowRtl:
+      for (var r = 0; r < rows; r++) {
+        for (var c = columns - 1; c >= 0; c--) {
+          place(r, c);
+        }
+      }
+    case BoxLayoutOrder.columnLtr:
+      for (var c = 0; c < columns; c++) {
+        for (var r = 0; r < rows; r++) {
+          place(r, c);
+        }
+      }
+    case BoxLayoutOrder.columnRtl:
+      for (var c = columns - 1; c >= 0; c--) {
+        for (var r = 0; r < rows; r++) {
+          place(r, c);
+        }
+      }
+  }
+  return [for (final v in out) v as T];
+}
+
 enum BoxSortOption {
   name,
   lowestHealth,
@@ -453,6 +532,10 @@ class BoxSummary {
   final BoxSyncStatus syncStatus;
   final ActionPriorityLevel priority;
 
+  /// Tình trạng xấu nhất của cua đang nuôi trong hộp (API key: normal, premolt,
+  /// molting, softshell, problem, weak, dead). Null khi chưa đánh dấu.
+  final String? crabCondition;
+
   const BoxSummary({
     required this.id,
     required this.code,
@@ -476,6 +559,7 @@ class BoxSummary {
     this.expectedHarvestAt,
     this.waterTestDue = false,
     this.videoDue = false,
+    this.crabCondition,
   });
 
   bool get isNearHarvest {
@@ -553,6 +637,7 @@ class BoxesStateData {
   final Set<BoxQuickFilter> quickFilters;
   final BoxFilterState advancedFilter;
   final BoxesViewMode viewMode;
+  final BoxLayoutOrder boxLayoutOrder;
   final String? selectedBoxId;
   final bool isOnline;
   final bool isOfflineCached;
@@ -579,6 +664,7 @@ class BoxesStateData {
     required this.quickFilters,
     required this.advancedFilter,
     required this.viewMode,
+    this.boxLayoutOrder = BoxLayoutOrder.rowLtr,
     this.selectedBoxId,
     required this.isOnline,
     this.isOfflineCached = false,
@@ -606,6 +692,7 @@ class BoxesStateData {
     Set<BoxQuickFilter>? quickFilters,
     BoxFilterState? advancedFilter,
     BoxesViewMode? viewMode,
+    BoxLayoutOrder? boxLayoutOrder,
     String? selectedBoxId,
     bool? isOnline,
     bool? isOfflineCached,
@@ -634,6 +721,7 @@ class BoxesStateData {
       quickFilters: quickFilters ?? this.quickFilters,
       advancedFilter: advancedFilter ?? this.advancedFilter,
       viewMode: viewMode ?? this.viewMode,
+      boxLayoutOrder: boxLayoutOrder ?? this.boxLayoutOrder,
       selectedBoxId: clearSelectedBox
           ? null
           : (selectedBoxId ?? this.selectedBoxId),

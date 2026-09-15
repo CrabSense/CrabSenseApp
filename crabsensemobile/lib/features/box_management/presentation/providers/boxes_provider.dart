@@ -235,6 +235,13 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
     state = AsyncValue.data(state.value!.copyWith(viewMode: mode));
   }
 
+  /// Đổi hướng đánh số hộp trên lưới (giữ trong phiên, như chế độ xem).
+  Future<void> setBoxLayoutOrder(BoxLayoutOrder order) async {
+    if (!state.hasValue) return;
+    await _repository.saveBoxLayoutOrder(order);
+    state = AsyncValue.data(state.value!.copyWith(boxLayoutOrder: order));
+  }
+
   void selectBox(String? boxId) {
     if (!state.hasValue) return;
     if (boxId == null) {
@@ -303,8 +310,8 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
         ),
       );
 
-  Future<void> deleteArea(String id) =>
-      _applyMutation(() => _repository.deleteArea(id));
+  Future<void> deleteArea(String id, {bool cascade = false}) =>
+      _applyMutation(() => _repository.deleteArea(id, cascade: cascade));
 
   Future<void> createRow({
     required String farmingAreaId,

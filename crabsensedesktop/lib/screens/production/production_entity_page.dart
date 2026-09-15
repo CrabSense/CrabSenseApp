@@ -262,20 +262,12 @@ class _AreaTab extends StatelessWidget {
                       message: '${a.areaName} (${a.areaCode})?')) {
                     return;
                   }
-                  try {
-                    await svc.deleteArea(a);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Đã xóa')),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('$e')),
-                      );
-                    }
-                  }
+                  await deleteAreaFlow(
+                    context,
+                    areaName: a.areaName,
+                    remove: ({bool cascade = false}) =>
+                        svc.deleteArea(a, cascade: cascade),
+                  );
                 },
               )),
             ]);

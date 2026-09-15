@@ -30,19 +30,21 @@ extension BoxStatusX on BoxStatus {
         BoxStatus.empty => 'TRỐNG',
       };
 
+  /// Màu theo đúng quy ước của Khánh: lột = tím, nguy cơ = đỏ, chết = trả trống hộp
+  /// (nên `deceased` chỉ còn là lưới an toàn cho dữ liệu cũ chưa trả hộp).
   Color get color => switch (this) {
         BoxStatus.normal => DashboardColors.healthy,
         BoxStatus.watch => DashboardColors.monitoring,
-        BoxStatus.molting => const Color(0xFFA78BFA),
-        BoxStatus.alert => const Color(0xFFFF6B8A),
-        BoxStatus.deceased => const Color(0xFF94A3B8),
+        BoxStatus.molting => DashboardColors.moltPurple,
+        BoxStatus.alert => DashboardColors.risk,
+        BoxStatus.deceased => DashboardColors.textMuted,
         BoxStatus.empty => const Color(0xFF64748B),
       };
 
   String get emoji => switch (this) {
         BoxStatus.normal => '🟢',
         BoxStatus.watch => '🟡',
-        BoxStatus.molting => '🟠',
+        BoxStatus.molting => '🟣',
         BoxStatus.alert => '🔴',
         BoxStatus.deceased => '⚫',
         BoxStatus.empty => '⚪',
