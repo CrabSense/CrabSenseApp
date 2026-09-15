@@ -11,6 +11,7 @@ void showBoxDetailDrawer(
   BuildContext context,
   FarmMapBox item, {
   ValueChanged<BoxListItem>? onViewDetail,
+  VoidCallback? onExportMolting,
 }) {
   showGeneralDialog(
     context: context,
@@ -20,7 +21,11 @@ void showBoxDetailDrawer(
     transitionDuration: const Duration(milliseconds: 250),
     pageBuilder: (ctx, _, __) => Align(
       alignment: Alignment.centerRight,
-      child: _BoxQuickPanel(item: item, onViewDetail: onViewDetail),
+      child: _BoxQuickPanel(
+        item: item,
+        onViewDetail: onViewDetail,
+        onExportMolting: onExportMolting,
+      ),
     ),
     transitionBuilder: (ctx, anim, _, child) => SlideTransition(
       position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
@@ -31,10 +36,17 @@ void showBoxDetailDrawer(
 }
 
 class _BoxQuickPanel extends StatelessWidget {
-  const _BoxQuickPanel({required this.item, this.onViewDetail});
+  const _BoxQuickPanel({
+    required this.item,
+    this.onViewDetail,
+    this.onExportMolting,
+  });
 
   final FarmMapBox item;
   final ValueChanged<BoxListItem>? onViewDetail;
+
+  /// Cua lột có 2 hướng: xuất bán ngay, hoặc để lại nuôi tiếp.
+  final VoidCallback? onExportMolting;
 
   CrabBox get box => item.display;
 
@@ -134,6 +146,42 @@ class _BoxQuickPanel extends StatelessWidget {
                           : DashboardColors.healthy,
                     ),
                     const SizedBox(height: 24),
+                    if (box.status == BoxStatus.molting) ...[
+                      Text(
+                        'Cua đang lột — chọn hướng xử lý',
+                        style: GoogleFonts.notoSans(
+                          color: DashboardColors.moltPurple,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: onExportMolting == null
+                                  ? null
+                                  : () {
+                                      Navigator.pop(context);
+                                      onExportMolting!();
+                                    },
+                              icon: const Icon(Icons.sell_outlined, size: 16),
+                              label: const Text('Xuất bán'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(Icons.egg_alt_outlined, size: 16),
+                              label: const Text('Để lại nuôi'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     FilledButton.icon(
                       onPressed: listItem == null || onViewDetail == null
                           ? null
