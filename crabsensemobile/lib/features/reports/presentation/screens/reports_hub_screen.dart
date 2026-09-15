@@ -72,6 +72,12 @@ class ReportsHubScreen extends StatelessWidget {
                   onTap: () => context.push(RoutePaths.waterQuality),
                 ),
                 HubTile(
+                  icon: Icons.scale_rounded,
+                  title: 'Liều khoáng Ca/Mg',
+                  subtitle: 'Tính gram CaCl₂ / MgCl₂ cần châm theo độ mặn',
+                  onTap: () => context.push(RoutePaths.mineralDosing),
+                ),
+                HubTile(
                   icon: Icons.smart_toy_outlined,
                   title: 'Báo cáo AI & Dự báo',
                   subtitle: 'Trung tâm AI — phát hiện & khuyến nghị',

@@ -135,6 +135,9 @@ class ApiConstants {
 
   static const String crabs = '/crabs';
   static String crabDetails(String crabId) => '/crabs/$crabId';
+
+  /// Upload ảnh cua lên S3 — trả về URL để gửi kèm khi tạo cua.
+  static const String crabImages = '/crabs/images';
   static const String crabLots = '/crab-lots';
   static const String cropBatches = '/crop-batches';
   static const String allocations = '/allocations';
@@ -175,6 +178,16 @@ class ApiConstants {
   static String waterQualityForFarm(String farmId) => '/sensors';
   static String waterQualityForPond(String pondId) => '/sensors';
   static const String waterQualityThresholds = '/alert-thresholds';
+
+  // ===========================================================================
+  // Mineral Dosing Endpoints (Swagger: 37 — Water / Ca-Mg)
+  // ===========================================================================
+
+  /// Mục tiêu Ca/Mg đề xuất theo độ mặn — `?salinityPpt=10`. Không cần thể tích.
+  static const String mineralDosingTargets = '/mineral-dosing/targets';
+
+  /// Tính liều CaCl2 / MgCl2 từ chênh lệch hiện tại → mục tiêu.
+  static const String mineralDosingCalculate = '/mineral-dosing/calculate';
 
   // ===========================================================================
   // Alert & Threshold Endpoints (Swagger: 10-11)

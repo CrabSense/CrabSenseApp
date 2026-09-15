@@ -122,6 +122,9 @@ class RouteNames {
 
   /// Crab tracking — daily monitoring of crabs in a box.
   static const String crabTracking = 'crabTracking';
+
+  /// Mineral dosing calculator (Ca/Mg) for RAS water.
+  static const String mineralDosing = 'mineralDosing';
 }
 
 /// Route paths (used with GoRouter.go / push when a full path is needed,
@@ -235,6 +238,9 @@ class RoutePaths {
 
   /// `/crab-tracking` — Daily crab tracking / monitoring.
   static const String crabTracking = '/crab-tracking';
+
+  /// `/mineral-dosing` — Tính liều khoáng Ca/Mg cho nước RAS.
+  static const String mineralDosing = '/mineral-dosing';
 
   /// `/traceability/:productId` — Product traceability (public).
   ///
