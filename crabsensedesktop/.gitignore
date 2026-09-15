@@ -1,5 +1,7 @@
 # Local env (copy from .env.example)
 .env
+# Bản sao lưu env cục bộ — chứa IP camera / ID trại của từng máy, không commit.
+.env.bak
 
 # Flutter
 .dart_tool/

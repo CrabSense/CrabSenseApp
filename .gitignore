@@ -1,0 +1,5 @@
+# IDE
+.idea/
+
+# Output tạm của tool (flutter analyze > _analyze.txt)
+crabsensedesktop/_analyze.txt
