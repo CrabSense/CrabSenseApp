@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/models/crab_condition.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 import '../../data/models/crab_model.dart';
 import 'crab_avatar.dart';
@@ -534,12 +535,10 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
           _section('Đánh dấu tình trạng'),
           _pillsWrap(
             value: _condition,
-            options: const {
-              'normal': 'Bình thường',
-              'premolt': 'Sắp lột',
-              'attention': 'Cần chú ý',
-              'weak': 'Yếu',
+            options: {
+              for (final c in CrabCondition.selectable) c.apiKey: c.label,
             },
+            colorOf: (key) => CrabCondition.tryParse(key)?.color,
             onChanged: (v) => setState(() => _condition = v),
           ),
           const SizedBox(height: 6),
@@ -733,10 +732,13 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
     );
   }
 
+  /// [colorOf] cho phép chip đang chọn tô đúng màu trạng thái (lột = tím,
+  /// nguy cơ = đỏ…) thay vì màu primary, để phiếu chăm sóc khớp màu thẻ hộp.
   Widget _pillsWrap({
     required String value,
     required Map<String, String> options,
     required ValueChanged<String> onChanged,
+    Color? Function(String key)? colorOf,
   }) {
     return Wrap(
       spacing: 8,
@@ -746,32 +748,37 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
           InkWell(
             onTap: () => onChanged(e.key),
             borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: value == e.key
-                    ? CrabSenseColors.primary
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: value == e.key
-                      ? CrabSenseColors.primary
-                      : kHomeBorder,
-                  width: value == e.key ? 1.5 : 1,
+            child: Builder(builder: (context) {
+              final selected = value == e.key;
+              final accent =
+                  colorOf?.call(e.key) ?? CrabSenseColors.primary;
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: selected ? accent : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: selected ? accent : kHomeBorder,
+                    width: selected ? 1.5 : 1,
+                  ),
                 ),
-              ),
-              child: Text(
-                e.value,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: value == e.key
-                      ? CrabSenseColors.textOnPrimary
-                      : kHomeTextMain,
+                child: Text(
+                  e.value,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    // Chữ đậm trên nền lime, nhưng phải là chữ trắng khi nền là
+                    // màu trạng thái đậm (xanh lá / tím / đỏ).
+                    color: !selected
+                        ? kHomeTextMain
+                        : (colorOf == null
+                            ? CrabSenseColors.textOnPrimary
+                            : Colors.white),
+                  ),
                 ),
-              ),
-            ),
+              );
+            }),
           ),
       ],
     );
@@ -783,12 +790,8 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
         _ => 'ăn nhiều',
       };
 
-  String _conditionLabel(String v) => switch (v) {
-        'premolt' => 'sắp lột',
-        'attention' => 'cần chú ý',
-        'weak' => 'yếu',
-        _ => 'bình thường',
-      };
+  String _conditionLabel(String v) =>
+      CrabCondition.tryParse(v)?.label.toLowerCase() ?? 'bình thường';
 
   String _activityLabel(String v) => switch (v) {
         'still' => 'không di chuyển',

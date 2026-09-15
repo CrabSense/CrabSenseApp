@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/models/crab_condition.dart';
 import '../../../authentication/domain/entities/user.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
@@ -20,9 +21,6 @@ import '../widgets/farm_structure_manage_sheet.dart';
 
 /// Số cột của lưới hộp — dùng chung cho cả lưới và hàm sắp thứ tự đánh số.
 const int _boxGridColumns = 4;
-
-/// Màu cho tình trạng "Yếu" — dùng chung cho thẻ hộp và chú thích.
-const Color _kConditionWeak = Color(0xFFEF6C00);
 
 /// Boxes tab — Farm map view, light theme.
 class BoxesScreen extends ConsumerStatefulWidget {
@@ -1108,39 +1106,28 @@ class _BoxFarmGrid extends StatelessWidget {
   final void Function(BoxSummary)? onBoxLongPress;
 
   /// Màu theo tình trạng cua nông dân đánh dấu hằng ngày. Null = chưa đánh dấu
-  /// (hộp trống hoặc dữ liệu cũ) → rơi về màu theo điểm sức khỏe hộp.
+  /// → rơi về màu theo điểm sức khỏe hộp.
   ///
   /// Trước đây thẻ chỉ tô theo health score; vì mọi hộp trong khu đều 0% thiết
   /// bị nên điểm giống nhau và cả lưới cùng một màu.
-  Color? _conditionColor(BoxSummary box) => switch (box.crabCondition) {
-        'dead' || 'problem' => kHomeDanger,
-        'weak' => _kConditionWeak,
-        'premolt' || 'molting' || 'softshell' => kHomeWarning,
-        'normal' => kHomePrimary,
-        _ => null,
-      };
+  ///
+  /// Quy ước màu lấy từ [CrabCondition] — một nguồn duy nhất, không tự định
+  /// nghĩa lại ở đây để khỏi lệch với chú giải và chi tiết cua.
+  Color? _conditionColor(BoxSummary box) =>
+      CrabCondition.tryParse(box.crabCondition)?.color;
 
   Color _bgColor(BoxSummary box) {
     if (box.alerts.hasAlerts || box.status == BoxHealthStatus.critical) {
       return kHomeDangerBg;
     }
-    if (box.crabCount == 0) return const Color(0xFFF0F4F8);
-    switch (box.crabCondition) {
-      case 'dead':
-      case 'problem':
-        return kHomeDangerBg;
-      case 'weak':
-        return const Color(0xFFFFF3E0);
-      case 'premolt':
-      case 'molting':
-      case 'softshell':
-        return kHomeWarningBg;
-      case 'normal':
-        return kHomePrimaryBg;
-    }
+    final condition = CrabCondition.tryParse(box.crabCondition);
+    if (condition != null) return condition.background;
+    if (box.crabCount == 0) return CrabCondition.empty.background;
     if (box.status == BoxHealthStatus.warning) return kHomeWarningBg;
-    if (box.status == BoxHealthStatus.offline) return const Color(0xFFF0F4F8);
-    return kHomePrimaryBg;
+    if (box.status == BoxHealthStatus.offline) {
+      return CrabCondition.empty.background;
+    }
+    return CrabCondition.normal.background;
   }
 
   Color _borderColor(BoxSummary box) {
@@ -1241,15 +1228,22 @@ class _BoxFarmGrid extends StatelessWidget {
                         color: accent,
                       ),
                     const SizedBox(height: 6),
-                    Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: accent,
+                    // Mã hộp dài nhất 12 ký tự ("BOX-0001" … "BOX-abcdef12") mà ô
+                    // chỉ rộng ~72px, nên ellipsis cũ cắt mất đúng phần số phân
+                    // biệt hộp: cả lưới hiện "BOX-00…" giống hệt nhau. Thu nhỏ
+                    // vừa ô thay vì cắt, để luôn đọc được hộp nào là hộp nào.
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        softWrap: false,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: accent,
+                        ),
                       ),
                     ),
                   ],
@@ -1322,15 +1316,13 @@ class _CompactLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Wrap(
+    // Lấy thẳng từ [CrabCondition] để chú giải không bao giờ lệch màu với lưới.
+    return Wrap(
       spacing: 10,
       runSpacing: 6,
       children: [
-        _DotHint(color: kHomePrimary, tip: 'Ổn'),
-        _DotHint(color: kHomeWarning, tip: 'Lột'),
-        _DotHint(color: kHomeDanger, tip: 'Chú ý'),
-        _DotHint(color: _kConditionWeak, tip: 'Yếu'),
-        _DotHint(color: Color(0xFFB0B8B2), tip: 'Trống'),
+        for (final condition in CrabCondition.values)
+          _DotHint(color: condition.color, tip: condition.label),
       ],
     );
   }

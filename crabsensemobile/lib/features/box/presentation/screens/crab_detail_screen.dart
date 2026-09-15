@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../shared/models/crab_condition.dart';
 import '../../data/models/crab_model.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 import '../widgets/crab_avatar.dart';
@@ -793,21 +794,17 @@ Color _appetiteColor(String? v) => switch ((v ?? '').toLowerCase()) {
       _ => kHomeTextSub,
     };
 
-String _conditionLabel(String? v) => switch ((v ?? '').toLowerCase()) {
-      'premolt' => 'Sắp lột',
-      'attention' => 'Cần chú ý',
-      'weak' => 'Yếu',
-      'normal' => 'Bình thường',
-      _ => '—',
-    };
+String _conditionLabel(String? v) =>
+    CrabCondition.tryParse(v)?.label ?? '—';
 
-Color _conditionColor(String? v) => switch ((v ?? '').toLowerCase()) {
-      'premolt' => const Color(0xFFF9A825),
-      'attention' => kHomeDanger,
-      'weak' => const Color(0xFFEF6C00),
-      'normal' => const Color(0xFF2E7D32),
-      _ => kHomeTextSub,
-    };
+/// Quy ước màu lấy từ [CrabCondition] — một nguồn duy nhất cho toàn app.
+Color _conditionColor(String? v) {
+  final condition = CrabCondition.tryParse(v);
+  if (condition == null || condition == CrabCondition.empty) {
+    return kHomeTextSub;
+  }
+  return condition.color;
+}
 
 /// Điểm mức ăn để vẽ trục tung: 0 = không ăn, 1 = ít, 2 = nhiều.
 double _appetiteScore(String? v) => switch ((v ?? '').toLowerCase()) {
