@@ -519,8 +519,14 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
       _row('Mã cua', crabDisplayTag(crab)),
       _row('Cân nặng', '${crab.weight.round()} g'),
       _row('Loài', crabSpeciesVi(crab.species)),
-      _row('Tình trạng vỏ', crabMoltingVi(crab.moltingStatus)),
-      _row('Sức khoẻ', crabHealthVi(crab.healthStatus)),
+      // Tình trạng lấy từ trường `Condition` của BE rồi quy về 5 nhãn của
+      // [BoxStatus] — cùng bảng với thẻ hộp. Trước đây in `moltingStatus` /
+      // `healthStatus`, mà BE không trả hai trường đó nên lúc nào cũng ra
+      // "Vỏ cứng" / "Chưa rõ".
+      _row(
+        'Tình trạng',
+        displayStatusOf(CrabCondition.tryParse(crab.condition)).label,
+      ),
       _row(
         'Hộp nuôi',
         (widget.boxCode != null && widget.boxCode!.isNotEmpty)
@@ -794,16 +800,19 @@ Color _appetiteColor(String? v) => switch ((v ?? '').toLowerCase()) {
       _ => kHomeTextSub,
     };
 
-String _conditionLabel(String? v) =>
-    CrabCondition.tryParse(v)?.label ?? '—';
+String _conditionLabel(String? v) {
+  final condition = CrabCondition.tryParse(v);
+  return condition == null ? '—' : condition.displayStatus.label;
+}
 
-/// Quy ước màu lấy từ [CrabCondition] — một nguồn duy nhất cho toàn app.
+/// Nhãn + màu lấy từ [BoxStatus] — cùng bảng với thẻ hộp và app desktop.
 Color _conditionColor(String? v) {
   final condition = CrabCondition.tryParse(v);
+  // Chưa ghi gì, hoặc cua đã kết thúc (chết / bán / thu hoạch) ⇒ xám.
   if (condition == null || condition == CrabCondition.empty) {
     return kHomeTextSub;
   }
-  return condition.color;
+  return condition.displayStatus.color;
 }
 
 /// Điểm mức ăn để vẽ trục tung: 0 = không ăn, 1 = ít, 2 = nhiều.

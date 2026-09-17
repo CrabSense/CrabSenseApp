@@ -15,8 +15,6 @@ import '../../../../shared/models/crab_condition.dart';
 import '../../../../shared/widgets/local_file_image.dart';
 import '../../data/datasources/box_remote_data_source.dart';
 import '../../data/models/crab_model.dart';
-import '../../domain/entities/crab.dart';
-import '../../domain/entities/box_enums.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 import '../widgets/box_history_panel.dart';
 import '../widgets/crab_avatar.dart';
@@ -35,10 +33,10 @@ const _danger = kHomeDanger;
 /// Trần ảnh mỗi lần nhập cua — khớp giới hạn desktop (take(10)) và request 30MB của BE.
 const _maxImages = 6;
 
-/// Tình trạng cua — nhãn + key lấy từ [CrabCondition], một nguồn duy nhất nên
-/// không lệch với thẻ hộp, chú giải và phiếu chăm sóc.
+/// Tình trạng cua — nhãn + key lấy từ [CrabCondition]/[BoxStatus], nên không
+/// lệch với thẻ hộp, chú giải và phiếu chăm sóc.
 final _conditionOptions = <String, String>{
-  for (final c in CrabCondition.selectable) c.apiKey: c.label,
+  for (final c in CrabCondition.selectable) c.apiKey: c.displayStatus.label,
 };
 
 /// Dòng chính của một lựa chọn lô: "LOT-001 · Cua Cù Mau".
@@ -65,8 +63,6 @@ String lotOptionMeta(dynamic quantity, dynamic placed, String importDate) {
 
   return parts.join(' · ');
 }
-const _warning = kHomeWarning;
-
 /// Danh sách cua trong một hộp nuôi.
 /// - Hộp trống: hiện FAB + empty state rõ ràng
 /// - Có cua: danh sách + FAB thêm + nút di chuyển
@@ -375,10 +371,13 @@ class _CrabTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final tag = crabDisplayTag(crab);
     final weightG = crab.weight.round();
-    final isHealthy = crab.healthStatus.name.toLowerCase() != 'disease' &&
-        crab.healthStatus.name.toLowerCase() != 'stress';
-    final statusColor = isHealthy ? _primary : _warning;
-    final statusLabel = isHealthy ? 'Bình thường' : 'Cần theo dõi';
+    // Tình trạng cua lấy từ trường `Condition` của BE rồi quy về 5 nhãn của
+    // [BoxStatus] — cùng bảng với thẻ hộp và app desktop. Trước đây huy hiệu in
+    // nhãn chi tiết ("Đang lột", "Cua lột mềm", "Có vấn đề", "Cua yếu") nên
+    // cùng một con cua lại mang chữ khác với thẻ hộp.
+    final status = displayStatusOf(CrabCondition.tryParse(crab.condition));
+    final statusColor = status.color;
+    final statusLabel = status.label;
 
     return Material(
       color: Colors.transparent,
@@ -420,7 +419,7 @@ class _CrabTile extends StatelessWidget {
                           child: Text(
                             statusLabel,
                             style: TextStyle(
-                              color: isHealthy ? _primaryDk : statusColor,
+                              color: statusColor,
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                             ),
@@ -430,7 +429,10 @@ class _CrabTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      '${crabSpeciesVi(crab.species)} • ${crabMoltingVi(crab.moltingStatus)} • ${crabSourceVi(crab.source)}',
+                      // Bỏ "vỏ / lột" khỏi dòng phụ: BE không trả `moltingStage` nên
+                      // trước đây lúc nào cũng in "Vỏ cứng", mà tình trạng lột đã có
+                      // huy hiệu ngay trên rồi.
+                      '${crabSpeciesVi(crab.species)} • ${crabSourceVi(crab.source)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: _textSub, fontSize: 11),

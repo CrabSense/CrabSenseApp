@@ -43,8 +43,28 @@ class CrabSenseColors {
   static const Color infoLight      = Color(0xFFD6EFF9);
   static const Color normal         = Color(0xFF2ECC71); // Bình thường
 
-  // ── Crab Condition Colors (nguồn duy nhất: shared/models/crab_condition.dart) ──
-  /// Tím = cua đang lột. Dùng chung cho thẻ hộp, chú giải và chi tiết cua.
+  // ── Trạng thái cua / hộp ───────────────────────────────────────────
+  //
+  // Mã màu LẤY ĐÚNG từ app desktop (`DashboardColors`) chứ không dùng lại bộ
+  // success/warning/danger ở trên: bộ đó là tông cũ nên xanh/đỏ/vàng của hai app
+  // lệch nhau (desktop #22C55E vs #2ECC71, #EF4444 vs #E74C3C, #EAB308 vs
+  // #F39C12) — nhìn song song thấy rõ là khác màu.
+  //
+  // Nguồn duy nhất: `shared/models/crab_condition.dart` + `BoxStatus` trong
+  // `features/box_management/domain/models/boxes_models.dart`.
+  static const Color statusNormal    = Color(0xFF22C55E); // desktop healthy
+  static const Color statusWatch     = Color(0xFFEAB308); // desktop monitoring
+  static const Color statusRisk      = Color(0xFFEF4444); // desktop risk
+  static const Color statusIdle      = Color(0xFF64748B); // desktop textMuted
+
+  // Nền nhạt cùng tông để chữ trên thẻ hộp không chọi màu.
+  static const Color statusNormalBg  = Color(0xFFDCFCE7);
+  static const Color statusWatchBg   = Color(0xFFFEF3C7);
+  static const Color statusRiskBg    = Color(0xFFFEE2E2);
+  static const Color statusIdleBg    = Color(0xFFEEF2F6);
+
+  /// Tím = cua đang lột (desktop `moltPurple`). Dùng chung cho thẻ hộp, chú giải
+  /// và chi tiết cua.
   static const Color molt            = Color(0xFFA78BFA);
   static const Color moltLight       = Color(0xFFF3EEFF);
 

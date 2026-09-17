@@ -51,20 +51,6 @@ String crabSpeciesVi(CrabSpecies value) => switch (value) {
       CrabSpecies.softShell => 'Cua vỏ mềm',
     };
 
-String crabMoltingVi(MoltingStatus value) => switch (value) {
-      MoltingStatus.preMolt => 'Vỏ vừa',
-      MoltingStatus.molting => 'Đang lột',
-      MoltingStatus.postMolt => 'Vỏ mềm',
-      MoltingStatus.hardShell => 'Vỏ cứng',
-    };
-
-String crabHealthVi(HealthStatus value) => switch (value) {
-      HealthStatus.normal => 'Bình thường',
-      HealthStatus.disease => 'Bệnh',
-      HealthStatus.stress => 'Căng thẳng',
-      HealthStatus.unknown => 'Chưa rõ',
-    };
-
 String crabSourceVi(CrabSource value) => switch (value) {
       CrabSource.farm => 'Trại nuôi',
       CrabSource.purchase => 'Mua về',

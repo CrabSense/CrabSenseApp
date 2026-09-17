@@ -535,10 +535,13 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
           _section('Đánh dấu tình trạng'),
           _pillsWrap(
             value: _condition,
+            // Đúng 4 mức sống được, nhãn lấy thẳng từ [BoxStatus] nên nông dân
+            // chọn chữ nào thì huy hiệu hiện đúng chữ đó.
             options: {
-              for (final c in CrabCondition.selectable) c.apiKey: c.label,
+              for (final c in CrabCondition.selectable)
+                c.apiKey: c.displayStatus.label,
             },
-            colorOf: (key) => CrabCondition.tryParse(key)?.color,
+            colorOf: (key) => CrabCondition.tryParse(key)?.displayStatus.color,
             onChanged: (v) => setState(() => _condition = v),
           ),
           const SizedBox(height: 6),
@@ -791,7 +794,8 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
       };
 
   String _conditionLabel(String v) =>
-      CrabCondition.tryParse(v)?.label.toLowerCase() ?? 'bình thường';
+      CrabCondition.tryParse(v)?.displayStatus.label.toLowerCase() ??
+      'bình thường';
 
   String _activityLabel(String v) => switch (v) {
         'still' => 'không di chuyển',

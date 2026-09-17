@@ -78,6 +78,7 @@ class Crab {
     required this.source,
     required this.addedAt,
     required this.addedBy,
+    this.condition,
   });
 
   /// Unique identifier for the crab record
@@ -107,6 +108,12 @@ class Crab {
   /// Identifier of the Field Operator who added this crab (Requirement 16.6)
   final String addedBy;
 
+  /// Tình trạng cua theo BE (`CrabDto.Condition`: normal, premolt, molting,
+  /// softshell, problem, weak, dead…). Đây mới là trường app desktop dùng để
+  /// hiện nhãn + màu; [moltingStatus] / [healthStatus] là bộ enum cũ của spec,
+  /// BE không trả nên luôn rơi về mặc định. Null khi BE không trả.
+  final String? condition;
+
   /// Returns true if this crab's weight is valid (positive decimal number).
   ///
   /// Requirement 16.2.
@@ -123,6 +130,7 @@ class Crab {
     CrabSource? source,
     DateTime? addedAt,
     String? addedBy,
+    String? condition,
   }) => Crab(
     id: id ?? this.id,
     boxId: boxId ?? this.boxId,
@@ -133,6 +141,7 @@ class Crab {
     source: source ?? this.source,
     addedAt: addedAt ?? this.addedAt,
     addedBy: addedBy ?? this.addedBy,
+    condition: condition ?? this.condition,
   );
 
   @override
@@ -147,7 +156,8 @@ class Crab {
         other.healthStatus == healthStatus &&
         other.source == source &&
         other.addedAt == addedAt &&
-        other.addedBy == addedBy;
+        other.addedBy == addedBy &&
+        other.condition == condition;
   }
 
   @override
@@ -161,6 +171,7 @@ class Crab {
     source,
     addedAt,
     addedBy,
+    condition,
   );
 
   @override

@@ -28,18 +28,9 @@ class BoxCard extends StatelessWidget {
   final ValueChanged<String> onMenuSelected;
   final VoidCallback? onExplainHealth;
 
-  Color get _accent {
-    switch (box.status) {
-      case BoxHealthStatus.healthy:
-        return kHomeGreen;
-      case BoxHealthStatus.warning:
-        return kHomeOrange;
-      case BoxHealthStatus.critical:
-        return Colors.redAccent;
-      case BoxHealthStatus.offline:
-        return Colors.white54;
-    }
-  }
+  /// Màu nhấn của thẻ — lấy thẳng từ [BoxStatus] để không lệch với huy hiệu
+  /// trạng thái và app desktop.
+  Color get _accent => box.status.color;
 
   @override
   Widget build(BuildContext context) {

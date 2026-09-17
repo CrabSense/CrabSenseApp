@@ -412,14 +412,14 @@ class BoxesRepositoryImpl implements BoxesRepository {
               return b.crabCount > 0;
             case BoxQuickFilter.empty:
               return b.crabCount <= 0;
-            case BoxQuickFilter.healthy:
-              return b.status == BoxHealthStatus.healthy;
-            case BoxQuickFilter.warning:
-              return b.status == BoxHealthStatus.warning;
-            case BoxQuickFilter.critical:
-              return b.status == BoxHealthStatus.critical;
-            case BoxQuickFilter.offline:
-              return b.status == BoxHealthStatus.offline;
+            case BoxQuickFilter.normal:
+              return b.status == BoxStatus.normal;
+            case BoxQuickFilter.watch:
+              return b.status == BoxStatus.watch;
+            case BoxQuickFilter.molting:
+              return b.status == BoxStatus.molting;
+            case BoxQuickFilter.alert:
+              return b.status == BoxStatus.alert;
             case BoxQuickFilter.hasAlert:
               return b.alerts.hasAlerts;
             case BoxQuickFilter.hasAiRecommendation:
@@ -651,9 +651,24 @@ class BoxesRepositoryImpl implements BoxesRepository {
           (map['crabCount'] as num?)?.toInt() ??
           (map['currentCrabId'] != null ? 1 : 0);
 
-      final healthStatus = _statusFromApi(apiStatus, devices.isOnline);
-      final score = _scoreFromStatus(healthStatus, openAlerts, devices);
+      final crabCondition = map['crabCondition']?.toString();
+      final boxStatus = _boxStatus(
+        apiStatus: apiStatus,
+        crabCount: crabCount,
+        crabCondition: crabCondition,
+      );
+      // Điểm sức khỏe vẫn lấy từ `healthStatus` của BE (tín hiệu tổng hợp nước
+      // + thiết bị + cua). KHÔNG lấy từ [BoxStatus]: BoxStatus giờ chỉ phản ánh
+      // tình trạng cua nên mọi hộp cua khỏe đều ra 90 điểm như nhau.
+      final score = _scoreFromHealth(
+        map['healthStatus']?.toString(),
+        openAlerts,
+        devices,
+      );
       final trend = BoxTrend.stable;
+      final needsAttention = boxStatus == BoxStatus.alert;
+      final isCalm =
+          boxStatus == BoxStatus.normal || boxStatus == BoxStatus.empty;
 
       boxes.add(
         BoxSummary(
@@ -670,7 +685,7 @@ class BoxesRepositoryImpl implements BoxesRepository {
             areaId: areaId,
             rowName: rowName,
           ),
-          status: healthStatus,
+          status: boxStatus,
           healthScore: BoxHealthScore.fromScore(
             score,
             devices.totalCount == 0 ? 70 : 75.0 + devices.onlineCount * 5,
@@ -679,26 +694,25 @@ class BoxesRepositoryImpl implements BoxesRepository {
           crabCount: crabCount,
           crabType: map['currentMoltingStage']?.toString(),
           batch: map['currentCrabTag']?.toString(),
+          crabCondition: crabCondition,
           water: water,
           devices: devices,
           alerts: openAlerts > 0 && occupied
               ? BoxAlertSummary(
-                  count: healthStatus == BoxHealthStatus.critical
-                      ? openAlerts.clamp(1, 3)
-                      : 1,
+                  count: needsAttention ? openAlerts.clamp(1, 3) : 1,
                   latestTitle: 'Cảnh báo khu nuôi',
                   latestAt: DateTime.now(),
                 )
               : BoxAlertSummary.none,
-          aiRecommendation: healthStatus == BoxHealthStatus.healthy
+          aiRecommendation: isCalm
               ? BoxAIRecommendation.none
               : BoxAIRecommendation(
                   hasRecommendation: true,
-                  title: healthStatus == BoxHealthStatus.critical
+                  title: needsAttention
                       ? 'Ưu tiên kiểm tra nước'
                       : 'Theo dõi box $code',
                   description: 'Dựa trên trạng thái farming + cảnh báo khu',
-                  priority: healthStatus == BoxHealthStatus.critical
+                  priority: needsAttention
                       ? ActionPriorityLevel.high
                       : ActionPriorityLevel.medium,
                 ),
@@ -709,7 +723,7 @@ class BoxesRepositoryImpl implements BoxesRepository {
           waterTestDue: water.temperature == null && water.ph == null,
           videoDue: apiStatus?.toLowerCase() == 'molting',
           syncStatus: BoxSyncStatus.synced,
-          priority: healthStatus == BoxHealthStatus.critical
+          priority: needsAttention
               ? ActionPriorityLevel.high
               : ActionPriorityLevel.low,
         ),
@@ -748,17 +762,21 @@ class BoxesRepositoryImpl implements BoxesRepository {
       }
     }
 
-    final summary = summaryMap != null
-        ? FarmBoxesOverview(
+    // BE còn trả nhóm theo bộ từ vựng cũ (healthy/warning/critical/offline) nên
+    // đọc đúng key đó rồi quy về [BoxStatus]. Nhóm "lột xác" BE chưa có nên đếm
+    // từ chính các hộp đã map để không lệch với lưới.
+    final summary = summaryMap == null
+        ? FarmBoxesOverview.fromBoxes(boxes)
+        : FarmBoxesOverview(
             total: (summaryMap['total'] as num?)?.toInt() ?? boxes.length,
-            healthy: (summaryMap['healthy'] as num?)?.toInt() ?? 0,
-            warning: (summaryMap['warning'] as num?)?.toInt() ?? 0,
-            critical: (summaryMap['critical'] as num?)?.toInt() ?? 0,
-            offline: (summaryMap['offline'] as num?)?.toInt() ?? 0,
+            normal: (summaryMap['healthy'] as num?)?.toInt() ?? 0,
+            watch: (summaryMap['warning'] as num?)?.toInt() ?? 0,
+            molting:
+                boxes.where((b) => b.status == BoxStatus.molting).length,
+            alert: (summaryMap['critical'] as num?)?.toInt() ?? 0,
             withAiRecommendation:
                 (summaryMap['withAiRecommendation'] as num?)?.toInt() ?? 0,
-          )
-        : FarmBoxesOverview.fromBoxes(boxes);
+          );
 
     return _OverviewPayload(
       farmingAreaId: payload['farmingAreaId']?.toString(),
@@ -791,9 +809,14 @@ class BoxesRepositoryImpl implements BoxesRepository {
     };
 
     final crabCount = (map['crabCount'] as num?)?.toInt() ?? 0;
-    final healthStatus = crabCount == 0
-      ? BoxHealthStatus.healthy
-      : _parseHealthStatus(map['healthStatus']?.toString());
+    final crabCondition = map['crabCondition']?.toString();
+    // Trạng thái hộp suy như desktop: ưu tiên tình trạng xấu nhất của cua trong
+    // hộp, chỉ khi hộp không còn cua sống mới xét `status` của BE.
+    final status = _boxStatus(
+      apiStatus: map['status']?.toString(),
+      crabCount: crabCount,
+      crabCondition: crabCondition,
+    );
     final priorityStr = map['priority']?.toString().toLowerCase() ?? 'low';
     final priority = switch (priorityStr) {
       'high' => ActionPriorityLevel.high,
@@ -820,7 +843,7 @@ class BoxesRepositoryImpl implements BoxesRepository {
         areaId: map['farmingAreaId']?.toString() ?? '',
         rowName: map['rowName']?.toString(),
       ),
-      status: healthStatus,
+      status: status,
       healthScore: BoxHealthScore(
         score: score,
         aiConfidence: confidence,
@@ -919,39 +942,42 @@ class BoxesRepositoryImpl implements BoxesRepository {
     );
   }
 
-  BoxHealthStatus _parseHealthStatus(String? raw) {
-    switch ((raw ?? '').toLowerCase()) {
-      case 'warning':
-        return BoxHealthStatus.warning;
-      case 'critical':
-        return BoxHealthStatus.critical;
-      case 'offline':
-        return BoxHealthStatus.offline;
-      default:
-        return BoxHealthStatus.healthy;
+  /// Trạng thái hộp — suy đúng như `toFarmMapBox` bên desktop: hộp đang có cua
+  /// thì lấy tình trạng XẤU NHẤT của cua trong hộp, chỉ khi hộp không còn cua
+  /// sống mới xét `status` do BE trả.
+  ///
+  /// Trước đây mobile suy từ `healthStatus` + `apiStatus`, mà BE trả status
+  /// `active` cho mọi hộp đang nuôi nên hộp nào cũng ra "Healthy" — lưới cùng
+  /// một màu và nhãn lệch hẳn với desktop.
+  BoxStatus _boxStatus({
+    required String? apiStatus,
+    required int crabCount,
+    String? crabCondition,
+  }) {
+    if (crabCount <= 0) {
+      // Hộp không còn cua sống ⇒ coi như trống, nhưng giữ tín hiệu bảo trì /
+      // cảnh báo mà BE đánh dấu trên chính hộp đó.
+      final api = boxStatusFromApi(apiStatus);
+      return (api == BoxStatus.watch || api == BoxStatus.alert)
+          ? api
+          : BoxStatus.empty;
     }
+    return boxStatusFromCrabCondition(crabCondition);
   }
 
-  BoxHealthStatus _statusFromApi(String? apiStatus, bool areaOnline) {
-    final s = (apiStatus ?? '').toLowerCase();
-    if (s == 'maintenance' || (!areaOnline && s.isNotEmpty)) {
-      return BoxHealthStatus.offline;
-    }
-    if (s == 'quarantine') return BoxHealthStatus.critical;
-    if (s == 'molting') return BoxHealthStatus.warning;
-    return BoxHealthStatus.healthy;
-  }
-
-  int _scoreFromStatus(
-    BoxHealthStatus status,
+  /// Điểm sức khỏe hộp lấy từ `healthStatus` của BE — tín hiệu tổng hợp nước +
+  /// thiết bị + cua. KHÔNG lấy từ [BoxStatus] vì BoxStatus chỉ phản ánh tình
+  /// trạng cua, dùng nó làm điểm thì mọi hộp cua khỏe đều 90 như nhau.
+  int _scoreFromHealth(
+    String? apiHealth,
     int openAlerts,
     BoxDeviceStatus devices,
   ) {
-    var score = switch (status) {
-      BoxHealthStatus.healthy => 90,
-      BoxHealthStatus.warning => 65,
-      BoxHealthStatus.critical => 40,
-      BoxHealthStatus.offline => 45,
+    var score = switch ((apiHealth ?? '').trim().toLowerCase()) {
+      'critical' => 40,
+      'offline' => 45,
+      'warning' => 65,
+      _ => 90,
     };
     score -= openAlerts.clamp(0, 5) * 2;
     if (devices.totalCount > 0 && !devices.isOnline) score -= 10;
