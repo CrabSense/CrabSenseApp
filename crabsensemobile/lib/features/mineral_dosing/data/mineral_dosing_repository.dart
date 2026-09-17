@@ -3,8 +3,9 @@ import 'package:dio/dio.dart' show DioException;
 import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
 import 'models/mineral_dose_models.dart';
+import 'models/salinity_mix_models.dart';
 
-/// Gọi API tính liều khoáng Ca/Mg.
+/// Gọi API tính liều khoáng Ca/Mg và pha độ mặn.
 ///
 /// Cố ý KHÔNG cache: kết quả phụ thuộc số đo test tại thời điểm gọi, và
 /// không có state nào cần đồng bộ offline.
@@ -14,6 +15,12 @@ abstract class MineralDosingRepository {
 
   /// Tính liều CaCl2 / MgCl2.
   Future<MineralDoseResult> calculate(MineralDoseRequest request);
+
+  /// Danh mục loại muối dùng khi pha độ mặn.
+  Future<List<SaltType>> saltTypes();
+
+  /// Tính lượng muối (tăng ‰) hoặc lượng nước ngọt (giảm ‰) kèm hướng dẫn pha.
+  Future<SalinityMixResult> mixSalinity(SalinityMixRequest request);
 }
 
 class MineralDosingRepositoryImpl implements MineralDosingRepository {
@@ -46,6 +53,37 @@ class MineralDosingRepositoryImpl implements MineralDosingRepository {
       return MineralDoseResult.fromJson(_unwrap(res.data));
     } on DioException catch (e) {
       throw Exception(_apiMessage(e, 'Không tính được liều khoáng'));
+    }
+  }
+
+  @override
+  Future<List<SaltType>> saltTypes() async {
+    try {
+      final res = await _api.get(ApiConstants.mineralDosingSaltTypes);
+      // Endpoint này trả mảng trong `data` (khác hai endpoint kia trả object),
+      // nên tự bóc chứ không dùng `_unwrap`.
+      final body = res.data;
+      final raw = body is Map ? body['data'] : body;
+      if (raw is! List) throw Exception('Dữ liệu trả về không hợp lệ');
+      return raw
+          .whereType<Map>()
+          .map((e) => SaltType.fromJson(Map<String, dynamic>.from(e)))
+          .toList(growable: false);
+    } on DioException catch (e) {
+      throw Exception(_apiMessage(e, 'Không lấy được danh mục loại muối'));
+    }
+  }
+
+  @override
+  Future<SalinityMixResult> mixSalinity(SalinityMixRequest request) async {
+    try {
+      final res = await _api.post(
+        ApiConstants.mineralDosingSalinity,
+        data: request.toJson(),
+      );
+      return SalinityMixResult.fromJson(_unwrap(res.data));
+    } on DioException catch (e) {
+      throw Exception(_apiMessage(e, 'Không tính được lượng muối / nước ngọt'));
     }
   }
 

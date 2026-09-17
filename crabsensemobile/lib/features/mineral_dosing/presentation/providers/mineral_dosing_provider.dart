@@ -6,6 +6,7 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
 import '../../data/mineral_dosing_repository.dart';
 import '../../data/models/mineral_dose_models.dart';
+import '../../data/models/salinity_mix_models.dart';
 
 final mineralDosingRepositoryProvider = Provider<MineralDosingRepository>(
   (ref) => MineralDosingRepositoryImpl(api: sl<ApiClient>()),
@@ -22,6 +23,9 @@ class MineralDosingState {
     this.isCalculating = false,
     this.isLoadingRecommendation = false,
     this.error,
+    this.saltTypes = const [],
+    this.salinityResult,
+    this.isMixing = false,
   });
 
   /// Mục tiêu ĐỀ XUẤT theo độ mặn — hiển thị trước khi người dùng bấm tính.
@@ -34,15 +38,27 @@ class MineralDosingState {
   final bool isLoadingRecommendation;
   final String? error;
 
+  /// Danh mục loại muối cho tab pha độ mặn — do BE trả, không chép ở client.
+  final List<SaltType> saltTypes;
+
+  /// Kết quả tính pha độ mặn gần nhất (tab 1).
+  final SalinityMixResult? salinityResult;
+
+  final bool isMixing;
+
   MineralDosingState copyWith({
     MineralTargetRecommendation? recommendation,
     MineralDoseResult? result,
     bool? isCalculating,
     bool? isLoadingRecommendation,
     String? error,
+    List<SaltType>? saltTypes,
+    SalinityMixResult? salinityResult,
+    bool? isMixing,
     bool clearRecommendation = false,
     bool clearResult = false,
     bool clearError = false,
+    bool clearSalinityResult = false,
   }) {
     return MineralDosingState(
       recommendation:
@@ -52,6 +68,10 @@ class MineralDosingState {
       isLoadingRecommendation:
           isLoadingRecommendation ?? this.isLoadingRecommendation,
       error: clearError ? null : (error ?? this.error),
+      saltTypes: saltTypes ?? this.saltTypes,
+      salinityResult:
+          clearSalinityResult ? null : (salinityResult ?? this.salinityResult),
+      isMixing: isMixing ?? this.isMixing,
     );
   }
 }
@@ -120,6 +140,44 @@ class MineralDosingNotifier extends StateNotifier<MineralDosingState> {
   /// sẽ hiển thị badge "ĐỀ XUẤT"/"BẠN NHẬP" sai với chế độ mới.
   void clearResult() {
     state = state.copyWith(clearResult: true, clearError: true);
+  }
+
+  /// Xoá lỗi khi người dùng đổi tab — lỗi của tab này không được hiện sang tab kia
+  /// (hai tab dùng chung một `error` nên đổi tab phải dọn).
+  void clearError() {
+    if (state.error != null) state = state.copyWith(clearError: true);
+  }
+
+  // ── Tab 1: pha độ mặn ─────────────────────────────────────────────────────
+
+  /// Nạp danh mục loại muối một lần cho cả màn. Lỗi không làm hỏng tab Ca/Mg nên
+  /// chỉ ghi `error` khi chưa có gì để hiển thị.
+  Future<void> loadSaltTypes() async {
+    if (state.saltTypes.isNotEmpty) return;
+    try {
+      final types = await _repo.saltTypes();
+      state = state.copyWith(saltTypes: types);
+    } catch (_) {
+      // Không có danh mục vẫn pha được: ô loại muối rơi về "muối thô".
+    }
+  }
+
+  Future<void> mixSalinity(SalinityMixRequest request) async {
+    state = state.copyWith(
+      isMixing: true,
+      clearError: true,
+      clearSalinityResult: true,
+    );
+    try {
+      final result = await _repo.mixSalinity(request);
+      state = state.copyWith(
+        salinityResult: result,
+        isMixing: false,
+        clearError: true,
+      );
+    } catch (e) {
+      state = state.copyWith(isMixing: false, error: e.toString());
+    }
   }
 
   @override
