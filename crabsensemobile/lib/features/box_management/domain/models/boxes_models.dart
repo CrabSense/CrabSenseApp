@@ -1,49 +1,36 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/models/crab_condition.dart';
+// Export lại để mọi file đang import `boxes_models.dart` không phải đổi import.
+export '../../../../shared/models/crab_condition.dart';
 
-/// Operational health status of a box on the Boxes tab.
-enum BoxHealthStatus { healthy, warning, critical, offline }
+/// Trạng thái XẤU NHẤT của cua trong hộp (BE trả `crabCondition`).
+///
+/// Hộp đang nuôi luôn có status `active`, nên nếu chỉ đọc `status` thì mọi hộp
+/// đều xanh — màu phải lấy từ đây mới thấy được cua bệnh / đang lột. Nhãn và
+/// màu lấy từ [BoxStatus], cùng bảng với huy hiệu cua và màn chi tiết hộp.
+///
+/// Bản sao của `mapCrabCondition` bên desktop; đọc qua [displayStatusOf] để
+/// không có bảng thứ hai.
+BoxStatus boxStatusFromCrabCondition(String? condition) =>
+    displayStatusOf(CrabCondition.tryParse(condition));
 
-extension BoxHealthStatusX on BoxHealthStatus {
-  String get label {
-    switch (this) {
-      case BoxHealthStatus.healthy:
-        return 'Healthy';
-      case BoxHealthStatus.warning:
-        return 'Warning';
-      case BoxHealthStatus.critical:
-        return 'Critical';
-      case BoxHealthStatus.offline:
-        return 'Offline';
-    }
-  }
 
-  IconData get icon {
-    switch (this) {
-      case BoxHealthStatus.healthy:
-        return Icons.check_circle_rounded;
-      case BoxHealthStatus.warning:
-        return Icons.warning_amber_rounded;
-      case BoxHealthStatus.critical:
-        return Icons.error_rounded;
-      case BoxHealthStatus.offline:
-        return Icons.cloud_off_rounded;
-    }
-  }
-
-  Color get color {
-    switch (this) {
-      case BoxHealthStatus.healthy:
-        return CrabSenseColors.success;
-      case BoxHealthStatus.warning:
-        return CrabSenseColors.warning;
-      case BoxHealthStatus.critical:
-        return CrabSenseColors.danger;
-      case BoxHealthStatus.offline:
-        return CrabSenseColors.hintText;
-    }
-  }
+/// Đọc `status` hộp từ BE — bản sao của `mapBoxApiStatus` bên desktop, để hai
+/// app quy cùng một chuỗi API về cùng một trạng thái.
+BoxStatus boxStatusFromApi(String? status) {
+  final s = (status ?? '').trim().toLowerCase();
+  return switch (s) {
+    '' || 'empty' || 'available' || 'idle' || 'vacant' => BoxStatus.empty,
+    'farming' || 'active' || 'occupied' => BoxStatus.normal,
+    'maintenance' || 'watch' => BoxStatus.watch,
+    'warning' || 'alert' || 'disease' || 'quarantine' => BoxStatus.alert,
+    'molting' => BoxStatus.molting,
+    // Cua chết / đã bán ⇒ BE trả hộp về trống, không còn là "sự cố".
+    'dead' || 'deceased' || 'harvested' || 'sold' => BoxStatus.empty,
+    _ => BoxStatus.normal,
+  };
 }
 
 enum BoxTrend { improving, stable, declining }
@@ -197,10 +184,10 @@ enum BoxQuickFilter {
   all,
   occupied,
   empty,
-  healthy,
-  warning,
-  critical,
-  offline,
+  normal,
+  watch,
+  molting,
+  alert,
   hasAlert,
   hasAiRecommendation,
   nearHarvest,
@@ -215,14 +202,15 @@ extension BoxQuickFilterX on BoxQuickFilter {
         return 'Đang nuôi';
       case BoxQuickFilter.empty:
         return 'Trống';
-      case BoxQuickFilter.healthy:
-        return 'Healthy';
-      case BoxQuickFilter.warning:
-        return 'Warning';
-      case BoxQuickFilter.critical:
-        return 'Critical';
-      case BoxQuickFilter.offline:
-        return 'Offline';
+      // Nhãn lấy thẳng từ [BoxStatus] để chip lọc không bao giờ lệch lưới hộp.
+      case BoxQuickFilter.normal:
+        return BoxStatus.normal.label;
+      case BoxQuickFilter.watch:
+        return BoxStatus.watch.label;
+      case BoxQuickFilter.molting:
+        return BoxStatus.molting.label;
+      case BoxQuickFilter.alert:
+        return BoxStatus.alert.label;
       case BoxQuickFilter.hasAlert:
         return 'Có cảnh báo';
       case BoxQuickFilter.hasAiRecommendation:
@@ -397,7 +385,7 @@ class FarmRowOption {
 class BoxFilterState {
   final String? farmId;
   final String? areaId;
-  final Set<BoxHealthStatus> statuses;
+  final Set<BoxStatus> statuses;
   final String? crabType;
   final String? batch;
   final DateTimeRange? stockedRange;
@@ -455,7 +443,7 @@ class BoxFilterState {
   BoxFilterState copyWith({
     String? farmId,
     String? areaId,
-    Set<BoxHealthStatus>? statuses,
+    Set<BoxStatus>? statuses,
     String? crabType,
     String? batch,
     DateTimeRange? stockedRange,
@@ -516,7 +504,7 @@ class BoxSummary {
   final String farmId;
   final String farmName;
   final BoxMapLocation location;
-  final BoxHealthStatus status;
+  final BoxStatus status;
   final BoxHealthScore healthScore;
   final int crabCount;
   final String? crabType;
@@ -574,51 +562,54 @@ class BoxSummary {
 
 class FarmBoxesOverview {
   final int total;
-  final int healthy;
-  final int warning;
-  final int critical;
-  final int offline;
+  final int normal;
+  final int watch;
+  final int molting;
+  final int alert;
   final int withAiRecommendation;
 
   const FarmBoxesOverview({
     required this.total,
-    required this.healthy,
-    required this.warning,
-    required this.critical,
-    required this.offline,
+    required this.normal,
+    required this.watch,
+    required this.molting,
+    required this.alert,
     required this.withAiRecommendation,
   });
 
   static const empty = FarmBoxesOverview(
     total: 0,
-    healthy: 0,
-    warning: 0,
-    critical: 0,
-    offline: 0,
+    normal: 0,
+    watch: 0,
+    molting: 0,
+    alert: 0,
     withAiRecommendation: 0,
   );
 
   factory FarmBoxesOverview.fromBoxes(List<BoxSummary> boxes) {
-    var healthy = 0, warning = 0, critical = 0, offline = 0, ai = 0;
+    var normal = 0, watch = 0, molting = 0, alert = 0, ai = 0;
     for (final b in boxes) {
       switch (b.status) {
-        case BoxHealthStatus.healthy:
-          healthy++;
-        case BoxHealthStatus.warning:
-          warning++;
-        case BoxHealthStatus.critical:
-          critical++;
-        case BoxHealthStatus.offline:
-          offline++;
+        case BoxStatus.normal:
+          normal++;
+        case BoxStatus.watch:
+          watch++;
+        case BoxStatus.molting:
+          molting++;
+        case BoxStatus.alert:
+          alert++;
+        case BoxStatus.deceased:
+        case BoxStatus.empty:
+          break; // Hộp trống / sự cố không tính vào nhóm đang nuôi.
       }
       if (b.aiRecommendation.hasRecommendation) ai++;
     }
     return FarmBoxesOverview(
       total: boxes.length,
-      healthy: healthy,
-      warning: warning,
-      critical: critical,
-      offline: offline,
+      normal: normal,
+      watch: watch,
+      molting: molting,
+      alert: alert,
       withAiRecommendation: ai,
     );
   }

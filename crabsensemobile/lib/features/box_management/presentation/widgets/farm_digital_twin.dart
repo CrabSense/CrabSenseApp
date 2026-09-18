@@ -264,10 +264,11 @@ class _BoxNode extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(box.status.icon, size: 14, color: color),
+                // Emoji trạng thái — giống hệt app desktop.
+                Text(box.status.emoji, style: const TextStyle(fontSize: 12)),
                 const SizedBox(height: 2),
                 Text(
-                  box.code.length > 8 ? box.code.substring(0, 8) : box.code,
+                  box.code,
                   style: TextStyle(
                     color: color,
                     fontSize: 9,
@@ -287,10 +288,10 @@ class _BoxNode extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (box.alerts.hasAlerts)
-                        const Icon(
+                        Icon(
                           Icons.priority_high_rounded,
                           size: 10,
-                          color: kHomeOrange,
+                          color: BoxStatus.alert.color,
                         ),
                       if (box.aiRecommendation.hasRecommendation)
                         const Icon(
@@ -382,15 +383,15 @@ class _MapLegend extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFDDE4EB)),
       ),
-      child: const Wrap(
+      // Lấy thẳng từ [BoxStatus] — cùng nguồn với màu ô hộp nên chú giải sơ đồ
+      // không bao giờ lệch lưới. Bỏ "Sự cố" vì sơ đồ không tô màu đó bao giờ.
+      child: Wrap(
         spacing: 10,
         runSpacing: 6,
         children: [
-          _LegendDot(color: kHomeGreen, label: 'Ổn định'),
-          _LegendDot(color: kHomeOrange, label: 'Cảnh báo'),
-          _LegendDot(color: Colors.redAccent, label: 'Nghiêm trọng'),
-          _LegendDot(color: Colors.white54, label: 'Offline'),
-          _LegendDot(color: kHomeBlue, label: 'Đang chọn'),
+          for (final status in BoxStatus.displayable)
+            _LegendDot(color: status.color, label: status.label),
+          const _LegendDot(color: kHomeBlue, label: 'Đang chọn'),
         ],
       ),
     );

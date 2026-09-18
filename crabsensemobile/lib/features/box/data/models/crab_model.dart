@@ -24,6 +24,7 @@ class CrabModel extends Crab {
     required super.source,
     required super.addedAt,
     required super.addedBy,
+    super.condition,
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -67,6 +68,8 @@ class CrabModel extends Crab {
         final by = asStr(json['addedBy'] ?? json['added_by']);
         return by;
       }(),
+      // Trường chuẩn để hiện tình trạng cua (nhãn + màu giống app desktop).
+      condition: (json['condition'] ?? json['Condition'])?.toString(),
     );
   }
 
@@ -104,6 +107,7 @@ class CrabModel extends Crab {
     source: crab.source,
     addedAt: crab.addedAt,
     addedBy: crab.addedBy,
+    condition: crab.condition,
   );
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -134,6 +138,7 @@ class CrabModel extends Crab {
     source: source,
     addedAt: addedAt,
     addedBy: addedBy,
+    condition: condition,
   );
 
   /// Converts this [CrabModel] to a [CrabsCompanion] for Drift inserts/updates.
@@ -161,6 +166,7 @@ class CrabModel extends Crab {
     CrabSource? source,
     DateTime? addedAt,
     String? addedBy,
+    String? condition,
   }) => CrabModel(
     id: id ?? this.id,
     boxId: boxId ?? this.boxId,
@@ -171,6 +177,7 @@ class CrabModel extends Crab {
     source: source ?? this.source,
     addedAt: addedAt ?? this.addedAt,
     addedBy: addedBy ?? this.addedBy,
+    condition: condition ?? this.condition,
   );
 
   // ──────────────────────────────────────────────────────────────────────────

@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/boxes_models.dart';
 
 class BoxStatusBadge extends StatelessWidget {
   const BoxStatusBadge({required this.status, this.compact = false, super.key});
 
-  final BoxHealthStatus status;
+  final BoxStatus status;
   final bool compact;
 
   @override
@@ -28,7 +27,8 @@ class BoxStatusBadge extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(status.icon, size: compact ? 12 : 14, color: color),
+            // Emoji 🟢🟡🟣🔴 giống hệt app desktop.
+            Text(status.emoji, style: TextStyle(fontSize: compact ? 10 : 11)),
             const SizedBox(width: 4),
             Text(
               status.label,

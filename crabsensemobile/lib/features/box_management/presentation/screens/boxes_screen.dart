@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/routes.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../shared/models/crab_condition.dart';
 import '../../../authentication/domain/entities/user.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
@@ -1105,53 +1104,25 @@ class _BoxFarmGrid extends StatelessWidget {
   final void Function(BoxSummary) onBoxTap;
   final void Function(BoxSummary)? onBoxLongPress;
 
-  /// Màu theo tình trạng cua nông dân đánh dấu hằng ngày. Null = chưa đánh dấu
-  /// → rơi về màu theo điểm sức khỏe hộp.
+  /// Màu ô hộp — lấy thẳng từ [BoxStatus].
   ///
-  /// Trước đây thẻ chỉ tô theo health score; vì mọi hộp trong khu đều 0% thiết
-  /// bị nên điểm giống nhau và cả lưới cùng một màu.
-  ///
-  /// Quy ước màu lấy từ [CrabCondition] — một nguồn duy nhất, không tự định
-  /// nghĩa lại ở đây để khỏi lệch với chú giải và chi tiết cua.
-  Color? _conditionColor(BoxSummary box) =>
-      CrabCondition.tryParse(box.crabCondition)?.color;
-
+  /// `BoxStatus` đã là tình trạng XẤU NHẤT của cua trong hộp (xem
+  /// `boxStatusFromCrabCondition`), nên lưới, chú giải, huy hiệu trạng thái và
+  /// app desktop dùng chung một nguồn màu. Trước đây ô lưới tự parse
+  /// `crabCondition` còn huy hiệu lại đọc `healthStatus` nên hai chỗ lệch nhau.
   Color _bgColor(BoxSummary box) {
-    if (box.alerts.hasAlerts || box.status == BoxHealthStatus.critical) {
-      return kHomeDangerBg;
-    }
-    final condition = CrabCondition.tryParse(box.crabCondition);
-    if (condition != null) return condition.background;
-    if (box.crabCount == 0) return CrabCondition.empty.background;
-    if (box.status == BoxHealthStatus.warning) return kHomeWarningBg;
-    if (box.status == BoxHealthStatus.offline) {
-      return CrabCondition.empty.background;
-    }
-    return CrabCondition.normal.background;
+    if (box.alerts.hasAlerts) return kHomeDangerBg;
+    return box.status.background;
   }
 
   Color _borderColor(BoxSummary box) {
-    if (box.alerts.hasAlerts || box.status == BoxHealthStatus.critical) {
-      return kHomeDanger;
-    }
-    if (box.crabCount == 0) return kHomeBorder;
-    final condition = _conditionColor(box);
-    if (condition != null) return condition;
-    if (box.status == BoxHealthStatus.warning) return kHomeWarning;
-    if (box.status == BoxHealthStatus.offline) return kHomeBorder;
-    return kHomePrimary;
+    if (box.alerts.hasAlerts) return kHomeDanger;
+    return box.status.color;
   }
 
   Color _accentColor(BoxSummary box) {
-    if (box.alerts.hasAlerts || box.status == BoxHealthStatus.critical) {
-      return kHomeDanger;
-    }
-    if (box.crabCount == 0) return kHomeTextHint;
-    final condition = _conditionColor(box);
-    if (condition != null) return condition;
-    if (box.status == BoxHealthStatus.warning) return kHomeWarning;
-    if (box.status == BoxHealthStatus.offline) return kHomeTextHint;
-    return kHomePrimaryDark;
+    if (box.alerts.hasAlerts) return kHomeDanger;
+    return box.status.color;
   }
 
   String _boxLabel(BoxSummary box) {
@@ -1316,13 +1287,15 @@ class _CompactLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Lấy thẳng từ [CrabCondition] để chú giải không bao giờ lệch màu với lưới.
+    // Lấy thẳng từ [BoxStatus] — cùng nguồn với màu ô hộp nên chú giải không bao
+    // giờ lệch lưới. Bỏ "Sự cố" vì lưới không tô màu đó bao giờ (cua chết / đã
+    // bán được BE trả hộp về trống).
     return Wrap(
       spacing: 10,
       runSpacing: 6,
       children: [
-        for (final condition in CrabCondition.values)
-          _DotHint(color: condition.color, tip: condition.label),
+        for (final status in BoxStatus.displayable)
+          _DotHint(color: status.color, tip: status.label),
       ],
     );
   }

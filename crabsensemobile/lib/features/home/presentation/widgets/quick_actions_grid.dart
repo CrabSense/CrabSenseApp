@@ -80,7 +80,7 @@ class QuickActionsGrid extends StatelessWidget {
               onTap: onWaterTestPressed,
             ),
             _QuickBtn(
-              label: 'Liều khoáng',
+              label: 'Nước & khoáng',
               icon: Icons.scale_rounded,
               bgColor: const Color(0xFFE0F2F1),
               iconColor: kHomeInfo,

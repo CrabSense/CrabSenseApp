@@ -73,8 +73,9 @@ class ReportsHubScreen extends StatelessWidget {
                 ),
                 HubTile(
                   icon: Icons.scale_rounded,
-                  title: 'Liều khoáng Ca/Mg',
-                  subtitle: 'Tính gram CaCl₂ / MgCl₂ cần châm theo độ mặn',
+                  title: 'Pha nước & liều khoáng',
+                  subtitle: 'Tính muối để tăng độ mặn, nước ngọt để giảm, '
+                      'rồi tính gram CaCl₂ / MgCl₂',
                   onTap: () => context.push(RoutePaths.mineralDosing),
                 ),
                 HubTile(

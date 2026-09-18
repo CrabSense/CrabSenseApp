@@ -189,6 +189,12 @@ class ApiConstants {
   /// Tính liều CaCl2 / MgCl2 từ chênh lệch hiện tại → mục tiêu.
   static const String mineralDosingCalculate = '/mineral-dosing/calculate';
 
+  /// Danh mục loại muối dùng khi pha độ mặn.
+  static const String mineralDosingSaltTypes = '/mineral-dosing/salt-types';
+
+  /// Tính lượng muối (tăng ‰) hoặc lượng nước ngọt (giảm ‰) kèm hướng dẫn pha.
+  static const String mineralDosingSalinity = '/mineral-dosing/salinity';
+
   // ===========================================================================
   // Alert & Threshold Endpoints (Swagger: 10-11)
   // ===========================================================================

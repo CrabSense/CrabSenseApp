@@ -48,8 +48,8 @@ class _FilterSheetBodyState extends State<_FilterSheetBody> {
     _filter = widget.initial;
   }
 
-  void _toggleStatus(BoxHealthStatus status) {
-    final next = Set<BoxHealthStatus>.from(_filter.statuses);
+  void _toggleStatus(BoxStatus status) {
+    final next = Set<BoxStatus>.from(_filter.statuses);
     if (next.contains(status)) {
       next.remove(status);
     } else {
@@ -132,7 +132,7 @@ class _FilterSheetBodyState extends State<_FilterSheetBody> {
                     const _SectionTitle('Trạng thái'),
                     Wrap(
                       spacing: 8,
-                      children: BoxHealthStatus.values.map((s) {
+                      children: BoxStatus.displayable.map((s) {
                         final selected = _filter.statuses.contains(s);
                         return FilterChip(
                           label: Text(s.label),

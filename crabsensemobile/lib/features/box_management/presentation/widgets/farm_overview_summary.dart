@@ -48,30 +48,31 @@ class FarmOverviewSummary extends StatelessWidget {
                         color: kHomeBlueLight,
                         onTap: () => onStatusTap?.call(BoxQuickFilter.all),
                       ),
+                      // Nhãn + màu lấy thẳng từ [BoxStatus] để thanh tổng quan
+                      // không lệch với chip lọc, lưới hộp và app desktop.
                       _Stat(
-                        label: 'Ổn định',
-                        value: overview.healthy,
-                        color: kHomeGreen,
-                        onTap: () => onStatusTap?.call(BoxQuickFilter.healthy),
+                        label: BoxStatus.normal.label,
+                        value: overview.normal,
+                        color: BoxStatus.normal.color,
+                        onTap: () => onStatusTap?.call(BoxQuickFilter.normal),
                       ),
                       _Stat(
-                        label: 'Cảnh báo',
-                        value: overview.warning,
-                        color: kHomeOrange,
-                        onTap: () => onStatusTap?.call(BoxQuickFilter.warning),
+                        label: BoxStatus.watch.label,
+                        value: overview.watch,
+                        color: BoxStatus.watch.color,
+                        onTap: () => onStatusTap?.call(BoxQuickFilter.watch),
                       ),
                       _Stat(
-                        label: 'Nghiêm trọng',
-                        value: overview.critical,
-                        color: Colors.redAccent,
-                        onTap: () =>
-                            onStatusTap?.call(BoxQuickFilter.critical),
+                        label: BoxStatus.molting.label,
+                        value: overview.molting,
+                        color: BoxStatus.molting.color,
+                        onTap: () => onStatusTap?.call(BoxQuickFilter.molting),
                       ),
                       _Stat(
-                        label: 'Offline',
-                        value: overview.offline,
-                        color: Colors.white54,
-                        onTap: () => onStatusTap?.call(BoxQuickFilter.offline),
+                        label: BoxStatus.alert.label,
+                        value: overview.alert,
+                        color: BoxStatus.alert.color,
+                        onTap: () => onStatusTap?.call(BoxQuickFilter.alert),
                       ),
                     ],
                   ),
@@ -83,20 +84,20 @@ class FarmOverviewSummary extends StatelessWidget {
                       child: Row(
                         children: [
                           Expanded(
-                            flex: overview.healthy,
-                            child: Container(color: kHomeGreen),
+                            flex: overview.normal,
+                            child: Container(color: BoxStatus.normal.color),
                           ),
                           Expanded(
-                            flex: overview.warning,
-                            child: Container(color: kHomeOrange),
+                            flex: overview.watch,
+                            child: Container(color: BoxStatus.watch.color),
                           ),
                           Expanded(
-                            flex: overview.critical,
-                            child: Container(color: Colors.redAccent),
+                            flex: overview.molting,
+                            child: Container(color: BoxStatus.molting.color),
                           ),
                           Expanded(
-                            flex: overview.offline,
-                            child: Container(color: Colors.white38),
+                            flex: overview.alert,
+                            child: Container(color: BoxStatus.alert.color),
                           ),
                           if (overview.total == 0)
                             Expanded(
@@ -134,7 +135,7 @@ class FarmOverviewSummary extends StatelessWidget {
                         ),
                         const Spacer(),
                         Text(
-                          '${((overview.healthy / total) * 100).round()}% ổn định',
+                          '${((overview.normal / total) * 100).round()}% ổn định',
                           style: TextStyle(
                             color: const Color(0xFF5A7184),
                             fontSize: 10,

@@ -7,6 +7,7 @@ import '../../../../app/theme.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 import '../../data/datasources/box_remote_data_source.dart';
 import '../../data/models/crab_model.dart';
@@ -192,16 +193,19 @@ class _BoxInfoCard extends StatelessWidget {
 
   final Box box;
 
+  /// Nhãn + màu trạng thái hộp — LẤY ĐÚNG bảng của app desktop
+  /// (`box_detail_page.dart`): active → xanh, empty/inactive → xám,
+  /// maintenance → vàng. Trước đây mobile gán `maintenance` thành "Sắp lột xác"
+  /// và tô bằng bộ màu cũ (kHomeWarning/kHomeSecondary) nên lệch hẳn desktop.
   Color _statusColor() {
     switch (box.status) {
       case BoxStatus.active:
-        return kHomePrimary;
+        return CrabSenseColors.statusNormal;
       case BoxStatus.inactive:
-        return kHomeTextHint;
-      case BoxStatus.maintenance:
-        return kHomeWarning;
       case BoxStatus.harvested:
-        return kHomeSecondary;
+        return CrabSenseColors.statusIdle;
+      case BoxStatus.maintenance:
+        return CrabSenseColors.statusWatch;
     }
   }
 
@@ -210,9 +214,9 @@ class _BoxInfoCard extends StatelessWidget {
       case BoxStatus.active:
         return 'Đang nuôi';
       case BoxStatus.inactive:
-        return 'Không hoạt động';
+        return 'Trống';
       case BoxStatus.maintenance:
-        return 'Sắp lột xác';
+        return 'Bảo trì';
       case BoxStatus.harvested:
         return 'Đã thu hoạch';
     }
