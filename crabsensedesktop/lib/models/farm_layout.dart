@@ -90,12 +90,18 @@ extension FarmLayoutListX on List<FarmMapBox> {
     return FarmLayoutSummary(
       total: boxes.length,
       occupied: boxes.where((b) => b.isOccupied).length,
-      empty: boxes.where((b) => b.status == BoxStatus.empty).length,
+      empty: boxes
+          .where((b) =>
+              b.status == BoxStatus.empty || b.status == BoxStatus.deceased)
+          .length,
       normal: boxes.where((b) => b.status == BoxStatus.normal).length,
-      watch: boxes.where((b) => b.status == BoxStatus.watch).length,
+      watch: 0,
       molting: boxes.where((b) => b.status == BoxStatus.molting).length,
-      alert: boxes.where((b) => b.status == BoxStatus.alert).length,
-      deceased: boxes.where((b) => b.status == BoxStatus.deceased).length,
+      alert: boxes
+          .where((b) =>
+              b.status == BoxStatus.alert || b.status == BoxStatus.watch)
+          .length,
+      deceased: 0,
     );
   }
 

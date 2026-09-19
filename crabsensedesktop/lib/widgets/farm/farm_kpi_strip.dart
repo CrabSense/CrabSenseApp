@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../models/box_status.dart';
 import '../../models/farm_layout.dart';
 import '../../theme/dashboard_theme.dart';
 
@@ -15,26 +16,74 @@ class FarmKpiStrip extends StatelessWidget {
       _Kpi('TỔNG HỘP', '${summary.total}', DashboardColors.textPrimary),
       _Kpi('ĐANG NUÔI', '${summary.occupied}', DashboardColors.blue),
       _Kpi('HỘP TRỐNG', '${summary.empty}', DashboardColors.textMuted),
-      _Kpi('BÌNH THƯỜNG', '${summary.normal}', DashboardColors.cyan),
-      _Kpi('THEO DÕI', '${summary.watch}', DashboardColors.monitoring),
-      _Kpi('SẮP / LỘT XÁC', '${summary.molting}', const Color(0xFFA78BFA)),
-      _Kpi('CẢNH BÁO', '${summary.alert}', const Color(0xFFFF6B8A)),
-      _Kpi('SỰ CỐ', '${summary.deceased}', DashboardColors.dead),
+      _Kpi('BÌNH THƯỜNG', '${summary.normal}', DashboardColors.healthy),
+      _Kpi('LỘT XÁC', '${summary.molting}', DashboardColors.moltPurple),
+      _Kpi('CÓ VẤN ĐỀ', '${summary.alert}', DashboardColors.monitoring),
     ];
 
-    return LayoutBuilder(
-      builder: (context, c) {
-        final cols = c.maxWidth > 1100 ? 8 : c.maxWidth > 700 ? 4 : 2;
-        final spacing = 10.0;
-        final w = (c.maxWidth - spacing * (cols - 1)) / cols;
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: items
-              .map((k) => SizedBox(width: w, child: _KpiCard(kpi: k)))
-              .toList(),
-        );
-      },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LayoutBuilder(
+          builder: (context, c) {
+            final cols = c.maxWidth > 1100 ? 6 : c.maxWidth > 700 ? 3 : 2;
+            final spacing = 10.0;
+            final w = (c.maxWidth - spacing * (cols - 1)) / cols;
+            return Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              children: items
+                  .map((k) => SizedBox(width: w, child: _KpiCard(kpi: k)))
+                  .toList(),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        const _StatusLegend(),
+      ],
+    );
+  }
+}
+
+class _StatusLegend extends StatelessWidget {
+  const _StatusLegend();
+
+  static const _items = <BoxStatus>[
+    BoxStatus.normal,
+    BoxStatus.molting,
+    BoxStatus.alert,
+    BoxStatus.empty,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 16,
+      runSpacing: 8,
+      children: [
+        for (final status in _items)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(
+                status.iconAsset,
+                width: 22,
+                height: 22,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.medium,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                status.label,
+                style: GoogleFonts.notoSans(
+                  color: status.color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+      ],
     );
   }
 }

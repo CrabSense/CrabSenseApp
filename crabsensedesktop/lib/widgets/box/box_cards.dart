@@ -87,13 +87,25 @@ class BoxOverviewCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            Text(
-              '${condition.emoji}  ${condition.label}',
-              style: GoogleFonts.notoSans(
-                color: condition.color,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
+            Row(
+              children: [
+                Image.asset(
+                  condition.iconAsset,
+                  width: 20,
+                  height: 20,
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.medium,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  condition.label,
+                  style: GoogleFonts.notoSans(
+                    color: condition.color,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 10),
             Text(
@@ -119,17 +131,29 @@ class BoxOverviewCard extends StatelessWidget {
               ),
             ),
           ] else ...[
-            Text(
-              '🦀  Chưa có cua',
-              style: GoogleFonts.notoSans(
-                color: DashboardColors.textMuted,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
+            Row(
+              children: [
+                Image.asset(
+                  'assets/icon_tab/icon-box-empty.png',
+                  width: 20,
+                  height: 20,
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.medium,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Chưa có cua',
+                  style: GoogleFonts.notoSans(
+                    color: DashboardColors.textMuted,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Text(
-              '⚪  Trạng thái: Trống',
+              'Trạng thái: Trống',
               style: GoogleFonts.notoSans(
                 color: DashboardColors.textMuted,
                 fontSize: 13,

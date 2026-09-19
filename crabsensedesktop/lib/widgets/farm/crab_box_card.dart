@@ -97,34 +97,33 @@ class CrabBoxCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 2),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                isEmpty
-                                    ? Icons.inventory_2_outlined
-                                    : Icons.pets,
-                                size: 15,
-                                color: isEmpty
-                                    ? color.withValues(alpha: 0.9)
-                                    : dimmed
-                                        ? DashboardColors.textMuted
-                                        : color,
-                              ),
-                              if (showHealth) ...[
-                                const SizedBox(width: 2),
-                                Text(
-                                  '${box.healthScore}',
-                                  style: GoogleFonts.notoSans(
-                                    color: color.withValues(alpha: 0.85),
-                                    fontSize: 7,
-                                    height: 1.0,
-                                  ),
-                                ),
-                              ],
-                            ],
+                          Image.asset(
+                            box.status.iconAsset,
+                            width: 28,
+                            height: 28,
+                            fit: BoxFit.contain,
+                            filterQuality: FilterQuality.medium,
+                            errorBuilder: (_, __, ___) => Icon(
+                              isEmpty
+                                  ? Icons.inventory_2_outlined
+                                  : Icons.pets,
+                              size: 18,
+                              color: isEmpty
+                                  ? color.withValues(alpha: 0.9)
+                                  : dimmed
+                                      ? DashboardColors.textMuted
+                                      : color,
+                            ),
                           ),
+                          if (showHealth)
+                            Text(
+                              '${box.healthScore}',
+                              style: GoogleFonts.notoSans(
+                                color: color.withValues(alpha: 0.85),
+                                fontSize: 7,
+                                height: 1.0,
+                              ),
+                            ),
                           Text(
                             box.status.shortLabel,
                             maxLines: 1,

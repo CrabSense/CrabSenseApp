@@ -5,7 +5,7 @@ import '../../models/box_status.dart';
 import '../../models/farm_layout.dart';
 import '../../theme/dashboard_theme.dart';
 
-/// Ô hộp trên bản đồ: mã + số cua + màu trạng thái.
+/// Ô hộp trên bản đồ: mã + số cua + icon trạng thái.
 class FarmMapBoxTile extends StatelessWidget {
   const FarmMapBoxTile({
     super.key,
@@ -32,8 +32,8 @@ class FarmMapBoxTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          width: 92,
-          height: 78,
+          width: 96,
+          height: 102,
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
           decoration: BoxDecoration(
             color: empty
@@ -56,65 +56,51 @@ class FarmMapBoxTile extends StatelessWidget {
                   ],
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.inventory_2_outlined,
-                    size: 12,
-                    color: color,
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      item.display.id,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.notoSans(
-                        color: DashboardColors.textPrimary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        height: 1.1,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const Spacer(),
               Text(
-                empty ? 'Trống' : '$crabs cua',
+                item.display.id,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.notoSans(
-                  color: DashboardColors.textMuted,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
+                  color: DashboardColors.textPrimary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  height: 1.1,
                 ),
               ),
               const SizedBox(height: 4),
-              Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                    ),
+              Expanded(
+                child: Image.asset(
+                  status.iconAsset,
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.medium,
+                  errorBuilder: (_, __, ___) => Icon(
+                    empty ? Icons.inventory_2_outlined : Icons.pets,
+                    color: color,
+                    size: 28,
                   ),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: Text(
-                      status.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.notoSans(
-                        color: color,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                ),
+              ),
+              const SizedBox(height: 2),
+              if (!empty)
+                Text(
+                  '$crabs cua',
+                  style: GoogleFonts.notoSans(
+                    color: DashboardColors.textMuted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
                   ),
-                ],
+                ),
+              Text(
+                status.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.notoSans(
+                  color: color,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
