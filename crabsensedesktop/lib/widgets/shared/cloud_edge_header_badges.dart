@@ -72,39 +72,51 @@ class _Badge extends StatelessWidget {
 
     final child = Container(
       padding: EdgeInsets.symmetric(
-        horizontal: compact ? 8 : 10,
-        vertical: compact ? 4 : 6,
+        horizontal: compact ? 10 : 14,
+        vertical: compact ? 6 : 10,
       ),
       decoration: BoxDecoration(
-        color: DashboardColors.card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.45)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFD7EBE3)),
+        boxShadow: [
+          BoxShadow(
+            color: DashboardColors.brand.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(status.kind.icon, size: compact ? 14 : 16, color: color),
+          Icon(Icons.cloud_outlined, size: compact ? 14 : 16, color: color),
           SizedBox(width: compact ? 4 : 6),
           Text(
             status.kind.label,
-            style: GoogleFonts.notoSans(
-              fontSize: compact ? 10 : 11,
+            style: GoogleFonts.beVietnamPro(
+              fontSize: compact ? 10 : 12,
               fontWeight: FontWeight.w600,
               color: DashboardColors.textPrimary,
             ),
           ),
-          SizedBox(width: compact ? 4 : 6),
+          SizedBox(width: compact ? 4 : 8),
           _StatusDot(color: color, pulsing: status.state == ConnectivityLinkState.checking),
-          if (!compact && status.latencyMs != null && status.isConnected) ...[
-            const SizedBox(width: 6),
-            Text(
-              '${status.latencyMs}ms',
-              style: GoogleFonts.notoSans(
-                color: DashboardColors.textMuted,
-                fontSize: 9,
-              ),
+          SizedBox(width: compact ? 4 : 6),
+          Text(
+            status.isConnected
+                ? 'Kết nối tốt'
+                : switch (status.state) {
+                    ConnectivityLinkState.checking => 'Đang kiểm tra',
+                    ConnectivityLinkState.disconnected => 'Mất kết nối',
+                    _ => 'Chưa rõ',
+                  },
+            style: GoogleFonts.beVietnamPro(
+              fontSize: compact ? 10 : 12,
+              fontWeight: FontWeight.w500,
+              color: DashboardColors.textMuted,
             ),
-          ],
+          ),
         ],
       ),
     );

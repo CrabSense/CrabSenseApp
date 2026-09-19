@@ -49,7 +49,8 @@ class RowManagementService extends ChangeNotifier {
   String? areaFilterId;
   RowStatusFilter statusFilter = RowStatusFilter.all;
   int page = 0;
-  static const int pageSize = 6;
+  /// 9 = 3 cột × 3 hàng ở grid desktop.
+  static const int pageSize = 9;
 
   AuthSession get session => _session;
   String get token => _session.token;

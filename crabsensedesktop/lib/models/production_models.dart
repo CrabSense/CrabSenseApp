@@ -50,6 +50,22 @@ class AreaRecord {
     this.boxCount = 0,
     this.esp32Count = 0,
     this.cameraCount = 0,
+    this.mapImageUrl,
+    this.mapX1,
+    this.mapY1,
+    this.mapX2,
+    this.mapY2,
+    this.location,
+    this.region,
+    this.address,
+    this.avatarUrl,
+    this.updatedAt,
+    this.crabCount = 0,
+    this.occupiedBoxCount = 0,
+    this.healthyBoxCount = 0,
+    this.watchBoxCount = 0,
+    this.alertBoxCount = 0,
+    this.emptyBoxCount = 0,
   });
 
   final String id;
@@ -63,6 +79,48 @@ class AreaRecord {
   final int boxCount;
   final int esp32Count;
   final int cameraCount;
+
+  /// Vị trí trong cơ sở (BE `location`), vd. "Đối diện tòa nhà Vinhomes S305".
+  final String? location;
+
+  /// Tên nơi / vùng (BE `region`), vd. "Lầu Gà lá é"; `address` giữ cột cũ.
+  final String? region;
+  final String? address;
+
+  /// Tên nơi hiển thị cạnh mã khu: region → description → address.
+  String? get placeName {
+    for (final v in [region, description, address]) {
+      final t = v?.trim() ?? '';
+      if (t.isNotEmpty && t != areaCode) return t;
+    }
+    return null;
+  }
+
+  /// Ảnh đại diện khu (BE `avatarUrl`) — thumbnail trong card khu.
+  final String? avatarUrl;
+
+  /// Cập nhật cuối (BE `updatedAt`, fallback `createdAt`).
+  final DateTime? updatedAt;
+
+  /// Thống kê hộp trong khu (BE `FarmingAreaDto`).
+  final int crabCount;
+  final int occupiedBoxCount;
+  final int healthyBoxCount;
+  final int watchBoxCount;
+  final int alertBoxCount;
+  final int emptyBoxCount;
+
+  /// Ảnh bản đồ trại (BE `mapImageUrl`). Null/rỗng → dùng ảnh mặc định.
+  final String? mapImageUrl;
+
+  /// Khung khu trên ảnh bản đồ, tỉ lệ 0–1 (BE `mapX1..mapY2`).
+  final double? mapX1;
+  final double? mapY1;
+  final double? mapX2;
+  final double? mapY2;
+
+  bool get hasMapBounds =>
+      mapX1 != null && mapY1 != null && mapX2 != null && mapY2 != null;
 
   String get subtitle =>
       description?.trim().isNotEmpty == true ? description!.trim() : areaCode;
@@ -103,7 +161,31 @@ class AreaRecord {
         cameraCount:
             ((json['cameraCount'] ?? json['CameraCount']) as num?)?.toInt() ??
                 0,
+        mapImageUrl: (json['mapImageUrl'] ?? json['MapImageUrl'])?.toString(),
+        mapX1: _parseRatio(json['mapX1'] ?? json['MapX1']),
+        mapY1: _parseRatio(json['mapY1'] ?? json['MapY1']),
+        mapX2: _parseRatio(json['mapX2'] ?? json['MapX2']),
+        mapY2: _parseRatio(json['mapY2'] ?? json['MapY2']),
+        location: (json['location'] ?? json['Location'])?.toString(),
+        region: (json['region'] ?? json['Region'])?.toString(),
+        address: (json['address'] ?? json['Address'])?.toString(),
+        avatarUrl: (json['avatarUrl'] ?? json['AvatarUrl'])?.toString(),
+        updatedAt: _parseAreaDate(
+          json['updatedAt'] ?? json['UpdatedAt'] ?? json['createdAt'] ?? json['CreatedAt'],
+        ),
+        crabCount: _areaInt(json, 'crabCount', 'CrabCount'),
+        occupiedBoxCount: _areaInt(json, 'occupiedBoxCount', 'OccupiedBoxCount'),
+        healthyBoxCount: _areaInt(json, 'healthyBoxCount', 'HealthyBoxCount'),
+        watchBoxCount: _areaInt(json, 'watchBoxCount', 'WatchBoxCount'),
+        alertBoxCount: _areaInt(json, 'alertBoxCount', 'AlertBoxCount'),
+        emptyBoxCount: _areaInt(json, 'emptyBoxCount', 'EmptyBoxCount'),
       );
+  }
+
+  static int _areaInt(Map<String, dynamic> json, String a, String b) {
+    final raw = json[a] ?? json[b];
+    if (raw is num) return raw.toInt();
+    return int.tryParse('$raw') ?? 0;
   }
 
   static DateTime? _parseAreaDate(dynamic raw) {
@@ -129,7 +211,31 @@ class AreaRecord {
         boxCount: boxCount ?? this.boxCount,
         esp32Count: esp32Count ?? this.esp32Count,
         cameraCount: cameraCount ?? this.cameraCount,
+        mapImageUrl: mapImageUrl,
+        mapX1: mapX1,
+        mapY1: mapY1,
+        mapX2: mapX2,
+        mapY2: mapY2,
+        location: location,
+        region: region,
+        address: address,
+        avatarUrl: avatarUrl,
+        updatedAt: updatedAt,
+        crabCount: crabCount,
+        occupiedBoxCount: occupiedBoxCount,
+        healthyBoxCount: healthyBoxCount,
+        watchBoxCount: watchBoxCount,
+        alertBoxCount: alertBoxCount,
+        emptyBoxCount: emptyBoxCount,
       );
+}
+
+/// Toạ độ bản đồ BE trả dạng tỉ lệ 0–1 (numeric) — chấp nhận num hoặc chuỗi.
+double? _parseRatio(dynamic raw) {
+  if (raw == null) return null;
+  final v = raw is num ? raw.toDouble() : double.tryParse(raw.toString());
+  if (v == null || v.isNaN) return null;
+  return v.clamp(0.0, 1.0).toDouble();
 }
 
 class RowRecord {
@@ -148,6 +254,12 @@ class RowRecord {
     this.crabCount = 0,
     this.healthyBoxCount = 0,
     this.alertBoxCount = 0,
+    this.occupiedBoxCount = 0,
+    this.watchBoxCount = 0,
+    this.emptyBoxCount = 0,
+    this.updatedAt,
+    this.mapX,
+    this.mapY,
   });
 
   final String id;
@@ -164,6 +276,23 @@ class RowRecord {
   final int crabCount;
   final int healthyBoxCount;
   final int alertBoxCount;
+
+  /// Hộp đang có cua / theo dõi / trống (BE `OccupiedBoxCount`…). Nếu BE cũ
+  /// chưa trả, xem [occupiedBoxes] / [emptyBoxes] để có giá trị suy ra.
+  final int occupiedBoxCount;
+  final int watchBoxCount;
+  final int emptyBoxCount;
+  final DateTime? updatedAt;
+
+  int get occupiedBoxes =>
+      occupiedBoxCount > 0 ? occupiedBoxCount : crabCount.clamp(0, boxCount);
+  int get emptyBoxes => (boxCount - occupiedBoxes).clamp(0, boxCount);
+
+  /// Tâm dãy trên ảnh bản đồ trại, tỉ lệ 0–1 (BE `mapX`/`mapY`).
+  final double? mapX;
+  final double? mapY;
+
+  bool get hasMapPoint => mapX != null && mapY != null;
 
   String get displayLocation {
     final loc = location?.trim() ?? '';
@@ -218,6 +347,13 @@ class RowRecord {
       crabCount: _rowInt(json, 'crabCount', 'CrabCount'),
       healthyBoxCount: _rowInt(json, 'healthyBoxCount', 'HealthyBoxCount'),
       alertBoxCount: _rowInt(json, 'alertBoxCount', 'AlertBoxCount'),
+      occupiedBoxCount: _rowInt(json, 'occupiedBoxCount', 'OccupiedBoxCount'),
+      watchBoxCount: _rowInt(json, 'watchBoxCount', 'WatchBoxCount'),
+      emptyBoxCount: _rowInt(json, 'emptyBoxCount', 'EmptyBoxCount'),
+      updatedAt: DateTime.tryParse(
+          (json['updatedAt'] ?? json['UpdatedAt'] ?? '').toString()),
+      mapX: _parseRatio(json['mapX'] ?? json['MapX']),
+      mapY: _parseRatio(json['mapY'] ?? json['MapY']),
     );
   }
 
@@ -254,6 +390,8 @@ class BoxRecord {
     this.crabInBoxSince,
     this.aiUpdatedAt,
     this.emptySince,
+    this.mapX,
+    this.mapY,
   });
 
   final String id;
@@ -280,6 +418,12 @@ class BoxRecord {
   final DateTime? crabInBoxSince;
   final DateTime? aiUpdatedAt;
   final DateTime? emptySince;
+
+  /// Tâm hộp trên ảnh bản đồ trại, tỉ lệ 0–1 (BE `mapX`/`mapY`).
+  final double? mapX;
+  final double? mapY;
+
+  bool get hasMapPoint => mapX != null && mapY != null;
 
   String get title =>
       (displayName != null && displayName!.trim().isNotEmpty)
@@ -357,6 +501,8 @@ class BoxRecord {
         json,
         const ['emptySince', 'EmptySince'],
       ),
+      mapX: _parseRatio(json['mapX'] ?? json['MapX']),
+      mapY: _parseRatio(json['mapY'] ?? json['MapY']),
     );
   }
 

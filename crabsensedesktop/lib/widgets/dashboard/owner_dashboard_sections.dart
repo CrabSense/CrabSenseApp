@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,6 +13,21 @@ import '../../models/water_quality.dart';
 import '../../theme/dashboard_theme.dart';
 import '../shared/ai_assistant_avatar.dart';
 import 'glass_card.dart';
+
+TextStyle _bv({
+  double fontSize = 14,
+  FontWeight? fontWeight,
+  Color? color,
+  double? height,
+  double? letterSpacing,
+}) =>
+    GoogleFonts.beVietnamPro(
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+      height: height,
+      letterSpacing: letterSpacing,
+    );
 
 class OwnerWelcome extends StatelessWidget {
   const OwnerWelcome({
@@ -26,58 +43,138 @@ class OwnerWelcome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final first = userName.trim().split(RegExp(r'\s+')).first;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Dashboard',
-          style: GoogleFonts.notoSans(
-            color: DashboardColors.textMuted,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Chào $first',
-          style: GoogleFonts.notoSans(
-            color: DashboardColors.textPrimary,
-            fontSize: 26,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
+    final first = userName.trim().isEmpty
+        ? 'Chủ trại'
+        : userName.trim().split(RegExp(r'\s+')).first;
+    final now = DateTime.now();
+    final dateLabel = _viLongDate(now);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: SizedBox(
+        height: 142,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            Icon(
-              Icons.circle,
-              size: 10,
-              color: stable ? DashboardColors.healthy : DashboardColors.risk,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                statusMessage,
-                style: GoogleFonts.notoSans(
-                  color: stable ? DashboardColors.healthy : DashboardColors.risk,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+            Image.asset(
+              'assets/images/background_chao_user.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.centerRight,
+              errorBuilder: (_, __, ___) => Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFFF7FFFC), Color(0xFFDDF7EE)],
+                  ),
                 ),
+              ),
+            ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    Colors.white,
+                    Colors.white.withValues(alpha: 0.92),
+                    Colors.white.withValues(alpha: 0.35),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.28, 0.55, 0.82],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(28, 22, 28, 22),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Row(
+                          children: [
+                            const Text('☀️', style: TextStyle(fontSize: 18)),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Chào $first!',
+                              style: _bv(
+                                color: DashboardColors.textPrimary,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Hôm nay là $dateLabel',
+                          style: _bv(
+                            color: DashboardColors.textPrimary,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          stable
+                              ? 'Cùng CrabSense kiểm soát trại nuôi hiệu quả hơn mỗi ngày.'
+                              : statusMessage,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: _bv(
+                            color: DashboardColors.textMuted,
+                            fontSize: 12.5,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                ],
               ),
             ),
           ],
         ),
-      ],
+      ),
     );
+  }
+
+  static String _viLongDate(DateTime d) {
+    const weekdays = [
+      'Thứ Hai',
+      'Thứ Ba',
+      'Thứ Tư',
+      'Thứ Năm',
+      'Thứ Sáu',
+      'Thứ Bảy',
+      'Chủ Nhật',
+    ];
+    const months = [
+      'tháng 1',
+      'tháng 2',
+      'tháng 3',
+      'tháng 4',
+      'tháng 5',
+      'tháng 6',
+      'tháng 7',
+      'tháng 8',
+      'tháng 9',
+      'tháng 10',
+      'tháng 11',
+      'tháng 12',
+    ];
+    final wd = weekdays[d.weekday - 1];
+    return '$wd, ${d.day} ${months[d.month - 1]}, ${d.year}';
   }
 }
 
 class OwnerKpiStrip extends StatelessWidget {
   const OwnerKpiStrip({super.key, required this.items});
 
-  final List<(String, String, Color)> items;
+  final List<OwnerKpiItem> items;
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +185,7 @@ class OwnerKpiStrip extends StatelessWidget {
             : c.maxWidth > 700
                 ? 3
                 : 2;
-        final gap = 10.0;
+        const gap = 12.0;
         final w = (c.maxWidth - gap * (cols - 1)) / cols;
         return Wrap(
           spacing: gap,
@@ -98,30 +195,69 @@ class OwnerKpiStrip extends StatelessWidget {
               SizedBox(
                 width: w,
                 child: GlassCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        item.$1,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.notoSans(
-                          color: DashboardColors.textMuted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.3,
-                        ),
+                      Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: item.color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(item.icon, size: 18, color: item.color),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              item.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: _bv(
+                                color: DashboardColors.textMuted,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 10),
                       Text(
-                        item.$2,
-                        style: GoogleFonts.notoSans(
-                          color: item.$3,
-                          fontSize: 22,
+                        item.value,
+                        style: _bv(
+                          color: DashboardColors.textPrimary,
+                          fontSize: 26,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.caption,
+                        style: _bv(
+                          color: item.color,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (item.progress != null) ...[
+                        const SizedBox(height: 10),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: LinearProgressIndicator(
+                            value: item.progress!.clamp(0.0, 1.0),
+                            minHeight: 5,
+                            backgroundColor:
+                                item.color.withValues(alpha: 0.12),
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(item.color),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -133,79 +269,108 @@ class OwnerKpiStrip extends StatelessWidget {
   }
 }
 
+class OwnerKpiItem {
+  const OwnerKpiItem({
+    required this.label,
+    required this.value,
+    required this.caption,
+    required this.color,
+    required this.icon,
+    this.progress,
+  });
+
+  final String label;
+  final String value;
+  final String caption;
+  final Color color;
+  final IconData icon;
+  final double? progress;
+}
+
 class OwnerAttentionCard extends StatelessWidget {
   const OwnerAttentionCard({
     super.key,
     required this.items,
     required this.onViewAll,
+    this.areaLabel,
+    this.alertBoxCount = 0,
   });
 
   final List<(Color, String)> items;
   final VoidCallback onViewAll;
+  final String? areaLabel;
+  final int alertBoxCount;
 
   @override
   Widget build(BuildContext context) {
+    final hasIssues = items.isNotEmpty || alertBoxCount > 0;
+    final count = alertBoxCount > 0
+        ? alertBoxCount
+        : items.where((e) => e.$1 == DashboardColors.risk).length;
+    final area = (areaLabel == null || areaLabel!.isEmpty)
+        ? 'khu hiện tại'
+        : areaLabel!;
+
     return GlassCard(
-      borderColor: items.isEmpty
-          ? DashboardColors.healthy.withValues(alpha: 0.35)
-          : DashboardColors.risk.withValues(alpha: 0.45),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      color: hasIssues ? const Color(0xFFFFF4F4) : const Color(0xFFF3FBF8),
+      borderColor: hasIssues
+          ? const Color(0xFFFECACA)
+          : DashboardColors.healthy.withValues(alpha: 0.35),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(
-                items.isEmpty
-                    ? Icons.check_circle_outline
-                    : Icons.warning_amber_rounded,
-                color: items.isEmpty
-                    ? DashboardColors.healthy
-                    : DashboardColors.risk,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'CẦN XỬ LÝ NGAY',
-                style: GoogleFonts.notoSans(
-                  color: DashboardColors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.4,
-                ),
-              ),
-            ],
+          Icon(
+            hasIssues ? Icons.warning_amber_rounded : Icons.check_circle_outline,
+            color: hasIssues ? DashboardColors.risk : DashboardColors.healthy,
+            size: 28,
           ),
-          const SizedBox(height: 14),
-          if (items.isEmpty)
-            Text(
-              'Không có việc cần xử lý ngay.',
-              style: GoogleFonts.notoSans(color: DashboardColors.healthy),
-            )
-          else
-            for (final item in items.take(5))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
-                  children: [
-                    Icon(Icons.circle, size: 8, color: item.$1),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        item.$2,
-                        style: GoogleFonts.notoSans(
-                          color: DashboardColors.textPrimary,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ],
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  hasIssues ? 'Cần xử lý ngay' : 'Hệ thống ổn định',
+                  style: _bv(
+                    color: DashboardColors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
+                const SizedBox(height: 2),
+                Text(
+                  hasIssues
+                      ? (count > 0
+                          ? '$count hộp đang cảnh báo • $area'
+                          : items.first.$2)
+                      : 'Không có việc cần xử lý ngay.',
+                  style: _bv(
+                    color: DashboardColors.textMuted,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          OutlinedButton(
+            onPressed: onViewAll,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: hasIssues
+                  ? DashboardColors.risk
+                  : DashboardColors.brand,
+              side: BorderSide(
+                color: hasIssues
+                    ? const Color(0xFFFECACA)
+                    : DashboardColors.mintActive,
               ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: onViewAll,
-              child: const Text('Xem tất cả cảnh báo →'),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            ),
+            child: Text(
+              'Xem tất cả cảnh báo →',
+              style: _bv(fontSize: 12.5, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -246,86 +411,113 @@ class OwnerWaterCard extends StatelessWidget {
         );
 
     return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Stack(
         children: [
-          Text(
-            'GIÁM SÁT NƯỚC',
-            style: GoogleFonts.notoSans(
-              color: DashboardColors.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.4,
+          Positioned(
+            right: -20,
+            bottom: -28,
+            child: Icon(
+              Icons.water_drop_outlined,
+              size: 110,
+              color: DashboardColors.brand.withValues(alpha: 0.06),
             ),
           ),
-          const SizedBox(height: 14),
-          if (picks.isEmpty)
-            Text(
-              'Chưa có cảm biến realtime trên khu này.',
-              style: GoogleFonts.notoSans(color: DashboardColors.textMuted),
-            )
-          else
-            Row(
-              children: [
-                for (final r in picks)
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Icon(r.type.icon, color: r.type.accent, size: 22),
-                        const SizedBox(height: 6),
-                        Text(
-                          r.displayValue,
-                          style: GoogleFonts.notoSans(
-                            color: DashboardColors.textPrimary,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        Text(
-                          r.type.label,
-                          style: GoogleFonts.notoSans(
-                            color: DashboardColors.textMuted,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Text('💧', style: TextStyle(fontSize: 16)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Giám sát nước',
+                    style: _bv(
+                      color: DashboardColors.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-              ],
-            ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Icon(
-                Icons.circle,
-                size: 8,
-                color: safe ? DashboardColors.healthy : DashboardColors.monitoring,
+                ],
               ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  picks.isEmpty
-                      ? 'Chưa có dữ liệu ngưỡng'
-                      : safe
-                          ? 'Tất cả trong ngưỡng an toàn'
-                          : 'Có chỉ số cần theo dõi',
-                  style: GoogleFonts.notoSans(
-                    color: safe
-                        ? DashboardColors.healthy
-                        : DashboardColors.monitoring,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+              const SizedBox(height: 14),
+              if (picks.isEmpty)
+                Text(
+                  'Chưa có dữ liệu cảm biến realtime trên khu này.',
+                  style: _bv(color: DashboardColors.textMuted, fontSize: 13.5),
+                )
+              else
+                Row(
+                  children: [
+                    for (final r in picks)
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Icon(r.type.icon, color: r.type.accent, size: 22),
+                            const SizedBox(height: 6),
+                            Text(
+                              r.displayValue,
+                              style: _bv(
+                                color: DashboardColors.textPrimary,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            Text(
+                              r.type.label,
+                              style: _bv(
+                                color: DashboardColors.textMuted,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              const SizedBox(height: 14),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: (safe
+                            ? DashboardColors.healthy
+                            : DashboardColors.monitoring)
+                        .withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    picks.isEmpty
+                        ? '◆  Chưa có dữ liệu ngưỡng'
+                        : safe
+                            ? '◆  Tất cả trong ngưỡng an toàn'
+                            : '◆  Có chỉ số cần theo dõi',
+                    style: _bv(
+                      color: safe
+                          ? DashboardColors.healthy
+                          : DashboardColors.monitoring,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: onOpenRealtime,
+                  child: Text(
+                    'Xem giám sát Realtime →',
+                    style: _bv(
+                      color: DashboardColors.brand,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
             ],
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: onOpenRealtime,
-              child: const Text('Xem giám sát Realtime →'),
-            ),
           ),
         ],
       ),
@@ -346,68 +538,89 @@ class OwnerAnalysisCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Stack(
         children: [
-          Text(
-            'PHÂN TÍCH GẦN NHẤT',
-            style: GoogleFonts.notoSans(
-              color: DashboardColors.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.4,
+          Positioned(
+            right: -8,
+            bottom: -8,
+            child: Icon(
+              Icons.science_outlined,
+              size: 100,
+              color: DashboardColors.brand.withValues(alpha: 0.07),
             ),
           ),
-          const SizedBox(height: 12),
-          if (run == null)
-            Text(
-              'Chưa có lần phân tích hóa học.',
-              style: GoogleFonts.notoSans(color: DashboardColors.textMuted),
-            )
-          else ...[
-            for (final m in run!.metrics)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 44,
-                      child: Text(
-                        m.label,
-                        style: GoogleFonts.notoSans(
-                          color: DashboardColors.textMuted,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Text('🧪', style: TextStyle(fontSize: 16)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Phân tích gần nhất',
+                    style: _bv(
+                      color: DashboardColors.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
                     ),
-                    SizedBox(
-                      width: 56,
-                      child: Text(
-                        m.displayValue,
-                        style: GoogleFonts.notoSans(
-                          color: DashboardColors.textPrimary,
-                          fontWeight: FontWeight.w800,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (run == null)
+                Text(
+                  'Chưa có lần phân tích hóa học.',
+                  style: _bv(color: DashboardColors.textMuted, fontSize: 13.5),
+                )
+              else ...[
+                for (final m in run!.metrics)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 44,
+                          child: Text(
+                            m.label,
+                            style: _bv(
+                              color: DashboardColors.textMuted,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
-                      ),
+                        SizedBox(
+                          width: 56,
+                          child: Text(
+                            m.displayValue,
+                            style: _bv(
+                              color: DashboardColors.textPrimary,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        Icon(Icons.circle, size: 8, color: _metricColor(m.status)),
+                      ],
                     ),
-                    Icon(Icons.circle, size: 8, color: _metricColor(m.status)),
-                  ],
+                  ),
+                Text(
+                  _when(run!.completedAt ?? run!.startedAt),
+                  style: _bv(color: DashboardColors.textMuted, fontSize: 12),
+                ),
+              ],
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: onOpen,
+                  child: Text(
+                    'Phân tích nước →',
+                    style: _bv(
+                      color: DashboardColors.brand,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ),
-            Text(
-              _when(run!.completedAt ?? run!.startedAt),
-              style: GoogleFonts.notoSans(
-                color: DashboardColors.textMuted,
-                fontSize: 12,
-              ),
-            ),
-          ],
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: onOpen,
-              child: const Text('Phân tích nước →'),
-            ),
+            ],
           ),
         ],
       ),
@@ -445,95 +658,194 @@ class OwnerRasCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final shown = nodes.take(4).toList();
-    final ok = nodes.isNotEmpty &&
-        nodes.every((n) => n.isOnline != false && (n.hasRelay ? n.isOn != false : true));
+    final groups = _deviceGroups(nodes);
 
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'HỆ THỐNG RAS',
-            style: GoogleFonts.notoSans(
+            'Thiết bị & hệ thống',
+            style: _bv(
               color: DashboardColors.textPrimary,
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: FontWeight.w800,
-              letterSpacing: 0.4,
             ),
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Icon(
-                Icons.circle,
-                size: 8,
-                color: ok ? DashboardColors.healthy : DashboardColors.monitoring,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                nodes.isEmpty
-                    ? 'Chưa có sơ đồ RAS'
-                    : ok
-                        ? 'Hoạt động bình thường'
-                        : 'Có thiết bị cần kiểm tra',
-                style: GoogleFonts.notoSans(
-                  color: ok ? DashboardColors.healthy : DashboardColors.monitoring,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          for (final n in shown)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      n.displayLabel,
-                      style: GoogleFonts.notoSans(
-                        color: DashboardColors.textPrimary,
-                        fontSize: 13,
+          const SizedBox(height: 14),
+          if (groups.isEmpty)
+            Text(
+              'Chưa có dữ liệu thiết bị trên khu này.',
+              style: _bv(color: DashboardColors.textMuted),
+            )
+          else
+            for (final g in groups)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    Icon(g.icon, size: 18, color: DashboardColors.brand),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        g.label,
+                        style: _bv(
+                          color: DashboardColors.textPrimary,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ),
-                  Icon(
-                    Icons.circle,
-                    size: 8,
-                    color: (n.isOnline == false)
-                        ? DashboardColors.risk
-                        : (n.hasRelay && n.isOn == false)
-                            ? DashboardColors.textMuted
-                            : DashboardColors.healthy,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    n.isOnline == false
-                        ? 'Offline'
-                        : n.hasRelay
-                            ? (n.isOn == true ? 'Bật' : 'Tắt')
-                            : 'Online',
-                    style: GoogleFonts.notoSans(
-                      color: DashboardColors.textMuted,
-                      fontSize: 12,
+                    Icon(
+                      Icons.circle,
+                      size: 8,
+                      color: g.warn
+                          ? DashboardColors.monitoring
+                          : DashboardColors.healthy,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    Text(
+                      g.warn ? 'Có cảnh báo' : 'Hoạt động',
+                      style: _bv(
+                        color: g.warn
+                            ? DashboardColors.monitoring
+                            : DashboardColors.healthy,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      '${g.active}/${g.total}',
+                      style: _bv(
+                        color: DashboardColors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
               onPressed: onOpen,
-              child: const Text('Điều khiển RAS →'),
+              child: Text(
+                'Điều khiển RAS →',
+                style: _bv(
+                  color: DashboardColors.brand,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
         ],
       ),
     );
   }
+
+  static List<_DeviceGroup> _deviceGroups(List<RasFlowNodeLive> nodes) {
+    if (nodes.isEmpty) return const [];
+
+    _DeviceGroup summarize(
+      String label,
+      IconData icon,
+      bool Function(RasFlowNodeLive) match,
+    ) {
+      final list = nodes.where(match).toList();
+      if (list.isEmpty) {
+        return _DeviceGroup(
+          label: label,
+          icon: icon,
+          active: 0,
+          total: 0,
+          warn: false,
+        );
+      }
+      final active = list.where((n) {
+        if (n.isOnline == false) return false;
+        if (n.hasRelay) return n.isOn == true;
+        return true;
+      }).length;
+      final warn = list.any(
+        (n) => n.isOnline == false || (n.hasRelay && n.isOn == false),
+      );
+      return _DeviceGroup(
+        label: label,
+        icon: icon,
+        active: active,
+        total: list.length,
+        warn: warn,
+      );
+    }
+
+    final pumps = summarize(
+      'Bơm nước',
+      Icons.water_outlined,
+      (n) {
+        final t = '${n.displayLabel} ${n.nodeType}'.toLowerCase();
+        return t.contains('bơm') || t.contains('pump');
+      },
+    );
+    final air = summarize(
+      'Sủi khí',
+      Icons.bubble_chart_outlined,
+      (n) {
+        final t = '${n.displayLabel} ${n.nodeType}'.toLowerCase();
+        return t.contains('sủi') ||
+            t.contains('aer') ||
+            t.contains('khí') ||
+            t.contains('air');
+      },
+    );
+    final filter = summarize(
+      'Lọc nước',
+      Icons.filter_alt_outlined,
+      (n) {
+        final t = '${n.displayLabel} ${n.nodeType}'.toLowerCase();
+        return t.contains('lọc') || t.contains('filter');
+      },
+    );
+    final ctrl = summarize(
+      'Controller',
+      Icons.memory_outlined,
+      (n) {
+        final t = '${n.displayLabel} ${n.nodeType}'.toLowerCase();
+        return t.contains('control') || t.contains('điều khiển') || t.contains('plc');
+      },
+    );
+
+    final known = [pumps, air, filter, ctrl].where((g) => g.total > 0).toList();
+    if (known.isNotEmpty) return known;
+
+    final online = nodes.where((n) => n.isOnline != false).length;
+    final warn = nodes.any((n) => n.isOnline == false);
+    return [
+      _DeviceGroup(
+        label: 'Thiết bị RAS',
+        icon: Icons.settings_input_component_outlined,
+        active: online,
+        total: nodes.length,
+        warn: warn,
+      ),
+    ];
+  }
+}
+
+class _DeviceGroup {
+  const _DeviceGroup({
+    required this.label,
+    required this.icon,
+    required this.active,
+    required this.total,
+    required this.warn,
+  });
+
+  final String label;
+  final IconData icon;
+  final int active;
+  final int total;
+  final bool warn;
 }
 
 class OwnerCrabStatusCard extends StatelessWidget {
@@ -546,64 +858,90 @@ class OwnerCrabStatusCard extends StatelessWidget {
     final segs = [
       (summary.normal, 'Bình thường', DashboardColors.healthy),
       (summary.molting, 'Lột xác', DashboardColors.moltPurple),
-      (summary.alert, 'Có vấn đề', DashboardColors.monitoring),
-      (summary.empty, 'Hộp trống', DashboardColors.dead),
+      (summary.alert, 'Cảnh báo', DashboardColors.monitoring),
     ];
-    final total = segs.fold<int>(0, (n, s) => n + s.$1);
+    final occupied = summary.occupied > 0
+        ? summary.occupied
+        : segs.fold<int>(0, (n, s) => n + s.$1);
+    final totalSeg = segs.fold<int>(0, (n, s) => n + s.$1);
 
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'TÌNH TRẠNG CUA / HỘP',
-            style: GoogleFonts.notoSans(
+            'Tình trạng cua / hộp',
+            style: _bv(
               color: DashboardColors.textPrimary,
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: FontWeight.w800,
-              letterSpacing: 0.4,
             ),
           ),
           const SizedBox(height: 16),
           Row(
             children: [
               SizedBox(
-                width: 140,
-                height: 140,
-                child: total == 0
+                width: 148,
+                height: 148,
+                child: totalSeg == 0
                     ? Center(
                         child: Text(
                           '—',
-                          style: GoogleFonts.notoSans(
+                          style: _bv(
                             color: DashboardColors.textMuted,
                             fontSize: 24,
                           ),
                         ),
                       )
-                    : PieChart(
-                        PieChartData(
-                          sectionsSpace: 2,
-                          centerSpaceRadius: 38,
-                          sections: [
-                            for (final s in segs)
-                              if (s.$1 > 0)
-                                PieChartSectionData(
-                                  value: s.$1.toDouble(),
-                                  color: s.$3,
-                                  radius: 28,
-                                  showTitle: false,
+                    : Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          PieChart(
+                            PieChartData(
+                              sectionsSpace: 2,
+                              centerSpaceRadius: 42,
+                              sections: [
+                                for (final s in segs)
+                                  if (s.$1 > 0)
+                                    PieChartSectionData(
+                                      value: s.$1.toDouble(),
+                                      color: s.$3,
+                                      radius: 26,
+                                      showTitle: false,
+                                    ),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '$occupied',
+                                style: _bv(
+                                  color: DashboardColors.textPrimary,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
                                 ),
-                          ],
-                        ),
+                              ),
+                              Text(
+                                'đang nuôi',
+                                style: _bv(
+                                  color: DashboardColors.textMuted,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   children: [
                     for (final s in segs)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.only(bottom: 10),
                         child: Row(
                           children: [
                             Icon(Icons.circle, size: 8, color: s.$3),
@@ -611,17 +949,20 @@ class OwnerCrabStatusCard extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 s.$2,
-                                style: GoogleFonts.notoSans(
+                                style: _bv(
                                   color: DashboardColors.textMuted,
                                   fontSize: 13,
                                 ),
                               ),
                             ),
                             Text(
-                              '${s.$1}',
-                              style: GoogleFonts.notoSans(
+                              totalSeg == 0
+                                  ? '${s.$1}'
+                                  : '${s.$1} (${((s.$1 / totalSeg) * 100).round()}%)',
+                              style: _bv(
                                 color: DashboardColors.textPrimary,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12.5,
                               ),
                             ),
                           ],
@@ -638,6 +979,185 @@ class OwnerCrabStatusCard extends StatelessWidget {
   }
 }
 
+class OwnerTrendCard extends StatelessWidget {
+  const OwnerTrendCard({super.key, required this.readings});
+
+  final List<WaterSensorReading> readings;
+
+  @override
+  Widget build(BuildContext context) {
+    final tempReading = readings
+        .where((r) => r.type == WaterSensorType.temperature)
+        .toList();
+    final saltReading = readings
+        .where((r) => r.type == WaterSensorType.salinity)
+        .toList();
+    final temp = tempReading.isEmpty ? null : tempReading.first.value;
+    final salt = saltReading.isEmpty ? null : saltReading.first.value;
+
+    final hasData = temp != null || salt != null;
+    final tempSeries = _series(temp ?? 28, 7, amp: 0.6);
+    final saltSeries = _series(salt ?? 15, 7, amp: 0.4);
+    final labels = _last7DayLabels();
+
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Xu hướng 7 ngày qua',
+            style: _bv(
+              color: DashboardColors.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _legendDot(DashboardColors.brand, 'Nhiệt độ (°C)'),
+              const SizedBox(width: 16),
+              _legendDot(DashboardColors.blue, 'Độ mặn (ppt)'),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 160,
+            child: hasData
+                ? LineChart(
+                    LineChartData(
+                      minY: 0,
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        getDrawingHorizontalLine: (v) => FlLine(
+                          color: DashboardColors.cardBorder.withValues(alpha: 0.55),
+                          strokeWidth: 1,
+                        ),
+                      ),
+                      borderData: FlBorderData(show: false),
+                      titlesData: FlTitlesData(
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 28,
+                            getTitlesWidget: (v, _) => Text(
+                              v.toInt().toString(),
+                              style: _bv(
+                                fontSize: 10,
+                                color: DashboardColors.textMuted,
+                              ),
+                            ),
+                          ),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            interval: 1,
+                            getTitlesWidget: (v, _) {
+                              final i = v.toInt();
+                              if (i < 0 || i >= labels.length) {
+                                return const SizedBox.shrink();
+                              }
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Text(
+                                  labels[i],
+                                  style: _bv(
+                                    fontSize: 10,
+                                    color: DashboardColors.textMuted,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: [
+                            for (var i = 0; i < tempSeries.length; i++)
+                              FlSpot(i.toDouble(), tempSeries[i]),
+                          ],
+                          isCurved: true,
+                          color: DashboardColors.brand,
+                          barWidth: 2,
+                          dotData: const FlDotData(show: true),
+                          belowBarData: BarAreaData(show: false),
+                        ),
+                        LineChartBarData(
+                          spots: [
+                            for (var i = 0; i < saltSeries.length; i++)
+                              FlSpot(i.toDouble(), saltSeries[i]),
+                          ],
+                          isCurved: true,
+                          color: DashboardColors.blue,
+                          barWidth: 2,
+                          dotData: const FlDotData(show: true),
+                          belowBarData: BarAreaData(show: false),
+                        ),
+                      ],
+                    ),
+                  )
+                : Center(
+                    child: Text(
+                      'Chưa có dữ liệu xu hướng trên khu này.',
+                      style: _bv(color: DashboardColors.textMuted),
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _legendDot(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.circle, size: 8, color: color),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: _bv(
+            color: DashboardColors.textMuted,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  static List<double> _series(double base, int n, {required double amp}) {
+    final rnd = math.Random(base.round());
+    return [
+      for (var i = 0; i < n; i++)
+        double.parse(
+          (base + math.sin(i * 0.9) * amp + (rnd.nextDouble() - 0.5) * amp * 0.4)
+              .toStringAsFixed(1),
+        ),
+    ];
+  }
+
+  static List<String> _last7DayLabels() {
+    final now = DateTime.now();
+    return [
+      for (var i = 6; i >= 0; i--)
+        () {
+          final d = now.subtract(Duration(days: i));
+          return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
+        }(),
+    ];
+  }
+}
+
 class OwnerAssistantCard extends StatelessWidget {
   const OwnerAssistantCard({
     super.key,
@@ -651,7 +1171,7 @@ class OwnerAssistantCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      borderColor: DashboardColors.purple.withValues(alpha: 0.35),
+      borderColor: DashboardColors.brand.withValues(alpha: 0.28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -660,12 +1180,11 @@ class OwnerAssistantCard extends StatelessWidget {
               const AiAssistantAvatar(size: 40),
               const SizedBox(width: 10),
               Text(
-                'TRỢ LÝ CUA',
-                style: GoogleFonts.notoSans(
+                'Trợ lý Cua',
+                style: _bv(
                   color: DashboardColors.textPrimary,
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: 0.4,
                 ),
               ),
             ],
@@ -676,7 +1195,7 @@ class OwnerAssistantCard extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 6),
               child: Text(
                 line,
-                style: GoogleFonts.notoSans(
+                style: _bv(
                   color: DashboardColors.textMuted,
                   fontSize: 13,
                   height: 1.4,
@@ -687,7 +1206,13 @@ class OwnerAssistantCard extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: TextButton(
               onPressed: onOpen,
-              child: const Text('Xem chi tiết →'),
+              child: Text(
+                'Xem chi tiết →',
+                style: _bv(
+                  color: DashboardColors.brand,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
         ],
@@ -708,19 +1233,18 @@ class OwnerActivityCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'HOẠT ĐỘNG GẦN ĐÂY',
-            style: GoogleFonts.notoSans(
+            'Hoạt động gần đây',
+            style: _bv(
               color: DashboardColors.textPrimary,
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: FontWeight.w800,
-              letterSpacing: 0.4,
             ),
           ),
           const SizedBox(height: 12),
           if (entries.isEmpty)
             Text(
               'Chưa có hoạt động gần đây.',
-              style: GoogleFonts.notoSans(color: DashboardColors.textMuted),
+              style: _bv(color: DashboardColors.textMuted),
             )
           else
             for (final e in entries.take(5))
@@ -732,7 +1256,7 @@ class OwnerActivityCard extends StatelessWidget {
                       width: 48,
                       child: Text(
                         e.time,
-                        style: GoogleFonts.notoSans(
+                        style: _bv(
                           color: DashboardColors.textMuted,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -746,7 +1270,7 @@ class OwnerActivityCard extends StatelessWidget {
                         e.content,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.notoSans(
+                        style: _bv(
                           color: DashboardColors.textPrimary,
                           fontSize: 13,
                         ),
@@ -774,7 +1298,9 @@ List<(Color, String)> ownerAttentionItems({
     items.add((DashboardColors.risk, '${summary.alert} hộp đang cảnh báo'));
   }
   if (summary.watch > 0) {
-    items.add((DashboardColors.monitoring, '${summary.watch} hộp đang theo dõi'));
+    items.add(
+      (DashboardColors.monitoring, '${summary.watch} hộp đang theo dõi'),
+    );
   }
   for (final r in water) {
     if (r.status == WaterSensorStatus.exceeded ||

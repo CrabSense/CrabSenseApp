@@ -1,12 +1,28 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../config/app_env.dart';
 import '../models/auth_models.dart';
 import '../services/cloud_api_client.dart';
 import '../services/cloud_auth_service.dart';
-import '../theme/dashboard_theme.dart';
+import 'login_screen.dart';
 import 'main_shell_screen.dart';
+
+/// Palette CrabSense — smart aquaculture.
+abstract final class _FarmInk {
+  static const primary = Color(0xFF087F5B);
+  static const green = Color(0xFF12A87A);
+  static const mintBright = Color(0xFF35C997);
+  static const mint = Color(0xFFDDF7EE);
+  static const lightMint = Color(0xFFF1FBF7);
+  static const darkText = Color(0xFF12332D);
+  static const secondary = Color(0xFF66847C);
+  static const warning = Color(0xFFF97316);
+  static const muted = Color(0xFF94A8A2);
+  static const card = Color(0xF9F7FFFB);
+  static const risk = Color(0xFFDC2626);
+}
 
 class FarmSelectScreen extends StatefulWidget {
   const FarmSelectScreen({
@@ -57,7 +73,8 @@ class _FarmSelectScreenState extends State<FarmSelectScreen> {
         return;
       }
       final farms = me.farms;
-      final selected = _auth.resolveDefaultFarm(farms, me) ?? FarmSummary.unassigned;
+      final selected =
+          _auth.resolveDefaultFarm(farms, me) ?? FarmSummary.unassigned;
       final payload = farms.isEmpty
           ? AuthMePayload(
               user: me.user,
@@ -119,73 +136,81 @@ class _FarmSelectScreenState extends State<FarmSelectScreen> {
     );
   }
 
+  /// Login dùng `pushReplacement` nên không còn route để `pop`.
+  Future<void> _goBackToLogin() async {
+    await _auth.clearSession(keepUsername: true);
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
+      backgroundColor: _FarmInk.mint,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(
-            'assets/images/login_background.png',
-            fit: BoxFit.cover,
-            alignment: Alignment.center,
-            filterQuality: FilterQuality.high,
+          ImageFiltered(
+            imageFilter: ImageFilter.blur(sigmaX: 2.5, sigmaY: 2.5),
+            child: Image.asset(
+              'assets/images/login_background.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              filterQuality: FilterQuality.high,
+            ),
           ),
-          const DecoratedBox(
+          DecoratedBox(
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0x40FFFFFF),
-                  Color(0x14FFFFFF),
-                  Color(0x59FFFFFF),
-                ],
+              color: const Color(0xFF0A5C48).withValues(alpha: 0.12),
+            ),
+          ),
+          // Slogan thương hiệu — góc trên phải, phóng to.
+          const Positioned(
+            top: 28,
+            right: 36,
+            child: IgnorePointer(
+              child: _KnockoutBlackImage(
+                asset: 'assets/images/login/slogan_right_tv.png',
+                height: 160,
               ),
             ),
           ),
           SafeArea(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 16, 0),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(
-                          Icons.arrow_back_rounded,
-                          color: Color(0xFF12262E),
-                        ),
-                        tooltip: 'Quay lại',
-                      ),
-                      Image.asset(
-                        'assets/images/logo.png',
-                        height: 36,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Chọn khu nuôi',
-                          style: GoogleFonts.notoSans(
-                            color: const Color(0xFF12262E),
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            shadows: [
-                              Shadow(
-                                color: Colors.white.withValues(alpha: 0.92),
-                                blurRadius: 10,
-                              ),
-                              Shadow(
-                                color: Colors.white.withValues(alpha: 0.7),
-                                blurRadius: 18,
-                              ),
-                            ],
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: TextButton.icon(
+                    onPressed: _goBackToLogin,
+                    icon: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    label: Text(
+                      'Quay lại',
+                      style: GoogleFonts.beVietnamPro(
+                        color: Colors.white,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            blurRadius: 8,
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 8,
+                      ),
+                    ),
                   ),
                 ),
                 Expanded(
@@ -193,10 +218,10 @@ class _FarmSelectScreenState extends State<FarmSelectScreen> {
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
-                        vertical: 20,
+                        vertical: 12,
                       ),
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 440),
+                        constraints: const BoxConstraints(maxWidth: 700),
                         child: _FarmSelectCard(
                           loading: _loading,
                           error: _error,
@@ -204,9 +229,8 @@ class _FarmSelectScreenState extends State<FarmSelectScreen> {
                           me: _me,
                           selected: _selected,
                           onRetry: _loadMe,
-                          onBack: () => Navigator.of(context).pop(),
-                          onFarmChanged: (v) =>
-                              setState(() => _selected = v),
+                          onBack: _goBackToLogin,
+                          onFarmChanged: (v) => setState(() => _selected = v),
                           onContinue: _continue,
                         ),
                       ),
@@ -242,45 +266,65 @@ class _FarmSelectCard extends StatelessWidget {
   final FarmSummary? selected;
   final VoidCallback onRetry;
   final VoidCallback onBack;
-  final ValueChanged<FarmSummary?> onFarmChanged;
+  final ValueChanged<FarmSummary> onFarmChanged;
   final VoidCallback onContinue;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xF7FFFCF7),
-        borderRadius: BorderRadius.circular(20),
+        color: _FarmInk.card,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: const Color(0xFFC5B79A).withValues(alpha: 0.55),
+          color: Colors.white.withValues(alpha: 0.8),
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF2B6F9A).withValues(alpha: 0.14),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            color: _FarmInk.primary.withValues(alpha: 0.14),
+            blurRadius: 36,
+            offset: const Offset(0, 16),
           ),
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 28,
-            offset: const Offset(0, 12),
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
-        child: _buildContent(context),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          children: [
+            const Positioned(
+              right: -8,
+              bottom: -12,
+              child: _CardDecor(),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 40,
+              child: CustomPaint(painter: _WavePainter()),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(36, 28, 36, 30),
+              child: _buildContent(context),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildContent(BuildContext context) {
     if (loading) {
-      return SizedBox(
-        height: 200,
+      return const SizedBox(
+        height: 240,
         child: Center(
           child: CircularProgressIndicator(
-            color: DashboardColors.purple,
+            color: _FarmInk.green,
             strokeWidth: 2.5,
           ),
         ),
@@ -291,44 +335,43 @@ class _FarmSelectCard extends StatelessWidget {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.cloud_off_outlined,
-            size: 52,
-            color: DashboardColors.risk.withValues(alpha: 0.9),
-          ),
-          const SizedBox(height: 16),
+          const Icon(Icons.cloud_off_outlined, size: 48, color: _FarmInk.risk),
+          const SizedBox(height: 14),
           Text(
             error!,
             textAlign: TextAlign.center,
-            style: GoogleFonts.notoSans(
+            style: GoogleFonts.beVietnamPro(
               fontSize: 14,
-              color: DashboardColors.textPrimary,
+              color: _FarmInk.darkText,
               height: 1.45,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 22),
           Row(
             children: [
               Expanded(
                 child: OutlinedButton(
                   onPressed: onBack,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: DashboardColors.textMuted,
-                    side: BorderSide(color: DashboardColors.cardBorder),
-                    minimumSize: const Size.fromHeight(44),
+                    foregroundColor: _FarmInk.secondary,
+                    backgroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(48),
+                    side: BorderSide(
+                      color: _FarmInk.mint.withValues(alpha: 0.9),
+                    ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(13),
                     ),
                   ),
                   child: Text(
                     'Quay lại',
-                    style: GoogleFonts.notoSans(fontWeight: FontWeight.w500),
+                    style: GoogleFonts.beVietnamPro(fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _AccentButton(
+                child: _CtaButton(
                   label: 'Thử lại',
                   onPressed: onRetry,
                 ),
@@ -340,140 +383,281 @@ class _FarmSelectCard extends StatelessWidget {
     }
 
     final payload = me!;
+    final farms = payload.farms;
+    final greeting = user.displayName.trim().isEmpty
+        ? 'Chủ trại'
+        : user.displayName;
+    final selectedFarm = selected;
+    final ctaLabel = selectedFarm == null || selectedFarm.isUnassigned
+        ? 'Tiếp tục'
+        : 'Tiếp tục vào ${selectedFarm.name}';
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(14),
+        Center(
           child: Image.asset(
             'assets/images/logo.png',
             height: 88,
             fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
         Text(
           'Chọn khu nuôi',
           textAlign: TextAlign.center,
-          style: GoogleFonts.notoSans(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: DashboardColors.textPrimary,
+          style: GoogleFonts.beVietnamPro(
+            fontSize: 34,
+            fontWeight: FontWeight.w800,
+            color: _FarmInk.darkText,
+            letterSpacing: -0.4,
+            height: 1.15,
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Xin chào, ${user.displayName}',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.notoSans(
-            fontSize: 14,
-            color: DashboardColors.textMuted,
-          ),
-        ),
-        if (payload.canViewAllFarms) ...[
-          const SizedBox(height: 8),
-          Text(
-            'Quyền admin: xem và chuyển giữa ${payload.farms.length} trại trong tổ chức.',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.notoSans(
-              fontSize: 12,
-              color: DashboardColors.cyan.withValues(alpha: 0.95),
-            ),
-          ),
-        ],
         const SizedBox(height: 10),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: DashboardColors.purple.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: DashboardColors.cardBorder.withValues(alpha: 0.6),
-            ),
-          ),
-          child: Text(
-            'Cloud: ${AppEnv.cloudApiUrl}',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.notoSans(
-              fontSize: 10,
-              color: DashboardColors.cyan.withValues(alpha: 0.9),
-              height: 1.4,
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
         Text(
-          'Khu nuôi',
-          style: GoogleFonts.notoSans(
-            fontSize: 12,
+          'Xin chào, $greeting!',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.beVietnamPro(
+            fontSize: 15.5,
             fontWeight: FontWeight.w600,
-            color: DashboardColors.textPrimary,
+            color: _FarmInk.secondary,
           ),
         ),
-        const SizedBox(height: 6),
-        DropdownButtonFormField<FarmSummary>(
-          value: selected,
-          dropdownColor: DashboardColors.card,
-          style: GoogleFonts.notoSans(
-            fontSize: 14,
-            color: DashboardColors.textPrimary,
+        const SizedBox(height: 4),
+        Text(
+          'Bạn muốn quản lý khu nuôi nào hôm nay?',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.beVietnamPro(
+            fontSize: 13.5,
+            color: _FarmInk.muted,
+            height: 1.4,
           ),
-          icon: Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: DashboardColors.textMuted,
-          ),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: DashboardColors.darkNavy.withValues(alpha: 0.45),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 14,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: DashboardColors.cardBorder),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: DashboardColors.cardBorder),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: DashboardColors.purple,
-                width: 1.5,
-              ),
-            ),
-          ),
-          items: payload.farms
-              .map(
-                (f) => DropdownMenuItem(
-                  value: f,
-                  child: Text(
-                    f.toString(),
-                    style: GoogleFonts.notoSans(
-                      color: DashboardColors.textPrimary,
-                    ),
-                  ),
-                ),
-              )
-              .toList(),
-          onChanged: onFarmChanged,
         ),
-        const SizedBox(height: 28),
-        _AccentButton(
-          label: 'Vào hệ thống',
-          onPressed: selected == null ? null : onContinue,
+        const SizedBox(height: 22),
+        Text(
+          'DANH SÁCH KHU NUÔI',
+          style: GoogleFonts.beVietnamPro(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.1,
+            color: _FarmInk.secondary,
+          ),
+        ),
+        const SizedBox(height: 10),
+        ...List.generate(farms.length, (i) {
+          final farm = farms[i];
+          final isSelected = selected?.id == farm.id;
+          return Padding(
+            padding: EdgeInsets.only(bottom: i == farms.length - 1 ? 0 : 10),
+            child: _AreaCard(
+              farm: farm,
+              selected: isSelected,
+              status: _FarmAreaStatus.normal,
+              onTap: () => onFarmChanged(farm),
+            ),
+          );
+        }),
+        const SizedBox(height: 16),
+        const _SystemStatusBar(),
+        const SizedBox(height: 22),
+        _CtaButton(
+          label: ctaLabel,
+          onPressed: selectedFarm == null ? null : onContinue,
         ),
       ],
     );
   }
 }
 
-class _AccentButton extends StatelessWidget {
-  const _AccentButton({
+enum _FarmAreaStatus { normal, warning, paused }
+
+class _AreaCard extends StatelessWidget {
+  const _AreaCard({
+    required this.farm,
+    required this.selected,
+    required this.status,
+    required this.onTap,
+  });
+
+  final FarmSummary farm;
+  final bool selected;
+  final _FarmAreaStatus status;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final (statusLabel, statusColor) = switch (status) {
+      _FarmAreaStatus.normal => ('Bình thường', _FarmInk.green),
+      _FarmAreaStatus.warning => ('Có cảnh báo', _FarmInk.warning),
+      _FarmAreaStatus.paused => ('Tạm ngưng', _FarmInk.muted),
+    };
+
+    final subtitle = farm.isUnassigned
+        ? 'Chưa gán mã khu nuôi'
+        : (farm.code.isEmpty || farm.code == farm.name
+            ? 'Khu nuôi CrabSense'
+            : farm.code);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            color: selected ? _FarmInk.lightMint : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected ? _FarmInk.green : const Color(0xFFD7EBE3),
+              width: selected ? 1.6 : 1,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: _FarmInk.green.withValues(alpha: 0.18),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? _FarmInk.mint
+                      : _FarmInk.lightMint.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.home_work_outlined,
+                  color: selected ? _FarmInk.primary : _FarmInk.green,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      farm.name,
+                      style: GoogleFonts.beVietnamPro(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w700,
+                        color: _FarmInk.darkText,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.beVietnamPro(
+                        fontSize: 12.5,
+                        color: _FarmInk.secondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: statusColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    statusLabel,
+                    style: GoogleFonts.beVietnamPro(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: selected ? _FarmInk.primary : _FarmInk.muted,
+                size: 22,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SystemStatusBar extends StatelessWidget {
+  const _SystemStatusBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      decoration: BoxDecoration(
+        color: _FarmInk.lightMint,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _FarmInk.mint.withValues(alpha: 0.9)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.sensors_rounded,
+            size: 18,
+            color: _FarmInk.green,
+          ),
+          const SizedBox(width: 8),
+          Container(
+            width: 7,
+            height: 7,
+            decoration: const BoxDecoration(
+              color: _FarmInk.green,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Hệ thống hoạt động bình thường',
+              style: GoogleFonts.beVietnamPro(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: _FarmInk.darkText,
+              ),
+            ),
+          ),
+          Text(
+            'Cập nhật: vừa xong',
+            style: GoogleFonts.beVietnamPro(
+              fontSize: 12,
+              color: _FarmInk.secondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CtaButton extends StatelessWidget {
+  const _CtaButton({
     required this.label,
     required this.onPressed,
   });
@@ -487,18 +671,28 @@ class _AccentButton extends StatelessWidget {
 
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: 58,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          gradient: enabled ? DashboardColors.accentGradient : null,
-          color: enabled ? null : DashboardColors.cardBorder.withValues(alpha: 0.5),
+          gradient: enabled
+              ? const LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    Color(0xFF087F5B),
+                    Color(0xFF12A87A),
+                    Color(0xFF35C997),
+                  ],
+                )
+              : null,
+          color: enabled ? null : const Color(0xFFD0E5DC),
           borderRadius: BorderRadius.circular(14),
           boxShadow: enabled
               ? [
                   BoxShadow(
-                    color: DashboardColors.purple.withValues(alpha: 0.4),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4),
+                    color: _FarmInk.green.withValues(alpha: 0.32),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
                   ),
                 ]
               : null,
@@ -509,19 +703,158 @@ class _AccentButton extends StatelessWidget {
             onTap: onPressed,
             borderRadius: BorderRadius.circular(14),
             child: Center(
-              child: Text(
-                label,
-                style: GoogleFonts.notoSans(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: enabled
-                      ? Colors.white
-                      : DashboardColors.textMuted.withValues(alpha: 0.6),
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.beVietnamPro(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: enabled ? Colors.white : _FarmInk.muted,
+                    ),
+                  ),
+                  if (enabled) ...[
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ],
+                ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _CardDecor extends StatelessWidget {
+  const _CardDecor();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 180,
+      height: 140,
+      child: Stack(
+        children: [
+          Positioned(
+            right: 28,
+            bottom: 40,
+            child: Icon(
+              Icons.eco_rounded,
+              size: 40,
+              color: _FarmInk.mintBright.withValues(alpha: 0.22),
+            ),
+          ),
+          Positioned(
+            right: 68,
+            bottom: 28,
+            child: Icon(
+              Icons.eco_rounded,
+              size: 26,
+              color: _FarmInk.green.withValues(alpha: 0.16),
+            ),
+          ),
+          Positioned(
+            right: 36,
+            bottom: 78,
+            child: _Bubble(size: 9, opacity: 0.2),
+          ),
+          Positioned(
+            right: 80,
+            bottom: 58,
+            child: _Bubble(size: 6, opacity: 0.16),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Bubble extends StatelessWidget {
+  const _Bubble({required this.size, required this.opacity});
+
+  final double size;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: _FarmInk.mintBright.withValues(alpha: opacity),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: opacity + 0.08),
+        ),
+      ),
+    );
+  }
+}
+
+class _WavePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = _FarmInk.mintBright.withValues(alpha: 0.1)
+      ..style = PaintingStyle.fill;
+
+    final path = Path()
+      ..moveTo(0, size.height * 0.55)
+      ..quadraticBezierTo(
+        size.width * 0.3,
+        size.height * 0.1,
+        size.width * 0.55,
+        size.height * 0.5,
+      )
+      ..quadraticBezierTo(
+        size.width * 0.8,
+        size.height * 0.9,
+        size.width,
+        size.height * 0.35,
+      )
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// PNG nền đen → trong suốt (giống màn login).
+class _KnockoutBlackImage extends StatelessWidget {
+  const _KnockoutBlackImage({
+    required this.asset,
+    this.height,
+  });
+
+  final String asset;
+  final double? height;
+
+  static const _knockout = ColorFilter.matrix(<double>[
+    1, 0, 0, 0, 0,
+    0, 1, 0, 0, 0,
+    0, 0, 1, 0, 0,
+    0.33, 0.5, 0.17, 0, 0,
+  ]);
+
+  @override
+  Widget build(BuildContext context) {
+    return ColorFiltered(
+      colorFilter: _knockout,
+      child: Image.asset(
+        asset,
+        height: height,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
       ),
     );
   }

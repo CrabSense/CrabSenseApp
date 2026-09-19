@@ -43,19 +43,19 @@ class DashboardPalette {
       );
 
   factory DashboardPalette.light() => const DashboardPalette(
-        darkNavy: Color(0xFFF1F5F9),
+        darkNavy: Color(0xFFF3FBF8),
         card: Color(0xFFFFFFFF),
-        cardBorder: Color(0xFFCBD5E1),
-        textPrimary: Color(0xFF0F172A),
-        textMuted: Color(0xFF64748B),
-        sidebarBg: Color(0xFFE2E8F0),
+        cardBorder: Color(0xFFD7EBE3),
+        textPrimary: Color(0xFF12332D),
+        textMuted: Color(0xFF66847C),
+        sidebarBg: Color(0xFFEAF8F3),
         pageGradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFFE0E7FF),
-            Color(0xFFF1F5F9),
-            Color(0xFFE0F2FE),
+            Color(0xFFF7FFFC),
+            Color(0xFFF3FBF8),
+            Color(0xFFEAF8F3),
           ],
           stops: [0.0, 0.45, 1.0],
         ),
@@ -71,8 +71,14 @@ abstract final class DashboardColors {
   }
 
   static const purple = Color(0xFF7C5CFF);
-  static const blue = Color(0xFF4DA6FF);
-  static const cyan = Color(0xFF57E6FF);
+  static const blue = Color(0xFF25A7E8);
+  static const cyan = Color(0xFF12A87A);
+  /// Brand emerald — thay accent tím trên UI chính.
+  static const brand = Color(0xFF087F5B);
+  static const brandGreen = Color(0xFF12A87A);
+  static const mint = Color(0xFFDDF7EE);
+  static const mintActive = Color(0xFFCFF4E5);
+  static const lightMint = Color(0xFFF3FBF8);
   static Color get darkNavy => _palette.darkNavy;
   static Color get card => _palette.card;
   static Color get cardBorder => _palette.cardBorder;
@@ -99,11 +105,11 @@ abstract final class DashboardColors {
   static LinearGradient get pageGradient => _palette.pageGradient;
 
   static LinearGradient get accentGradient => const LinearGradient(
-        colors: [purple, blue, cyan],
+        colors: [brand, brandGreen, Color(0xFF35C997)],
       );
 
   static BoxShadow get glowShadow => BoxShadow(
-        color: purple.withValues(alpha: _palette.glowAlpha),
+        color: brand.withValues(alpha: _palette.glowAlpha),
         blurRadius: 24,
         offset: const Offset(0, 8),
       );

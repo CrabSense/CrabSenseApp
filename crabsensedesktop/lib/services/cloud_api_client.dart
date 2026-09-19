@@ -872,6 +872,25 @@ class CloudApiClient {
   }) =>
       _getDataList(token, '/api/devices', farmingAreaId: farmingAreaId);
 
+  /// CrabSenseBE `GET /api/ai/detections` — lịch sử phát hiện AI (lọc boxId tuỳ chọn).
+  /// GET /api/ai/detections — lọc theo hộp hoặc theo khu (`farmingAreaId`),
+  /// `take` = số bản ghi mới nhất. Mỗi bản ghi có thêm deviceCode/imagePath/boxCode/crabTag.
+  Future<List<Map<String, dynamic>>> fetchAiDetections(
+    String token, {
+    String? boxId,
+    String? farmingAreaId,
+    int? take,
+  }) =>
+      _getDataList(
+        token,
+        '/api/ai/detections',
+        extraQuery: {
+          if (boxId != null && boxId.isNotEmpty) 'boxId': boxId,
+          if (farmingAreaId != null && farmingAreaId.isNotEmpty) 'farmingAreaId': farmingAreaId,
+          if (take != null && take > 0) 'take': '$take',
+        },
+      );
+
   Future<Map<String, dynamic>> fetchControllerDetail(
     String token,
     String id,
@@ -897,6 +916,10 @@ class CloudApiClient {
     String? ipAddress,
     String? firmwareVersion,
     String? farmingAreaId,
+    String? farmingRowId,
+    String? streamUrl,
+    String? snapshotUrl,
+    String? resolution,
   }) async {
     final uri = Uri.parse('$_base/api/devices');
     final res = await _client.post(
@@ -912,12 +935,58 @@ class CloudApiClient {
           'firmwareVersion': firmwareVersion,
         if (farmingAreaId != null && farmingAreaId.isNotEmpty)
           'farmingAreaId': farmingAreaId,
+        if (farmingRowId != null && farmingRowId.isNotEmpty) 'farmingRowId': farmingRowId,
+        if (streamUrl != null && streamUrl.isNotEmpty) 'streamUrl': streamUrl,
+        if (snapshotUrl != null && snapshotUrl.isNotEmpty) 'snapshotUrl': snapshotUrl,
+        if (resolution != null && resolution.isNotEmpty) 'resolution': resolution,
       }),
     );
     final body = _decode(res);
     if (_isApiFailure(res, body)) {
       throw CloudApiException(
         _errorMessage(body) ?? 'Không thêm controller',
+        statusCode: res.statusCode,
+      );
+    }
+    return _asMap(_dataOf(body) ?? body);
+  }
+
+  /// `PUT /api/devices/{id}` — cập nhật cấu hình thiết bị/camera.
+  ///
+  /// Quy ước BE: bỏ qua trường `null`; `farmingRowId` = chuỗi Guid rỗng
+  /// (`00000000-0000-0000-0000-000000000000`) để gỡ khỏi dãy; `streamUrl`/`snapshotUrl`/
+  /// `resolution` = `''` để xoá giá trị.
+  Future<Map<String, dynamic>> updateController(
+    String token,
+    String id, {
+    String? name,
+    String? deviceType,
+    String? ipAddress,
+    String? farmingAreaId,
+    String? farmingRowId,
+    String? streamUrl,
+    String? snapshotUrl,
+    String? resolution,
+  }) async {
+    final uri = Uri.parse('$_base/api/devices/$id');
+    final res = await _client.put(
+      uri,
+      headers: {...authHeaders(token), 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        if (name != null) 'name': name,
+        if (deviceType != null) 'deviceType': deviceType,
+        if (ipAddress != null) 'ipAddress': ipAddress,
+        if (farmingAreaId != null) 'farmingAreaId': farmingAreaId,
+        if (farmingRowId != null) 'farmingRowId': farmingRowId,
+        if (streamUrl != null) 'streamUrl': streamUrl,
+        if (snapshotUrl != null) 'snapshotUrl': snapshotUrl,
+        if (resolution != null) 'resolution': resolution,
+      }),
+    );
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không cập nhật thiết bị',
         statusCode: res.statusCode,
       );
     }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../services/cloud_auth_service.dart';
-import '../theme/dashboard_theme.dart';
 import 'farm_select_screen.dart';
 
 /// Palette theo UI_Login.png — xanh lá / teal / navy.
@@ -40,6 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _rememberMe = true;
   bool _obscurePassword = true;
   bool _isLoading = false;
+  String? _loginError;
 
   @override
   void initState() {
@@ -64,7 +64,10 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _loginError = null;
+    });
 
     final result = await _authService.signIn(
       username: _usernameController.text,
@@ -93,13 +96,15 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(result.errorMessage!),
-        backgroundColor: DashboardColors.risk,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    setState(() {
+      _loginError = result.errorMessage ??
+          'Tên đăng nhập hoặc mật khẩu không chính xác. Vui lòng kiểm tra và thử lại.';
+    });
+  }
+
+  void _clearLoginError() {
+    if (_loginError == null) return;
+    setState(() => _loginError = null);
   }
 
   @override
@@ -129,11 +134,11 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-          // Họa tiết góc phải — bỏ nền đen, giữ màu xanh/trắng.
+          // Họa tiết đè lên nền login (góc phải).
           const Align(
             alignment: Alignment.centerRight,
             child: FractionallySizedBox(
-              widthFactor: 0.55,
+              widthFactor: 0.58,
               heightFactor: 1,
               child: IgnorePointer(
                 child: _KnockoutBlackImage(
@@ -144,28 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-          // Slogan VN góc trên phải (như UI_Login).
-          const Positioned(
-            top: 28,
-            right: 36,
-            child: IgnorePointer(
-              child: _KnockoutBlackImage(
-                asset: 'assets/images/login/slogan_right_tv.png',
-                height: 88,
-              ),
-            ),
-          ),
-          // Slogan EN góc dưới phải (như UI_Login).
-          const Positioned(
-            bottom: 52,
-            right: 28,
-            child: IgnorePointer(
-              child: _KnockoutBlackImage(
-                asset: 'assets/images/login/slogan_right-en.png',
-                height: 96,
-              ),
-            ),
-          ),
+          // Form nằm trên họa tiết → ô Đăng nhập / Đăng ký không bị che.
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -181,12 +165,15 @@ class _LoginScreenState extends State<LoginScreen> {
                               rememberMe: _rememberMe,
                               obscurePassword: _obscurePassword,
                               isLoading: _isLoading,
+                              loginError: _loginError,
                               onRememberMeChanged: (v) =>
                                   setState(() => _rememberMe = v ?? false),
                               onTogglePassword: () => setState(
                                 () => _obscurePassword = !_obscurePassword,
                               ),
+                              onDismissError: _clearLoginError,
                               onLogin: _handleLogin,
+                              onFieldChanged: _clearLoginError,
                             )
                           : _CompactLayout(
                               formKey: _formKey,
@@ -195,18 +182,43 @@ class _LoginScreenState extends State<LoginScreen> {
                               rememberMe: _rememberMe,
                               obscurePassword: _obscurePassword,
                               isLoading: _isLoading,
+                              loginError: _loginError,
                               onRememberMeChanged: (v) =>
                                   setState(() => _rememberMe = v ?? false),
                               onTogglePassword: () => setState(
                                 () => _obscurePassword = !_obscurePassword,
                               ),
+                              onDismissError: _clearLoginError,
                               onLogin: _handleLogin,
+                              onFieldChanged: _clearLoginError,
                             ),
                     ),
                     const _LoginFooter(),
                   ],
                 );
               },
+            ),
+          ),
+          // Slogan VN góc trên phải.
+          const Positioned(
+            top: 28,
+            right: 36,
+            child: IgnorePointer(
+              child: _KnockoutBlackImage(
+                asset: 'assets/images/login/slogan_right_tv.png',
+                height: 88,
+              ),
+            ),
+          ),
+          // Slogan EN góc dưới phải.
+          const Positioned(
+            bottom: 52,
+            right: 28,
+            child: IgnorePointer(
+              child: _KnockoutBlackImage(
+                asset: 'assets/images/login/slogan_right-en.png',
+                height: 96,
+              ),
             ),
           ),
         ],
@@ -223,9 +235,12 @@ class _WideLayout extends StatelessWidget {
     required this.rememberMe,
     required this.obscurePassword,
     required this.isLoading,
+    required this.loginError,
     required this.onRememberMeChanged,
     required this.onTogglePassword,
+    required this.onDismissError,
     required this.onLogin,
+    required this.onFieldChanged,
   });
 
   final GlobalKey<FormState> formKey;
@@ -234,9 +249,12 @@ class _WideLayout extends StatelessWidget {
   final bool rememberMe;
   final bool obscurePassword;
   final bool isLoading;
+  final String? loginError;
   final ValueChanged<bool?> onRememberMeChanged;
   final VoidCallback onTogglePassword;
+  final VoidCallback onDismissError;
   final VoidCallback onLogin;
+  final VoidCallback onFieldChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -262,9 +280,12 @@ class _WideLayout extends StatelessWidget {
                     rememberMe: rememberMe,
                     obscurePassword: obscurePassword,
                     isLoading: isLoading,
+                    loginError: loginError,
                     onRememberMeChanged: onRememberMeChanged,
                     onTogglePassword: onTogglePassword,
+                    onDismissError: onDismissError,
                     onLogin: onLogin,
+                    onFieldChanged: onFieldChanged,
                   ),
                 ),
               ),
@@ -284,9 +305,12 @@ class _CompactLayout extends StatelessWidget {
     required this.rememberMe,
     required this.obscurePassword,
     required this.isLoading,
+    required this.loginError,
     required this.onRememberMeChanged,
     required this.onTogglePassword,
+    required this.onDismissError,
     required this.onLogin,
+    required this.onFieldChanged,
   });
 
   final GlobalKey<FormState> formKey;
@@ -295,9 +319,12 @@ class _CompactLayout extends StatelessWidget {
   final bool rememberMe;
   final bool obscurePassword;
   final bool isLoading;
+  final String? loginError;
   final ValueChanged<bool?> onRememberMeChanged;
   final VoidCallback onTogglePassword;
+  final VoidCallback onDismissError;
   final VoidCallback onLogin;
+  final VoidCallback onFieldChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -316,9 +343,12 @@ class _CompactLayout extends StatelessWidget {
               rememberMe: rememberMe,
               obscurePassword: obscurePassword,
               isLoading: isLoading,
+              loginError: loginError,
               onRememberMeChanged: onRememberMeChanged,
               onTogglePassword: onTogglePassword,
+              onDismissError: onDismissError,
               onLogin: onLogin,
+              onFieldChanged: onFieldChanged,
             ),
           ),
         ],
@@ -584,9 +614,12 @@ class _LoginCard extends StatelessWidget {
     required this.rememberMe,
     required this.obscurePassword,
     required this.isLoading,
+    required this.loginError,
     required this.onRememberMeChanged,
     required this.onTogglePassword,
+    required this.onDismissError,
     required this.onLogin,
+    required this.onFieldChanged,
   });
 
   final GlobalKey<FormState> formKey;
@@ -595,16 +628,20 @@ class _LoginCard extends StatelessWidget {
   final bool rememberMe;
   final bool obscurePassword;
   final bool isLoading;
+  final String? loginError;
   final ValueChanged<bool?> onRememberMeChanged;
   final VoidCallback onTogglePassword;
+  final VoidCallback onDismissError;
   final VoidCallback onLogin;
+  final VoidCallback onFieldChanged;
 
   @override
   Widget build(BuildContext context) {
+    final hasAuthError = loginError != null;
+
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        // Brush / leaf accents sau card (như mockup).
         Positioned(
           top: -14,
           right: -8,
@@ -653,142 +690,252 @@ class _LoginCard extends StatelessWidget {
               ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(32, 26, 32, 26),
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Đăng nhập chủ trại',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.beVietnamPro(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: _LoginInk.title,
-                    ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              const Positioned(
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: 72,
+                child: IgnorePointer(
+                  child: _KnockoutBlackImage(
+                    asset: 'assets/images/login/background_right.png',
+                    fit: BoxFit.cover,
+                    alignment: Alignment.centerRight,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Theo dõi hộp nuôi cua ngay tại trại',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.beVietnamPro(
-                      fontSize: 13,
-                      color: _LoginInk.body,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  const _FieldLabel('Tên đăng nhập'),
-                  const SizedBox(height: 7),
-                  _AuthTextField(
-                    controller: usernameController,
-                    hint: 'Tên tài khoản chủ trại',
-                    icon: Icons.person_outline_rounded,
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return 'Vui lòng nhập tên đăng nhập';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 14),
-                  const _FieldLabel('Mật khẩu'),
-                  const SizedBox(height: 7),
-                  _AuthTextField(
-                    controller: passwordController,
-                    hint: 'Nhập mật khẩu',
-                    icon: Icons.lock_outline_rounded,
-                    obscureText: obscurePassword,
-                    suffix: IconButton(
-                      icon: Icon(
-                        obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                        color: _LoginInk.muted,
-                        size: 20,
-                      ),
-                      onPressed: onTogglePassword,
-                    ),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) {
-                        return 'Vui lòng nhập mật khẩu';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: Checkbox(
-                          value: rememberMe,
-                          onChanged: onRememberMeChanged,
-                          activeColor: _LoginInk.brand,
-                          side: const BorderSide(color: Color(0xFFB5C9BF)),
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Ghi nhớ đăng nhập',
-                        style: GoogleFonts.beVietnamPro(
-                          fontSize: 12.5,
-                          color: _LoginInk.body,
-                        ),
-                      ),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () {},
-                        style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFF2B6F9A),
-                          padding: EdgeInsets.zero,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Quên mật khẩu?',
-                          style: GoogleFonts.beVietnamPro(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 22),
-                  _LoginButton(isLoading: isLoading, onPressed: onLogin),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      const Expanded(child: Divider(color: Color(0xFFD5DED8))),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Text(
-                          'hoặc',
-                          style: GoogleFonts.beVietnamPro(
-                            fontSize: 12,
-                            color: _LoginInk.muted,
-                          ),
-                        ),
-                      ),
-                      const Expanded(child: Divider(color: Color(0xFFD5DED8))),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  _RegisterButton(onPressed: () {}),
-                ],
+                ),
               ),
-            ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(32, 26, 80, 26),
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Đăng nhập chủ trại',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.beVietnamPro(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: _LoginInk.title,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Theo dõi hộp nuôi cua ngay tại trại',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.beVietnamPro(
+                          fontSize: 13,
+                          color: _LoginInk.body,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const _FieldLabel('Tên đăng nhập'),
+                      const SizedBox(height: 7),
+                      _AuthTextField(
+                        controller: usernameController,
+                        hint: 'Tên tài khoản chủ trại',
+                        icon: Icons.person_outline_rounded,
+                        showAuthError: hasAuthError,
+                        onChanged: (_) => onFieldChanged(),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) {
+                            return 'Vui lòng nhập tên đăng nhập';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                      const _FieldLabel('Mật khẩu'),
+                      const SizedBox(height: 7),
+                      _AuthTextField(
+                        controller: passwordController,
+                        hint: 'Nhập mật khẩu',
+                        icon: Icons.lock_outline_rounded,
+                        obscureText: obscurePassword,
+                        showAuthError: hasAuthError,
+                        onChanged: (_) => onFieldChanged(),
+                        suffix: IconButton(
+                          icon: Icon(
+                            obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                            color: _LoginInk.muted,
+                            size: 20,
+                          ),
+                          onPressed: onTogglePassword,
+                        ),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) {
+                            return 'Vui lòng nhập mật khẩu';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: Checkbox(
+                              value: rememberMe,
+                              onChanged: onRememberMeChanged,
+                              activeColor: _LoginInk.brand,
+                              side: const BorderSide(color: Color(0xFFB5C9BF)),
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Ghi nhớ đăng nhập',
+                            style: GoogleFonts.beVietnamPro(
+                              fontSize: 12.5,
+                              color: _LoginInk.body,
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () {},
+                            style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xFF2B6F9A),
+                              padding: EdgeInsets.zero,
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: Text(
+                              'Quên mật khẩu?',
+                              style: GoogleFonts.beVietnamPro(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (loginError != null) ...[
+                        const SizedBox(height: 16),
+                        _LoginErrorAlert(
+                          message: loginError!,
+                          onDismiss: onDismissError,
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      _LoginButton(isLoading: isLoading, onPressed: onLogin),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Divider(color: Color(0xFFD5DED8)),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              'hoặc',
+                              style: GoogleFonts.beVietnamPro(
+                                fontSize: 12,
+                                color: _LoginInk.muted,
+                              ),
+                            ),
+                          ),
+                          const Expanded(
+                            child: Divider(color: Color(0xFFD5DED8)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      _RegisterButton(onPressed: () {}),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _LoginErrorAlert extends StatelessWidget {
+  const _LoginErrorAlert({
+    required this.message,
+    required this.onDismiss,
+  });
+
+  final String message;
+  final VoidCallback onDismiss;
+
+  static const _bg = Color(0xFFFEF2F2);
+  static const _border = Color(0xFFFECACA);
+  static const _icon = Color(0xFFDC2626);
+  static const _title = Color(0xFF991B1B);
+  static const _body = Color(0xFFB91C1C);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 12, 6, 12),
+      decoration: BoxDecoration(
+        color: _bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: Icon(
+              Icons.error_outline_rounded,
+              color: _icon,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Đăng nhập không thành công',
+                  style: GoogleFonts.beVietnamPro(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: _title,
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: GoogleFonts.beVietnamPro(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    color: _body,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: onDismiss,
+            icon: const Icon(Icons.close_rounded, size: 18, color: _icon),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            splashRadius: 16,
+            tooltip: 'Đóng',
+          ),
+        ],
+      ),
     );
   }
 }
@@ -819,6 +966,8 @@ class _AuthTextField extends StatelessWidget {
     this.obscureText = false,
     this.suffix,
     this.validator,
+    this.showAuthError = false,
+    this.onChanged,
   });
 
   final TextEditingController controller;
@@ -827,13 +976,23 @@ class _AuthTextField extends StatelessWidget {
   final bool obscureText;
   final Widget? suffix;
   final String? Function(String?)? validator;
+  final bool showAuthError;
+  final ValueChanged<String>? onChanged;
+
+  static const _errorBorder = Color(0xFFFECACA);
+  static const _errorFocus = Color(0xFFF87171);
 
   @override
   Widget build(BuildContext context) {
+    final borderColor =
+        showAuthError ? _errorBorder : _LoginInk.fieldBorder;
+    final focusColor = showAuthError ? _errorFocus : _LoginInk.teal;
+
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
       validator: validator,
+      onChanged: onChanged,
       style: GoogleFonts.beVietnamPro(
         fontSize: 14.5,
         color: _LoginInk.title,
@@ -843,27 +1002,33 @@ class _AuthTextField extends StatelessWidget {
         hintText: hint,
         hintStyle: GoogleFonts.beVietnamPro(color: _LoginInk.muted),
         filled: true,
-        fillColor: _LoginInk.fieldFill,
+        fillColor: showAuthError ? const Color(0xFFFFF7F7) : _LoginInk.fieldFill,
         contentPadding: const EdgeInsets.symmetric(vertical: 16),
-        prefixIcon: Icon(icon, color: _LoginInk.teal, size: 21),
+        prefixIcon: Icon(
+          icon,
+          color: showAuthError ? const Color(0xFFDC2626) : _LoginInk.teal,
+          size: 21,
+        ),
         suffixIcon: suffix,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(13),
-          borderSide: const BorderSide(color: _LoginInk.fieldBorder),
+          borderSide: BorderSide(color: borderColor),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(13),
-          borderSide: const BorderSide(color: _LoginInk.fieldBorder),
+          borderSide: BorderSide(color: borderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(13),
-          borderSide: const BorderSide(color: _LoginInk.teal, width: 1.5),
+          borderSide: BorderSide(color: focusColor, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(13),
-          borderSide: BorderSide(
-            color: DashboardColors.risk.withValues(alpha: 0.85),
-          ),
+          borderSide: const BorderSide(color: _errorBorder),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(13),
+          borderSide: const BorderSide(color: _errorFocus, width: 1.5),
         ),
       ),
     );
@@ -957,6 +1122,7 @@ class _RegisterButton extends StatelessWidget {
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           foregroundColor: _LoginInk.title,
+          backgroundColor: Colors.white,
           side: const BorderSide(color: Color(0xFFC5D2CA)),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(13),

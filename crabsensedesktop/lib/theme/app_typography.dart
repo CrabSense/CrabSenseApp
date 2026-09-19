@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Noto Sans supports Vietnamese + Latin (web/desktop).
+/// Be Vietnam Pro — font chuẩn CrabSense (hỗ trợ tiếng Việt).
 abstract final class AppTypography {
   static TextStyle text({
     double fontSize = 14,
@@ -10,7 +10,7 @@ abstract final class AppTypography {
     double? height,
     double? letterSpacing,
   }) =>
-      GoogleFonts.notoSans(
+      GoogleFonts.beVietnamPro(
         fontSize: fontSize,
         fontWeight: fontWeight,
         color: color,
@@ -18,16 +18,15 @@ abstract final class AppTypography {
         letterSpacing: letterSpacing,
       );
 
-  static TextTheme darkTheme() => GoogleFonts.notoSansTextTheme(
+  static TextTheme darkTheme() => GoogleFonts.beVietnamProTextTheme(
         ThemeData(brightness: Brightness.dark).textTheme,
       );
 
-  static TextTheme lightTheme() => GoogleFonts.notoSansTextTheme(
+  static TextTheme lightTheme() => GoogleFonts.beVietnamProTextTheme(
         ThemeData(brightness: Brightness.light).textTheme,
       );
 }
 
-/// Drop-in replacement for previous Inter usage.
 TextStyle appText({
   double fontSize = 14,
   FontWeight? fontWeight,

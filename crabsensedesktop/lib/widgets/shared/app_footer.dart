@@ -26,19 +26,42 @@ class AppFooter extends StatelessWidget {
       child: Row(
         children: [
           Text(
-            'CRABSENSE © 2024 CrabSense. All rights reserved.',
-            style: GoogleFonts.notoSans(
+            'CRABSENSE © 2026 CrabSense. All rights reserved.',
+            style: GoogleFonts.beVietnamPro(
               color: DashboardColors.textMuted,
               fontSize: 11,
             ),
           ),
           const Spacer(),
           Wrap(
-            spacing: 20,
+            spacing: 16,
             children: [
-              Text('Privacy Policy', style: GoogleFonts.notoSans(fontSize: 11).merge(linkStyle)),
-              Text('Terms of Service', style: GoogleFonts.notoSans(fontSize: 11).merge(linkStyle)),
-              Text('Support', style: GoogleFonts.notoSans(fontSize: 11).merge(linkStyle)),
+              Text(
+                'Privacy Policy',
+                style: GoogleFonts.beVietnamPro(fontSize: 11).merge(linkStyle),
+              ),
+              Text(
+                '|',
+                style: GoogleFonts.beVietnamPro(
+                  fontSize: 11,
+                  color: DashboardColors.textMuted,
+                ),
+              ),
+              Text(
+                'Terms of Service',
+                style: GoogleFonts.beVietnamPro(fontSize: 11).merge(linkStyle),
+              ),
+              Text(
+                '|',
+                style: GoogleFonts.beVietnamPro(
+                  fontSize: 11,
+                  color: DashboardColors.textMuted,
+                ),
+              ),
+              Text(
+                'Support',
+                style: GoogleFonts.beVietnamPro(fontSize: 11).merge(linkStyle),
+              ),
             ],
           ),
         ],

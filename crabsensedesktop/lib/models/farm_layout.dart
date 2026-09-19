@@ -95,12 +95,10 @@ extension FarmLayoutListX on List<FarmMapBox> {
               b.status == BoxStatus.empty || b.status == BoxStatus.deceased)
           .length,
       normal: boxes.where((b) => b.status == BoxStatus.normal).length,
-      watch: 0,
+      // Theo dõi (amber) tách riêng khỏi Cảnh báo (đỏ) — BE trả `watch`.
+      watch: boxes.where((b) => b.status == BoxStatus.watch).length,
       molting: boxes.where((b) => b.status == BoxStatus.molting).length,
-      alert: boxes
-          .where((b) =>
-              b.status == BoxStatus.alert || b.status == BoxStatus.watch)
-          .length,
+      alert: boxes.where((b) => b.status == BoxStatus.alert).length,
       deceased: 0,
     );
   }

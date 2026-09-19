@@ -26,6 +26,7 @@ class DashboardContent extends StatefulWidget {
     required this.farmLogService,
     required this.areaId,
     required this.onNavigate,
+    this.areaLabel,
   });
 
   final String displayName;
@@ -38,6 +39,7 @@ class DashboardContent extends StatefulWidget {
   final FarmLogService farmLogService;
   final String areaId;
   final ValueChanged<AppRoute> onNavigate;
+  final String? areaLabel;
 
   @override
   State<DashboardContent> createState() => _DashboardContentState();
@@ -91,7 +93,9 @@ class _DashboardContentState extends State<DashboardContent> {
   }
 
   void _listen(bool add) {
-    final fn = add ? (Listenable l) => l.addListener(_onUpdate) : (Listenable l) => l.removeListener(_onUpdate);
+    final fn = add
+        ? (Listenable l) => l.addListener(_onUpdate)
+        : (Listenable l) => l.removeListener(_onUpdate);
     fn(widget.dashboardService);
     fn(widget.farmLayoutService);
     fn(widget.waterQualityService);
@@ -125,7 +129,6 @@ class _DashboardContentState extends State<DashboardContent> {
     final analysis = widget.waterAnalysisService;
     final ras = widget.rasFlowService;
     final alerts = widget.alertService;
-    final logs = widget.farmLogService;
     final summary = layout.boxes.isNotEmpty
         ? layout.summary
         : _summaryFromDashboard(dash);
@@ -146,8 +149,11 @@ class _DashboardContentState extends State<DashboardContent> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final total = summary.total <= 0 ? 1 : summary.total;
+    final alertCount = summary.alert + dash.alertCount;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -163,25 +169,64 @@ class _DashboardContentState extends State<DashboardContent> {
               style: const TextStyle(color: DashboardColors.risk, fontSize: 12),
             ),
           ],
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           OwnerAttentionCard(
             items: attention,
+            alertBoxCount: alertCount,
+            areaLabel: widget.areaLabel,
             onViewAll: () => widget.onNavigate(AppRoute.alerts),
           ),
           const SizedBox(height: 16),
           OwnerKpiStrip(
             items: [
-              ('Tổng hộp', '${summary.total}', DashboardColors.textPrimary),
-              ('Đang nuôi', '${summary.occupied}', DashboardColors.blue),
-              ('Hộp trống', '${summary.empty}', DashboardColors.textMuted),
-              ('Bình thường', '${summary.normal}', DashboardColors.healthy),
-              ('Theo dõi', '${summary.watch}', DashboardColors.monitoring),
-              (
-                'Cảnh báo',
-                '${summary.alert + dash.alertCount}',
-                (summary.alert + dash.alertCount) > 0
+              OwnerKpiItem(
+                label: 'Tổng hộp',
+                value: '${summary.total}',
+                caption: '↑ so với hôm qua',
+                color: DashboardColors.textPrimary,
+                icon: Icons.inventory_2_outlined,
+              ),
+              OwnerKpiItem(
+                label: 'Đang nuôi',
+                value: '${summary.occupied}',
+                caption: '${((summary.occupied / total) * 100).round()}%',
+                color: DashboardColors.blue,
+                icon: Icons.pets_outlined,
+                progress: summary.occupied / total,
+              ),
+              OwnerKpiItem(
+                label: 'Hộp trống',
+                value: '${summary.empty}',
+                caption: '${((summary.empty / total) * 100).round()}%',
+                color: DashboardColors.dead,
+                icon: Icons.crop_square_outlined,
+                progress: summary.empty / total,
+              ),
+              OwnerKpiItem(
+                label: 'Bình thường',
+                value: '${summary.normal}',
+                caption: '${((summary.normal / total) * 100).round()}%',
+                color: DashboardColors.healthy,
+                icon: Icons.check_circle_outline,
+                progress: summary.normal / total,
+              ),
+              OwnerKpiItem(
+                label: 'Theo dõi',
+                value: '${summary.watch}',
+                caption: '${((summary.watch / total) * 100).round()}%',
+                color: DashboardColors.monitoring,
+                icon: Icons.visibility_outlined,
+                progress: summary.watch / total,
+              ),
+              OwnerKpiItem(
+                label: 'Cảnh báo',
+                value: '$alertCount',
+                caption: '${((alertCount / total) * 100).round()}%',
+                color: alertCount > 0
                     ? DashboardColors.risk
                     : DashboardColors.healthy,
+                icon: Icons.warning_amber_rounded,
+                progress: alertCount / total,
               ),
             ],
           ),
@@ -217,23 +262,38 @@ class _DashboardContentState extends State<DashboardContent> {
             },
           ),
           const SizedBox(height: 16),
-          OwnerCrabStatusCard(summary: summary),
-          const SizedBox(height: 16),
-          OwnerRasCard(
-            nodes: ras.diagram?.nodes ?? const [],
-            onOpen: () => widget.onNavigate(AppRoute.devices),
+          LayoutBuilder(
+            builder: (context, c) {
+              final wide = c.maxWidth > 1100;
+              final crab = OwnerCrabStatusCard(summary: summary);
+              final trend = OwnerTrendCard(readings: water.readings);
+              final devices = OwnerRasCard(
+                nodes: ras.diagram?.nodes ?? const [],
+                onOpen: () => widget.onNavigate(AppRoute.devices),
+              );
+              if (!wide) {
+                return Column(
+                  children: [
+                    crab,
+                    const SizedBox(height: 16),
+                    trend,
+                    const SizedBox(height: 16),
+                    devices,
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: crab),
+                  const SizedBox(width: 16),
+                  Expanded(child: trend),
+                  const SizedBox(width: 16),
+                  Expanded(child: devices),
+                ],
+              );
+            },
           ),
-          const SizedBox(height: 16),
-          OwnerAssistantCard(
-            lines: ownerAssistantLines(
-              summary: summary,
-              hint: dash.assistantHint,
-              openAlerts: dash.alertCount,
-            ),
-            onOpen: () => widget.onNavigate(AppRoute.aiInsight),
-          ),
-          const SizedBox(height: 16),
-          OwnerActivityCard(entries: logs.filteredEntries),
           const SizedBox(height: 24),
         ],
       ),

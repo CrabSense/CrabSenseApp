@@ -97,46 +97,38 @@ class _FarmChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 220),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      constraints: const BoxConstraints(maxWidth: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: DashboardColors.card,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: DashboardColors.cardBorder),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFD7EBE3)),
+        boxShadow: [
+          BoxShadow(
+            color: DashboardColors.brand.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            Icons.agriculture_outlined,
+            Icons.home_outlined,
             size: 18,
-            color: DashboardColors.cyan.withValues(alpha: 0.9),
+            color: DashboardColors.brand,
           ),
           const SizedBox(width: 8),
           Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.notoSans(
-                    color: DashboardColors.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (code.isNotEmpty)
-                  Text(
-                    code,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.notoSans(
-                      color: DashboardColors.textMuted,
-                      fontSize: 10,
-                    ),
-                  ),
-              ],
+            child: Text(
+              code.isNotEmpty ? '$label ($code)' : label,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.beVietnamPro(
+                color: DashboardColors.textPrimary,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           if (enabled) ...[

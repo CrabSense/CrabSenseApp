@@ -36,5 +36,8 @@ flutter:
     - assets/images/login/slogan_right_tv.png
     - assets/images/login/slogan_right-en.png
     - assets/images/background_light.png
+    - assets/images/background_tabslidebar.png
+    - assets/images/background_chao_user.png
+    - assets/images/maps.png
     - assets/images/ai_assistant_mascot.png
     - assets/icon_tab/
