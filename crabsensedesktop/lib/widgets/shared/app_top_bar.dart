@@ -11,6 +11,7 @@ class AppTopBar extends StatelessWidget {
   const AppTopBar({
     super.key,
     this.title,
+    this.subtitle,
     this.searchHint = 'Tìm kiếm...',
     this.onSearchChanged,
     this.displayName = 'Admin',
@@ -24,9 +25,11 @@ class AppTopBar extends StatelessWidget {
     this.farms,
     this.selectedFarm,
     this.onFarmChanged,
+    this.hideSearch = false,
   });
 
   final String? title;
+  final String? subtitle;
   final String searchHint;
   final ValueChanged<String>? onSearchChanged;
   final String displayName;
@@ -40,17 +43,46 @@ class AppTopBar extends StatelessWidget {
   final List<FarmSummary>? farms;
   final FarmSummary? selectedFarm;
   final ValueChanged<FarmSummary>? onFarmChanged;
+  final bool hideSearch;
 
   @override
   Widget build(BuildContext context) {
+    final text = GoogleFonts.beVietnamPro;
     final searchKey = ValueKey('search-$searchHint');
+
+    final trailing = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (selectedFarm != null && farms != null && farms!.isNotEmpty) ...[
+          FarmHeaderSelector(
+            farms: farms!,
+            selected: selectedFarm!,
+            onChanged: onFarmChanged ?? (_) {},
+          ),
+          const SizedBox(width: 10),
+        ],
+        if (connectivity != null) ...[
+          CloudEdgeHeaderBadges(
+            service: connectivity!,
+            onTapCloud: onOpenDeviceSetup,
+            onTapEdge: onOpenDeviceSetup,
+          ),
+          const SizedBox(width: 10),
+        ],
+        _NotificationPill(alertCount: alertCount),
+        const SizedBox(width: 10),
+        _UserChip(name: displayName, onLogout: onLogout),
+      ],
+    );
+
     return Container(
-      height: 80,
+      height: subtitle != null ? 88 : 80,
       padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: BoxDecoration(
+        color: DashboardColors.lightMint.withValues(alpha: 0.65),
         border: Border(
           bottom: BorderSide(
-            color: DashboardColors.cardBorder.withValues(alpha: 0.5),
+            color: DashboardColors.cardBorder.withValues(alpha: 0.7),
           ),
         ),
       ),
@@ -58,99 +90,155 @@ class AppTopBar extends StatelessWidget {
         children: [
           if (leading != null) ...[leading!, const SizedBox(width: 12)],
           if (title != null)
-            Text(
-              title!,
-              style: GoogleFonts.notoSans(
-                color: DashboardColors.textPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
+            Expanded(
+              flex: 2,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: text(
+                      color: DashboardColors.textPrimary,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: text(
+                        color: DashboardColors.textMuted,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-          if (title != null) const SizedBox(width: 24),
-          Expanded(
-            child: centerTitle ??
-                Container(
-                  height: 40,
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  decoration: BoxDecoration(
-                    color: DashboardColors.card,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: DashboardColors.cardBorder),
+          if (!hideSearch || centerTitle != null) ...[
+            const SizedBox(width: 16),
+            Expanded(
+              flex: 2,
+              child: centerTitle ??
+                  (hideSearch
+                      ? const SizedBox.shrink()
+                      : Align(
+                          alignment: Alignment.centerLeft,
+                          child: Container(
+                            height: 40,
+                            constraints: const BoxConstraints(maxWidth: 420),
+                            decoration: _pillDecoration(),
+                            child: TextField(
+                              key: searchKey,
+                              onChanged: onSearchChanged,
+                              style: text(
+                                color: DashboardColors.textPrimary,
+                                fontSize: 13,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: searchHint,
+                                hintStyle: text(
+                                  color: DashboardColors.textMuted,
+                                  fontSize: 13,
+                                ),
+                                prefixIcon: Icon(
+                                  Icons.search,
+                                  color: DashboardColors.textMuted,
+                                  size: 20,
+                                ),
+                                border: InputBorder.none,
+                                contentPadding:
+                                    const EdgeInsets.symmetric(vertical: 10),
+                              ),
+                            ),
+                          ),
+                        )),
+            ),
+          ],
+          const SizedBox(width: 12),
+          Flexible(
+            flex: 3,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: trailing,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static BoxDecoration _pillDecoration() => BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFD7EBE3)),
+        boxShadow: [
+          BoxShadow(
+            color: DashboardColors.brand.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      );
+}
+
+class _NotificationPill extends StatelessWidget {
+  const _NotificationPill({required this.alertCount});
+
+  final int alertCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: AppTopBar._pillDecoration(),
+      child: IconButton(
+        onPressed: () {},
+        tooltip: 'Cảnh báo',
+        icon: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Icon(
+              Icons.notifications_outlined,
+              color: DashboardColors.textMuted,
+              size: 22,
+            ),
+                if (alertCount > 0)
+              Positioned(
+                right: -4,
+                top: -4,
+                child: Container(
+                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: const BoxDecoration(
+                    color: DashboardColors.risk,
+                    borderRadius: BorderRadius.all(Radius.circular(999)),
                   ),
-                  child: TextField(
-                    key: searchKey,
-                    onChanged: onSearchChanged,
-                    style: GoogleFonts.notoSans(
-                      color: DashboardColors.textPrimary,
-                      fontSize: 13,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: searchHint,
-                      hintStyle: GoogleFonts.notoSans(
-                        color: DashboardColors.textMuted,
-                        fontSize: 13,
-                      ),
-                      prefixIcon: Icon(
-                        Icons.search,
-                        color: DashboardColors.textMuted,
-                        size: 20,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding:
-                          const EdgeInsets.symmetric(vertical: 10),
+                  alignment: Alignment.center,
+                  child: Text(
+                    alertCount > 99 ? '99+' : '$alertCount',
+                    style: GoogleFonts.beVietnamPro(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
-          ),
-          const Spacer(),
-          if (selectedFarm != null && farms != null && farms!.isNotEmpty) ...[
-            FarmHeaderSelector(
-              farms: farms!,
-              selected: selectedFarm!,
-              onChanged: onFarmChanged ?? (_) {},
-            ),
-            const SizedBox(width: 12),
+              ),
           ],
-          if (connectivity != null) ...[
-            CloudEdgeHeaderBadges(
-              service: connectivity!,
-              onTapCloud: onOpenDeviceSetup,
-              onTapEdge: onOpenDeviceSetup,
-            ),
-            const SizedBox(width: 12),
-          ],
-          IconButton(
-            onPressed: () {},
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(Icons.notifications_outlined,
-                    color: DashboardColors.textMuted, size: 22),
-                if (alertCount > 0)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: DashboardColors.risk,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: onSettingsTap,
-            tooltip: 'Cài đặt — Device Setup',
-            icon: Icon(Icons.settings_outlined,
-                color: DashboardColors.textMuted, size: 22),
-          ),
-          const SizedBox(width: 8),
-          _UserChip(name: displayName, onLogout: onLogout),
-        ],
+        ),
       ),
     );
   }
@@ -164,23 +252,20 @@ class _UserChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final text = GoogleFonts.beVietnamPro;
     final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: DashboardColors.card,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: DashboardColors.cardBorder),
-      ),
+      decoration: AppTopBar._pillDecoration(),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           CircleAvatar(
             radius: 16,
-            backgroundColor: DashboardColors.purple.withValues(alpha: 0.3),
+            backgroundColor: DashboardColors.mintActive,
             child: Text(
-              name.isNotEmpty ? name[0].toUpperCase() : 'A',
-              style: GoogleFonts.notoSans(
-                color: DashboardColors.cyan,
+              name.isNotEmpty ? name[0].toUpperCase() : 'C',
+              style: text(
+                color: DashboardColors.brand,
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
@@ -192,8 +277,8 @@ class _UserChip extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                name,
-                style: GoogleFonts.notoSans(
+                name.isEmpty ? 'Chủ trại' : name,
+                style: text(
                   color: DashboardColors.textPrimary,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -201,7 +286,7 @@ class _UserChip extends StatelessWidget {
               ),
               Text(
                 'Admin Panel',
-                style: GoogleFonts.notoSans(
+                style: text(
                   color: DashboardColors.textMuted,
                   fontSize: 9,
                 ),
@@ -242,7 +327,7 @@ class _UserChip extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 'Đăng xuất',
-                style: GoogleFonts.notoSans(
+                style: text(
                   color: DashboardColors.textPrimary,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,

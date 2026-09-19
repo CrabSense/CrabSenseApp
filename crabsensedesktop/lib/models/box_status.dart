@@ -14,28 +14,28 @@ enum BoxStatus {
 extension BoxStatusX on BoxStatus {
   String get label => switch (this) {
         BoxStatus.normal => 'Bình thường',
-        BoxStatus.watch => 'Có vấn đề',
+        BoxStatus.watch => 'Theo dõi',
         BoxStatus.molting => 'Lột xác',
-        BoxStatus.alert => 'Có vấn đề',
+        BoxStatus.alert => 'Cảnh báo',
         BoxStatus.deceased => 'Hộp trống',
         BoxStatus.empty => 'Hộp trống',
       };
 
   String get shortLabel => switch (this) {
         BoxStatus.normal => 'BÌNH THƯỜNG',
-        BoxStatus.watch => 'CÓ VẤN ĐỀ',
+        BoxStatus.watch => 'THEO DÕI',
         BoxStatus.molting => 'LỘT XÁC',
-        BoxStatus.alert => 'CÓ VẤN ĐỀ',
+        BoxStatus.alert => 'CẢNH BÁO',
         BoxStatus.deceased => 'TRỐNG',
         BoxStatus.empty => 'TRỐNG',
       };
 
-  /// 4 trạng thái bản đồ: xanh bình thường, vàng có vấn đề, tím lột, xám trống.
+  /// Bản đồ: xanh bình thường, vàng theo dõi, đỏ cảnh báo, tím lột, xám trống.
   Color get color => switch (this) {
         BoxStatus.normal => DashboardColors.healthy,
         BoxStatus.watch => DashboardColors.monitoring,
         BoxStatus.molting => DashboardColors.moltPurple,
-        BoxStatus.alert => DashboardColors.monitoring,
+        BoxStatus.alert => DashboardColors.risk,
         BoxStatus.deceased => const Color(0xFF64748B),
         BoxStatus.empty => const Color(0xFF64748B),
       };
@@ -44,7 +44,7 @@ extension BoxStatusX on BoxStatus {
         BoxStatus.normal => '🟢',
         BoxStatus.watch => '🟡',
         BoxStatus.molting => '🟣',
-        BoxStatus.alert => '🟡',
+        BoxStatus.alert => '🔴',
         BoxStatus.deceased => '⚪',
         BoxStatus.empty => '⚪',
       };

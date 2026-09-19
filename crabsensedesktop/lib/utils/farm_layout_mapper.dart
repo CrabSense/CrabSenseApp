@@ -9,8 +9,10 @@ BoxStatus mapBoxApiStatus(String status) {
   return switch (s) {
     'empty' || 'available' || 'idle' || 'vacant' => BoxStatus.empty,
     'farming' || 'active' || 'occupied' => BoxStatus.normal,
-    'maintenance' || 'watch' => BoxStatus.alert,
-    'warning' || 'alert' || 'disease' => BoxStatus.alert,
+    // Theo dõi (amber): BE `watch`, hoặc hộp đang bảo trì.
+    'watch' || 'maintenance' || 'monitoring' => BoxStatus.watch,
+    // Cảnh báo (đỏ): cách ly / bệnh / alert.
+    'quarantine' || 'warning' || 'alert' || 'disease' => BoxStatus.alert,
     'molting' => BoxStatus.molting,
     // Cua chết / đã bán ⇒ BE trả hộp về trống, không còn là "sự cố".
     'dead' || 'deceased' || 'harvested' || 'sold' => BoxStatus.empty,
@@ -24,12 +26,24 @@ BoxStatus mapBoxApiStatus(String status) {
 BoxStatus mapCrabCondition(String? condition) {
   final c = condition?.trim().toLowerCase() ?? '';
   return switch (c) {
-    'problem' || 'weak' => BoxStatus.alert, // yếu / có vấn đề → vàng
+    'problem' => BoxStatus.alert, // có vấn đề → đỏ
+    'weak' => BoxStatus.watch, // yếu → theo dõi (amber)
     'premolt' || 'molting' || 'softshell' => BoxStatus.molting, // lột → tím
     'dead' || 'harvested' || 'sold' => BoxStatus.empty, // chết/bán → trống hộp
     _ => BoxStatus.normal,
   };
 }
+
+/// Mức nghiêm trọng để gộp trạng thái hộp + tình trạng cua: lấy mức xấu hơn.
+int _severity(BoxStatus s) => switch (s) {
+      BoxStatus.alert => 3,
+      BoxStatus.watch => 2,
+      BoxStatus.molting => 1,
+      _ => 0,
+    };
+
+BoxStatus _worstOf(BoxStatus a, BoxStatus b) =>
+    _severity(b) > _severity(a) ? b : a;
 
 bool isInactiveCrab(String? crabStatus, String? crabCondition) {
   bool matches(String? raw, Set<String> values) =>
@@ -38,18 +52,26 @@ bool isInactiveCrab(String? crabStatus, String? crabCondition) {
       matches(crabCondition, const {'dead', 'harvested', 'sold'});
 }
 
+/// Trạng thái hiển thị (màu) của một hộp: kết hợp status hộp + tình trạng cua.
+BoxStatus boxUiStatus(BoxRecord box) {
+  var uiStatus = mapBoxApiStatus(box.status);
+  if (box.crabCount <= 0 && isInactiveCrab(box.crabStatus, box.crabCondition)) {
+    uiStatus = BoxStatus.empty;
+  } else if (box.crabCount > 0) {
+    // Hộp đang có cua: màu theo tình trạng xấu nhất của cua, nhưng hộp
+    // đang `watch`/`quarantine` vẫn phải giữ mức Theo dõi / Cảnh báo.
+    final boxLevel = uiStatus == BoxStatus.empty ? BoxStatus.normal : uiStatus;
+    uiStatus = _worstOf(mapCrabCondition(box.crabCondition), boxLevel);
+  }
+  return uiStatus;
+}
+
 FarmMapBox toFarmMapBox({
   required BoxRecord box,
   required AreaRecord area,
   required RowRecord row,
 }) {
-  var uiStatus = mapBoxApiStatus(box.status);
-  if (box.crabCount <= 0 && isInactiveCrab(box.crabStatus, box.crabCondition)) {
-    uiStatus = BoxStatus.empty;
-  } else if (box.crabCount > 0) {
-    // Hộp đang có cua: màu theo tình trạng xấu nhất của cua.
-    uiStatus = mapCrabCondition(box.crabCondition);
-  }
+  final uiStatus = boxUiStatus(box);
   final code = box.boxCode.trim().isNotEmpty ? box.boxCode : box.id;
   final showCrab = box.crabCount > 0 || (uiStatus != BoxStatus.empty && box.hasCrab);
   final crabCount = box.crabCount > 0 ? box.crabCount : (showCrab ? 1 : 0);
@@ -69,7 +91,7 @@ FarmMapBox toFarmMapBox({
             BoxStatus.deceased => 0,
             BoxStatus.empty => 0,
           },
-          hasAlert: uiStatus == BoxStatus.alert,
+          hasAlert: uiStatus == BoxStatus.alert || box.alertCount > 0,
         );
 
   return FarmMapBox(

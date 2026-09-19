@@ -34,9 +34,10 @@ class AppSidebar extends StatefulWidget {
 }
 
 class _AppSidebarState extends State<AppSidebar> {
-  static const _expandedWidth = 280.0;
+  static const _expandedWidth = 286.0;
   static const _collapsedWidth = 80.0;
 
+  /// Menu khớp mockup Dashboard Tổng Quan.
   static const _routes = [
     AppRoute.dashboard,
     AppRoute.farmAreas,
@@ -50,9 +51,6 @@ class _AppSidebarState extends State<AppSidebar> {
     AppRoute.environment,
     AppRoute.waterAnalysis,
     AppRoute.alerts,
-    AppRoute.farmLogs,
-    AppRoute.harvestSales,
-    AppRoute.aiInsight,
   ];
 
   bool _collapsed = false;
@@ -65,7 +63,7 @@ class _AppSidebarState extends State<AppSidebar> {
         AppRoute.individualDetail => Icons.pets_outlined,
         AppRoute.individualHealth => Icons.monitor_heart_outlined,
         AppRoute.farmAreas => Icons.map_outlined,
-        AppRoute.farmManagement => Icons.agriculture_outlined,
+        AppRoute.farmManagement => Icons.grid_view_outlined,
         AppRoute.areaManagement => Icons.landscape_outlined,
         AppRoute.areaDetail => Icons.landscape_outlined,
         AppRoute.rowManagement => Icons.view_week_outlined,
@@ -113,115 +111,198 @@ class _AppSidebarState extends State<AppSidebar> {
           (widget.selected == AppRoute.individualDetail ||
               widget.selected == AppRoute.individualHealth)) ||
       (r == AppRoute.areaManagement && widget.selected == AppRoute.areaDetail) ||
+      (r == AppRoute.farmManagement &&
+          (widget.selected == AppRoute.areaManagement ||
+              widget.selected == AppRoute.areaDetail)) ||
       (r == AppRoute.boxManagement && widget.selected == AppRoute.boxDetail) ||
       (r == AppRoute.farmingBatchManagement &&
           widget.selected == AppRoute.farmingBatchDetail) ||
-      (r == AppRoute.inboundLots && widget.selected == AppRoute.inboundLotDetail) ||
+      (r == AppRoute.inboundLots &&
+          widget.selected == AppRoute.inboundLotDetail) ||
       (r == AppRoute.productionCrabManagement &&
           widget.selected == AppRoute.crabManagementDetail);
 
   @override
   Widget build(BuildContext context) {
+    final width = _collapsed ? _collapsedWidth : _expandedWidth;
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
-      width: _collapsed ? _collapsedWidth : _expandedWidth,
-      decoration: BoxDecoration(
-        color: DashboardColors.sidebarBg.withValues(alpha: 0.95),
-        border: Border(
-          right: BorderSide(
-            color: DashboardColors.cardBorder.withValues(alpha: 0.5),
+      width: width,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFF7FFFC), Color(0xFFEAF8F3)],
+          ),
+          border: Border(
+            right: BorderSide(color: Color(0xFFD7EBE3)),
           ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              _collapsed ? 10 : 16,
-              20,
-              _collapsed ? 10 : 12,
-              12,
-            ),
-            child: _collapsed ? _collapsedHeader() : _expandedHeader(),
-          ),
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.symmetric(horizontal: _collapsed ? 8 : 12),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Trong lúc animate, dùng layout hẹp theo width thực tế.
+            final narrow = constraints.maxWidth < 140;
+            return Stack(
+              fit: StackFit.expand,
               children: [
-                for (final route in _routes)
-                  _SidebarTile(
-                    icon: _icon(route),
-                    imageAsset: _imageAsset(route),
-                    label: route.label,
-                    active: _isActive(route),
-                    collapsed: _collapsed,
-                    onTap: () {
-                      if (route.isImplemented) {
-                        widget.onSelect(route);
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('${route.label} — đang phát triển'),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      }
-                    },
+                if (!narrow)
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: IgnorePointer(
+                      child: Image.asset(
+                        'assets/images/background_tabslidebar.png',
+                        width: constraints.maxWidth,
+                        fit: BoxFit.fitWidth,
+                        alignment: Alignment.bottomCenter,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      ),
+                    ),
                   ),
-              ],
-            ),
-          ),
-          Divider(color: DashboardColors.cardBorder, height: 1),
-          if (!_collapsed)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Text(
-                'CÀI ĐẶT',
-                style: GoogleFonts.notoSans(
-                  color: DashboardColors.textMuted,
-                  fontSize: 9,
-                  letterSpacing: 0.8,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        narrow ? 10 : 16,
+                        18,
+                        narrow ? 10 : 12,
+                        8,
+                      ),
+                      child: narrow ? _collapsedHeader() : _expandedHeader(),
+                    ),
+                    Expanded(
+                      child: ListView(
+                        padding: EdgeInsets.fromLTRB(
+                          narrow ? 8 : 12,
+                          4,
+                          narrow ? 8 : 12,
+                          narrow ? 12 : 180,
+                        ),
+                        children: [
+                          for (final route in _routes)
+                            _SidebarTile(
+                              icon: _icon(route),
+                              imageAsset: _imageAsset(route),
+                              label: route.label,
+                              active: _isActive(route),
+                              collapsed: narrow,
+                              onTap: () {
+                                if (route.isImplemented) {
+                                  widget.onSelect(route);
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        '${route.label} — đang phát triển',
+                                      ),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          const SizedBox(height: 8),
+                          Divider(
+                            height: 1,
+                            color: DashboardColors.cardBorder
+                                .withValues(alpha: 0.9),
+                          ),
+                          if (!narrow)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(10, 12, 10, 6),
+                              child: Text(
+                                'CÀI ĐẶT',
+                                style: GoogleFonts.beVietnamPro(
+                                  color: DashboardColors.textMuted,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ),
+                          _SidebarTile(
+                            icon: Icons.person_outline_rounded,
+                            label: 'Hồ sơ',
+                            active: false,
+                            collapsed: narrow,
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Hồ sơ — đang phát triển'),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                          ),
+                          _SidebarTile(
+                            icon: Icons.settings_outlined,
+                            label: 'Cài đặt',
+                            active: widget.selected == AppRoute.deviceSetup ||
+                                widget.selected == AppRoute.devices,
+                            collapsed: narrow,
+                            onTap: () {
+                              if (widget.onOpenDeviceSetup != null) {
+                                widget.onOpenDeviceSetup!();
+                              } else {
+                                widget.onSelect(AppRoute.devices);
+                              }
+                            },
+                          ),
+                          _SidebarTile(
+                            icon: Icons.logout_rounded,
+                            label: 'Đăng xuất',
+                            active: false,
+                            collapsed: narrow,
+                            danger: true,
+                            onTap: widget.onLogout,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ),
-          _SidebarTile(
-            icon: Icons.logout,
-            label: 'Logout',
-            active: false,
-            collapsed: _collapsed,
-            onTap: widget.onLogout,
-          ),
-          const SizedBox(height: 12),
-        ],
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 
   Widget _expandedHeader() {
+    final text = GoogleFonts.beVietnamPro;
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Image.asset('assets/images/logo.png', height: 44),
-        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'CrabSense',
-                style: GoogleFonts.notoSans(
-                  color: DashboardColors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+              Image.asset(
+                'assets/images/logo.png',
+                height: 48,
+                fit: BoxFit.contain,
+                alignment: Alignment.centerLeft,
+                errorBuilder: (_, __, ___) => Text(
+                  'CrabSense',
+                  style: text(
+                    color: DashboardColors.brand,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
+              const SizedBox(height: 6),
               Text(
-                'PRECISION MONITORING',
-                style: GoogleFonts.notoSans(
+                'Smart Farming for a Cleaner Ocean',
+                style: text(
                   color: DashboardColors.textMuted,
-                  fontSize: 8,
-                  letterSpacing: 0.8,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w500,
+                  height: 1.3,
                 ),
               ),
             ],
@@ -265,6 +346,7 @@ class _SidebarTile extends StatelessWidget {
     required this.onTap,
     this.imageAsset,
     this.collapsed = false,
+    this.danger = false,
   });
 
   final IconData icon;
@@ -272,36 +354,65 @@ class _SidebarTile extends StatelessWidget {
   final String label;
   final bool active;
   final bool collapsed;
+  final bool danger;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final accent = danger
+        ? const Color(0xFFDC2626)
+        : active
+            ? DashboardColors.brand
+            : const Color(0xFF3D6B5F);
+
     final tile = Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(bottom: 3),
       child: Material(
-        color: active
-            ? DashboardColors.purple.withValues(alpha: 0.2)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
+        color: active ? DashboardColors.mintActive : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Row(
-              children: [
-                if (active)
-                  Container(width: 3, color: DashboardColors.purple),
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: collapsed ? 8 : 14,
-                      vertical: collapsed ? 10 : 12,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: collapsed ? 8 : 12,
+              vertical: 10,
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Khi đang animate mở rộng, width còn hẹp nhưng collapsed=false
+                // → phải vẫn render icon-only để tránh overflow.
+                final narrow = collapsed || constraints.maxWidth < 56;
+                if (narrow) {
+                  return Center(
+                    child: _leading(
+                      size: imageAsset != null ? 28 : 22,
+                      color: accent,
                     ),
-                    child: collapsed ? _collapsedContent() : _expandedContent(),
-                  ),
-                ),
-              ],
+                  );
+                }
+                return Row(
+                  children: [
+                    _leading(
+                      size: imageAsset != null ? 26 : 20,
+                      color: accent,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        label,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.beVietnamPro(
+                          fontSize: 13.5,
+                          fontWeight:
+                              active ? FontWeight.w700 : FontWeight.w500,
+                          color: accent,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -309,36 +420,14 @@ class _SidebarTile extends StatelessWidget {
     );
 
     if (!collapsed) return tile;
-    return Tooltip(message: label, waitDuration: const Duration(milliseconds: 400), child: tile);
-  }
-
-  Widget _collapsedContent() {
-    return Center(child: _leading(size: imageAsset != null ? 40 : 22));
-  }
-
-  Widget _expandedContent() {
-    return Row(
-      children: [
-        _leading(size: imageAsset != null ? 28 : 20),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            label,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.notoSans(
-              fontSize: 13,
-              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-              color: active
-                  ? DashboardColors.textPrimary
-                  : DashboardColors.textMuted,
-            ),
-          ),
-        ),
-      ],
+    return Tooltip(
+      message: label,
+      waitDuration: const Duration(milliseconds: 400),
+      child: tile,
     );
   }
 
-  Widget _leading({required double size}) {
+  Widget _leading({required double size, required Color color}) {
     if (imageAsset != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(size * 0.22),
@@ -351,10 +440,6 @@ class _SidebarTile extends StatelessWidget {
         ),
       );
     }
-    return Icon(
-      icon,
-      size: size,
-      color: active ? DashboardColors.purple : DashboardColors.textMuted,
-    );
+    return Icon(icon, size: size, color: color);
   }
 }

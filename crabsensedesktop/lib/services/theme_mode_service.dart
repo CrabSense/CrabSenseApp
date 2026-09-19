@@ -19,10 +19,10 @@ class ThemeModeService {
       brightness: Brightness.light,
       scaffoldBackgroundColor: DashboardColors.darkNavy,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: DashboardColors.purple,
+        seedColor: DashboardColors.brand,
         brightness: Brightness.light,
       ),
-      fontFamily: GoogleFonts.notoSans().fontFamily,
+      fontFamily: GoogleFonts.beVietnamPro().fontFamily,
       textTheme: AppTypography.lightTheme(),
       useMaterial3: true,
     );

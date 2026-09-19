@@ -4,6 +4,7 @@ import '../models/crab_batch.dart';
 import '../models/crab_individual.dart';
 import '../models/farm_layout.dart';
 import '../models/production_models.dart';
+import '../models/row_list_item.dart';
 import '../navigation/app_route.dart';
 import '../services/batch_service.dart';
 import '../services/crab_service.dart';
@@ -23,7 +24,6 @@ import '../services/crab_lot_inbound_service.dart';
 import 'dashboard_screen.dart';
 import 'farm/farm_layout_page.dart';
 import '../services/farm_layout_service.dart';
-import 'farm/farm_management_page.dart';
 import 'area/area_detail_page.dart';
 import 'area/area_management_page.dart';
 import 'row/row_management_page.dart';
@@ -166,20 +166,6 @@ class _MainShellScreenState extends State<MainShellScreen> {
     }
   }
 
-  void _syncSessionFarmsFromRecords() {
-    final summaries = _farmManagementService.farms
-        .map((f) => f.toSummary())
-        .toList();
-    if (summaries.isEmpty) return;
-    final selected = summaries.any((f) => f.id == _session.selectedFarm.id)
-        ? _session.selectedFarm
-        : summaries.first;
-    setState(() {
-      _session = _session.copyWith(farms: summaries, selectedFarm: selected);
-    });
-    _applySessionToServices();
-  }
-
   void _applySessionToServices() {
     _connectivityLinkService.updateSession(_session);
     _waterQualityService.updateSession(_session);
@@ -310,6 +296,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
         _farmLayoutService.load(force: true);
         _areaManagementService.load();
         _iotDeviceService.loadUiDevices();
+      case AppRoute.farmManagement:
       case AppRoute.areaManagement:
         _areaManagementService.load();
       case AppRoute.rowManagement:
@@ -344,20 +331,24 @@ class _MainShellScreenState extends State<MainShellScreen> {
 
   AppTopBar _shellTopBar({
     String? title,
+    String? subtitle,
     String searchHint = 'Tìm kiếm...',
     ValueChanged<String>? onSearchChanged,
     int alertCount = 5,
     Widget? leading,
     Widget? centerTitle,
+    bool hideSearch = false,
   }) {
     return AppTopBar(
       title: title,
+      subtitle: subtitle,
       searchHint: searchHint,
       onSearchChanged: onSearchChanged,
       displayName: _session.user.displayName,
       alertCount: alertCount,
       leading: leading,
       centerTitle: centerTitle,
+      hideSearch: hideSearch,
       onLogout: _logout,
       connectivity: _connectivityLinkService,
       onOpenDeviceSetup: () => _navigate(AppRoute.devices),
@@ -389,7 +380,8 @@ class _MainShellScreenState extends State<MainShellScreen> {
       _productionManagementService.setTab(ProductionTab.crab);
       _productionManagementService.loadCurrentTab();
     }
-    if (route == AppRoute.areaManagement) {
+    if (route == AppRoute.areaManagement ||
+        route == AppRoute.farmManagement) {
       _areaManagementService.load();
     }
     if (route == AppRoute.rowManagement) {
@@ -420,7 +412,8 @@ class _MainShellScreenState extends State<MainShellScreen> {
     if (route == AppRoute.alerts) {
       _alertService.load();
     }
-    if (route != AppRoute.areaDetail) {
+    // Giữ khu đang xem khi đi Chi tiết khu → Chi tiết hộp → quay lại.
+    if (route != AppRoute.areaDetail && route != AppRoute.boxDetail) {
       _selectedAreaId = null;
     }
     if (route == AppRoute.productionCrabManagement ||
@@ -485,6 +478,24 @@ class _MainShellScreenState extends State<MainShellScreen> {
       _selectedAreaId = areaId;
       _route = AppRoute.areaDetail;
     });
+  }
+
+  /// "Xem dãy →" trên card khu: mở Quản lý dãy đã lọc theo khu đó.
+  void _openRowsOfArea(AreaRecord area) {
+    _rowManagementService.setAreaFilter(area.id);
+    _navigate(AppRoute.rowManagement);
+  }
+
+  /// Dãy → "Xem hộp →": mở Quản lý hộp lọc theo khu + dãy đã chọn.
+  void _openBoxesOfRow(RowListItem row) =>
+      _openBoxes(areaId: row.areaId, rowId: row.rowId);
+
+  /// Mở Quản lý hộp lọc theo khu (và dãy nếu có).
+  void _openBoxes({required String areaId, String? rowId}) {
+    // setAreaFilter reset rowFilter → phải gọi trước setRowFilter.
+    _boxManagementService.setAreaFilter(areaId);
+    _boxManagementService.setRowFilter(rowId);
+    _navigate(AppRoute.boxManagement);
   }
 
   void _backToAreaList() {
@@ -647,32 +658,29 @@ class _MainShellScreenState extends State<MainShellScreen> {
 
     if (_route == AppRoute.farmAreas) {
       return _shellTopBar(
-        searchHint: 'Tìm kiếm hệ thống...',
-        centerTitle: const SizedBox.shrink(),
+        title: 'Bản đồ trại',
+        subtitle: 'Tổng quan bố trí khu, dãy và hộp trong trại nuôi',
+        alertCount: _farmDashboardService.alertCount,
+        hideSearch: true,
       );
     }
 
-    if (_route == AppRoute.farmManagement) {
+    if (_route == AppRoute.farmManagement ||
+        _route == AppRoute.areaManagement) {
       return _shellTopBar(
-        searchHint: 'Tìm mã khu, tên, vị trí...',
-        onSearchChanged: _farmManagementService.setSearch,
-        centerTitle: const SizedBox.shrink(),
-      );
-    }
-
-    if (_route == AppRoute.areaManagement) {
-      return _shellTopBar(
-        searchHint: 'Tìm mã khu, tên khu...',
-        onSearchChanged: _areaManagementService.setSearch,
-        centerTitle: const SizedBox.shrink(),
+        title: 'Quản lý khu',
+        subtitle: 'Quản lý và cấu hình các khu nuôi trong trại',
+        alertCount: _farmDashboardService.alertCount,
+        hideSearch: true,
       );
     }
 
     if (_route == AppRoute.rowManagement) {
       return _shellTopBar(
-        searchHint: 'Tìm tên, mã hoặc vị trí dãy...',
-        onSearchChanged: _rowManagementService.setSearch,
-        centerTitle: const SizedBox.shrink(),
+        title: 'Quản lý dãy',
+        subtitle: 'Quản lý thông tin các dãy trong khu nuôi',
+        alertCount: _farmDashboardService.alertCount,
+        hideSearch: true,
       );
     }
 
@@ -705,10 +713,14 @@ class _MainShellScreenState extends State<MainShellScreen> {
 
     if (_route == AppRoute.areaDetail) {
       return _shellTopBar(
-        centerTitle: const SizedBox.shrink(),
+        title: 'Chi tiết khu',
+        subtitle: 'Tổng quan theo dõi và quản lý một khu nuôi',
+        alertCount: _farmDashboardService.alertCount,
+        hideSearch: true,
         leading: IconButton(
+          tooltip: 'Về Quản lý khu',
           onPressed: _backToAreaList,
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF94A3B8)),
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF087F5B)),
         ),
       );
     }
@@ -802,8 +814,9 @@ class _MainShellScreenState extends State<MainShellScreen> {
 
     return _shellTopBar(
       title: 'Dashboard Tổng Quan',
+      subtitle: 'Giám sát và quản lý trại nuôi cua lột thông minh',
       alertCount: _farmDashboardService.alertCount,
-      searchHint: 'Tìm kiếm khu vực, ID cua...',
+      hideSearch: true,
     );
   }
 
@@ -820,6 +833,11 @@ class _MainShellScreenState extends State<MainShellScreen> {
           alertService: _alertService,
           farmLogService: _farmLogService,
           areaId: _session.selectedFarm.id,
+          areaLabel: () {
+            final f = _session.selectedFarm;
+            if (f.code.isNotEmpty) return '${f.name} (${f.code})';
+            return f.name;
+          }(),
           onNavigate: _navigate,
         );
       case AppRoute.batches:
@@ -850,17 +868,17 @@ class _MainShellScreenState extends State<MainShellScreen> {
             _navigate(AppRoute.boxDetail);
           },
           onExportMolting: _exportMoltingCrab,
+          onOpenAreaDetail: _openAreaDetail,
         );
+      // "Quản lý khu" trên sidebar dùng route farmManagement → render trang
+      // Quản lý khu mới (danh sách khu theo card ngang).
       case AppRoute.farmManagement:
-        return FarmManagementPage(
-          service: _farmManagementService,
-          onFarmsChanged: _syncSessionFarmsFromRecords,
-        );
       case AppRoute.areaManagement:
         return AreaManagementPage(
           service: _areaManagementService,
           onNavigate: _navigate,
           onOpenDetail: (a) => _openAreaDetail(a.id),
+          onViewRows: _openRowsOfArea,
         );
       case AppRoute.areaDetail:
         final areaId = _selectedAreaId ??
@@ -872,6 +890,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
             service: _areaManagementService,
             onNavigate: _navigate,
             onOpenDetail: (a) => _openAreaDetail(a.id),
+            onViewRows: _openRowsOfArea,
           );
         }
         return AreaDetailPage(
@@ -881,12 +900,41 @@ class _MainShellScreenState extends State<MainShellScreen> {
           areaId: areaId,
           onBack: _backToAreaList,
           onNavigate: _navigate,
+          productionService: _productionManagementService,
+          onViewBoxesOfRow: (row) =>
+              _openBoxes(areaId: row.areaId, rowId: row.id),
+          onOpenCrab: (box) {
+            final id = box.crabId;
+            if (id == null || id.isEmpty || id == 'null') return;
+            setState(() {
+              _selectedCrabId = id;
+              _route = AppRoute.crabManagementDetail;
+            });
+            _crabService.loadDetail(id);
+          },
+          onOpenBox: (box) {
+            final area = _areaManagementService.areas
+                .where((a) => a.id == areaId)
+                .firstOrNull;
+            _selectedBoxItem = BoxListItem(
+              box: box,
+              areaId: areaId,
+              areaCode: box.areaCode ?? area?.areaCode ?? '',
+              areaName: box.areaName ?? area?.areaName ?? '',
+              rowId: box.rowId,
+              rowCode: box.rowCode ?? '',
+              rowName: box.rowName ?? '',
+            );
+            _boxDetailBack = AppRoute.areaDetail;
+            _navigate(AppRoute.boxDetail);
+          },
         );
       case AppRoute.rowManagement:
         return RowManagementPage(
           service: _rowManagementService,
           productionService: _productionManagementService,
           onNavigate: _navigate,
+          onViewBoxes: _openBoxesOfRow,
         );
       case AppRoute.boxManagement:
         return BoxManagementPage(
