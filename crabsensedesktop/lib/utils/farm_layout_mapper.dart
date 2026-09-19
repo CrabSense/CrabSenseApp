@@ -9,7 +9,7 @@ BoxStatus mapBoxApiStatus(String status) {
   return switch (s) {
     'empty' || 'available' || 'idle' || 'vacant' => BoxStatus.empty,
     'farming' || 'active' || 'occupied' => BoxStatus.normal,
-    'maintenance' || 'watch' => BoxStatus.watch,
+    'maintenance' || 'watch' => BoxStatus.alert,
     'warning' || 'alert' || 'disease' => BoxStatus.alert,
     'molting' => BoxStatus.molting,
     // Cua chết / đã bán ⇒ BE trả hộp về trống, không còn là "sự cố".
@@ -24,7 +24,7 @@ BoxStatus mapBoxApiStatus(String status) {
 BoxStatus mapCrabCondition(String? condition) {
   final c = condition?.trim().toLowerCase() ?? '';
   return switch (c) {
-    'problem' || 'weak' => BoxStatus.alert, // nguy cơ → đỏ
+    'problem' || 'weak' => BoxStatus.alert, // yếu / có vấn đề → vàng
     'premolt' || 'molting' || 'softshell' => BoxStatus.molting, // lột → tím
     'dead' || 'harvested' || 'sold' => BoxStatus.empty, // chết/bán → trống hộp
     _ => BoxStatus.normal,

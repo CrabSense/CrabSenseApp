@@ -251,6 +251,9 @@ class BoxRecord {
     this.alertCount = 0,
     this.aiSummary,
     this.crabCount = 0,
+    this.crabInBoxSince,
+    this.aiUpdatedAt,
+    this.emptySince,
   });
 
   final String id;
@@ -274,6 +277,9 @@ class BoxRecord {
   final int alertCount;
   final String? aiSummary;
   final int crabCount;
+  final DateTime? crabInBoxSince;
+  final DateTime? aiUpdatedAt;
+  final DateTime? emptySince;
 
   String get title =>
       (displayName != null && displayName!.trim().isNotEmpty)
@@ -339,6 +345,18 @@ class BoxRecord {
       alertCount: _boxInt(json, 'alertCount', 'AlertCount'),
       aiSummary: _boxStr(json, const ['aiSummary', 'AiSummary']),
       crabCount: _boxInt(json, 'crabCount', 'CrabCount'),
+      crabInBoxSince: _boxDate(
+        json,
+        const ['crabInBoxSince', 'CrabInBoxSince'],
+      ),
+      aiUpdatedAt: _boxDate(
+        json,
+        const ['aiUpdatedAt', 'AiUpdatedAt'],
+      ),
+      emptySince: _boxDate(
+        json,
+        const ['emptySince', 'EmptySince'],
+      ),
     );
   }
 
@@ -346,6 +364,17 @@ class BoxRecord {
     final raw = json[a] ?? json[b];
     if (raw is num) return raw.toInt();
     return int.tryParse('$raw') ?? 0;
+  }
+
+  static DateTime? _boxDate(Map<String, dynamic> json, List<String> keys) {
+    for (final key in keys) {
+      final raw = json[key];
+      if (raw == null) continue;
+      if (raw is DateTime) return raw;
+      final parsed = DateTime.tryParse(raw.toString());
+      if (parsed != null) return parsed.toLocal();
+    }
+    return null;
   }
 
   static String? _boxStr(Map<String, dynamic> json, List<String> keys) {

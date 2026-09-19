@@ -15,7 +15,6 @@ import '../../widgets/farm/box_detail_drawer.dart';
 import '../../widgets/farm/farm_devices_tab.dart';
 import '../../widgets/farm/farm_kpi_strip.dart';
 import '../../widgets/farm/farm_layout_ras_flow.dart';
-import '../../widgets/farm/crab_box_card.dart';
 import '../../widgets/farm/farm_map_box_tile.dart';
 import '../../widgets/shared/ai_assistant_avatar.dart';
 
@@ -58,11 +57,9 @@ class _FarmLayoutPageState extends State<FarmLayoutPage>
   static const _statusOptions = <BoxStatus?>[
     null,
     BoxStatus.normal,
-    BoxStatus.watch,
     BoxStatus.molting,
     BoxStatus.alert,
     BoxStatus.empty,
-    BoxStatus.deceased,
   ];
 
   @override
@@ -89,8 +86,16 @@ class _FarmLayoutPageState extends State<FarmLayoutPage>
 
   List<FarmMapBox> get _filtered {
     return widget.farmLayoutService.boxes.where((item) {
-      if (_statusFilter != null && item.display.status != _statusFilter) {
-        return false;
+      if (_statusFilter != null) {
+        final status = item.display.status;
+        final match = switch (_statusFilter) {
+          BoxStatus.empty =>
+            status == BoxStatus.empty || status == BoxStatus.deceased,
+          BoxStatus.alert =>
+            status == BoxStatus.alert || status == BoxStatus.watch,
+          _ => status == _statusFilter,
+        };
+        if (!match) return false;
       }
       if (_rowId != null && item.rowId != _rowId) return false;
       if (_search.isNotEmpty) {
@@ -460,7 +465,7 @@ class _Header extends StatelessWidget {
                     size: 10,
                     color: healthy
                         ? DashboardColors.healthy
-                        : DashboardColors.risk,
+                        : DashboardColors.monitoring,
                   ),
                   const SizedBox(width: 6),
                   Text(
@@ -470,7 +475,7 @@ class _Header extends StatelessWidget {
                     style: GoogleFonts.notoSans(
                       color: healthy
                           ? DashboardColors.healthy
-                          : DashboardColors.risk,
+                          : DashboardColors.monitoring,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -748,23 +753,12 @@ class _AreaMapCard extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   for (final item in row.items)
-                    item.crabCount > 0 || item.display.isOccupied
-                        ? SizedBox(
-                            width: 92,
-                            height: 80,
-                            child: CrabBoxCard(
-                              box: item.display,
-                              highlighted: highlightBoxId != null &&
-                                  item.display.id == highlightBoxId,
-                              onTap: () => onBoxTap(item),
-                            ),
-                          )
-                        : FarmMapBoxTile(
-                            item: item,
-                            highlighted: highlightBoxId != null &&
-                                item.display.id == highlightBoxId,
-                            onTap: () => onBoxTap(item),
-                          ),
+                    FarmMapBoxTile(
+                      item: item,
+                      highlighted: highlightBoxId != null &&
+                          item.display.id == highlightBoxId,
+                      onTap: () => onBoxTap(item),
+                    ),
                 ],
               ),
               const SizedBox(height: 16),

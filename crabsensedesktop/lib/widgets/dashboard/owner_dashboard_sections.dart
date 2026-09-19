@@ -545,10 +545,9 @@ class OwnerCrabStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final segs = [
       (summary.normal, 'Bình thường', DashboardColors.healthy),
-      (summary.watch, 'Theo dõi', DashboardColors.monitoring),
-      (summary.molting, 'Lột xác', const Color(0xFFA78BFA)),
-      (summary.alert, 'Cảnh báo', DashboardColors.risk),
-      (summary.deceased, 'Sự cố', DashboardColors.dead),
+      (summary.molting, 'Lột xác', DashboardColors.moltPurple),
+      (summary.alert, 'Có vấn đề', DashboardColors.monitoring),
+      (summary.empty, 'Hộp trống', DashboardColors.dead),
     ];
     final total = segs.fold<int>(0, (n, s) => n + s.$1);
 

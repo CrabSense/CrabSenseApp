@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../theme/dashboard_theme.dart';
 
 /// Trạng thái cua Owner trên card hộp.
-/// Quy ước màu: lột (sắp lột / đang lột / lột mềm) = tím, nguy cơ (có vấn đề /
-/// cua yếu) = đỏ, bình thường = xanh, chết hoặc đã bán = trống hộp.
+  /// Quy ước màu bản đồ: lột = tím, có vấn đề (yếu/ăn ít) = vàng,
+  /// bình thường = xanh, chết hoặc đã bán = hộp trống.
 enum CrabCondition {
   empty,
   normal,
@@ -32,8 +32,19 @@ extension CrabConditionX on CrabCondition {
         CrabCondition.premolt => '🟣',
         CrabCondition.molting => '🟣',
         CrabCondition.softshell => '🟣',
-        CrabCondition.problem => '🔴',
-        CrabCondition.weak => '🔴',
+        CrabCondition.problem => '🟡',
+        CrabCondition.weak => '🟡',
+      };
+
+  String get iconAsset => switch (this) {
+        CrabCondition.empty => 'assets/icon_tab/icon-box-empty.png',
+        CrabCondition.problem || CrabCondition.weak =>
+          'assets/icon_tab/icon-carb-warning.png',
+        CrabCondition.premolt ||
+        CrabCondition.molting ||
+        CrabCondition.softshell =>
+          'assets/icon_tab/icon-crab-lt.png',
+        CrabCondition.normal => 'assets/icon_tab/iocn-crab-normal.png',
       };
 
   Color get color => switch (this) {
@@ -42,8 +53,8 @@ extension CrabConditionX on CrabCondition {
         CrabCondition.premolt => DashboardColors.moltPurple,
         CrabCondition.molting => DashboardColors.moltPurple,
         CrabCondition.softshell => DashboardColors.moltPurple,
-        CrabCondition.problem => DashboardColors.risk,
-        CrabCondition.weak => DashboardColors.risk,
+        CrabCondition.problem => DashboardColors.monitoring,
+        CrabCondition.weak => DashboardColors.monitoring,
       };
 
   static CrabCondition parse({

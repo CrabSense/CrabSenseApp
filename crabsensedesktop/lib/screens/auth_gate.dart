@@ -49,7 +49,7 @@ class _AuthSplash extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           Image.asset(
-            'assets/images/login_background.png',
+            'assets/images/login/Nen_Login.png',
             fit: BoxFit.cover,
             alignment: Alignment.center,
             filterQuality: FilterQuality.high,
@@ -58,21 +58,21 @@ class _AuthSplash extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Image.asset('assets/images/logo.png', height: 72),
+                Image.asset('assets/images/logo.png', height: 88),
                 const SizedBox(height: 20),
                 const SizedBox(
                   width: 28,
                   height: 28,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.4,
-                    color: Color(0xFF2B6F9A),
+                    color: Color(0xFF1B6B3A),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   'Đang khôi phục phiên đăng nhập...',
                   style: GoogleFonts.notoSans(
-                    color: const Color(0xFF16333F),
+                    color: const Color(0xFF0F2A18),
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
