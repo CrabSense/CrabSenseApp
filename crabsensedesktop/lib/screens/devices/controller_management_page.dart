@@ -6,6 +6,7 @@ import '../../models/iot_device.dart';
 import '../../services/controller_service.dart';
 import '../../theme/dashboard_theme.dart';
 import '../../widgets/dashboard/glass_card.dart';
+import 'add_controller_dialog.dart';
 
 /// Đăng ký / xem từng ESP32. Sensor và output thuộc controller, không hard-code 1 board.
 class ControllerManagementPage extends StatefulWidget {
@@ -195,100 +196,14 @@ class _ControllerManagementPageState extends State<ControllerManagementPage> {
   }
 
   Future<void> _showAdd(BuildContext context) async {
-    final code = TextEditingController();
-    final name = TextEditingController();
-    final mac = TextEditingController();
-    final ip = TextEditingController();
-    final fw = TextEditingController(text: 'v1.0.0');
-    var type = 'esp32-s3';
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: DashboardColors.card,
-        title: Text(
-          'Thêm Controller',
-          style: GoogleFonts.notoSans(color: DashboardColors.textPrimary),
-        ),
-        content: SizedBox(
-          width: 420,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _field(code, 'Mã (ESP-001) *'),
-              _field(name, 'Tên (ESP32 RAS Chính)'),
-              _field(mac, 'MAC Address'),
-              _field(ip, 'IP Address'),
-              _field(fw, 'Firmware'),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: type,
-                dropdownColor: DashboardColors.card,
-                decoration: InputDecoration(
-                  labelText: 'Loại',
-                  labelStyle: GoogleFonts.notoSans(
-                    color: DashboardColors.textMuted,
-                  ),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'esp32-s3', child: Text('ESP32-S3')),
-                  DropdownMenuItem(value: 'esp32', child: Text('ESP32')),
-                  DropdownMenuItem(value: 'gateway', child: Text('Gateway')),
-                ],
-                onChanged: (v) => type = v ?? type,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Lưu'),
-          ),
-        ],
-      ),
+    final saved = await showAddControllerDialog(
+      context,
+      service: widget.service,
+      session: widget.service.session,
     );
-    if (ok != true || !context.mounted) return;
-    if (code.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nhập mã controller')),
-      );
-      return;
-    }
-    final saved = await widget.service.add(
-      deviceCode: code.text,
-      name: name.text,
-      deviceType: type,
-      macAddress: mac.text,
-      ipAddress: ip.text,
-      firmwareVersion: fw.text,
-    );
-    if (!context.mounted) return;
+    if (!context.mounted || saved != true) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          saved
-              ? 'Đã thêm controller'
-              : (widget.service.error ?? 'Không thêm được'),
-        ),
-      ),
-    );
-  }
-
-  Widget _field(TextEditingController c, String label) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: TextField(
-        controller: c,
-        style: GoogleFonts.notoSans(color: DashboardColors.textPrimary),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: GoogleFonts.notoSans(color: DashboardColors.textMuted),
-        ),
-      ),
+      const SnackBar(content: Text('Đã thêm Controller')),
     );
   }
 }
@@ -344,6 +259,16 @@ class _ControllerCard extends StatelessWidget {
               fontSize: 12,
             ),
           ),
+          if ((device.deviceType ?? '').isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              controllerTypeLabel(device.deviceType!),
+              style: GoogleFonts.notoSans(
+                color: DashboardColors.textMuted,
+                fontSize: 12,
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           Text(
             online ? 'Online' : 'Offline',
@@ -527,7 +452,19 @@ class _ChildList extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (i.unit != null && i.unit!.isNotEmpty)
+                  if (i.latestValue != null)
+                    Text(
+                      i.latestValue!.toStringAsFixed(
+                        i.latestValue!.abs() >= 100 ? 0 : 2,
+                      ),
+                      style: GoogleFonts.robotoMono(
+                        color: DashboardColors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  if (i.unit != null && i.unit!.isNotEmpty) ...[
+                    const SizedBox(width: 4),
                     Text(
                       i.unit!,
                       style: GoogleFonts.notoSans(
@@ -535,6 +472,7 @@ class _ChildList extends StatelessWidget {
                         fontSize: 11,
                       ),
                     ),
+                  ],
                   if (i.isOn != null)
                     Text(
                       i.isOn! ? 'ON' : 'OFF',

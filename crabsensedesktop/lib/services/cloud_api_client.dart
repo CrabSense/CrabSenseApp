@@ -869,8 +869,16 @@ class CloudApiClient {
   Future<List<Map<String, dynamic>>> fetchCrabSenseDevices(
     String token, {
     String? farmingAreaId,
+    String? farmingRowId,
   }) =>
-      _getDataList(token, '/api/devices', farmingAreaId: farmingAreaId);
+      _getDataList(
+        token,
+        '/api/devices',
+        farmingAreaId: farmingAreaId,
+        extraQuery: {
+          if (farmingRowId != null && farmingRowId.isNotEmpty) 'farmingRowId': farmingRowId,
+        },
+      );
 
   /// CrabSenseBE `GET /api/ai/detections` — lịch sử phát hiện AI (lọc boxId tuỳ chọn).
   /// GET /api/ai/detections — lọc theo hộp hoặc theo khu (`farmingAreaId`),
@@ -945,6 +953,34 @@ class CloudApiClient {
     if (_isApiFailure(res, body)) {
       throw CloudApiException(
         _errorMessage(body) ?? 'Không thêm controller',
+        statusCode: res.statusCode,
+      );
+    }
+    return _asMap(_dataOf(body) ?? body);
+  }
+
+  Future<Map<String, dynamic>> createSensor(
+    String token, {
+    required String sensorCode,
+    required String sensorType,
+    String? unit,
+    String? deviceId,
+  }) async {
+    final uri = Uri.parse('$_base/api/sensors');
+    final res = await _client.post(
+      uri,
+      headers: {...authHeaders(token), 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'sensorCode': sensorCode,
+        'sensorType': sensorType,
+        if (unit != null && unit.isNotEmpty) 'unit': unit,
+        if (deviceId != null && deviceId.isNotEmpty) 'deviceId': deviceId,
+      }),
+    );
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không đăng ký cảm biến',
         statusCode: res.statusCode,
       );
     }
