@@ -9,6 +9,7 @@ class ControllerChild {
     this.type,
     this.unit,
     this.isOn,
+    this.latestValue,
   });
 
   final String id;
@@ -18,8 +19,10 @@ class ControllerChild {
   final String? type;
   final String? unit;
   final bool? isOn;
+  final double? latestValue;
 
   factory ControllerChild.sensor(Map<String, dynamic> json) {
+    final raw = json['latestValue'] ?? json['LatestValue'];
     return ControllerChild(
       id: (json['id'] ?? json['Id'] ?? '').toString(),
       code: (json['sensorCode'] ?? json['SensorCode'] ?? '').toString(),
@@ -27,6 +30,7 @@ class ControllerChild {
       kind: 'sensor',
       type: (json['sensorType'] ?? json['SensorType'])?.toString(),
       unit: (json['unit'] ?? json['Unit'])?.toString(),
+      latestValue: raw is num ? raw.toDouble() : double.tryParse('$raw'),
     );
   }
 
