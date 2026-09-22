@@ -29,6 +29,7 @@ class ControllerService extends ChangeNotifier {
   String? get selectedId => _selectedId;
   ControllerDetail? get detail => _detail;
   bool get detailLoading => _detailLoading;
+  AuthSession get session => _session;
 
   int get onlineCount => _items.where((d) => d.isOnline).length;
   int get offlineCount => _items.length - onlineCount;
@@ -93,9 +94,11 @@ class ControllerService extends ChangeNotifier {
     String? macAddress,
     String? ipAddress,
     String? firmwareVersion,
+    String? farmingAreaId,
+    bool registerRealtimeSensors = false,
   }) async {
     try {
-      await _api.createController(
+      final created = await _api.createController(
         _session.token,
         deviceCode: deviceCode.trim(),
         name: name?.trim(),
@@ -103,8 +106,15 @@ class ControllerService extends ChangeNotifier {
         macAddress: macAddress?.trim(),
         ipAddress: ipAddress?.trim(),
         firmwareVersion: firmwareVersion?.trim(),
-        farmingAreaId: _session.selectedFarm.id,
+        farmingAreaId: farmingAreaId ?? _session.selectedFarm.id,
       );
+      if (registerRealtimeSensors) {
+        final deviceId = (created['id'] ?? created['Id'] ?? '').toString();
+        final code = deviceCode.trim();
+        if (deviceId.isNotEmpty) {
+          await _registerRealtimeSensors(deviceId, code);
+        }
+      }
       await load();
       return true;
     } on CloudApiException catch (e) {
@@ -115,6 +125,27 @@ class ControllerService extends ChangeNotifier {
       _error = '$e';
       notifyListeners();
       return false;
+    }
+  }
+
+  Future<void> _registerRealtimeSensors(String deviceId, String deviceCode) async {
+    const specs = [
+      ('-temp', 'Temperature', 'C'),
+      ('-ph', 'pH', 'pH'),
+      ('-tds', 'TDS', 'ppm'),
+    ];
+    for (final spec in specs) {
+      try {
+        await _api.createSensor(
+          _session.token,
+          deviceId: deviceId,
+          sensorCode: '$deviceCode${spec.$1}',
+          sensorType: spec.$2,
+          unit: spec.$3,
+        );
+      } on CloudApiException {
+        // Already registered from a previous attempt — keep going.
+      }
     }
   }
 }
