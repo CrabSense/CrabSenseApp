@@ -51,10 +51,13 @@ class HomeRepositoryImpl implements HomeRepository {
           _fetchHealthMetrics(areaId),
           _fetchAiRecommendation(areaId),
           _fetchTodayTasks(areaId),
+          _fetchScheduledTasksToday(areaId),
           _fetchRecentActivities(areaId),
           _fetchUnreadNotificationsCount(),
+          _fetchFeedingHistory(),
+          _fetchBoxStatusHistory(),
         ].map((p) => p.catchError((_) => null)),
-      );
+      ).timeout(const Duration(seconds: 12));
 
       final boxInfo = results[0] as Map<String, int>?;
       final alertsData = results[1] as Map<String, dynamic>?;
@@ -64,8 +67,11 @@ class HomeRepositoryImpl implements HomeRepository {
       final healthScore = results[5] as FarmHealthScore?;
       final aiRecommendation = results[6] as AiRecommendation?;
       final todayTasks = results[7] as List<TodayTaskItem>?;
-      final recentActivities = results[8] as List<RecentActivityItem>?;
-      final unreadFromApi = results[9] as int?;
+      final scheduledTasks = results[8] as List<TodayTaskItem>? ?? const [];
+      final recentActivities = results[9] as List<RecentActivityItem>?;
+      final unreadFromApi = results[10] as int?;
+      final feedingHistory = results[11] as List<FeedingHistoryDay>?;
+      final boxStatusHistory = results[12] as List<BoxStatusHistoryDay>?;
 
       final operatorName =
           userInfo?['fullName']?.toString() ??
@@ -123,7 +129,10 @@ class HomeRepositoryImpl implements HomeRepository {
         aiRecommendation: aiRecommendation ?? AiRecommendation.empty,
         topAlerts: alertsList,
         waterMetrics: waterMetrics ?? const [],
-        todayTasks: todayTasks ?? const [],
+          todayTasks: [...?todayTasks, ...scheduledTasks],
+        feedingHistory: feedingHistory ?? const [],
+        boxStatusHistory: boxStatusHistory ?? const [],
+        boxStatusCounts: boxInfo ?? const {},
         deviceSummary:
             deviceSummary ??
             const DeviceSummary(
@@ -178,41 +187,6 @@ class HomeRepositoryImpl implements HomeRepository {
     await Future.delayed(const Duration(milliseconds: 50));
   }
 
-  @override
-  Future<List<CrabStatusHistoryDay>> getDailyCrabStatusHistory({
-    int days = 7,
-    String? farmingAreaId,
-  }) async {
-    final query = <String, dynamic>{'days': days};
-    if (farmingAreaId != null && farmingAreaId.isNotEmpty) {
-      query['farmingAreaId'] = farmingAreaId;
-    }
-    final res = await _api.get(
-      ApiConstants.dailyCrabStatusHistory,
-      queryParameters: query,
-    );
-    if (res.statusCode != 200 || res.data == null) return const [];
-    final list = _extractList(res.data);
-    if (list == null) return const [];
-    return list
-        .map((item) {
-          final map = _asStringKeyedMap(item);
-          if (map == null) return null;
-          return CrabStatusHistoryDay(
-            date:
-                DateTime.tryParse(map['date']?.toString() ?? '') ??
-                DateTime.now(),
-            normal: (map['normal'] as num?)?.toInt() ?? 0,
-            watch: (map['watch'] as num?)?.toInt() ?? 0,
-            molting: (map['molting'] as num?)?.toInt() ?? 0,
-            alert: (map['alert'] as num?)?.toInt() ?? 0,
-            empty: (map['empty'] as num?)?.toInt() ?? 0,
-          );
-        })
-        .whereType<CrabStatusHistoryDay>()
-        .toList();
-  }
-
   FarmOption? _resolveSelectedFarm(
     List<FarmOption> farms,
     String? preferredId,
@@ -220,10 +194,16 @@ class HomeRepositoryImpl implements HomeRepository {
     if (farms.isEmpty) return null;
     if (preferredId != null && preferredId.isNotEmpty) {
       for (final farm in farms) {
-        if (farm.id == preferredId) return farm;
+        if (farm.id == preferredId &&
+            (farm.boxCount > 0 || farms.every((item) => item.boxCount == 0))) {
+          return farm;
+        }
       }
     }
-    return farms.first;
+    return farms.firstWhere(
+      (farm) => farm.boxCount > 0,
+      orElse: () => farms.first,
+    );
   }
 
   Map<String, dynamic>? _asStringKeyedMap(dynamic value) {
@@ -253,7 +233,8 @@ class HomeRepositoryImpl implements HomeRepository {
       final id = map['id']?.toString().trim() ?? '';
       final name = map['name']?.toString().trim() ?? '';
       if (id.isEmpty || name.isEmpty) continue;
-      farms.add(FarmOption(id: id, name: name));
+      final boxCount = (map['boxCount'] as num?)?.toInt() ?? 0;
+      farms.add(FarmOption(id: id, name: name, boxCount: boxCount));
     }
     return farms;
   }
@@ -310,15 +291,43 @@ class HomeRepositoryImpl implements HomeRepository {
         if (raw != null) {
           final items = raw['items'] is List ? raw['items'] as List : [];
           final total = raw['totalCount'] as int? ?? items.length;
-          final active = items.where((b) {
-            final map = _asStringKeyedMap(b);
-            if (map != null) {
-              final st = map['status']?.toString().toLowerCase() ?? '';
-              return st != 'empty' && st != 'available';
-            }
-            return true;
-          }).length;
-          return {'total': total, 'active': active};
+          final counts = <String, int>{
+            'normal': 0,
+            'watch': 0,
+            'molting': 0,
+            'alert': 0,
+            'empty': 0,
+          };
+          for (final item in items) {
+            final map = _asStringKeyedMap(item);
+            if (map == null) continue;
+            final st = [
+              map['status'],
+              map['condition'],
+              map['crabCondition'],
+            ].whereType<Object>().join(' ').toLowerCase();
+            final key = st.contains('empty') || st.contains('available')
+                ? 'empty'
+                : st.contains('molt') || st.contains('soft')
+                ? 'molting'
+                : st.contains('alert') ||
+                      st.contains('problem') ||
+                      st.contains('dead') ||
+                      st.contains('escape') ||
+                      st.contains('harvest')
+                ? 'alert'
+                : st.contains('watch') ||
+                      st.contains('premolt') ||
+                      st.contains('pre-molt') ||
+                      st.contains('weak')
+                ? 'watch'
+                : 'normal';
+            counts[key] = counts[key]! + 1;
+          }
+          final active =
+              counts.values.fold<int>(0, (sum, value) => sum + value) -
+              counts['empty']!;
+          return {'total': total, 'active': active, ...counts};
         }
         if (res.data is List) {
           final list = res.data as List;
@@ -677,6 +686,90 @@ class HomeRepositoryImpl implements HomeRepository {
           );
         })
         .whereType<TodayTaskItem>()
+        .toList();
+  }
+
+  Future<List<TodayTaskItem>?> _fetchScheduledTasksToday(
+    String? farmingAreaId,
+  ) async {
+    final res = await _api.get(
+      ApiConstants.scheduledTasks,
+      queryParameters: _areaQuery(farmingAreaId),
+    );
+    if (res.statusCode != 200 || res.data == null) return null;
+    final list = _extractList(res.data);
+    if (list == null) return const [];
+    final today = DateTime.now();
+    return list
+        .map((item) {
+          final map = _asStringKeyedMap(item);
+          if (map == null || map['isEnabled'] != true) return null;
+          final nextRun =
+              DateTime.tryParse('${map['nextRunAt']}') ?? today;
+          return TodayTaskItem(
+            id: 'scheduled-${map['id']}',
+            title: map['title']?.toString() ?? 'Công việc theo lịch',
+            target: map['description']?.toString() ?? 'Theo kế hoạch',
+            deadline: nextRun,
+            priority: ActionPriority.medium,
+            isCompleted: false,
+          );
+        })
+        .whereType<TodayTaskItem>()
+        .toList();
+  }
+
+  Future<List<FeedingHistoryDay>?> _fetchFeedingHistory() async {
+    final res = await _api.get(
+      ApiConstants.operationsFeedingHistory,
+      queryParameters: const {'days': 7},
+    );
+    if (res.statusCode != 200 || res.data == null) return null;
+    final list = _extractList(res.data);
+    if (list == null) return const [];
+    return list
+        .map((item) {
+          final map = _asStringKeyedMap(item);
+          if (map == null) return null;
+          final date = DateTime.tryParse(map['date']?.toString() ?? '');
+          if (date == null) return null;
+          int number(String key) => (map[key] as num?)?.toInt() ?? 0;
+          return FeedingHistoryDay(
+            date: date,
+            many: number('many'),
+            little: number('little'),
+            none: number('none'),
+          );
+        })
+        .whereType<FeedingHistoryDay>()
+        .toList();
+  }
+
+  Future<List<BoxStatusHistoryDay>?> _fetchBoxStatusHistory() async {
+    final res = await _api.get(
+      ApiConstants.boxStatusHistoryDaily,
+      queryParameters: const {'days': 7},
+    );
+    if (res.statusCode != 200 || res.data == null) return null;
+    final list = _extractList(res.data);
+    if (list == null) return const [];
+    return list
+        .map((item) {
+          final map = _asStringKeyedMap(item);
+          if (map == null) return null;
+          final date = DateTime.tryParse(map['date']?.toString() ?? '');
+          if (date == null) return null;
+          int number(String key) => (map[key] as num?)?.toInt() ?? 0;
+          return BoxStatusHistoryDay(
+            date: date,
+            normal: number('normal'),
+            watch: number('watch'),
+            molting: number('molting'),
+            alert: number('alert'),
+            empty: number('empty'),
+          );
+        })
+        .whereType<BoxStatusHistoryDay>()
         .toList();
   }
 

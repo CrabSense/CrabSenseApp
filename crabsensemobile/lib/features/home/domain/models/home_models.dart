@@ -1,23 +1,5 @@
 import 'package:flutter/material.dart';
 
-class CrabStatusHistoryDay {
-  final DateTime date;
-  final int normal;
-  final int watch;
-  final int molting;
-  final int alert;
-  final int empty;
-
-  const CrabStatusHistoryDay({
-    required this.date,
-    required this.normal,
-    required this.watch,
-    required this.molting,
-    required this.alert,
-    required this.empty,
-  });
-}
-
 /// Trạng thái tổng quan trang trại (Farm Overview Hero)
 class FarmSummary {
   final int totalBoxes;
@@ -208,6 +190,38 @@ class TodayTaskItem {
   });
 }
 
+class FeedingHistoryDay {
+  final DateTime date;
+  final int many;
+  final int little;
+  final int none;
+
+  const FeedingHistoryDay({
+    required this.date,
+    required this.many,
+    required this.little,
+    required this.none,
+  });
+}
+
+class BoxStatusHistoryDay {
+  final DateTime date;
+  final int normal;
+  final int watch;
+  final int molting;
+  final int alert;
+  final int empty;
+
+  const BoxStatusHistoryDay({
+    required this.date,
+    required this.normal,
+    required this.watch,
+    required this.molting,
+    required this.alert,
+    required this.empty,
+  });
+}
+
 /// Trạng thái thiết bị (Device Status Section D)
 class DeviceSummary {
   final int esp32Online;
@@ -261,8 +275,9 @@ class RecentActivityItem {
 class FarmOption {
   final String id;
   final String name;
+  final int boxCount;
 
-  const FarmOption({required this.id, required this.name});
+  const FarmOption({required this.id, required this.name, this.boxCount = 0});
 }
 
 /// Tổng hợp dữ liệu hiển thị toàn màn hình Home (Command Center State Data)
@@ -279,8 +294,11 @@ class HomeStateData {
   final List<AlertSummaryItem> topAlerts;
   final List<WaterMetricItem> waterMetrics;
   final List<TodayTaskItem> todayTasks;
+  final List<FeedingHistoryDay> feedingHistory;
+  final List<BoxStatusHistoryDay> boxStatusHistory;
   final DeviceSummary deviceSummary;
   final List<RecentActivityItem> recentActivities;
+  final Map<String, int> boxStatusCounts;
   final bool isOfflineCached;
   final DateTime? lastSyncedAt;
 
@@ -297,8 +315,11 @@ class HomeStateData {
     required this.topAlerts,
     required this.waterMetrics,
     required this.todayTasks,
+    this.feedingHistory = const [],
+    this.boxStatusHistory = const [],
     required this.deviceSummary,
     required this.recentActivities,
+    this.boxStatusCounts = const {},
     this.isOfflineCached = false,
     this.lastSyncedAt,
   });

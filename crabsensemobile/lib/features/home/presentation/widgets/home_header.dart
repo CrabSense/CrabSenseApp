@@ -8,19 +8,19 @@ import '../../../notifications/presentation/providers/unread_notifications_provi
 import '../../domain/models/home_models.dart';
 
 // Light theme palette — xanh lá tuoi, n?n tr?ng/xám nh?t
-const Color _kPrimary    = Color(0xFF6DC22E);
-const Color _kPrimaryDk  = Color(0xFF0A3323);
-const Color _kPrimaryBg  = Color(0xFFC8E86A);
-const Color _kSecondary  = Color(0xFF4F7A62);
-const Color _kBorder     = Color(0xFFD5E0D0);
-const Color _kSurface    = Color(0xFFFFFFFF);
-const Color _kBg         = Color(0xFFF3F6EC);
-const Color _kShadow     = Color(0x14000000);
-const Color _kBlue       = Color(0xFF4F7A62);
-const Color _kBlueLight  = Color(0xFF3D8B6E);
-const Color _kNavyDeep   = Color(0xFF0A3323);
-const Color _kNavy       = Color(0xFF0A3323);
-const Color _kNavyLift   = Color(0xFF6DC22E);
+const Color _kPrimary = Color(0xFF6DC22E);
+const Color _kPrimaryDk = Color(0xFF0A3323);
+const Color _kPrimaryBg = Color(0xFFC8E86A);
+const Color _kSecondary = Color(0xFF4F7A62);
+const Color _kBorder = Color(0xFFD5E0D0);
+const Color _kSurface = Color(0xFFFFFFFF);
+const Color _kBg = Color(0xFFF3F6EC);
+const Color _kShadow = Color(0x14000000);
+const Color _kBlue = Color(0xFF4F7A62);
+const Color _kBlueLight = Color(0xFF3D8B6E);
+const Color _kNavyDeep = Color(0xFF0A3323);
+const Color _kNavy = Color(0xFF0A3323);
+const Color _kNavyLift = Color(0xFF6DC22E);
 const Color _kBorderBlue = Color(0xFFD5E0D0);
 
 class HomeHeader extends ConsumerWidget {
@@ -72,11 +72,8 @@ class HomeHeader extends ConsumerWidget {
         return Container(
           decoration: BoxDecoration(
             color: _kSurface,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border.all(
-              color: _kBorder,
-            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: _kBorder),
             boxShadow: [
               BoxShadow(
                 color: _kShadow,
@@ -164,8 +161,8 @@ class HomeHeader extends ConsumerWidget {
                             children: data.availableFarms.map((farm) {
                               final isSelected =
                                   farm.id == data.selectedFarmId ||
-                                      (data.selectedFarmId == null &&
-                                          farm.name == data.selectedFarmName);
+                                  (data.selectedFarmId == null &&
+                                      farm.name == data.selectedFarmName);
                               return _FarmOptionTile(
                                 name: farm.name,
                                 isSelected: isSelected,
@@ -194,173 +191,208 @@ class HomeHeader extends ConsumerWidget {
     final apiUnread = ref.watch(unreadNotificationsCountProvider).valueOrNull;
     final unread = apiUnread ?? data.unreadNotificationsCount;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildTopRow(context, unreadCount: unread),
-        const SizedBox(height: 14),
-        // Farm selector — neon left-edge + wireframe (matches design ref)
-        _FarmSelectorBar(
-          farmName: data.selectedFarmName,
-          onTap: () => _showFarmSelector(context),
+    return SizedBox(
+      height: 270,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              _headerAsset(),
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+            ),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xF8FFFFFF),
+                    Color(0xE8FFFFFF),
+                    Color(0x30FFFFFF),
+                  ],
+                  stops: [0, .46, 1],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildTopRow(context, unreadCount: unread),
+                  const Spacer(),
+                  _FarmSelectorBar(
+                    farmName: data.selectedFarmName,
+                    onTap: () => _showFarmSelector(context),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
+  }
+
+  String _headerAsset() {
+    final hour = DateTime.now().hour;
+    if (hour >= 17 || hour < 5) return 'assets/images/home_night.png';
+    if (hour >= 12) return 'assets/images/home_afternoon.png';
+    return 'assets/images/home_morning.png';
   }
 
   Widget _buildTopRow(BuildContext context, {required int unreadCount}) {
     final greeting = _getGreeting();
     final isOnline = data.isOnline && !data.isOfflineCached;
-    final onlineColor =
-        isOnline ? CrabSenseColors.success : CrabSenseColors.warning;
+    final onlineColor = isOnline
+        ? CrabSenseColors.success
+        : CrabSenseColors.warning;
 
     return Row(
+      children: [
+        // Avatar with cyan glow ring + online dot
+        Stack(
+          clipBehavior: Clip.none,
           children: [
-            // Avatar with cyan glow ring + online dot
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: _kPrimary,
-                      width: 2.2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _kPrimary.withValues(alpha: 0.25),
-                        blurRadius: 10,
-                        spreadRadius: 1,
-                      ),
-                    ],
-                  ),
-                  child: CircleAvatar(
-                    backgroundColor: _kPrimaryBg,
-                    child: Text(
-                      _initials(
-                        data.operatorName.isNotEmpty
-                            ? data.operatorName
-                            : 'CS',
-                      ),
-                      style: TextStyle(
-                        color: _kPrimaryDk,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: onlineColor,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: CrabSenseColors.background,
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: onlineColor.withValues(alpha: 0.7),
-                          blurRadius: 6,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    greeting,
-                    style: const TextStyle(
-                      color: CrabSenseColors.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          data.operatorName.isNotEmpty
-                              ? data.operatorName
-                              : 'Chủ trại',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: CrabSenseColors.textPrimary,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: onlineColor.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: onlineColor.withValues(alpha: 0.55),
-                          ),
-                        ),
-                        child: Text(
-                          isOnline ? 'Online' : 'Offline',
-                          style: TextStyle(
-                            color: onlineColor,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ],
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: _kPrimary, width: 2.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: _kPrimary.withValues(alpha: 0.25),
+                    blurRadius: 10,
+                    spreadRadius: 1,
                   ),
                 ],
               ),
+              child: CircleAvatar(
+                backgroundColor: _kPrimaryBg,
+                child: Text(
+                  _initials(
+                    data.operatorName.isNotEmpty ? data.operatorName : 'CS',
+                  ),
+                  style: TextStyle(
+                    color: _kPrimaryDk,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
             ),
-            _HeaderActionButton(
-              icon: Icons.search_rounded,
-              onPressed: onSearchPressed ??
-                  () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Tìm kiếm sẽ sớm có mặt'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      ),
-            ),
-            const SizedBox(width: 8),
-            _HeaderActionButton(
-              icon: Icons.notifications_outlined,
-              badge: unreadCount > 0
-                  ? '${unreadCount > 99 ? '99+' : unreadCount}'
-                  : null,
-              onPressed: onNotificationPressed,
-            ),
-            const SizedBox(width: 8),
-            _HeaderActionButton(
-              icon: Icons.menu_rounded,
-              onPressed: onMenuPressed ??
-                  () => context.push(RoutePaths.profile),
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Container(
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: onlineColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: CrabSenseColors.background,
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: onlineColor.withValues(alpha: 0.7),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
-        );
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                greeting,
+                style: const TextStyle(
+                  color: CrabSenseColors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      data.operatorName.isNotEmpty
+                          ? data.operatorName
+                          : 'Chủ trại',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: CrabSenseColors.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: onlineColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: onlineColor.withValues(alpha: 0.55),
+                      ),
+                    ),
+                    child: Text(
+                      isOnline ? 'Online' : 'Offline',
+                      style: TextStyle(
+                        color: onlineColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        _HeaderActionButton(
+          icon: Icons.search_rounded,
+          onPressed:
+              onSearchPressed ??
+              () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Tìm kiếm sẽ sớm có mặt'),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              ),
+        ),
+        const SizedBox(width: 8),
+        _HeaderActionButton(
+          icon: Icons.notifications_outlined,
+          badge: unreadCount > 0
+              ? '${unreadCount > 99 ? '99+' : unreadCount}'
+              : null,
+          onPressed: onNotificationPressed,
+        ),
+        const SizedBox(width: 8),
+        _HeaderActionButton(
+          icon: Icons.menu_rounded,
+          onPressed: onMenuPressed ?? () => context.push(RoutePaths.profile),
+        ),
+      ],
+    );
   }
 }
 
@@ -387,19 +419,12 @@ class _FarmOptionTile extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
           child: Ink(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 12,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: isSelected
-                  ? _kPrimary.withValues(alpha: 0.10)
-                  : _kBg,
+              color: isSelected ? _kPrimary.withValues(alpha: 0.10) : _kBg,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isSelected
-                    ? _kPrimary.withValues(alpha: 0.8)
-                    : _kBorder,
+                color: isSelected ? _kPrimary.withValues(alpha: 0.8) : _kBorder,
                 width: isSelected ? 1.4 : 1,
               ),
               boxShadow: isSelected
@@ -444,8 +469,9 @@ class _FarmOptionTile extends StatelessWidget {
                           color: isSelected
                               ? _kPrimaryDk
                               : CrabSenseColors.textPrimary,
-                          fontWeight:
-                              isSelected ? FontWeight.w800 : FontWeight.w600,
+                          fontWeight: isSelected
+                              ? FontWeight.w800
+                              : FontWeight.w600,
                           fontSize: 14,
                         ),
                         maxLines: 1,
@@ -466,11 +492,7 @@ class _FarmOptionTile extends StatelessWidget {
                   ),
                 ),
                 if (isSelected)
-                  Icon(
-                    Icons.check_circle_rounded,
-                    color: _kPrimary,
-                    size: 22,
-                  )
+                  Icon(Icons.check_circle_rounded, color: _kPrimary, size: 22)
                 else
                   Icon(
                     Icons.chevron_right_rounded,
@@ -505,9 +527,7 @@ class _SheetCloseButton extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: _kBg,
-            border: Border.all(
-              color: _kBorder,
-            ),
+            border: Border.all(color: _kBorder),
           ),
           child: const Icon(
             Icons.close_rounded,
@@ -523,10 +543,7 @@ class _SheetCloseButton extends StatelessWidget {
 /// Pill ch?n tr?i theo ?nh: n?n navy gradient, vi?n xanh duong sáng nh?,
 /// pin d?nh v? xanh phát sáng + watermark cua m? bên ph?i.
 class _FarmSelectorBar extends StatelessWidget {
-  const _FarmSelectorBar({
-    required this.farmName,
-    required this.onTap,
-  });
+  const _FarmSelectorBar({required this.farmName, required this.onTap});
 
   final String farmName;
   final VoidCallback onTap;
@@ -548,9 +565,7 @@ class _FarmSelectorBar extends StatelessWidget {
               colors: [Color(0xFF2ECC71), Color(0xFF27AE60)],
             ),
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: Color(0xFF27AE60),
-            ),
+            border: Border.all(color: Color(0xFF27AE60)),
             boxShadow: [
               BoxShadow(
                 color: Color(0x282ECC71),
@@ -579,7 +594,11 @@ class _FarmSelectorBar extends StatelessWidget {
                         child: Text(
                           farmName,
                           style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15, letterSpacing: 0.1, height: 1.0,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                            letterSpacing: 0.1,
+                            height: 1.0,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -626,14 +645,9 @@ class _HeaderActionButton extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Colors.white,
-            border: Border.all(
-              color: const Color(0xFFDDE4EB),
-            ),
+            border: Border.all(color: const Color(0xFFDDE4EB)),
             boxShadow: [
-              BoxShadow(
-                color: const Color(0x142ECC71),
-                blurRadius: 10,
-              ),
+              BoxShadow(color: const Color(0x142ECC71), blurRadius: 10),
             ],
           ),
           child: Stack(
@@ -665,7 +679,10 @@ class _HeaderActionButton extends StatelessWidget {
                       badge!,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                        color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800, height: 1.35,
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        height: 1.35,
                       ),
                     ),
                   ),

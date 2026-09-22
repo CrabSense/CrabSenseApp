@@ -92,6 +92,8 @@ class BoxList extends StatelessWidget {
         return false;
       },
       child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
         itemCount: boxes.length + (isLoadingMore ? 2 : 0),
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (context, index) {

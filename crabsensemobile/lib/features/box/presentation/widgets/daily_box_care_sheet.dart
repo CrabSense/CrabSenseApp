@@ -3,8 +3,10 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../app/routes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -287,40 +289,45 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
       if (extraNotes.isNotEmpty) 'Ghi chú: $extraNotes',
     ].join('\n');
 
-    await _api.post<dynamic>('/operations', data: {
-      'type': 'inspection',
-      'boxIds': [widget.boxId],
-      'notes': notes,
-    });
+    await _api.post<dynamic>(
+      '/operations',
+      data: {
+        'type': 'inspection',
+        'boxIds': [widget.boxId],
+        'notes': notes,
+      },
+    );
 
     final crabId = widget.crab.id;
     if (crabId.isEmpty) return;
 
     if (_endCase == 'dead') {
       try {
-        await _api.post<dynamic>('/mortality', data: {
-          'crabId': crabId,
-          'cause': 'Unknown',
-          'notes': notes,
-        });
+        await _api.post<dynamic>(
+          '/mortality',
+          data: {'crabId': crabId, 'cause': 'Unknown', 'notes': notes},
+        );
       } catch (_) {}
     }
 
     if (_endCase == 'harvested') {
       try {
-        await _api.post<dynamic>('/harvest-vouchers', data: {
-          'harvestDate': DateTime.now().toUtc().toIso8601String(),
-          'notes': notes,
-          'lines': [
-            {
-              'crabId': crabId,
-              'weightGram': widget.crab.weight,
-              'grade': 'A',
-              'isSoftshell': false,
-              'notes': tag,
-            }
-          ],
-        });
+        await _api.post<dynamic>(
+          '/harvest-vouchers',
+          data: {
+            'harvestDate': DateTime.now().toUtc().toIso8601String(),
+            'notes': notes,
+            'lines': [
+              {
+                'crabId': crabId,
+                'weightGram': widget.crab.weight,
+                'grade': 'A',
+                'isSoftshell': false,
+                'notes': tag,
+              },
+            ],
+          },
+        );
       } catch (_) {}
     }
 
@@ -359,27 +366,32 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
       if (grams.isNotEmpty) 'Lượng: ${grams}g',
       'Hoạt động: ${_activityLabel(_activity)}',
       if (videoUrl != null && videoUrl.isNotEmpty) 'Video: $videoUrl',
-      if (_videoConfirmed && _video != null && (videoUrl == null || videoUrl.isEmpty))
+      if (_videoConfirmed &&
+          _video != null &&
+          (videoUrl == null || videoUrl.isEmpty))
         'Video: đã xác nhận (${_video!.name}) — chờ Drive',
       if (extraNotes.isNotEmpty) 'Ghi chú: $extraNotes',
     ].join('\n');
 
     final qty = double.tryParse(grams);
     final crabId = widget.crab.id;
-    await _api.post<dynamic>('/operations', data: {
-      'type': qty != null ? 'feeding' : 'inspection',
-      'boxIds': [widget.boxId],
-      // Dữ liệu có cấu trúc để xem lại lịch sử ăn theo từng con cua.
-      if (crabId.isNotEmpty) 'crabIds': [crabId],
-      'appetite': _eat,
-      // BE cập nhật luôn tình trạng con cua + ghi lịch sử.
-      'condition': _condition,
-      if (feedType.isNotEmpty) 'foodType': feedType,
-      'notes': notes,
-      if (qty != null) 'quantity': qty,
-      if (qty != null) 'unit': 'g',
-      if (videoUrl != null && videoUrl.isNotEmpty) 'photoUrls': [videoUrl],
-    });
+    await _api.post<dynamic>(
+      '/operations',
+      data: {
+        'type': qty != null ? 'feeding' : 'inspection',
+        'boxIds': [widget.boxId],
+        // Dữ liệu có cấu trúc để xem lại lịch sử ăn theo từng con cua.
+        if (crabId.isNotEmpty) 'crabIds': [crabId],
+        'appetite': _eat,
+        // BE cập nhật luôn tình trạng con cua + ghi lịch sử.
+        'condition': _condition,
+        if (feedType.isNotEmpty) 'foodType': feedType,
+        'notes': notes,
+        if (qty != null) 'quantity': qty,
+        if (qty != null) 'unit': 'g',
+        if (videoUrl != null && videoUrl.isNotEmpty) 'photoUrls': [videoUrl],
+      },
+    );
   }
 
   @override
@@ -394,7 +406,11 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: CrabSenseColors.primaryLight),
           boxShadow: const [
-            BoxShadow(color: Color(0x14000000), blurRadius: 10, offset: Offset(0, 3)),
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 10,
+              offset: Offset(0, 3),
+            ),
           ],
         ),
         clipBehavior: Clip.antiAlias,
@@ -502,7 +518,6 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
             '': 'Đang nuôi',
             'dead': 'Cua chết',
             'escaped': 'Cua xổng',
-            'harvested': 'Thu hoạch',
           },
           onChanged: (v) => setState(() => _endCase = v.isEmpty ? null : v),
         ),
@@ -535,15 +550,26 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
           _section('Đánh dấu tình trạng'),
           _pillsWrap(
             value: _condition,
-            // Đúng 4 mức sống được, nhãn lấy thẳng từ [BoxStatus] nên nông dân
-            // chọn chữ nào thì huy hiệu hiện đúng chữ đó.
-            options: {
-              for (final c in CrabCondition.selectable)
-                c.apiKey: c.displayStatus.label,
+            options: const {
+              'normal': 'Bình thường',
+              'weak': 'Cần theo dõi',
+              'molting': 'Lột',
             },
             colorOf: (key) => CrabCondition.tryParse(key)?.displayStatus.color,
             onChanged: (v) => setState(() => _condition = v),
           ),
+          if (_condition == 'molting') ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () =>
+                    context.push(RoutePaths.harvestForBox(widget.boxId)),
+                icon: const Icon(Icons.inventory_2_outlined, size: 18),
+                label: const Text('Mở phiếu lột / thu hoạch'),
+              ),
+            ),
+          ],
           const SizedBox(height: 6),
           const Text(
             'Cập nhật luôn tình trạng của con cua',
@@ -608,10 +634,12 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
           child: FilledButton(
             onPressed: (_saving || _uploading) ? null : _save,
             style: FilledButton.styleFrom(
-              backgroundColor:
-                  _isEnding ? kHomeDanger : CrabSenseColors.primary,
-              foregroundColor:
-                  _isEnding ? Colors.white : CrabSenseColors.textOnPrimary,
+              backgroundColor: _isEnding
+                  ? kHomeDanger
+                  : CrabSenseColors.primary,
+              foregroundColor: _isEnding
+                  ? Colors.white
+                  : CrabSenseColors.textOnPrimary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -638,53 +666,53 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
   }
 
   Widget _section(String title) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Text(
-          title,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-            color: kHomePrimaryDark,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Text(
+      title,
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w800,
+        color: kHomePrimaryDark,
+      ),
+    ),
+  );
 
   Widget _field(
     TextEditingController controller,
     String hint, {
     int lines = 1,
-  }) =>
-      TextField(
-        controller: controller,
-        maxLines: lines,
-        keyboardType: hint.toLowerCase().contains('gam')
-            ? const TextInputType.numberWithOptions(decimal: true)
-            : TextInputType.text,
-        inputFormatters: hint.toLowerCase().contains('gam')
-            ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))]
-            : null,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: kHomeTextSub, fontSize: 13),
-          filled: true,
-          fillColor: kHomeBg,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: kHomeBorder),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: kHomeBorder),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide:
-                const BorderSide(color: CrabSenseColors.primary, width: 1.5),
-          ),
+  }) => TextField(
+    controller: controller,
+    maxLines: lines,
+    keyboardType: hint.toLowerCase().contains('gam')
+        ? const TextInputType.numberWithOptions(decimal: true)
+        : TextInputType.text,
+    inputFormatters: hint.toLowerCase().contains('gam')
+        ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))]
+        : null,
+    decoration: InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: kHomeTextSub, fontSize: 13),
+      filled: true,
+      fillColor: kHomeBg,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: kHomeBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: kHomeBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(
+          color: CrabSenseColors.primary,
+          width: 1.5,
         ),
-      );
+      ),
+    ),
+  );
 
   Widget _pills({
     required String value,
@@ -751,56 +779,59 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
           InkWell(
             onTap: () => onChanged(e.key),
             borderRadius: BorderRadius.circular(12),
-            child: Builder(builder: (context) {
-              final selected = value == e.key;
-              final accent =
-                  colorOf?.call(e.key) ?? CrabSenseColors.primary;
-              return Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: selected ? accent : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: selected ? accent : kHomeBorder,
-                    width: selected ? 1.5 : 1,
+            child: Builder(
+              builder: (context) {
+                final selected = value == e.key;
+                final accent = colorOf?.call(e.key) ?? CrabSenseColors.primary;
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
                   ),
-                ),
-                child: Text(
-                  e.value,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    // Chữ đậm trên nền lime, nhưng phải là chữ trắng khi nền là
-                    // màu trạng thái đậm (xanh lá / tím / đỏ).
-                    color: !selected
-                        ? kHomeTextMain
-                        : (colorOf == null
-                            ? CrabSenseColors.textOnPrimary
-                            : Colors.white),
+                  decoration: BoxDecoration(
+                    color: selected ? accent : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: selected ? accent : kHomeBorder,
+                      width: selected ? 1.5 : 1,
+                    ),
                   ),
-                ),
-              );
-            }),
+                  child: Text(
+                    e.value,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      // Chữ đậm trên nền lime, nhưng phải là chữ trắng khi nền là
+                      // màu trạng thái đậm (xanh lá / tím / đỏ).
+                      color: !selected
+                          ? kHomeTextMain
+                          : (colorOf == null
+                                ? CrabSenseColors.textOnPrimary
+                                : Colors.white),
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
       ],
     );
   }
 
   String _eatLabel(String v) => switch (v) {
-        'little' => 'ít',
-        'none' => 'không ăn',
-        _ => 'ăn nhiều',
-      };
+    'little' => 'ít',
+    'none' => 'không ăn',
+    _ => 'ăn nhiều',
+  };
 
   String _conditionLabel(String v) =>
       CrabCondition.tryParse(v)?.displayStatus.label.toLowerCase() ??
       'bình thường';
 
   String _activityLabel(String v) => switch (v) {
-        'still' => 'không di chuyển',
-        'no_response' => 'không phản ứng khi tiếp xúc',
-        'corner' => 'chui sâu vào góc hộp',
-        _ => 'di chuyển nhiều',
-      };
+    'still' => 'không di chuyển',
+    'no_response' => 'không phản ứng khi tiếp xúc',
+    'corner' => 'chui sâu vào góc hộp',
+    _ => 'di chuyển nhiều',
+  };
 }

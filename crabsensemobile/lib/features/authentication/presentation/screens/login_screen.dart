@@ -12,16 +12,22 @@ import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
 import '../bloc/biometric_cubit.dart';
 import '../bloc/biometric_state.dart';
+import 'login_screen_spec.dart';
+import 'crab_login_screen.dart';
 
-/// Màn đăng nhập — cùng form cũ, phong Neofarm (ảnh ao + kính mờ + lime).
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+/// Login screen using the supplied CrabSense farm artwork and brand assets.
+class LegacyLoginScreen extends StatefulWidget {
+  const LegacyLoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<LegacyLoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class LoginScreen extends CrabLoginScreen {
+  const LoginScreen({super.key});
+}
+
+class _LoginScreenState extends State<LegacyLoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -61,8 +67,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _validateForm() {
-    final valid = _emailController.text.isNotEmpty &&
-        _passwordController.text.isNotEmpty;
+    final valid =
+        _emailController.text.isNotEmpty && _passwordController.text.isNotEmpty;
     if (valid != _isFormValid) {
       setState(() => _isFormValid = valid);
     }
@@ -71,11 +77,11 @@ class _LoginScreenState extends State<LoginScreen> {
   void _handleLogin() {
     if (_formKey.currentState?.validate() ?? false) {
       context.read<AuthBloc>().add(
-            LoginRequested(
-              email: _emailController.text.trim(),
-              password: _passwordController.text,
-            ),
-          );
+        LoginRequested(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        ),
+      );
     }
   }
 
@@ -203,7 +209,12 @@ class _LoginScreenState extends State<LoginScreen> {
             color: Colors.white.withValues(alpha: 0.16),
             border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
           ),
-          child: const AppLogo(size: 72),
+          child: Image.asset(
+            'assets/images/357f2b21-9f88-460e-be46-a9e045539513.png',
+            width: 92,
+            height: 72,
+            fit: BoxFit.contain,
+          ),
         ),
         const SizedBox(height: 16),
         Text(
@@ -219,7 +230,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(height: 6),
         Text(
-          'Giám sát nuôi cua thông minh',
+          'Quản lý nuôi cua thông minh',
           textAlign: TextAlign.center,
           style: GoogleFonts.nunito(
             fontSize: 14,
@@ -239,121 +250,135 @@ class _LoginScreenState extends State<LoginScreen> {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Đăng nhập',
-            style: GoogleFonts.nunito(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-            ),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Nhập tài khoản để vào trung tâm điều hành',
-            style: GoogleFonts.nunito(
-                fontSize: 13, color: Colors.white70),
-          ),
-          const SizedBox(height: 20),
-
-          // Email field
-          TextFormField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            autocorrect: false,
-            validator: _validateEmail,
-            style: GoogleFonts.nunito(
-                fontSize: 15, color: _textPrimary, fontWeight: FontWeight.w600),
-            decoration: _fieldDeco(
-              label: 'Tài khoản / Email',
-              prefixIcon: Icons.person_outline_rounded,
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Password field
-          TextFormField(
-            controller: _passwordController,
-            obscureText: _obscurePassword,
-            textInputAction: TextInputAction.done,
-            validator: _validatePassword,
-            style: GoogleFonts.nunito(
-                fontSize: 15, color: _textPrimary, fontWeight: FontWeight.w600),
-            onFieldSubmitted: (_) {
-              if (_isFormValid) _handleLogin();
-            },
-            decoration: _fieldDeco(
-              label: 'Mật khẩu',
-              prefixIcon: Icons.lock_outline_rounded,
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                  color: _textDisabled,
-                  size: 20,
-                ),
-                onPressed: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Forgot password
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () {},
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 4, vertical: 4),
-                foregroundColor: _primary,
-              ),
-                child: Text(
-                'Quên mật khẩu?',
-                style: GoogleFonts.nunito(
-                    fontSize: 13, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Login button
-          SizedBox(
-            height: 52,
-            child: ElevatedButton(
-              onPressed: _isFormValid ? _handleLogin : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _primary,
-                disabledBackgroundColor: const Color(0xFF4E9A22),
-                disabledForegroundColor: Color(0xFF0A3323).withValues(alpha: 0.55),
-                foregroundColor: _primaryDark,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28)),
-              ),
-              child: Text(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
                 'Đăng nhập',
                 style: GoogleFonts.nunito(
-                    fontSize: 16, fontWeight: FontWeight.w800),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
               ),
-            ),
-          ),
+              const SizedBox(height: 4),
+              Text(
+                'Nhập tài khoản để vào trung tâm điều hành',
+                style: GoogleFonts.nunito(fontSize: 13, color: Colors.white70),
+              ),
+              const SizedBox(height: 20),
 
-          // Biometric button
-          _buildBiometricButton(),
-        ],
-      ),
+              // Email field
+              TextFormField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                autocorrect: false,
+                validator: _validateEmail,
+                style: GoogleFonts.nunito(
+                  fontSize: 15,
+                  color: _textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+                decoration: _fieldDeco(
+                  label: 'Tài khoản / Email',
+                  prefixIcon: Icons.person_outline_rounded,
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Password field
+              TextFormField(
+                controller: _passwordController,
+                obscureText: _obscurePassword,
+                textInputAction: TextInputAction.done,
+                validator: _validatePassword,
+                style: GoogleFonts.nunito(
+                  fontSize: 15,
+                  color: _textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+                onFieldSubmitted: (_) {
+                  if (_isFormValid) _handleLogin();
+                },
+                decoration: _fieldDeco(
+                  label: 'Mật khẩu',
+                  prefixIcon: Icons.lock_outline_rounded,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      color: _textDisabled,
+                      size: 20,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Forgot password
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {},
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 4,
+                    ),
+                    foregroundColor: _primary,
+                  ),
+                  child: Text(
+                    'Quên mật khẩu?',
+                    style: GoogleFonts.nunito(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Login button
+              SizedBox(
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _isFormValid ? _handleLogin : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primary,
+                    disabledBackgroundColor: const Color(0xFF4E9A22),
+                    disabledForegroundColor: Color(
+                      0xFF0A3323,
+                    ).withValues(alpha: 0.55),
+                    foregroundColor: _primaryDark,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                  ),
+                  child: Text(
+                    'Đăng nhập',
+                    style: GoogleFonts.nunito(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Biometric button
+              _buildBiometricButton(),
+            ],
+          ),
         ),
       ),
     );
@@ -367,14 +392,15 @@ class _LoginScreenState extends State<LoginScreen> {
     return InputDecoration(
       hintText: label,
       floatingLabelBehavior: FloatingLabelBehavior.never,
-      hintStyle:
-          GoogleFonts.nunito(fontSize: 14, color: const Color(0xFF5A6B60)),
+      hintStyle: GoogleFonts.nunito(
+        fontSize: 14,
+        color: const Color(0xFF5A6B60),
+      ),
       prefixIcon: Icon(prefixIcon, color: _primaryDark, size: 20),
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: Colors.white.withValues(alpha: 0.94),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide.none,
@@ -395,8 +421,7 @@ class _LoginScreenState extends State<LoginScreen> {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: _error, width: 2),
       ),
-      errorStyle:
-          GoogleFonts.inter(fontSize: 12, color: _error),
+      errorStyle: GoogleFonts.inter(fontSize: 12, color: _error),
     );
   }
 
@@ -414,10 +439,14 @@ class _LoginScreenState extends State<LoginScreen> {
             onPressed: loading ? null : _handleBiometricLogin,
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.white,
-              side: BorderSide(color: Colors.white.withValues(alpha: 0.4), width: 1.5),
+              side: BorderSide(
+                color: Colors.white.withValues(alpha: 0.4),
+                width: 1.5,
+              ),
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
             icon: loading
                 ? const SizedBox(
@@ -432,7 +461,9 @@ class _LoginScreenState extends State<LoginScreen> {
             label: Text(
               'Đăng nhập sinh trắc học',
               style: GoogleFonts.inter(
-                  fontSize: 14, fontWeight: FontWeight.w600),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         );
@@ -445,18 +476,19 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildDivider() {
     return Row(
       children: [
-        const Expanded(
-            child: Divider(color: Color(0x66FFFFFF), thickness: 1)),
+        const Expanded(child: Divider(color: Color(0x66FFFFFF), thickness: 1)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(
             'Hoặc đăng nhập với',
             style: GoogleFonts.nunito(
-                fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w600),
+              fontSize: 13,
+              color: Colors.white70,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
-        const Expanded(
-            child: Divider(color: Color(0x66FFFFFF), thickness: 1)),
+        const Expanded(child: Divider(color: Color(0x66FFFFFF), thickness: 1)),
       ],
     );
   }
@@ -514,7 +546,8 @@ class _LoginScreenState extends State<LoginScreen> {
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(16),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     } else if (state is Authenticated) {
@@ -525,18 +558,16 @@ class _LoginScreenState extends State<LoginScreen> {
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(16),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     }
   }
 
-  void _onBiometricStateChanged(
-      BuildContext context, BiometricState state) {
+  void _onBiometricStateChanged(BuildContext context, BiometricState state) {
     if (state is BiometricAuthenticated) {
-      context
-          .read<AuthBloc>()
-          .add(const BiometricAuthenticationRequested());
+      context.read<AuthBloc>().add(const BiometricAuthenticationRequested());
     } else if (state is BiometricAuthFailed) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -545,7 +576,8 @@ class _LoginScreenState extends State<LoginScreen> {
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(16),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     }
@@ -573,17 +605,17 @@ class _SocialButton extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         backgroundColor: Colors.white.withValues(alpha: 0.14),
         foregroundColor: Colors.white,
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.35), width: 1.2),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)),
+        side: BorderSide(
+          color: Colors.white.withValues(alpha: 0.35),
+          width: 1.2,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       icon: Icon(icon, color: iconColor, size: 22),
       label: Text(
         label,
-        style: GoogleFonts.nunito(
-            fontSize: 14, fontWeight: FontWeight.w700),
+        style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w700),
       ),
     );
   }

@@ -91,6 +91,12 @@ class ApiConstants {
   static const String aiRecommendations = '/ai/recommendations';
   static const String operationsToday = '/operations/today';
   static const String operationsRecent = '/operations/recent';
+  static const String scheduledTasks = '/operations/scheduled-tasks';
+  static const String scheduledTasksToday = '$scheduledTasks/today';
+  static String scheduledTask(String id) => '$scheduledTasks/$id';
+  static String scheduledTaskToggle(String id) => '${scheduledTask(id)}/toggle';
+  static const String operationsFeedingHistory = '/operations/feeding-history';
+  static const String boxStatusHistoryDaily = '/crabs/status-history-daily';
 
   // ===========================================================================
   // Farm, Row & Box Endpoints (Swagger: 01-03)
@@ -148,7 +154,6 @@ class ApiConstants {
   static String crabWeights(String crabId) => '/crabs/$crabId/weights';
   static String crabStatusHistory(String crabId) =>
       '/crabs/$crabId/status-history';
-  static const String dailyCrabStatusHistory = '/crabs/status-history-daily';
   static String crabHarvests(String crabId) => '/crabs/$crabId/harvests';
 
   // ===========================================================================

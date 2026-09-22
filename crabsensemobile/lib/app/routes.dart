@@ -181,6 +181,7 @@ class RoutePaths {
 
   /// `/operations/history` — Operation history timeline.
   static const String operationHistory = '/operations/history';
+  static const String scheduledTasks = '/operations/scheduled-tasks';
 
   /// `/harvest` — Harvest recording.
   static const String harvest = '/harvest';
