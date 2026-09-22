@@ -9,7 +9,7 @@ void main() {
   late ConflictResolverServiceImpl conflictResolver;
 
   setUp(() {
-    logger = Logger(printer: PrettyPrinter(enabled: false));
+    logger = Logger();
     conflictResolver = ConflictResolverServiceImpl(logger: logger);
   });
 
@@ -42,28 +42,29 @@ void main() {
       expect(winner, ConflictWinner.local);
     });
 
-    test('Simultaneous edits (identical or diff <= 1s) -> manual prompt', () {
+    test('equal or slightly newer server timestamp keeps server', () {
       final localTime = DateTime(2026, 7, 22, 10, 0, 0);
-      final serverTime = DateTime(2026, 7, 22, 10, 0, 0); // Identical
+      final serverTime = DateTime(2026, 7, 22, 10, 0, 0);
 
       final winner1 = conflictResolver.evaluateTimestamps(
         localTimestamp: localTime,
         serverTimestamp: serverTime,
       );
-      expect(winner1, ConflictWinner.manualPrompt);
+      expect(winner1, ConflictWinner.server);
 
-      final nearServerTime = DateTime(2026, 7, 22, 10, 0, 0, 500); // 500ms diff
+      final nearServerTime = DateTime(2026, 7, 22, 10, 0, 0, 500);
       final winner2 = conflictResolver.evaluateTimestamps(
         localTimestamp: localTime,
         serverTimestamp: nearServerTime,
       );
-      expect(winner2, ConflictWinner.manualPrompt);
+      expect(winner2, ConflictWinner.server);
     });
   });
 
   group('Conflict Preservation & Registration', () {
-    test('processIncomingEntityChange registers conflict on simultaneous edit', () async {
-      final time = DateTime(2026, 7, 22, 12, 0, 0);
+    test('processIncomingEntityChange keeps newer server without a prompt', () async {
+      final localTime = DateTime(2026, 7, 22, 10, 0, 0);
+      final serverTime = DateTime(2026, 7, 22, 12, 0, 0);
       final localPayload = {'weight': 15.5, 'grade': 'A'};
       final serverPayload = {'weight': 18.0, 'grade': 'A+'};
 
@@ -71,22 +72,14 @@ void main() {
         entityType: SyncEntityType.harvest,
         entityId: 'h-100',
         localVersion: localPayload,
-        localTimestamp: time,
+        localTimestamp: localTime,
         serverVersion: serverPayload,
-        serverTimestamp: time,
+        serverTimestamp: serverTime,
       );
 
-      expect(conflict, isNotNull);
-      expect(conflict!.entityType, SyncEntityType.harvest);
-      expect(conflict.entityId, 'h-100');
-      expect(conflict.hasConflict, isTrue);
-      expect(conflict.status, ConflictStatus.pending);
-      expect(conflict.localVersion, localPayload);
-      expect(conflict.serverVersion, serverPayload);
-
+      expect(conflict, isNull);
       final pendingList = await conflictResolver.getPendingConflicts();
-      expect(pendingList.length, 1);
-      expect(pendingList.first.id, conflict.id);
+      expect(pendingList, isEmpty);
     });
 
     test('processIncomingEntityChange returns null when server or local wins automatically', () async {

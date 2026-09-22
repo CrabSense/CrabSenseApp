@@ -3,12 +3,15 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logger/logger.dart';
 
 import '../../core/network/network_info.dart';
+import '../../features/box/data/datasources/box_local_data_source.dart';
+import '../../features/box/data/models/box_model.dart';
+import '../../features/box/data/models/crab_model.dart';
 import 'conflict_resolver.dart';
-import 'sync_conflict.dart';
 import 'sync_progress.dart';
 import 'sync_queue_item.dart';
 import 'sync_remote_data_source.dart';
 import 'sync_service.dart';
+import 'sync_conflict_store.dart';
 
 /// Key for storing last successful sync timestamp in secure storage.
 const String kLastSyncTimestampKey = 'last_sync_timestamp';
@@ -76,6 +79,8 @@ class BidirectionalSyncManagerImpl implements BidirectionalSyncManager {
     required this.secureStorage,
     required this.logger,
     this.conflictResolver,
+    this.conflictStore,
+    this.localDataSource,
     this.batchSize = 10,
   }) {
     _initLastSyncTime();
@@ -88,6 +93,8 @@ class BidirectionalSyncManagerImpl implements BidirectionalSyncManager {
   final Logger logger;
   @override
   final ConflictResolverService? conflictResolver;
+  final SyncConflictStore? conflictStore;
+  final BoxLocalDataSource? localDataSource;
   final int batchSize;
 
   final StreamController<SyncProgress> _progressController =
@@ -123,12 +130,18 @@ class BidirectionalSyncManagerImpl implements BidirectionalSyncManager {
   @override
   void startAutoSyncListener() {
     stopAutoSyncListener();
-    _connectivitySubscription = networkInfo.onConnectivityChanged.listen((isConnected) async {
-      logger.d('BidirectionalSyncManager: Connectivity changed (connected=$isConnected)');
+    _connectivitySubscription = networkInfo.onConnectivityChanged.listen((
+      isConnected,
+    ) async {
+      logger.d(
+        'BidirectionalSyncManager: Connectivity changed (connected=$isConnected)',
+      );
       if (isConnected) {
         if (_wasOffline || !_isSyncing) {
           _wasOffline = false;
-          logger.i('BidirectionalSyncManager: Network restored, triggering auto-sync');
+          logger.i(
+            'BidirectionalSyncManager: Network restored, triggering auto-sync',
+          );
           await syncNow();
         }
       } else {
@@ -151,7 +164,9 @@ class BidirectionalSyncManagerImpl implements BidirectionalSyncManager {
         return DateTime.tryParse(rawStr);
       }
     } catch (e) {
-      logger.w('BidirectionalSyncManager: Error reading last sync timestamp: $e');
+      logger.w(
+        'BidirectionalSyncManager: Error reading last sync timestamp: $e',
+      );
     }
     return null;
   }
@@ -169,7 +184,9 @@ class BidirectionalSyncManagerImpl implements BidirectionalSyncManager {
   @override
   Future<SyncProgress> syncNow() async {
     if (_isSyncing) {
-      logger.d('BidirectionalSyncManager: Sync already in progress, skipping duplicate call');
+      logger.d(
+        'BidirectionalSyncManager: Sync already in progress, skipping duplicate call',
+      );
       return _currentProgress;
     }
 
@@ -200,7 +217,8 @@ class BidirectionalSyncManagerImpl implements BidirectionalSyncManager {
         SyncProgress.syncing(
           totalItems: totalCount,
           processedItems: processedCount,
-          currentStep: 'Preparing batch upload (${readyItems.length} items queued)',
+          currentStep:
+              'Preparing batch upload (${readyItems.length} items queued)',
           lastSyncTime: lastSyncTime,
         ),
       );
@@ -208,14 +226,17 @@ class BidirectionalSyncManagerImpl implements BidirectionalSyncManager {
       // 2. Batch Upload queued items
       if (readyItems.isNotEmpty) {
         for (var i = 0; i < readyItems.length; i += batchSize) {
-          final end = (i + batchSize < readyItems.length) ? i + batchSize : readyItems.length;
+          final end = (i + batchSize < readyItems.length)
+              ? i + batchSize
+              : readyItems.length;
           final batch = readyItems.sublist(i, end);
 
           _emitProgress(
             SyncProgress.syncing(
               totalItems: totalCount,
               processedItems: processedCount,
-              currentStep: 'Uploading batch (${i + 1}-${end} of ${readyItems.length})...',
+              currentStep:
+                  'Uploading batch (${i + 1}-${end} of ${readyItems.length})...',
               lastSyncTime: lastSyncTime,
             ),
           );
@@ -228,6 +249,18 @@ class BidirectionalSyncManagerImpl implements BidirectionalSyncManager {
           try {
             final result = await remoteDataSource.uploadBatch(batch);
             final failedIds = <String>{};
+            final conflictIds = <String>{};
+            final acceptedIds = <String>{};
+            if (result['acceptedItemIds'] is List) {
+              acceptedIds.addAll(
+                (result['acceptedItemIds'] as List).map((id) => id.toString()),
+              );
+            }
+            if (result['processedItemIds'] is List) {
+              acceptedIds.addAll(
+                (result['processedItemIds'] as List).map((id) => id.toString()),
+              );
+            }
 
             // Process response item failures if specified in API response
             if (result['failedItemIds'] is List) {
@@ -235,10 +268,47 @@ class BidirectionalSyncManagerImpl implements BidirectionalSyncManager {
                 (result['failedItemIds'] as List).map((id) => id.toString()),
               );
             }
+            if (result['conflictItemIds'] is List) {
+              conflictIds.addAll(
+                (result['conflictItemIds'] as List).map((id) => id.toString()),
+              );
+              failedIds.addAll(conflictIds);
+            }
+            if (result['conflicts'] is List && conflictStore != null) {
+              for (final rawConflict in result['conflicts'] as List) {
+                if (rawConflict is! Map) continue;
+                final queueId = rawConflict['queueItemId']?.toString();
+                final item = batch.cast<SyncQueueItem?>().firstWhere(
+                  (candidate) => candidate?.id == queueId,
+                  orElse: () => null,
+                );
+                final serverVersion = rawConflict['serverVersion'];
+                if (item != null && serverVersion is Map) {
+                  await conflictStore!.save(
+                    item: item,
+                    serverVersion: Map<String, dynamic>.from(serverVersion),
+                  );
+                }
+              }
+            }
 
             for (final item in batch) {
-              if (failedIds.contains(item.id)) {
-                await syncService.markFailed(item.id, 'Server returned item error');
+              if (conflictIds.contains(item.id)) {
+                await syncService.markFailed(
+                  item.id,
+                  'Conflict: server version changed; user resolution required',
+                );
+              } else if (failedIds.contains(item.id)) {
+                await syncService.markFailed(
+                  item.id,
+                  'Server returned item error',
+                );
+              } else if (result.containsKey('acceptedItemIds') &&
+                  !acceptedIds.contains(item.id)) {
+                await syncService.markFailed(
+                  item.id,
+                  'Server did not accept sync item',
+                );
               } else {
                 await syncService.markCompleted(item.id);
               }
@@ -255,7 +325,8 @@ class BidirectionalSyncManagerImpl implements BidirectionalSyncManager {
             SyncProgress.syncing(
               totalItems: totalCount,
               processedItems: processedCount,
-              currentStep: 'Batch processed ($processedCount/${readyItems.length})',
+              currentStep:
+                  'Batch processed ($processedCount/${readyItems.length})',
               lastSyncTime: lastSyncTime,
             ),
           );
@@ -273,7 +344,10 @@ class BidirectionalSyncManagerImpl implements BidirectionalSyncManager {
       );
 
       final newSyncTime = DateTime.now();
-      final serverChanges = await remoteDataSource.downloadServerChanges(since: lastSyncTime);
+      final serverChanges = await remoteDataSource.downloadServerChanges(
+        since: lastSyncTime,
+      );
+      await _applyPulledChanges(serverChanges, allPending);
 
       if (conflictResolver != null && serverChanges['changes'] is Map) {
         final changesMap = serverChanges['changes'] as Map<String, dynamic>;
@@ -286,15 +360,20 @@ class BidirectionalSyncManagerImpl implements BidirectionalSyncManager {
             for (final itemData in itemsList) {
               if (itemData is Map<String, dynamic>) {
                 final entityId = itemData['id']?.toString() ?? '';
-                final serverTimestampStr = itemData['updatedAt']?.toString() ??
+                final serverTimestampStr =
+                    itemData['updatedAt']?.toString() ??
                     itemData['createdAt']?.toString() ??
                     newSyncTime.toIso8601String();
-                final serverTimestamp = DateTime.tryParse(serverTimestampStr) ?? newSyncTime;
+                final serverTimestamp =
+                    DateTime.tryParse(serverTimestampStr) ?? newSyncTime;
 
                 // Check local queue item for matching entity
-                final localPending = allPending.where(
-                  (p) => p.entityType == entityType && p.entityId == entityId,
-                ).toList();
+                final localPending = allPending
+                    .where(
+                      (p) =>
+                          p.entityType == entityType && p.entityId == entityId,
+                    )
+                    .toList();
 
                 if (localPending.isNotEmpty) {
                   final localItem = localPending.first;
@@ -329,7 +408,9 @@ class BidirectionalSyncManagerImpl implements BidirectionalSyncManager {
       );
 
       _emitProgress(completedProgress);
-      logger.i('BidirectionalSyncManager: Sync completed successfully at $newSyncTime');
+      logger.i(
+        'BidirectionalSyncManager: Sync completed successfully at $newSyncTime',
+      );
       return completedProgress;
     } on Exception catch (e) {
       logger.e('BidirectionalSyncManager: Sync failed: $e');
@@ -341,6 +422,41 @@ class BidirectionalSyncManagerImpl implements BidirectionalSyncManager {
       return failedProgress;
     } finally {
       _isSyncing = false;
+    }
+  }
+
+  Future<void> _applyPulledChanges(
+    Map<String, dynamic> serverChanges,
+    List<SyncQueueItem> pending,
+  ) async {
+    final store = localDataSource;
+    if (store == null) return;
+
+    final pendingIds = pending.map((item) => item.entityId).toSet();
+    final changes = serverChanges['changes'];
+    if (changes is! Map) return;
+    final changeMap = Map<String, dynamic>.from(changes);
+
+    final boxes = changeMap['box'] ?? changeMap['boxes'];
+    if (boxes is List) {
+      for (final raw in boxes) {
+        if (raw is! Map) continue;
+        final json = Map<String, dynamic>.from(raw);
+        final id = json['id']?.toString() ?? '';
+        if (id.isEmpty || pendingIds.contains(id)) continue;
+        await store.cacheBox(BoxModel.fromJson(json));
+      }
+    }
+
+    final crabs = changeMap['crab'] ?? changeMap['crabs'];
+    if (crabs is List) {
+      for (final raw in crabs) {
+        if (raw is! Map) continue;
+        final json = Map<String, dynamic>.from(raw);
+        final id = json['id']?.toString() ?? '';
+        if (id.isEmpty || pendingIds.contains(id)) continue;
+        await store.cacheCrab(CrabModel.fromJson(json));
+      }
     }
   }
 

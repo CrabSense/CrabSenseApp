@@ -7,22 +7,16 @@ import 'sync_queue_item.dart';
 
 /// Service interface for handling conflict resolution logic.
 ///
-/// Implements Last-Write-Wins (LWW) with timestamp comparison,
-/// prompt triggers for simultaneous edits, and preservation of both versions
-/// with a conflict flag for review.
+/// Last-write-wins by timestamp. The newer `updated_at` is kept.
+/// Equal timestamps keep the server copy already stored.
 ///
 /// Requirements: 13.9
 abstract class ConflictResolverService {
-  /// Evaluates timestamps to determine the resolution winner.
-  ///
-  /// Rules:
-  /// - Server timestamp > local timestamp (difference > threshold) -> [ConflictWinner.server]
-  /// - Local timestamp > server timestamp (difference > threshold) -> [ConflictWinner.local]
-  /// - Difference within threshold or identical -> [ConflictWinner.manualPrompt]
+  /// Newer timestamp wins. Equal times keep [ConflictWinner.server].
   ConflictWinner evaluateTimestamps({
     required DateTime localTimestamp,
     required DateTime serverTimestamp,
-    Duration simultaneousThreshold = const Duration(seconds: 1),
+    Duration simultaneousThreshold = Duration.zero,
   });
 
   /// Processes an incoming entity change against local data.
@@ -85,22 +79,14 @@ class ConflictResolverServiceImpl implements ConflictResolverService {
   ConflictWinner evaluateTimestamps({
     required DateTime localTimestamp,
     required DateTime serverTimestamp,
-    Duration simultaneousThreshold = const Duration(seconds: 1),
+    Duration simultaneousThreshold = Duration.zero,
   }) {
-    final difference = serverTimestamp.difference(localTimestamp).abs();
-
-    if (difference <= simultaneousThreshold) {
-      // Simultaneous edit -> user prompt needed
-      return ConflictWinner.manualPrompt;
-    }
-
-    if (serverTimestamp.isAfter(localTimestamp)) {
-      // Server timestamp > local timestamp -> server wins
-      return ConflictWinner.server;
-    } else {
-      // Local timestamp > server timestamp -> local wins
+    // ponytail: unused; LWW no longer uses a simultaneous prompt window.
+    final _ = simultaneousThreshold;
+    if (localTimestamp.isAfter(serverTimestamp)) {
       return ConflictWinner.local;
     }
+    return ConflictWinner.server;
   }
 
   @override

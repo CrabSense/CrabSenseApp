@@ -21,6 +21,7 @@ import '../features/authentication/presentation/bloc/auth_event.dart';
 import '../features/authentication/presentation/bloc/auth_state.dart';
 import '../features/authentication/presentation/bloc/biometric_cubit.dart';
 import '../features/authentication/presentation/screens/login_screen.dart';
+import '../features/authentication/presentation/screens/crab_splash_screen.dart';
 import '../features/alert/presentation/screens/alerts_screen.dart';
 import '../features/box/domain/usecases/get_box_details_usecase.dart';
 import '../features/box/presentation/bloc/box_bloc.dart';
@@ -68,6 +69,7 @@ import '../features/stock_management/presentation/screens/crab_tracking_screen.d
 import '../features/operation_logs/domain/entities/operation_log.dart';
 import '../features/operation_logs/presentation/screens/operation_history_screen.dart';
 import '../features/operation_logs/presentation/screens/operation_log_screen.dart';
+import '../features/scheduled_tasks/presentation/scheduled_tasks_screen.dart';
 import 'scaffold_with_navbar.dart';
 import 'routes.dart';
 import '../widgets/branded_loading_screen.dart';
@@ -217,7 +219,7 @@ GoRouter createRouter(AuthBloc authBloc) {
       GoRoute(
         path: RoutePaths.splash,
         name: RouteNames.splash,
-        builder: (context, state) => _SplashScreen(authBloc: authBloc),
+        builder: (context, state) => CrabSplashScreen(authBloc: authBloc),
       ),
 
       // ── /login ───────────────────────────────────────────────────────
@@ -285,7 +287,8 @@ GoRouter createRouter(AuthBloc authBloc) {
             path: RoutePaths.sales,
             name: RouteNames.sales,
             builder: (context, state) {
-              final farmId = state.uri.queryParameters['farmingAreaId'] ??
+              final farmId =
+                  state.uri.queryParameters['farmingAreaId'] ??
                   state.uri.queryParameters['farmId'];
               // boxId reserved for future sales-by-box filter; farm context used today.
               return SalesScreen(initialFarmId: farmId);
@@ -369,7 +372,8 @@ GoRouter createRouter(AuthBloc authBloc) {
             name: RouteNames.boxCrabs,
             builder: (context, state) {
               final id = state.pathParameters[RouteParams.boxId] ?? '';
-              final boxCode = state.uri.queryParameters['boxCode'] ??
+              final boxCode =
+                  state.uri.queryParameters['boxCode'] ??
                   (state.extra is String ? state.extra as String? : null);
               return CrabListScreen(boxId: id, boxCode: boxCode);
             },
@@ -498,6 +502,11 @@ GoRouter createRouter(AuthBloc authBloc) {
         name: RouteNames.operationHistory,
         builder: (context, state) => const OperationHistoryScreen(),
       ),
+      GoRoute(
+        path: RoutePaths.scheduledTasks,
+        name: 'scheduledTasks',
+        builder: (context, state) => const ScheduledTasksScreen(),
+      ),
 
       // ── /operations ──────────────────────────────────────────────────
       GoRoute(
@@ -529,7 +538,8 @@ GoRouter createRouter(AuthBloc authBloc) {
           final user = authState is Authenticated ? authState.user : null;
           final extra = state.extra;
           String? initialBoxId = state.uri.queryParameters['boxId'];
-          String? initialFarmId = state.uri.queryParameters['farmId'] ??
+          String? initialFarmId =
+              state.uri.queryParameters['farmId'] ??
               state.uri.queryParameters['farmingAreaId'];
           if (extra is Map<String, dynamic>) {
             initialBoxId ??= extra['boxId'] as String?;
@@ -624,10 +634,29 @@ class _SplashScreenState extends State<_SplashScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => const BrandedLoadingScreen(
-        message: 'Đang khởi động…',
-        subtitle: 'Kiểm tra phiên đăng nhập',
-      );
+  Widget build(BuildContext context) => Scaffold(
+    body: Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset('assets/images/login_splash.png', fit: BoxFit.fill),
+        const Positioned(
+          left: 0,
+          right: 0,
+          bottom: 28,
+          child: Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: Color(0xFF1298EA),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class CrabSenseNavigationObserver extends NavigatorObserver {

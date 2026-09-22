@@ -188,7 +188,12 @@ class WaterQualityRemoteDataSourceImpl implements WaterQualityRemoteDataSource {
       'farmId=$farmId period=${period.name} pondId=$pondId',
     );
 
-    final queryParams = <String, dynamic>{'period': _periodToString(period)};
+    final now = DateTime.now().toUtc();
+    final from = now.subtract(_periodDuration(period));
+    final queryParams = <String, dynamic>{
+      'from': from.toIso8601String(),
+      'to': now.toIso8601String(),
+    };
     if (farmId.isNotEmpty && farmId != 'default') {
       final looksLikeGuid = RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(farmId);
       if (looksLikeGuid) {
@@ -201,17 +206,62 @@ class WaterQualityRemoteDataSourceImpl implements WaterQualityRemoteDataSource {
       queryParams['pondId'] = pondId;
     }
 
-    final result = await _apiClient.safeGet<Map<String, dynamic>>(
-      ApiConstants.waterQualityHistorical,
-      queryParameters: queryParams,
+    // BE does not expose the old /iot/history route. The desktop client
+    // reads each sensor through /iot/sensor-data/{sensorId}; keep mobile on
+    // the same contract instead of inventing a cloud endpoint.
+    final live = await _apiClient.safeGet<Map<String, dynamic>>(
+      ApiConstants.iotLive,
+      queryParameters: queryParams.isEmpty ? null : queryParams,
     );
+    _checkFailure(live.failure, 'water quality sensor list');
 
-    _checkFailure(result.failure, 'historical water quality data');
+    final liveItems = _extractListPayload(live.data.data, 'getHistoricalData');
+    final sensorTypes = <String, String>{};
+    for (final raw in liveItems) {
+      final row = _asStringKeyedMap(raw);
+      final id = (row['sensorId'] ?? row['SensorId'])?.toString();
+      final type = (row['sensorType'] ?? row['SensorType'])?.toString();
+      if (id != null && id.isNotEmpty && type != null && type.isNotEmpty) {
+        sensorTypes[id] = type;
+      }
+    }
 
-    final items = _extractListPayload(result.data.data, 'getHistoricalData');
-    return items
-        .map((e) => WaterQualityModel.fromJson(_asStringKeyedMap(e)))
-        .toList(growable: false);
+    final history = <WaterQualityModel>[];
+    for (final entry in sensorTypes.entries) {
+      final result = await _apiClient.safeGet<Map<String, dynamic>>(
+        ApiConstants.sensorData(entry.key),
+        queryParameters: {
+          'from': from.toIso8601String(),
+          'to': now.toIso8601String(),
+          'page': 1,
+          'pageSize': 2000,
+        },
+      );
+      _checkFailure(result.failure, 'historical data for sensor ${entry.key}');
+      for (final raw in _extractListPayload(
+        result.data.data,
+        'sensor history ${entry.key}',
+      )) {
+        final row = _asStringKeyedMap(raw);
+        final value = (row['value'] ?? row['Value']) as num?;
+        final measuredAt = row['measuredAt'] ?? row['MeasuredAt'];
+        final timestamp = measuredAt == null
+            ? null
+            : DateTime.tryParse(measuredAt.toString());
+        if (value == null || timestamp == null) continue;
+        history.add(_sensorReadingAsWaterQuality(
+          row,
+          entry.key,
+          entry.value,
+          value.toDouble(),
+          timestamp,
+          farmId,
+        ));
+      }
+    }
+
+    history.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    return history;
   }
 
   @override
@@ -304,15 +354,33 @@ class WaterQualityRemoteDataSourceImpl implements WaterQualityRemoteDataSource {
     return [];
   }
 
-  /// Converts [HistoricalPeriod] to the query-param string expected by API.
-  String _periodToString(HistoricalPeriod period) {
-    switch (period) {
-      case HistoricalPeriod.last24Hours:
-        return '24h';
-      case HistoricalPeriod.last7Days:
-        return '7d';
-      case HistoricalPeriod.last30Days:
-        return '30d';
-    }
+  Duration _periodDuration(HistoricalPeriod period) => switch (period) {
+        HistoricalPeriod.last24Hours => const Duration(hours: 24),
+        HistoricalPeriod.last7Days => const Duration(days: 7),
+        HistoricalPeriod.last30Days => const Duration(days: 30),
+      };
+
+  WaterQualityModel _sensorReadingAsWaterQuality(
+    Map<String, dynamic> row,
+    String sensorId,
+    String sensorType,
+    double value,
+    DateTime timestamp,
+    String farmId,
+  ) {
+    final type = sensorType.toLowerCase();
+    return WaterQualityModel(
+      id: (row['id'] ?? row['Id'] ?? '$sensorId-${timestamp.toIso8601String()}')
+          .toString(),
+      sensorId: sensorId,
+      farmId: farmId,
+      temperature: type.contains('temp') ? value : 0,
+      ph: type == 'ph' || type.contains('ph') ? value : 0,
+      dissolvedOxygen:
+          type.contains('do') || type.contains('oxygen') ? value : 0,
+      salinity: type.contains('salin') || type.contains('salt') ? value : 0,
+      timestamp: timestamp,
+      isAlertTriggered: false,
+    );
   }
 }

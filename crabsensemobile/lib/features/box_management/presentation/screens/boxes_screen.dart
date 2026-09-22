@@ -10,16 +10,17 @@ import '../../../authentication/domain/entities/user.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
-import '../../../notifications/presentation/providers/unread_notifications_provider.dart';
 import '../../domain/models/boxes_models.dart';
 import '../providers/boxes_provider.dart';
-import '../widgets/box_quick_sheets.dart';
 import '../widgets/boxes_skeleton.dart';
 import '../widgets/box_qr_sheet.dart';
+import '../widgets/boxes_filter_sheet.dart';
+import '../widgets/boxes_header.dart';
+import '../widgets/box_grid.dart';
 import '../widgets/farm_structure_manage_sheet.dart';
 
 /// Số cột của lưới hộp — dùng chung cho cả lưới và hàm sắp thứ tự đánh số.
-const int _boxGridColumns = 4;
+const int _boxGridColumns = 5;
 
 /// Boxes tab — Farm map view, light theme.
 class BoxesScreen extends ConsumerStatefulWidget {
@@ -32,6 +33,7 @@ class BoxesScreen extends ConsumerStatefulWidget {
 class _BoxesScreenState extends ConsumerState<BoxesScreen> {
   UserRole? _lastRole;
   String? _selectedFarmId;
+  String? _selectedRowName;
 
   Future<void> _showCreateStructure(String type) async {
     final controller = TextEditingController();
@@ -40,7 +42,8 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
     String? selectedAreaId = _selectedFarmId;
     final state = ref.read(boxesStateProvider);
     if (selectedAreaId == null && state.hasValue) {
-      selectedAreaId = state.value?.selectedFarmId ??
+      selectedAreaId =
+          state.value?.selectedFarmId ??
           (state.value?.availableFarms.isNotEmpty == true
               ? state.value!.availableFarms.first.id
               : null);
@@ -133,7 +136,9 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
           _snack('Hãy tạo hoặc chọn khu nuôi trước khi tạo dãy');
           return;
         }
-        await ref.read(boxesStateProvider.notifier).createRow(
+        await ref
+            .read(boxesStateProvider.notifier)
+            .createRow(
               farmingAreaId: selectedAreaId,
               name: name,
               capacity: result.capacity,
@@ -282,21 +287,33 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
               DropdownButtonFormField<({String id, String name})>(
                 value: selected,
                 decoration: const InputDecoration(labelText: 'Dãy nuôi'),
-                items: rows.map((row) => DropdownMenuItem(value: row, child: Text(row.name))).toList(),
+                items: rows
+                    .map(
+                      (row) =>
+                          DropdownMenuItem(value: row, child: Text(row.name)),
+                    )
+                    .toList(),
                 onChanged: (row) => setDialogState(() => selected = row),
               ),
               TextField(
                 controller: codeController,
-                decoration: const InputDecoration(labelText: 'Mã hộp (tuỳ chọn)'),
+                decoration: const InputDecoration(
+                  labelText: 'Mã hộp (tuỳ chọn)',
+                ),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Hủy')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Hủy'),
+            ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, (
                 rowId: selected!.id,
-                code: codeController.text.trim().isEmpty ? null : codeController.text.trim(),
+                code: codeController.text.trim().isEmpty
+                    ? null
+                    : codeController.text.trim(),
               )),
               child: const Text('Tạo hộp'),
             ),
@@ -307,14 +324,14 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
     codeController.dispose();
     if (!mounted || result == null) return;
     try {
-      await ref.read(boxesStateProvider.notifier).createBox(
-            farmingRowId: result.rowId,
-            code: result.code,
-          );
+      await ref
+          .read(boxesStateProvider.notifier)
+          .createBox(farmingRowId: result.rowId, code: result.code);
       if (mounted) _snack('Đã tạo hộp nuôi');
     } catch (error) {
       if (mounted) {
-        final message = error.toString().contains('409') ||
+        final message =
+            error.toString().contains('409') ||
                 error.toString().toLowerCase().contains('full')
             ? 'Dãy nuôi đã đầy. Hãy chọn dãy khác hoặc tăng sức chứa.'
             : 'Không thể tạo hộp. Vui lòng kiểm tra lại dữ liệu.';
@@ -363,7 +380,7 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
   }
 
   Future<void> _handleBoxTap(BoxSummary box) async {
-    await context.push(RoutePaths.boxCrabs(box.id, boxCode: box.code));
+    await context.push(RoutePaths.boxDetails(box.id));
     if (!mounted) return;
     await ref.read(boxesStateProvider.notifier).refresh();
   }
@@ -393,7 +410,10 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.delete_outline, color: kHomeDanger),
-              title: const Text('Xóa hộp', style: TextStyle(color: kHomeDanger)),
+              title: const Text(
+                'Xóa hộp',
+                style: TextStyle(color: kHomeDanger),
+              ),
               onTap: () => Navigator.pop(ctx, 'delete'),
             ),
           ],
@@ -421,7 +441,10 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
             decoration: const InputDecoration(labelText: 'Mã hộp'),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Hủy'),
+            ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, controller.text.trim()),
               child: const Text('Lưu'),
@@ -432,11 +455,9 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
       controller.dispose();
       if (code == null || code.isEmpty || !mounted) return;
       try {
-        await ref.read(boxesStateProvider.notifier).updateBox(
-              id: box.id,
-              code: code,
-              isOccupied: box.crabCount > 0,
-            );
+        await ref
+            .read(boxesStateProvider.notifier)
+            .updateBox(id: box.id, code: code, isOccupied: box.crabCount > 0);
         if (mounted) _snack('Đã cập nhật hộp $code');
       } catch (error) {
         if (mounted) _snack(farmApiMessage(error));
@@ -450,7 +471,10 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
           title: Text('Xóa hộp ${box.code}?'),
           content: const Text('Chỉ xóa được khi hộp không còn cua sống.'),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Hủy'),
+            ),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: kHomeDanger),
               onPressed: () => Navigator.pop(ctx, true),
@@ -472,78 +496,140 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = context.watch<AuthBloc>().state;
-    final role = authState is Authenticated ? authState.user.role : UserRole.viewer;
+    final role = authState is Authenticated
+        ? authState.user.role
+        : UserRole.viewer;
     _syncPermissions(role);
 
     final asyncState = ref.watch(boxesStateProvider);
 
     return Scaffold(
       backgroundColor: kHomeBg,
-      body: Stack(
-        fit: StackFit.expand,
+      body: SafeArea(
+        child: asyncState.when(
+          loading: () => const BoxesSkeleton(gridColumns: 3),
+          error: (e, _) => _buildError(e),
+          data: _buildContent,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildError(Object error) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/home_pattern.jpg'),
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-                opacity: 0.45,
+          const Icon(Icons.error_outline_rounded, color: kHomeDanger, size: 36),
+          const SizedBox(height: 12),
+          Text(_boxesErrorMessage(error), textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: () => ref
+                .read(boxesStateProvider.notifier)
+                .loadData(forceRefresh: true),
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Thử lại'),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _buildManagementContent(BoxesStateData data) {
+    final notifier = ref.read(boxesStateProvider.notifier);
+    final columns = 5;
+    final occupied = data.allBoxes.where((box) => box.crabCount > 0).length;
+    return RefreshIndicator(
+      onRefresh: notifier.refresh,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            sliver: SliverToBoxAdapter(
+              child: BoxesHeader(
+                data: data,
+                onFarmSwitched: notifier.switchFarm,
+                onSearchPressed: () => _showSearchDialog(data.searchQuery),
+                onFilterPressed: () => _showAdvancedFilter(data),
+                onViewModePressed: () => notifier.setViewMode(
+                  data.viewMode == BoxesViewMode.grid
+                      ? BoxesViewMode.list
+                      : BoxesViewMode.grid,
+                ),
               ),
             ),
           ),
-          const ColoredBox(color: Color(0xD6F4F7F2)),
-          SafeArea(
-            child: Column(
-              children: [
-                _BoxesTopBar(onManage: _showStructureActions),
-                Expanded(
-                  child: asyncState.when(
-                    loading: () => const BoxesSkeleton(gridColumns: 4),
-                    error: (e, _) => Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: kHomeDangerBg,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: const Icon(
-                                Icons.error_outline_rounded,
-                                color: kHomeDanger,
-                                size: 32,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            Text(
-                              _boxesErrorMessage(e),
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: kHomeTextSub),
-                            ),
-                            const SizedBox(height: 14),
-                            FilledButton.icon(
-                              onPressed: () => ref
-                                  .read(boxesStateProvider.notifier)
-                                  .loadData(forceRefresh: true),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: kHomePrimary,
-                                foregroundColor: kHomePrimaryDark,
-                              ),
-                              icon: const Icon(Icons.refresh_rounded),
-                              label: const Text('Thử lại'),
-                            ),
-                          ],
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            sliver: SliverToBoxAdapter(
+              child: _FarmHeaderCard(
+                farms: data.availableFarms,
+                selectedFarm: data.availableFarms
+                    .where((f) => f.id == data.selectedFarmId)
+                    .firstOrNull,
+                totalBoxes: data.overview.total,
+                activeBoxes: occupied,
+                emptyBoxes: data.allBoxes.length - occupied,
+                watchBoxes: data.allBoxes
+                    .where((b) => b.status == BoxStatus.watch)
+                    .length,
+                onFarmChanged: notifier.switchFarm,
+                onStatTap: notifier.toggleQuickFilter,
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            sliver: SliverToBoxAdapter(
+              child: _OccupancyFilterRow(
+                active: data.quickFilters,
+                onToggle: notifier.toggleQuickFilter,
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            sliver: SliverToBoxAdapter(
+              child: data.visibleBoxes.isEmpty
+                  ? const SizedBox(
+                      height: 160,
+                      child: Center(
+                        child: Text(
+                          'Không có hộp phù hợp',
+                          style: TextStyle(color: kHomeTextSub),
                         ),
                       ),
+                    )
+                  : data.viewMode == BoxesViewMode.list
+                  ? SizedBox(
+                      height: data.visibleBoxes.length * 104.0,
+                      child: BoxList(
+                        boxes: data.visibleBoxes,
+                        onBoxTap: _handleBoxTap,
+                        onSwipeAction: (box, _) => _handleBoxManage(box),
+                      ),
+                    )
+                  : SizedBox(
+                      height:
+                          ((data.visibleBoxes.length + columns - 1) ~/
+                              columns) *
+                          190.0,
+                      child: BoxGrid(
+                        boxes: applyBoxLayoutOrder(
+                          data.visibleBoxes,
+                          data.boxLayoutOrder,
+                          columns,
+                        ),
+                        columns: columns,
+                        onBoxTap: _handleBoxTap,
+                        onBoxLongPress: _handleBoxManage,
+                        onMenuSelected: (box, _) => _handleBoxManage(box),
+                        onExplainHealth: (_) {},
+                      ),
                     ),
-                    data: (data) => _buildContent(data),
-                  ),
-                ),
-              ],
             ),
           ),
         ],
@@ -551,14 +637,79 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
     );
   }
 
+  Future<void> _showSearchDialog(String initial) async {
+    final controller = TextEditingController(text: initial);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Tìm hộp nuôi'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Mã hộp hoặc tên hộp'),
+          onSubmitted: (_) => Navigator.pop(dialogContext),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Tìm'),
+          ),
+        ],
+      ),
+    );
+    if (mounted) {
+      ref
+          .read(boxesStateProvider.notifier)
+          .setSearchQuery(controller.text.trim());
+    }
+    controller.dispose();
+  }
+
+  Future<void> _showAdvancedFilter(BoxesStateData data) async {
+    final result = await showBoxesFilterSheet(
+      context,
+      initial: data.advancedFilter,
+      areas: data.availableAreas,
+      previewCount: ref.read(boxesStateProvider.notifier).previewFilterCount,
+    );
+    if (mounted && result != null) {
+      ref.read(boxesStateProvider.notifier).applyAdvancedFilter(result);
+    }
+  }
+
   Widget _buildContent(BoxesStateData data) {
     final farms = data.availableFarms;
-    final selectedFarm = farms.where((farm) => farm.id == data.selectedFarmId).firstOrNull ??
-      (farms.isNotEmpty ? farms.first : null);
-    final boxes = data.visibleBoxes;
+    final selectedFarm =
+        farms.where((farm) => farm.id == data.selectedFarmId).firstOrNull ??
+        (farms.isNotEmpty ? farms.first : null);
+    final rowNames =
+        data.allBoxes
+            .map((box) => box.location.rowName)
+            .whereType<String>()
+            .where((name) => name.trim().isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+    if (_selectedRowName != null && !rowNames.contains(_selectedRowName)) {
+      _selectedRowName = null;
+    }
+    final boxes = data.visibleBoxes
+        .where(
+          (box) =>
+              _selectedRowName == null ||
+              box.location.rowName == _selectedRowName,
+        )
+        .toList();
     final allBoxes = data.allBoxes;
     final occupiedCount = allBoxes.where((b) => b.crabCount > 0).length;
     final emptyCount = allBoxes.length - occupiedCount;
+    final watchCount = allBoxes
+        .where((b) => b.status == BoxStatus.watch)
+        .length;
     final activeFilters = data.quickFilters;
 
     return RefreshIndicator(
@@ -566,69 +717,142 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
       color: kHomePrimary,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.paddingOf(context).bottom + 16,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _FarmHeaderCard(
+            _FarmHeroBanner(
               farms: farms,
               selectedFarm: selectedFarm,
-              totalBoxes: allBoxes.length,
-              activeBoxes: occupiedCount,
-              emptyBoxes: emptyCount,
               onFarmChanged: (id) {
                 _selectedFarmId = id;
                 ref.read(boxesStateProvider.notifier).switchFarm(id);
               },
-              onStatTap: (filter) {
-                ref.read(boxesStateProvider.notifier).toggleQuickFilter(filter);
-              },
             ),
-            const SizedBox(height: 12),
-            _OccupancyFilterRow(
-              active: activeFilters,
-              onToggle: (f) =>
-                  ref.read(boxesStateProvider.notifier).toggleQuickFilter(f),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: _OverviewCard(
+                totalBoxes: allBoxes.length,
+                activeBoxes: occupiedCount,
+                emptyBoxes: emptyCount,
+                watchBoxes: watchCount,
+                onStatTap: (filter) => ref
+                    .read(boxesStateProvider.notifier)
+                    .toggleQuickFilter(filter),
+              ),
             ),
-            const SizedBox(height: 14),
-
-            Row(
-              children: [
-                Expanded(
-                  child: HomeSectionHeader(
-                    icon: Icons.grid_view_rounded,
-                    title: 'Hộp nuôi (${boxes.length})',
-                  ),
-                ),
-                _BoxLayoutOrderBar(
-                  value: data.boxLayoutOrder,
-                  onChanged: (o) => ref
-                      .read(boxesStateProvider.notifier)
-                      .setBoxLayoutOrder(o),
-                ),
-              ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: _OccupancyFilterRow(
+                active: activeFilters,
+                onToggle: (f) =>
+                    ref.read(boxesStateProvider.notifier).toggleQuickFilter(f),
+              ),
             ),
-            const SizedBox(height: 8),
-            const _CompactLegend(),
             const SizedBox(height: 10),
+            Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: kHomeBorder),
+              borderRadius: BorderRadius.circular(16),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String?>(
+                  isExpanded: true,
+                  value: _selectedRowName,
+                  hint: const Text('Tất cả dãy'),
+                  icon: const Icon(Icons.expand_more_rounded),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('Tất cả dãy'),
+                    ),
+                    for (final rowName in rowNames)
+                      DropdownMenuItem<String?>(
+                        value: rowName,
+                        child: Text(rowName),
+                      ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _selectedRowName = value),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: HomeSectionHeader(
+                      icon: Icons.grid_view_rounded,
+                      title: 'Hộp nuôi (${boxes.length})',
+                    ),
+                  ),
+                  Container(
+                    height: 36,
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: kHomeBorder),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _ViewModeButton(
+                          icon: Icons.grid_view_rounded,
+                          selected: data.viewMode == BoxesViewMode.grid,
+                          onTap: () => ref
+                              .read(boxesStateProvider.notifier)
+                              .setViewMode(BoxesViewMode.grid),
+                        ),
+                        _ViewModeButton(
+                          icon: Icons.view_list_rounded,
+                          selected: data.viewMode == BoxesViewMode.list,
+                          onTap: () => ref
+                              .read(boxesStateProvider.notifier)
+                              .setViewMode(BoxesViewMode.list),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
 
             if (boxes.isEmpty)
               _EmptyBoxState(
                 canCreate: data.canCreateBox,
                 onCreate: _showStructureActions,
               )
-            else
-              _BoxFarmGrid(
-                boxes: applyBoxLayoutOrder(
-                  boxes,
-                  data.boxLayoutOrder,
-                  _boxGridColumns,
-                ),
+            else if (data.viewMode == BoxesViewMode.list)
+              BoxList(
+                boxes: boxes,
                 onBoxTap: _handleBoxTap,
-                onBoxLongPress: data.canEditBox ? _handleBoxManage : null,
+                onSwipeAction: (box, _) => _handleBoxManage(box),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: _BoxFarmGrid(
+                  boxes: applyBoxLayoutOrder(
+                    boxes,
+                    data.boxLayoutOrder,
+                    _boxGridColumns,
+                  ),
+                  onBoxTap: _handleBoxTap,
+                  onBoxLongPress: data.canEditBox ? _handleBoxManage : null,
+                ),
               ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
             SizedBox(
               width: double.infinity,
@@ -650,7 +874,7 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -716,8 +940,10 @@ class _BoxesTopBar extends StatelessWidget {
               onTap: onManage,
               borderRadius: BorderRadius.circular(14),
               child: Ink(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 9,
+                ),
                 decoration: BoxDecoration(
                   color: kHomePrimary,
                   borderRadius: BorderRadius.circular(14),
@@ -732,11 +958,7 @@ class _BoxesTopBar extends StatelessWidget {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.tune_rounded,
-                      size: 18,
-                      color: kHomePrimaryDark,
-                    ),
+                    Icon(Icons.tune_rounded, size: 18, color: kHomePrimaryDark),
                     SizedBox(width: 6),
                     Text(
                       'Quản lý',
@@ -869,10 +1091,7 @@ class _StructureActionTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: kHomeTextHint,
-                ),
+                const Icon(Icons.chevron_right_rounded, color: kHomeTextHint),
               ],
             ),
           ),
@@ -882,10 +1101,45 @@ class _StructureActionTile extends StatelessWidget {
   }
 }
 
+class _ViewModeButton extends StatelessWidget {
+  const _ViewModeButton({
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(14),
+    child: Container(
+      width: 42,
+      height: 28,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: selected ? kHomePrimary : Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Icon(
+        icon,
+        size: 17,
+        color: selected ? kHomePrimaryDark : kHomeTextSub,
+      ),
+    ),
+  );
+}
+
 // ─── Farm Header Card ─────────────────────────────────────────────────────────
 
 class _FarmOption {
-  static final empty = _FarmAvailableFarmModel(id: '', name: 'Tất cả trang trại');
+  static final empty = _FarmAvailableFarmModel(
+    id: '',
+    name: 'Tất cả trang trại',
+  );
 }
 
 class _FarmAvailableFarmModel {
@@ -894,6 +1148,115 @@ class _FarmAvailableFarmModel {
   _FarmAvailableFarmModel({required this.id, required this.name});
 }
 
+class _FarmHeroBanner extends StatelessWidget {
+  const _FarmHeroBanner({
+    required this.farms,
+    required this.selectedFarm,
+    required this.onFarmChanged,
+  });
+
+  final List farms;
+  final dynamic selectedFarm;
+  final void Function(String) onFarmChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 174,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(26),
+              ),
+              child: Image.asset(
+                'assets/images/background_chao_user.png',
+                fit: BoxFit.cover,
+                alignment: Alignment.centerRight,
+                errorBuilder: (_, __, ___) => Container(color: kHomePrimaryBg),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.white.withValues(alpha: .72),
+                    Colors.transparent,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.maybePop(context),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        color: kHomePrimaryDark,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Quản lý hộp nuôi',
+                              style: TextStyle(
+                                fontSize: 21,
+                                fontWeight: FontWeight.w800,
+                                color: kHomePrimaryDark,
+                              ),
+                            ),
+                            Text(
+                              'Theo dõi tình trạng từng hộp cua',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: kHomeTextSub,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: SizedBox(
+                      width: 230,
+                      child: _FarmSelectorDropdown(
+                        farms: farms,
+                        selectedFarm: selectedFarm,
+                        onFarmChanged: onFarmChanged,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Kept for the legacy management-layout helper above; the active screen uses
+// [_FarmHeroBanner] followed by [_OverviewCard].
 class _FarmHeaderCard extends StatelessWidget {
   const _FarmHeaderCard({
     required this.farms,
@@ -901,6 +1264,7 @@ class _FarmHeaderCard extends StatelessWidget {
     required this.totalBoxes,
     required this.activeBoxes,
     required this.emptyBoxes,
+    required this.watchBoxes,
     required this.onFarmChanged,
     this.onStatTap,
   });
@@ -910,131 +1274,134 @@ class _FarmHeaderCard extends StatelessWidget {
   final int totalBoxes;
   final int activeBoxes;
   final int emptyBoxes;
+  final int watchBoxes;
   final void Function(String) onFarmChanged;
   final void Function(BoxQuickFilter filter)? onStatTap;
 
   @override
+  Widget build(BuildContext context) => _FarmHeroBanner(
+    farms: farms,
+    selectedFarm: selectedFarm,
+    onFarmChanged: onFarmChanged,
+  );
+}
+
+class _FarmSelectorDropdown extends StatelessWidget {
+  const _FarmSelectorDropdown({
+    required this.farms,
+    required this.selectedFarm,
+    required this.onFarmChanged,
+  });
+
+  final List farms;
+  final dynamic selectedFarm;
+  final ValueChanged<String> onFarmChanged;
+
+  @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: homeCardDecoration(radius: 22),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: .9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kHomeBorder),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isExpanded: true,
+          value: selectedFarm?.id as String?,
+          icon: const Icon(Icons.expand_more_rounded),
+          hint: const Text('Chọn khu nuôi'),
+          items: farms.map<DropdownMenuItem<String>>((farm) {
+            return DropdownMenuItem<String>(
+              value: (farm as dynamic).id as String,
+              child: Text(
+                (farm as dynamic).name as String,
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }).toList(),
+          onChanged: (id) {
+            if (id != null) onFarmChanged(id);
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _OverviewCard extends StatelessWidget {
+  const _OverviewCard({
+    required this.totalBoxes,
+    required this.activeBoxes,
+    required this.emptyBoxes,
+    required this.watchBoxes,
+    required this.onStatTap,
+  });
+
+  final int totalBoxes;
+  final int activeBoxes;
+  final int emptyBoxes;
+  final int watchBoxes;
+  final ValueChanged<BoxQuickFilter> onStatTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final stats = [
+      (
+        Icons.grid_view_rounded,
+        'Tổng',
+        totalBoxes,
+        kHomePrimaryDark,
+        kHomePrimaryBg,
+        BoxQuickFilter.all,
+      ),
+      (
+        Icons.check_circle_rounded,
+        BoxStatus.normal.label,
+        activeBoxes,
+        kHomePrimaryDark,
+        const Color(0xFFD5F5E3),
+        BoxQuickFilter.occupied,
+      ),
+      (
+        Icons.visibility_rounded,
+        BoxStatus.watch.label,
+        watchBoxes,
+        BoxStatus.watch.color,
+        BoxStatus.watch.background,
+        BoxQuickFilter.watch,
+      ),
+      (
+        Icons.crop_square_rounded,
+        BoxStatus.empty.label,
+        emptyBoxes,
+        BoxStatus.empty.color,
+        BoxStatus.empty.background,
+        BoxQuickFilter.empty,
+      ),
+    ];
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: homeCardDecoration(radius: 16),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: kHomePrimaryBg,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.waves_rounded,
-                  color: kHomePrimaryDark,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  'Khu nuôi',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: kHomeTextSub,
-                  ),
+          for (var i = 0; i < stats.length; i++) ...[
+            if (i > 0) const SizedBox(width: 6),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => onStatTap(stats[i].$6),
+                child: _StatItem(
+                  icon: stats[i].$1,
+                  label: stats[i].$2,
+                  value: '${stats[i].$3}',
+                  color: stats[i].$4,
+                  tint: stats[i].$5,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: CrabSenseColors.primaryMuted,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: kHomeBorder),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: selectedFarm == null ||
-                            (selectedFarm.id as String).isEmpty
-                        ? null
-                        : selectedFarm.id as String,
-                    icon: const Icon(
-                      Icons.expand_more_rounded,
-                      color: kHomePrimaryDark,
-                      size: 20,
-                    ),
-                    style: const TextStyle(
-                      color: kHomePrimaryDark,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
-                    ),
-                    hint: Text(
-                      farms.isNotEmpty
-                          ? (farms.first as dynamic).name as String
-                          : 'Chọn khu',
-                      style: const TextStyle(
-                        color: kHomePrimaryDark,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    items: farms.map<DropdownMenuItem<String>>((f) {
-                      return DropdownMenuItem<String>(
-                        value: (f as dynamic).id as String,
-                        child: Text((f as dynamic).name as String),
-                      );
-                    }).toList(),
-                    onChanged: (id) {
-                      if (id != null) onFarmChanged(id);
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => onStatTap?.call(BoxQuickFilter.all),
-                  child: _StatItem(
-                    icon: Icons.grid_view_rounded,
-                    label: 'Tổng',
-                    value: '$totalBoxes',
-                    color: kHomePrimaryDark,
-                    tint: kHomePrimaryBg,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => onStatTap?.call(BoxQuickFilter.occupied),
-                  child: _StatItem(
-                    icon: Icons.check_circle_rounded,
-                    label: 'Đang nuôi',
-                    value: '$activeBoxes',
-                    color: kHomePrimaryDark,
-                    tint: const Color(0xFFD5F5E3),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => onStatTap?.call(BoxQuickFilter.empty),
-                  child: _StatItem(
-                    icon: Icons.crop_square_rounded,
-                    label: 'Trống',
-                    value: '$emptyBoxes',
-                    color: kHomeTextSub,
-                    tint: const Color(0xFFEEF1ED),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ],
       ),
     );
@@ -1059,20 +1426,20 @@ class _StatItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 7),
       decoration: BoxDecoration(
         color: tint,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: kHomeBorder.withValues(alpha: 0.7)),
       ),
       child: Column(
         children: [
           Icon(icon, color: color, size: 18),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             value,
             style: TextStyle(
-              fontSize: 17,
+              fontSize: 16,
               fontWeight: FontWeight.w800,
               color: color,
             ),
@@ -1144,7 +1511,7 @@ class _BoxFarmGrid extends StatelessWidget {
         crossAxisCount: _boxGridColumns,
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
-        childAspectRatio: 0.92,
+        childAspectRatio: 1.08,
       ),
       itemCount: boxes.length,
       itemBuilder: (context, i) {
@@ -1159,13 +1526,14 @@ class _BoxFarmGrid extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             onTap: () => onBoxTap(box),
-            onLongPress:
-                onBoxLongPress == null ? null : () => onBoxLongPress!(box),
+            onLongPress: onBoxLongPress == null
+                ? null
+                : () => onBoxLongPress!(box),
             borderRadius: BorderRadius.circular(16),
             child: Ink(
               decoration: BoxDecoration(
                 color: bg,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: border, width: 1.2),
                 boxShadow: const [
                   BoxShadow(
@@ -1176,29 +1544,32 @@ class _BoxFarmGrid extends StatelessWidget {
                 ],
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     if (occupied)
                       Image.asset(
-                        'assets/images/crab_icon.png',
-                        width: 30,
-                        height: 30,
+                        'assets/images/iocn-crab-normal.png',
+                        width: 26,
+                        height: 26,
                         fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => Icon(
-                          Icons.pets_rounded,
-                          size: 26,
-                          color: accent,
-                        ),
+                        errorBuilder: (_, __, ___) =>
+                            Icon(Icons.pets_rounded, size: 26, color: accent),
                       )
                     else
-                      Icon(
-                        Icons.crop_square_rounded,
-                        size: 28,
-                        color: accent,
+                      Image.asset(
+                        'assets/images/icon-box-empty.png',
+                        width: 26,
+                        height: 26,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Icon(
+                          Icons.crop_square_rounded,
+                          size: 28,
+                          color: accent,
+                        ),
                       ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     // Mã hộp dài nhất 12 ký tự ("BOX-0001" … "BOX-abcdef12") mà ô
                     // chỉ rộng ~72px, nên ellipsis cũ cắt mất đúng phần số phân
                     // biệt hộp: cả lưới hiện "BOX-00…" giống hệt nhau. Thu nhỏ
@@ -1231,10 +1602,7 @@ class _BoxFarmGrid extends StatelessWidget {
 // ─── Compact status legend (inline) ───────────────────────────────────────────
 
 class _OccupancyFilterRow extends StatelessWidget {
-  const _OccupancyFilterRow({
-    required this.active,
-    required this.onToggle,
-  });
+  const _OccupancyFilterRow({required this.active, required this.onToggle});
 
   final Set<BoxQuickFilter> active;
   final ValueChanged<BoxQuickFilter> onToggle;
@@ -1245,32 +1613,40 @@ class _OccupancyFilterRow extends StatelessWidget {
       BoxQuickFilter.all,
       BoxQuickFilter.occupied,
       BoxQuickFilter.empty,
+      BoxQuickFilter.watch,
+      BoxQuickFilter.molting,
+      BoxQuickFilter.alert,
     ];
     return Wrap(
+      alignment: WrapAlignment.start,
       spacing: 8,
       runSpacing: 8,
       children: [
         for (final f in filters)
           FilterChip(
-            selected: active.contains(f) ||
+            selected:
+                active.contains(f) ||
                 (f == BoxQuickFilter.all &&
                     active.length == 1 &&
                     active.contains(BoxQuickFilter.all)),
             label: Text(f.label),
             onSelected: (_) => onToggle(f),
-            selectedColor: kHomePrimaryBg,
-            checkmarkColor: kHomePrimaryDark,
+            selectedColor: _filterColor(f).withValues(alpha: 0.16),
+            checkmarkColor: _filterColor(f),
             labelStyle: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 12,
-              color: active.contains(f) ||
+              color:
+                  active.contains(f) ||
                       (f == BoxQuickFilter.all &&
                           active.contains(BoxQuickFilter.all))
-                  ? kHomePrimaryDark
+                  ? _filterColor(f)
                   : kHomeTextSub,
             ),
-            side: BorderSide(color: kHomeBorder),
-            backgroundColor: kHomeSurface,
+            side: BorderSide(
+              color: active.contains(f) ? _filterColor(f) : kHomeBorder,
+            ),
+            backgroundColor: _filterColor(f).withValues(alpha: 0.06),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
@@ -1280,6 +1656,15 @@ class _OccupancyFilterRow extends StatelessWidget {
       ],
     );
   }
+
+  Color _filterColor(BoxQuickFilter filter) => switch (filter) {
+    BoxQuickFilter.occupied || BoxQuickFilter.normal => BoxStatus.normal.color,
+    BoxQuickFilter.watch => BoxStatus.watch.color,
+    BoxQuickFilter.molting => BoxStatus.molting.color,
+    BoxQuickFilter.alert || BoxQuickFilter.hasAlert => BoxStatus.alert.color,
+    BoxQuickFilter.empty => BoxStatus.empty.color,
+    _ => kHomePrimaryDark,
+  };
 }
 
 class _CompactLegend extends StatelessWidget {
@@ -1416,12 +1801,20 @@ class _EmptyBoxState extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: kHomePrimary),
               ),
-              child: const Icon(Icons.grid_view_rounded, color: kHomePrimary, size: 36),
+              child: const Icon(
+                Icons.grid_view_rounded,
+                color: kHomePrimary,
+                size: 36,
+              ),
             ),
             const SizedBox(height: 16),
             const Text(
               'Chưa có hộp nuôi',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: kHomeTextMain),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: kHomeTextMain,
+              ),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -1498,7 +1891,11 @@ class _BoxBottomSheet extends StatelessWidget {
                     color: kHomePrimary,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.inventory_2_rounded, color: Colors.white, size: 24),
+                  child: const Icon(
+                    Icons.inventory_2_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1515,7 +1912,10 @@ class _BoxBottomSheet extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: kHomePrimary.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(20),
@@ -1538,12 +1938,22 @@ class _BoxBottomSheet extends StatelessWidget {
           const SizedBox(height: 12),
           // Quick info
           _InfoRow(
-            icon: box.crabCount > 0 ? Icons.set_meal_rounded : Icons.inventory_2_outlined,
+            icon: box.crabCount > 0
+                ? Icons.set_meal_rounded
+                : Icons.inventory_2_outlined,
             label: 'Trạng thái cua',
             value: box.crabCount > 0 ? '${box.crabCount} con' : 'Chưa có cua',
           ),
-          _InfoRow(icon: Icons.fitness_center_rounded, label: 'Khối lượng TB', value: '${0.0.toStringAsFixed(0)}g'),
-          _InfoRow(icon: Icons.health_and_safety_rounded, label: 'Điểm sức khỏe', value: '${box.healthScore.score}/100'),
+          _InfoRow(
+            icon: Icons.fitness_center_rounded,
+            label: 'Khối lượng TB',
+            value: '${0.0.toStringAsFixed(0)}g',
+          ),
+          _InfoRow(
+            icon: Icons.health_and_safety_rounded,
+            label: 'Điểm sức khỏe',
+            value: '${box.healthScore.score}/100',
+          ),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -1551,9 +1961,13 @@ class _BoxBottomSheet extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: onCrabs,
                   icon: Icon(
-                    box.crabCount > 0 ? Icons.pets_rounded : Icons.add_circle_outline_rounded,
+                    box.crabCount > 0
+                        ? Icons.pets_rounded
+                        : Icons.add_circle_outline_rounded,
                   ),
-                  label: Text(box.crabCount > 0 ? 'Xem / nhập cua' : 'Nhập cua'),
+                  label: Text(
+                    box.crabCount > 0 ? 'Xem / nhập cua' : 'Nhập cua',
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kHomePrimary,
                     foregroundColor: Colors.white,
@@ -1610,7 +2024,11 @@ class _BoxBottomSheet extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.icon, required this.label, required this.value});
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   final IconData icon;
   final String label;
@@ -1624,7 +2042,10 @@ class _InfoRow extends StatelessWidget {
         children: [
           Icon(icon, size: 18, color: kHomeTextSub),
           const SizedBox(width: 10),
-          Text(label, style: const TextStyle(color: kHomeTextSub, fontSize: 13)),
+          Text(
+            label,
+            style: const TextStyle(color: kHomeTextSub, fontSize: 13),
+          ),
           const Spacer(),
           Text(
             value,

@@ -232,6 +232,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               context.push(RoutePaths.crabTracking),
                           onMineralDosingPressed: () =>
                               context.push(RoutePaths.mineralDosing),
+                          onOperationsPressed: () =>
+                              context.push(RoutePaths.operations),
+                          onAiCenterPressed: () =>
+                              context.push(RoutePaths.aiCenter),
+                          onReportsPressed: () =>
+                              context.push(RoutePaths.reports),
                         ),
                         const SizedBox(height: 24),
 

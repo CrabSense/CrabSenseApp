@@ -22,9 +22,9 @@ class FarmSummary {
 /// Mức độ sức khỏe trang trại (Farm Health Score - Điểm nhấn #1)
 enum HealthStatusLevel {
   excellent, // 85-100 (Success)
-  good,      // 70-84 (Info)
-  warning,   // 50-69 (Warning)
-  danger     // <50 (Danger)
+  good, // 70-84 (Info)
+  warning, // 50-69 (Warning)
+  danger, // <50 (Danger)
 }
 
 class FarmHealthScore {
@@ -60,6 +60,7 @@ class FarmHealthScore {
 
 /// Đề xuất hành động từ AI (AI Recommendation - Điểm nhấn #2)
 enum AiActionType { harvest, inspect, waterTreatment, observe }
+
 enum ActionPriority { high, medium, low }
 
 class AiRecommendation {
@@ -97,7 +98,8 @@ class AiRecommendation {
     targetBoxOrArea: 'Toàn trang trại',
     confidencePercentage: 99,
     priority: ActionPriority.low,
-    reason: 'Tất cả các thông số nước và tình trạng cua đều nằm trong ngưỡng an toàn.',
+    reason:
+        'Tất cả các thông số nước và tình trạng cua đều nằm trong ngưỡng an toàn.',
     optimalTimeframe: 'Duy trì giám sát',
     expectedImpact: 'Ổn định vận hành',
     hasActiveRecommendation: false,
@@ -146,6 +148,7 @@ class AlertSummaryItem {
 
 /// Tổng quan chất lượng nước (Water Quality Section B)
 enum MetricStatus { optimal, warning, danger }
+
 enum MetricTrend { up, down, stable }
 
 class WaterMetricItem {
@@ -187,6 +190,38 @@ class TodayTaskItem {
   });
 }
 
+class FeedingHistoryDay {
+  final DateTime date;
+  final int many;
+  final int little;
+  final int none;
+
+  const FeedingHistoryDay({
+    required this.date,
+    required this.many,
+    required this.little,
+    required this.none,
+  });
+}
+
+class BoxStatusHistoryDay {
+  final DateTime date;
+  final int normal;
+  final int watch;
+  final int molting;
+  final int alert;
+  final int empty;
+
+  const BoxStatusHistoryDay({
+    required this.date,
+    required this.normal,
+    required this.watch,
+    required this.molting,
+    required this.alert,
+    required this.empty,
+  });
+}
+
 /// Trạng thái thiết bị (Device Status Section D)
 class DeviceSummary {
   final int esp32Online;
@@ -211,7 +246,14 @@ class DeviceSummary {
 }
 
 /// Nhật ký hoạt động gần đây (Recent Activity Section E)
-enum ActivityType { qrScan, sensorUpdate, aiDetection, harvest, sync, alertHandled }
+enum ActivityType {
+  qrScan,
+  sensorUpdate,
+  aiDetection,
+  harvest,
+  sync,
+  alertHandled,
+}
 
 class RecentActivityItem {
   final String id;
@@ -233,8 +275,9 @@ class RecentActivityItem {
 class FarmOption {
   final String id;
   final String name;
+  final int boxCount;
 
-  const FarmOption({required this.id, required this.name});
+  const FarmOption({required this.id, required this.name, this.boxCount = 0});
 }
 
 /// Tổng hợp dữ liệu hiển thị toàn màn hình Home (Command Center State Data)
@@ -251,8 +294,11 @@ class HomeStateData {
   final List<AlertSummaryItem> topAlerts;
   final List<WaterMetricItem> waterMetrics;
   final List<TodayTaskItem> todayTasks;
+  final List<FeedingHistoryDay> feedingHistory;
+  final List<BoxStatusHistoryDay> boxStatusHistory;
   final DeviceSummary deviceSummary;
   final List<RecentActivityItem> recentActivities;
+  final Map<String, int> boxStatusCounts;
   final bool isOfflineCached;
   final DateTime? lastSyncedAt;
 
@@ -269,8 +315,11 @@ class HomeStateData {
     required this.topAlerts,
     required this.waterMetrics,
     required this.todayTasks,
+    this.feedingHistory = const [],
+    this.boxStatusHistory = const [],
     required this.deviceSummary,
     required this.recentActivities,
+    this.boxStatusCounts = const {},
     this.isOfflineCached = false,
     this.lastSyncedAt,
   });

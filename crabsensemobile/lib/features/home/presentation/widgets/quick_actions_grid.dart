@@ -8,6 +8,9 @@ class QuickActionsGrid extends StatelessWidget {
   final VoidCallback onHarvestPressed;
   final VoidCallback? onTrackingPressed;
   final VoidCallback? onMineralDosingPressed;
+  final VoidCallback? onOperationsPressed;
+  final VoidCallback? onAiCenterPressed;
+  final VoidCallback? onReportsPressed;
 
   const QuickActionsGrid({
     super.key,
@@ -17,6 +20,9 @@ class QuickActionsGrid extends StatelessWidget {
     required this.onHarvestPressed,
     this.onTrackingPressed,
     this.onMineralDosingPressed,
+    this.onOperationsPressed,
+    this.onAiCenterPressed,
+    this.onReportsPressed,
   });
 
   static const List<_ActionDef> _extraActions = [
@@ -106,7 +112,12 @@ class QuickActionsGrid extends StatelessWidget {
                 icon: a.icon,
                 bgColor: a.bgColor,
                 iconColor: a.iconColor,
-                onTap: () {},
+                onTap: switch (a.label) {
+                  'Vận hành' => onOperationsPressed ?? () {},
+                  'AI Center' => onAiCenterPressed ?? () {},
+                  'Báo cáo' => onReportsPressed ?? () {},
+                  _ => () {},
+                },
               ),
           ],
         ),

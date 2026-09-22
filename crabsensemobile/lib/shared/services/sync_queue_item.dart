@@ -7,6 +7,14 @@ import '../../core/database/database.dart' as db;
 ///
 /// Requirements: 13.3-13.4
 enum SyncEntityType {
+  box('box'),
+  crab('crab'),
+  feeding('feeding'),
+  care('care'),
+  transfer('transfer'),
+  waterReading('water_reading'),
+  task('task'),
+  photo('photo'),
   harvest('harvest'),
   sale('sale'),
   operationLog('operation_log'),
@@ -170,16 +178,16 @@ class SyncQueueItem extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        operationType,
-        entityId,
-        entityType,
-        payload,
-        createdAt,
-        retryCount,
-        status,
-        priority,
-        lastAttemptAt,
-        errorMessage,
-      ];
+    id,
+    operationType,
+    entityId,
+    entityType,
+    payload,
+    createdAt,
+    retryCount,
+    status,
+    priority,
+    lastAttemptAt,
+    errorMessage,
+  ];
 }

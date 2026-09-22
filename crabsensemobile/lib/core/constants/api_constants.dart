@@ -66,7 +66,8 @@ class ApiConstants {
   static const String changePassword = '/auth/change-password';
   static const String verifyEmail = '/auth/verify-email';
   static const String currentUser = '/auth/me';
-  static const String notificationPreferences = '/auth/me/notification-preferences';
+  static const String notificationPreferences =
+      '/auth/me/notification-preferences';
 
   // ===========================================================================
   // User Endpoints
@@ -90,6 +91,12 @@ class ApiConstants {
   static const String aiRecommendations = '/ai/recommendations';
   static const String operationsToday = '/operations/today';
   static const String operationsRecent = '/operations/recent';
+  static const String scheduledTasks = '/operations/scheduled-tasks';
+  static const String scheduledTasksToday = '$scheduledTasks/today';
+  static String scheduledTask(String id) => '$scheduledTasks/$id';
+  static String scheduledTaskToggle(String id) => '${scheduledTask(id)}/toggle';
+  static const String operationsFeedingHistory = '/operations/feeding-history';
+  static const String boxStatusHistoryDaily = '/crabs/status-history-daily';
 
   // ===========================================================================
   // Farm, Row & Box Endpoints (Swagger: 01-03)
@@ -262,8 +269,7 @@ class ApiConstants {
   static String operationsForBox(String boxId) => '/operations/box/$boxId';
 
   /// Phiếu chăm sóc (cho ăn) của một con cua — lịch sử ăn.
-  static String operationsForCrab(String crabId) =>
-      '/operations/crab/$crabId';
+  static String operationsForCrab(String crabId) => '/operations/crab/$crabId';
 
   /// Prefer POST /operations (create) and PUT /operations/{id} (update).
   static const String createOperation = '/operations';
@@ -316,6 +322,7 @@ class ApiConstants {
   static const String syncQueue = '/sync/queue';
   static const String syncStatus = '/sync/status';
   static const String uploadBatch = '/sync/batch';
+  static const String syncPull = '/sync/pull';
 
   // ===========================================================================
   // Health Check

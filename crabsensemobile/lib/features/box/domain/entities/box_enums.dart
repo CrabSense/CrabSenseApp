@@ -27,13 +27,13 @@ extension BoxStatusExtension on BoxStatus {
   String get displayName {
     switch (this) {
       case BoxStatus.active:
-        return 'Active';
+        return 'Bình thường';
       case BoxStatus.inactive:
-        return 'Inactive';
+        return 'Hộp trống';
       case BoxStatus.maintenance:
-        return 'Maintenance';
+        return 'Cần theo dõi';
       case BoxStatus.harvested:
-        return 'Harvested';
+        return 'Hộp trống';
     }
   }
 
@@ -93,13 +93,13 @@ extension MoltingStatusExtension on MoltingStatus {
   String get displayName {
     switch (this) {
       case MoltingStatus.preMolt:
-        return 'Pre-Molt';
+        return 'Lột xác';
       case MoltingStatus.molting:
-        return 'Molting';
+        return 'Lột xác';
       case MoltingStatus.postMolt:
-        return 'Post-Molt';
+        return 'Lột xác';
       case MoltingStatus.hardShell:
-        return 'Hard Shell';
+        return 'Bình thường';
     }
   }
 
@@ -130,13 +130,13 @@ extension HealthStatusExtension on HealthStatus {
   String get displayName {
     switch (this) {
       case HealthStatus.normal:
-        return 'Normal';
+        return 'Bình thường';
       case HealthStatus.disease:
-        return 'Disease';
+        return 'Cảnh báo';
       case HealthStatus.stress:
-        return 'Stress';
+        return 'Cần theo dõi';
       case HealthStatus.unknown:
-        return 'Unknown';
+        return 'Cần theo dõi';
     }
   }
 

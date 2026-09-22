@@ -199,9 +199,9 @@ extension BoxQuickFilterX on BoxQuickFilter {
       case BoxQuickFilter.all:
         return 'Tất cả';
       case BoxQuickFilter.occupied:
-        return 'Đang nuôi';
+        return BoxStatus.normal.label;
       case BoxQuickFilter.empty:
-        return 'Trống';
+        return BoxStatus.empty.label;
       // Nhãn lấy thẳng từ [BoxStatus] để chip lọc không bao giờ lệch lưới hộp.
       case BoxQuickFilter.normal:
         return BoxStatus.normal.label;
