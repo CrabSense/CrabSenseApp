@@ -49,6 +49,8 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
   String _activity = 'active';
   XFile? _video;
   bool _videoConfirmed = false;
+  XFile? _pelletPhoto;
+  XFile? _boxPhoto;
   bool _saving = false;
   bool _uploading = false;
 
@@ -192,6 +194,56 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
     }
   }
 
+  Future<XFile?> _pickPhoto() async {
+    final picker = ImagePicker();
+    try {
+      final shot = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+        maxWidth: 1920,
+      );
+      if (shot != null) return shot;
+    } catch (_) {}
+    if (kIsWeb) {
+      return picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1920,
+      );
+    }
+    return picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1920,
+    );
+  }
+
+  Future<String?> _uploadFeedPhoto(XFile file, String kind) async {
+    final bytes = await file.readAsBytes();
+    final name = file.name.isNotEmpty
+        ? file.name
+        : '${kind}_${widget.boxCode}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final form = FormData.fromMap({
+      'file': MultipartFile.fromBytes(bytes, filename: name),
+      'boxId': widget.boxId,
+      if (widget.crab.id.isNotEmpty) 'crabId': widget.crab.id,
+      'relatedEntityType': 'CrabFeeding',
+      'relatedEntityId': widget.crab.id,
+      'photoKind': kind,
+    });
+    final res = await _api.dio.post<dynamic>('/operations/photo', data: form);
+    final data = res.data;
+    if (data is Map) {
+      final nested = data['data'];
+      if (nested is Map) {
+        return (nested['url'] ?? nested['webViewLink'] ?? nested['shareLink'])
+            ?.toString();
+      }
+      return data['url']?.toString();
+    }
+    return null;
+  }
+
   Future<String?> _uploadVideoIfAny() async {
     final file = _video;
     if (file == null || !_videoConfirmed) return null;
@@ -249,6 +301,8 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
             _notesCtrl.clear();
             _video = null;
             _videoConfirmed = false;
+            _pelletPhoto = null;
+            _boxPhoto = null;
             _eat = 'many';
             _condition = 'normal';
             _activity = 'active';
@@ -340,23 +394,42 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
     required String tag,
     required String extraNotes,
   }) async {
+    if (_pelletPhoto == null || _boxPhoto == null) {
+      throw Exception(
+        'Cần 2 ảnh: viên thức ăn và hộp lúc cho ăn (để train AI).',
+      );
+    }
+
     String? videoUrl;
+    String? pelletUrl;
+    String? boxUrl;
     try {
+      setState(() => _uploading = true);
+      pelletUrl = await _uploadFeedPhoto(_pelletPhoto!, 'feed_pellet');
+      boxUrl = await _uploadFeedPhoto(_boxPhoto!, 'feed_box');
       videoUrl = await _uploadVideoIfAny();
     } catch (e) {
       if (!mounted) rethrow;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Video chưa lên được Drive: $e — vẫn lưu phiếu.'),
+          content: Text('Ảnh/video chưa lên được: $e — vẫn lưu phiếu.'),
           backgroundColor: kHomeWarning,
           behavior: SnackBarBehavior.floating,
         ),
       );
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+
+    if (pelletUrl == null ||
+        pelletUrl.isEmpty ||
+        boxUrl == null ||
+        boxUrl.isEmpty) {
+      throw Exception('Chưa tải được đủ 2 ảnh cho ăn. Thử lại.');
     }
 
     final feedType = _feedTypeCtrl.text.trim();
     final grams = _feedGramCtrl.text.trim();
-    // Ghi kèm dạng text cho các màn cũ (timeline hộp, nhật ký vận hành) đọc được.
     final notes = [
       'Phiếu hộp ${widget.boxCode}',
       'Cua: $tag',
@@ -365,31 +438,32 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
       if (feedType.isNotEmpty) 'Thức ăn: $feedType',
       if (grams.isNotEmpty) 'Lượng: ${grams}g',
       'Hoạt động: ${_activityLabel(_activity)}',
+      'Ảnh viên thức ăn: $pelletUrl',
+      'Ảnh hộp cho ăn: $boxUrl',
       if (videoUrl != null && videoUrl.isNotEmpty) 'Video: $videoUrl',
-      if (_videoConfirmed &&
-          _video != null &&
-          (videoUrl == null || videoUrl.isEmpty))
-        'Video: đã xác nhận (${_video!.name}) — chờ Drive',
       if (extraNotes.isNotEmpty) 'Ghi chú: $extraNotes',
     ].join('\n');
 
     final qty = double.tryParse(grams);
     final crabId = widget.crab.id;
+    final photoUrls = [
+      pelletUrl,
+      boxUrl,
+      if (videoUrl != null && videoUrl.isNotEmpty) videoUrl,
+    ];
     await _api.post<dynamic>(
       '/operations',
       data: {
-        'type': qty != null ? 'feeding' : 'inspection',
+        'type': 'feeding',
         'boxIds': [widget.boxId],
-        // Dữ liệu có cấu trúc để xem lại lịch sử ăn theo từng con cua.
         if (crabId.isNotEmpty) 'crabIds': [crabId],
         'appetite': _eat,
-        // BE cập nhật luôn tình trạng con cua + ghi lịch sử.
         'condition': _condition,
         if (feedType.isNotEmpty) 'foodType': feedType,
         'notes': notes,
         if (qty != null) 'quantity': qty,
         if (qty != null) 'unit': 'g',
-        if (videoUrl != null && videoUrl.isNotEmpty) 'photoUrls': [videoUrl],
+        'photoUrls': photoUrls,
       },
     );
   }
@@ -547,6 +621,42 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
           const SizedBox(height: 10),
           _field(_feedGramCtrl, 'Bao nhiêu gam'),
           const SizedBox(height: 14),
+          _section('Ảnh train AI (bắt buộc)'),
+          const Text(
+            'Chụp 2 tấm: viên thức ăn, rồi hộp lúc cho vào — để máy học ăn nhiều/ít.',
+            style: TextStyle(fontSize: 12, color: kHomeTextSub),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _photoSlot(
+                  title: 'Viên thức ăn',
+                  file: _pelletPhoto,
+                  onTap: () async {
+                    final shot = await _pickPhoto();
+                    if (shot != null && mounted) {
+                      setState(() => _pelletPhoto = shot);
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _photoSlot(
+                  title: 'Hộp cho ăn',
+                  file: _boxPhoto,
+                  onTap: () async {
+                    final shot = await _pickPhoto();
+                    if (shot != null && mounted) {
+                      setState(() => _boxPhoto = shot);
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
           _section('Đánh dấu tình trạng'),
           _pillsWrap(
             value: _condition,
@@ -662,6 +772,69 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _photoSlot({
+    required String title,
+    required XFile? file,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: _uploading ? null : onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        height: 132,
+        decoration: BoxDecoration(
+          color: kHomeBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: file == null ? kHomeBorder : CrabSenseColors.primary,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: file == null
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.photo_camera_outlined, color: kHomeTextSub),
+                  const SizedBox(height: 6),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: kHomeTextMain,
+                    ),
+                  ),
+                  const Text(
+                    'Chụp',
+                    style: TextStyle(fontSize: 11, color: kHomeTextSub),
+                  ),
+                ],
+              )
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: kHomeGreen),
+                  const SizedBox(height: 6),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: kHomeTextMain,
+                    ),
+                  ),
+                  const Text(
+                    'Chụp lại',
+                    style: TextStyle(fontSize: 11, color: kHomeTextSub),
+                  ),
+                ],
+              ),
+      ),
     );
   }
 
