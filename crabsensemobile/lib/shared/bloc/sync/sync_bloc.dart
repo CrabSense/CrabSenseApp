@@ -64,11 +64,7 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
       ),
     );
 
-    // Hydrate the local cache as soon as an authenticated session has a
-    // reachable API. UI continues reading Drift while this runs.
-    if (connected) {
-      await syncManager.syncNow();
-    }
+    // JWT is not ready here; CrabSenseApp syncs on Authenticated.
   }
 
   Future<void> _onConnectivityChanged(

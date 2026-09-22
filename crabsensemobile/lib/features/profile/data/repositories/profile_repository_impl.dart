@@ -3,15 +3,25 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../shared/services/bidirectional_sync_manager.dart';
+import '../../../../shared/services/sync_service.dart';
 import '../../domain/repositories/profile_repository.dart';
 import '../models/profile_models.dart';
 
 /// Production Implementation of ProfileRepository wired 100% to CrabSense Backend APIs.
 /// Filters areas owned/managed by the logged-in user (ownerId).
 class ProfileRepositoryImpl implements ProfileRepository {
-  ProfileRepositoryImpl({required ApiClient api}) : _api = api;
+  ProfileRepositoryImpl({
+    required ApiClient api,
+    BidirectionalSyncManager? syncManager,
+    SyncService? syncService,
+  }) : _api = api,
+       _syncManager = syncManager,
+       _syncService = syncService;
 
   final ApiClient _api;
+  final BidirectionalSyncManager? _syncManager;
+  final SyncService? _syncService;
   ProfileStateData? _cachedData;
 
   @override
@@ -224,12 +234,16 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
   @override
   Future<SyncSummary> triggerSync() async {
-    final now = DateTime.now();
+    final progress = await _syncManager?.syncNow();
+    final pending = await _syncService?.getPendingCount() ?? 0;
+    final failed = progress?.isFailed == true;
     return SyncSummary(
-      syncStatus: 'Đã đồng bộ',
-      offlineQueueCount: 0,
-      pendingUploadCount: 0,
-      lastSyncedAt: now,
+      syncStatus: failed
+          ? 'Lỗi đồng bộ'
+          : (pending > 0 ? 'Còn dữ liệu chờ' : 'Đã đồng bộ'),
+      offlineQueueCount: pending,
+      pendingUploadCount: pending,
+      lastSyncedAt: progress?.lastSyncTime ?? DateTime.now(),
       conflictCount: 0,
     );
   }

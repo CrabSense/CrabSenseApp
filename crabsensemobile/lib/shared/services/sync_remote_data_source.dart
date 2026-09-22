@@ -57,8 +57,7 @@ class SyncRemoteDataSourceImpl implements SyncRemoteDataSource {
         data: <String, dynamic>{'items': payloadList},
       );
 
-      return response.data ??
-          <String, dynamic>{'success': true, 'processedCount': items.length};
+      return _unwrap(response.data);
     } on Exception catch (e) {
       logger.e('SyncRemoteDataSource: Batch upload failed: $e');
       throw ServerException(
@@ -81,11 +80,7 @@ class SyncRemoteDataSourceImpl implements SyncRemoteDataSource {
         queryParameters: queryParams,
       );
 
-      final raw = response.data ?? <String, dynamic>{};
-      if (raw['data'] is Map) {
-        return Map<String, dynamic>.from(raw['data'] as Map);
-      }
-      return raw;
+      return _unwrap(response.data);
     } on Exception catch (e) {
       logger.e('SyncRemoteDataSource: Download server changes failed: $e');
       throw ServerException(
@@ -93,5 +88,13 @@ class SyncRemoteDataSourceImpl implements SyncRemoteDataSource {
         code: 'SYNC_DOWNLOAD_ERROR',
       );
     }
+  }
+
+  Map<String, dynamic> _unwrap(Map<String, dynamic>? raw) {
+    final map = raw ?? <String, dynamic>{};
+    if (map['data'] is Map) {
+      return Map<String, dynamic>.from(map['data'] as Map);
+    }
+    return map;
   }
 }
