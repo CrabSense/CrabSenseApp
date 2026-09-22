@@ -227,7 +227,7 @@ class _LowConfidenceBanner extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                '?? tin c?y th?p ? C?n ki?m tra th? công',
+                '?? tin c?y th?p ? C?n ki?m tra th? cï¿½ng',
                 style: TextStyle(
                   color: kHomeOrange,
                   fontWeight: FontWeight.w600,
@@ -236,15 +236,15 @@ class _LowConfidenceBanner extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               const Text(
-                '?? tin c?y AI d??i 70%. Vui lòng xác minh '
-                'b?ng ki?m tra th? công.',
+                '?? tin c?y AI d??i 70%. Vui lï¿½ng xï¿½c minh '
+                'b?ng ki?m tra th? cï¿½ng.',
                 style: TextStyle(color: Colors.white70, fontSize: 12),
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: () => context.go(RoutePaths.boxInspect(boxId)),
                 icon: const Icon(Icons.search_rounded, size: 16),
-                label: const Text('B?t ??u ki?m tra th? công'),
+                label: const Text('B?t ??u ki?m tra th? cï¿½ng'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: kHomeOrange,
                   side: const BorderSide(color: kHomeOrange),
@@ -323,7 +323,7 @@ class _ConfidenceScoreCard extends StatelessWidget {
                 Text(_confidenceLabel, style: TextStyle(color: _confidenceColor, fontSize: 13)),
                 const SizedBox(height: 4),
                 Text(
-                  'Phân tích ${_formatTime(detection.analyzedAt)}',
+                  'Phï¿½n tï¿½ch ${_formatTime(detection.analyzedAt)}',
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
@@ -337,15 +337,15 @@ class _ConfidenceScoreCard extends StatelessWidget {
   String get _confidenceLabel {
     final pct = detection.confidencePercent;
     if (pct >= 85) return 'Tin c?y cao';
-    if (pct >= 70) return 'Tin c?y trung bình';
-    return 'Tin c?y th?p ? c?n xác minh th? công';
+    if (pct >= 70) return 'Tin c?y trung bï¿½nh';
+    return 'Tin c?y th?p ? c?n xï¿½c minh th? cï¿½ng';
   }
 
   String _formatTime(DateTime dt) {
     final now = DateTime.now();
     final diff = now.difference(dt);
     if (diff.inMinutes < 1) return 'v?a xong';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} phút tr??c';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} phï¿½t tr??c';
     return '${diff.inHours} gi? tr??c';
   }
 }
@@ -406,7 +406,7 @@ class _MoltingStatusCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Tr?ng thái l?t xác',
+                  'Tr?ng thï¿½i l?t xï¿½c',
                   style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
                 const SizedBox(height: 4),
@@ -477,13 +477,13 @@ class _HealthIndicatorCard extends StatelessWidget {
   String get _healthLabel {
     switch (healthStatus) {
       case HealthStatus.normal:
-        return 'Các ch? s? bình th??ng';
+        return 'Cï¿½c ch? s? bï¿½nh th??ng';
       case HealthStatus.disease:
-        return 'Phát hi?n d?u hi?u b?nh ? x? lý s?m';
+        return 'Phï¿½t hi?n d?u hi?u b?nh ? x? lï¿½ s?m';
       case HealthStatus.stress:
-        return 'Có d?u hi?u stress ? ki?m tra ?i?u ki?n';
+        return 'Cï¿½ d?u hi?u stress ? ki?m tra ?i?u ki?n';
       case HealthStatus.unknown:
-        return 'Không xác ??nh ???c tình tr?ng s?c kh?e';
+        return 'Khï¿½ng xï¿½c ??nh ???c tï¿½nh tr?ng s?c kh?e';
     }
   }
 
@@ -508,7 +508,7 @@ class _HealthIndicatorCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Tình tr?ng s?c kh?e',
+                  'Tï¿½nh tr?ng s?c kh?e',
                   style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
                 const SizedBox(height: 4),
@@ -551,7 +551,7 @@ class _DetectedCrabsCard extends StatelessWidget {
               const Icon(Icons.camera_enhance_rounded, color: kHomeCyan, size: 20),
               const SizedBox(width: 8),
               Text(
-                'Cua phát hi?n (${detectedCrabs.length})',
+                'Cua phï¿½t hi?n (${detectedCrabs.length})',
                 style: const TextStyle(
                   color: kHomeTextMain,
                   fontSize: 14,
@@ -586,7 +586,7 @@ class _DetectedCrabsCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Xem tr??c khung hình',
+                          'Xem tr??c khung hï¿½nh',
                           style: TextStyle(
                             color: Colors.white70.withValues(alpha: 0.7),
                             fontSize: 12,
@@ -817,8 +817,8 @@ class _FeedbackSection extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 isCorrect
-                    ? 'B?n ?ánh d?u k?t qu? là ?úng'
-                    : 'B?n ?ánh d?u k?t qu? là Sai',
+                    ? 'B?n ?ï¿½nh d?u k?t qu? lï¿½ ?ï¿½ng'
+                    : 'B?n ?ï¿½nh d?u k?t qu? lï¿½ Sai',
                 style: TextStyle(
                   color: isCorrect ? kHomeGreen : Colors.redAccent,
                   fontSize: 14,
@@ -838,7 +838,7 @@ class _FeedbackSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'K?t qu? này có chính xác không?',
+              'K?t qu? nï¿½y cï¿½ chï¿½nh xï¿½c khï¿½ng?',
               style: TextStyle(
                 color: kHomeTextMain,
                 fontSize: 14,
@@ -847,7 +847,7 @@ class _FeedbackSection extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             const Text(
-              'Ph?n h?i c?a b?n giúp c?i thi?n ?? chính xác AI',
+              'Ph?n h?i c?a b?n giï¿½p c?i thi?n ?? chï¿½nh xï¿½c AI',
               style: TextStyle(color: Colors.white70, fontSize: 12),
             ),
             const SizedBox(height: 12),
@@ -855,7 +855,7 @@ class _FeedbackSection extends StatelessWidget {
               children: [
                 Expanded(
                   child: _FeedbackButton(
-                    label: '?úng',
+                    label: '?ï¿½ng',
                     icon: Icons.thumb_up_alt_rounded,
                     color: kHomeGreen,
                     isLoading: isLoading,
@@ -954,7 +954,7 @@ class _PollingView extends StatelessWidget {
           const CircularProgressIndicator(color: kHomeCyan),
           const SizedBox(height: 24),
           const Text(
-            '?ang phân tích AI?',
+            '?ang phï¿½n tï¿½ch AI?',
             style: TextStyle(
               color: kHomeTextMain,
               fontSize: 16,
@@ -963,7 +963,7 @@ class _PollingView extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Có th? m?t t?i 60 giây.',
+            'Cï¿½ th? m?t t?i 60 giï¿½y.',
             style: TextStyle(color: Colors.white70),
             textAlign: TextAlign.center,
           ),
@@ -994,7 +994,7 @@ class _ErrorView extends StatelessWidget {
           const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 56),
           const SizedBox(height: 16),
           const Text(
-            'Không t?i ???c k?t qu? AI',
+            'Khï¿½ng t?i ???c k?t qu? AI',
             style: TextStyle(
               color: kHomeTextMain,
               fontSize: 16,

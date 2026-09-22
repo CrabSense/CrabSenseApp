@@ -920,7 +920,7 @@ class _InspectionChecklistWidgetState extends State<_InspectionChecklistWidget> 
               value: _hasDoubleLine,
               dense: true,
               activeColor: kHomeCyan,
-              title: const Text('Thấy đường đôi (Double line - Sắp lột)', style: TextStyle(color: kHomeTextMain, fontSize: 12)),
+              title: const Text('Thấy đường đôi (Double line - Lột xác)', style: TextStyle(color: kHomeTextMain, fontSize: 12)),
               onChanged: (val) => setState(() => _hasDoubleLine = val ?? false),
             ),
             CheckboxListTile(

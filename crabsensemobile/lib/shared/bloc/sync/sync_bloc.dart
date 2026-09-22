@@ -30,10 +30,7 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
   StreamSubscription<bool>? _connectivitySubscription;
   StreamSubscription<dynamic>? _progressSubscription;
 
-  Future<void> _onStarted(
-    SyncStarted event,
-    Emitter<SyncState> emit,
-  ) async {
+  Future<void> _onStarted(SyncStarted event, Emitter<SyncState> emit) async {
     // Cancel existing subscriptions if re-started
     await _connectivitySubscription?.cancel();
     await _progressSubscription?.cancel();
@@ -42,7 +39,9 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
     syncManager.startAutoSyncListener();
 
     // Listen to network status changes
-    _connectivitySubscription = networkInfo.onConnectivityChanged.listen((connected) {
+    _connectivitySubscription = networkInfo.onConnectivityChanged.listen((
+      connected,
+    ) {
       add(SyncConnectivityChanged(connected));
     });
 
@@ -64,6 +63,12 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
         progress: syncManager.currentProgress,
       ),
     );
+
+    // Hydrate the local cache as soon as an authenticated session has a
+    // reachable API. UI continues reading Drift while this runs.
+    if (connected) {
+      await syncManager.syncNow();
+    }
   }
 
   Future<void> _onConnectivityChanged(
@@ -71,12 +76,7 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
     Emitter<SyncState> emit,
   ) async {
     final pending = await _safeGetPendingCount();
-    emit(
-      state.copyWith(
-        isConnected: event.isConnected,
-        pendingCount: pending,
-      ),
-    );
+    emit(state.copyWith(isConnected: event.isConnected, pendingCount: pending));
   }
 
   Future<void> _onProgressUpdated(

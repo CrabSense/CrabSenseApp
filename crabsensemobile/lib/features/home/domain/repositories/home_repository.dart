@@ -11,6 +11,11 @@ abstract class HomeRepository {
   /// Chuyển khu nuôi — refetch data theo [farmId].
   Future<HomeStateData> switchFarm(String farmId);
 
+  Future<List<CrabStatusHistoryDay>> getDailyCrabStatusHistory({
+    int days = 7,
+    String? farmingAreaId,
+  });
+
   /// Bỏ qua khuyến nghị AI hiện tại
   Future<void> dismissRecommendation(String recommendationId);
 }

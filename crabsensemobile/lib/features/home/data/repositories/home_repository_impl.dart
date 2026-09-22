@@ -41,18 +41,20 @@ class HomeRepositoryImpl implements HomeRepository {
       final selectedFarm = _resolveSelectedFarm(farmsList, requestedAreaId);
       final areaId = selectedFarm?.id;
 
-      final results = await Future.wait([
-        _fetchBoxes(areaId),
-        _fetchAlerts(areaId),
-        _fetchWaterMetrics(areaId),
-        _fetchDevices(areaId),
-        _fetchOverview(areaId),
-        _fetchHealthMetrics(areaId),
-        _fetchAiRecommendation(areaId),
-        _fetchTodayTasks(areaId),
-        _fetchRecentActivities(areaId),
-        _fetchUnreadNotificationsCount(),
-      ].map((p) => p.catchError((_) => null)));
+      final results = await Future.wait(
+        [
+          _fetchBoxes(areaId),
+          _fetchAlerts(areaId),
+          _fetchWaterMetrics(areaId),
+          _fetchDevices(areaId),
+          _fetchOverview(areaId),
+          _fetchHealthMetrics(areaId),
+          _fetchAiRecommendation(areaId),
+          _fetchTodayTasks(areaId),
+          _fetchRecentActivities(areaId),
+          _fetchUnreadNotificationsCount(),
+        ].map((p) => p.catchError((_) => null)),
+      );
 
       final boxInfo = results[0] as Map<String, int>?;
       final alertsData = results[1] as Map<String, dynamic>?;
@@ -65,22 +67,27 @@ class HomeRepositoryImpl implements HomeRepository {
       final recentActivities = results[8] as List<RecentActivityItem>?;
       final unreadFromApi = results[9] as int?;
 
-      final operatorName = userInfo?['fullName']?.toString() ??
+      final operatorName =
+          userInfo?['fullName']?.toString() ??
           userInfo?['name']?.toString() ??
           userInfo?['username']?.toString() ??
           'Cán bộ vận hành';
-      final alertsList = alertsData?['items'] as List<AlertSummaryItem>? ?? const [];
-      final openAlertsCount = unreadFromApi ??
+      final alertsList =
+          alertsData?['items'] as List<AlertSummaryItem>? ?? const [];
+      final openAlertsCount =
+          unreadFromApi ??
           overview?.openAlerts ??
           alertsData?['openCount'] as int? ??
           alertsList.length;
 
-      final computedIotPct = deviceSummary != null &&
+      final computedIotPct =
+          deviceSummary != null &&
               (deviceSummary.esp32Total + deviceSummary.cameraTotal) > 0
           ? (((deviceSummary.esp32Online + deviceSummary.cameraOnline) /
-                      (deviceSummary.esp32Total + deviceSummary.cameraTotal)) *
-                  100)
-              .roundToDouble()
+                        (deviceSummary.esp32Total +
+                            deviceSummary.cameraTotal)) *
+                    100)
+                .roundToDouble()
           : overview?.iotOnlinePercentage ?? 0.0;
 
       final summary = HomeStateData(
@@ -90,7 +97,8 @@ class HomeRepositoryImpl implements HomeRepository {
         availableFarms: farmsList,
         isOnline: true,
         unreadNotificationsCount: openAlertsCount,
-        farmSummary: overview ??
+        farmSummary:
+            overview ??
             FarmSummary(
               totalBoxes: boxInfo?['total'] ?? 0,
               totalCrabs: 0,
@@ -99,7 +107,8 @@ class HomeRepositoryImpl implements HomeRepository {
               iotOnlinePercentage: computedIotPct,
               lastUpdated: now,
             ),
-        healthScore: healthScore ??
+        healthScore:
+            healthScore ??
             FarmHealthScore(
               score: 0,
               statusLevel: HealthStatusLevel.good,
@@ -115,7 +124,8 @@ class HomeRepositoryImpl implements HomeRepository {
         topAlerts: alertsList,
         waterMetrics: waterMetrics ?? const [],
         todayTasks: todayTasks ?? const [],
-        deviceSummary: deviceSummary ??
+        deviceSummary:
+            deviceSummary ??
             const DeviceSummary(
               esp32Online: 0,
               esp32Total: 0,
@@ -168,7 +178,45 @@ class HomeRepositoryImpl implements HomeRepository {
     await Future.delayed(const Duration(milliseconds: 50));
   }
 
-  FarmOption? _resolveSelectedFarm(List<FarmOption> farms, String? preferredId) {
+  @override
+  Future<List<CrabStatusHistoryDay>> getDailyCrabStatusHistory({
+    int days = 7,
+    String? farmingAreaId,
+  }) async {
+    final query = <String, dynamic>{'days': days};
+    if (farmingAreaId != null && farmingAreaId.isNotEmpty) {
+      query['farmingAreaId'] = farmingAreaId;
+    }
+    final res = await _api.get(
+      ApiConstants.dailyCrabStatusHistory,
+      queryParameters: query,
+    );
+    if (res.statusCode != 200 || res.data == null) return const [];
+    final list = _extractList(res.data);
+    if (list == null) return const [];
+    return list
+        .map((item) {
+          final map = _asStringKeyedMap(item);
+          if (map == null) return null;
+          return CrabStatusHistoryDay(
+            date:
+                DateTime.tryParse(map['date']?.toString() ?? '') ??
+                DateTime.now(),
+            normal: (map['normal'] as num?)?.toInt() ?? 0,
+            watch: (map['watch'] as num?)?.toInt() ?? 0,
+            molting: (map['molting'] as num?)?.toInt() ?? 0,
+            alert: (map['alert'] as num?)?.toInt() ?? 0,
+            empty: (map['empty'] as num?)?.toInt() ?? 0,
+          );
+        })
+        .whereType<CrabStatusHistoryDay>()
+        .toList();
+  }
+
+  FarmOption? _resolveSelectedFarm(
+    List<FarmOption> farms,
+    String? preferredId,
+  ) {
     if (farms.isEmpty) return null;
     if (preferredId != null && preferredId.isNotEmpty) {
       for (final farm in farms) {
@@ -286,43 +334,47 @@ class HomeRepositoryImpl implements HomeRepository {
     final area = _areaQuery(farmingAreaId);
     if (area != null) query.addAll(area);
 
-    final res = await _api.get(
-      ApiConstants.alerts,
-      queryParameters: query,
-    );
+    final res = await _api.get(ApiConstants.alerts, queryParameters: query);
     if (res.statusCode == 200 && res.data != null) {
       final list = _extractList(res.data);
       if (list != null) {
         final now = DateTime.now();
-        final mapped = list.map((item) {
-          final map = _asStringKeyedMap(item);
-          if (map == null) return null;
+        final mapped = list
+            .map((item) {
+              final map = _asStringKeyedMap(item);
+              if (map == null) return null;
 
-          final severityStr = map['severity']?.toString().toLowerCase() ?? '';
-          AlertSeverityLevel level = AlertSeverityLevel.warning;
-          if (severityStr.contains('critical') ||
-              severityStr.contains('danger') ||
-              severityStr.contains('high')) {
-            level = AlertSeverityLevel.critical;
-          } else if (severityStr.contains('info') || severityStr.contains('low')) {
-            level = AlertSeverityLevel.info;
-          }
+              final severityStr =
+                  map['severity']?.toString().toLowerCase() ?? '';
+              AlertSeverityLevel level = AlertSeverityLevel.warning;
+              if (severityStr.contains('critical') ||
+                  severityStr.contains('danger') ||
+                  severityStr.contains('high')) {
+                level = AlertSeverityLevel.critical;
+              } else if (severityStr.contains('info') ||
+                  severityStr.contains('low')) {
+                level = AlertSeverityLevel.info;
+              }
 
-          return AlertSummaryItem(
-            id: map['id']?.toString() ?? 'alt_01',
-            title: map['title']?.toString() ??
-                map['message']?.toString() ??
-                'Cảnh báo hệ thống',
-            location: map['location']?.toString() ??
-                map['sensorName']?.toString() ??
-                'Trang trại',
-            severity: level,
-            timestamp: map['createdAt'] != null
-                ? DateTime.tryParse(map['createdAt'].toString()) ?? now
-                : now,
-            status: map['status']?.toString() ?? 'Cần theo dõi',
-          );
-        }).whereType<AlertSummaryItem>().toList();
+              return AlertSummaryItem(
+                id: map['id']?.toString() ?? 'alt_01',
+                title:
+                    map['title']?.toString() ??
+                    map['message']?.toString() ??
+                    'Cảnh báo hệ thống',
+                location:
+                    map['location']?.toString() ??
+                    map['sensorName']?.toString() ??
+                    'Trang trại',
+                severity: level,
+                timestamp: map['createdAt'] != null
+                    ? DateTime.tryParse(map['createdAt'].toString()) ?? now
+                    : now,
+                status: map['status']?.toString() ?? 'Cần theo dõi',
+              );
+            })
+            .whereType<AlertSummaryItem>()
+            .toList();
 
         return {'items': mapped, 'openCount': mapped.length};
       }
@@ -350,7 +402,9 @@ class HomeRepositoryImpl implements HomeRepository {
     return int.tryParse('$count');
   }
 
-  Future<List<WaterMetricItem>?> _fetchWaterMetrics(String? farmingAreaId) async {
+  Future<List<WaterMetricItem>?> _fetchWaterMetrics(
+    String? farmingAreaId,
+  ) async {
     final res = await _api.get(
       ApiConstants.waterQualityLatest,
       queryParameters: _areaQuery(farmingAreaId),
@@ -363,16 +417,20 @@ class HomeRepositoryImpl implements HomeRepository {
         for (final item in list) {
           final map = _asStringKeyedMap(item);
           if (map == null) continue;
-          final type = map['sensorType']?.toString() ??
+          final type =
+              map['sensorType']?.toString() ??
               map['code']?.toString() ??
               map['type']?.toString() ??
               '';
-          final rawVal = map['latestValue'] ??
+          final rawVal =
+              map['latestValue'] ??
               map['value'] ??
               map['currentValue'] ??
               map['reading'] ??
               0.0;
-          final val = rawVal is num ? rawVal.toDouble() : double.tryParse('$rawVal') ?? 0.0;
+          final val = rawVal is num
+              ? rawVal.toDouble()
+              : double.tryParse('$rawVal') ?? 0.0;
           final alarm = map['alarm']?.toString().toLowerCase() ?? '';
           final min = (map['minThreshold'] as num?)?.toDouble();
           final max = (map['maxThreshold'] as num?)?.toDouble();
@@ -391,15 +449,17 @@ class HomeRepositoryImpl implements HomeRepository {
               ? DateTime.tryParse(measuredAt.toString()) ?? now
               : now;
 
-          items.add(WaterMetricItem(
-            code: type.toLowerCase(),
-            name: _waterMetricLabel(type),
-            currentValue: val,
-            unit: map['unit']?.toString() ?? _waterMetricUnit(type),
-            status: status,
-            trend: MetricTrend.stable,
-            lastUpdated: updated,
-          ));
+          items.add(
+            WaterMetricItem(
+              code: type.toLowerCase(),
+              name: _waterMetricLabel(type),
+              currentValue: val,
+              unit: map['unit']?.toString() ?? _waterMetricUnit(type),
+              status: status,
+              trend: MetricTrend.stable,
+              lastUpdated: updated,
+            ),
+          );
         }
         return items;
       }
@@ -411,7 +471,8 @@ class HomeRepositoryImpl implements HomeRepository {
     final t = type.toLowerCase();
     if (t.contains('temp')) return 'Nhiệt độ';
     if (t.contains('ph')) return 'pH';
-    if (t.contains('do') || t.contains('oxygen') || t.contains('oxy')) return 'Oxy hòa tan';
+    if (t.contains('do') || t.contains('oxygen') || t.contains('oxy'))
+      return 'Oxy hòa tan';
     if (t.contains('salin') || t.contains('salt')) return 'Độ mặn';
     if (t.contains('nh3') || t.contains('ammon')) return 'Amoniac';
     if (type.trim().isEmpty) return 'Thông số nước';
@@ -446,7 +507,9 @@ class HomeRepositoryImpl implements HomeRepository {
           final type = map['deviceType']?.toString().toLowerCase() ?? '';
           final status = map['status']?.toString().toLowerCase() ?? '';
           final isOnline =
-              map['isOnline'] == true || status == 'active' || status == 'online';
+              map['isOnline'] == true ||
+              status == 'active' ||
+              status == 'online';
           if (type.contains('esp') || type.contains('controller')) {
             espTotal++;
             if (isOnline) espOnline++;
@@ -492,7 +555,8 @@ class HomeRepositoryImpl implements HomeRepository {
       totalCrabs: (data['totalCrabs'] as num?)?.toInt() ?? 0,
       activeBoxes: (data['activeBoxes'] as num?)?.toInt() ?? 0,
       openAlerts: (data['openAlerts'] as num?)?.toInt() ?? 0,
-      iotOnlinePercentage: (data['iotOnlinePercentage'] as num?)?.toDouble() ?? 0,
+      iotOnlinePercentage:
+          (data['iotOnlinePercentage'] as num?)?.toDouble() ?? 0,
       lastUpdated: data['lastUpdated'] != null
           ? DateTime.tryParse(data['lastUpdated'].toString()) ?? DateTime.now()
           : DateTime.now(),
@@ -524,7 +588,8 @@ class HomeRepositoryImpl implements HomeRepository {
       statusLabel: data['statusLabel']?.toString() ?? level.name,
       deltaVsYesterday: (data['deltaVsYesterday'] as num?)?.toDouble() ?? 0,
       lastAiUpdated: data['lastAiUpdated'] != null
-          ? DateTime.tryParse(data['lastAiUpdated'].toString()) ?? DateTime.now()
+          ? DateTime.tryParse(data['lastAiUpdated'].toString()) ??
+                DateTime.now()
           : DateTime.now(),
       waterQualityScore: (data['waterQualityScore'] as num?)?.toInt() ?? 0,
       crabHealthScore: (data['crabHealthScore'] as num?)?.toInt() ?? 0,
@@ -533,7 +598,9 @@ class HomeRepositoryImpl implements HomeRepository {
     );
   }
 
-  Future<AiRecommendation?> _fetchAiRecommendation(String? farmingAreaId) async {
+  Future<AiRecommendation?> _fetchAiRecommendation(
+    String? farmingAreaId,
+  ) async {
     final res = await _api.get(
       ApiConstants.aiRecommendations,
       queryParameters: _areaQuery(farmingAreaId),
@@ -568,7 +635,8 @@ class HomeRepositoryImpl implements HomeRepository {
       title: map['title']?.toString() ?? 'Khuyến nghị AI',
       description: map['description']?.toString() ?? '',
       targetBoxOrArea: map['targetBoxOrArea']?.toString() ?? 'Trang trại',
-      confidencePercentage: (map['confidencePercentage'] as num?)?.toInt() ?? 80,
+      confidencePercentage:
+          (map['confidencePercentage'] as num?)?.toInt() ?? 80,
       priority: priority,
       reason: map['reason']?.toString() ?? '',
       optimalTimeframe: map['optimalTimeframe']?.toString() ?? '',
@@ -586,29 +654,35 @@ class HomeRepositoryImpl implements HomeRepository {
     final list = _extractList(res.data);
     if (list == null) return const [];
 
-    return list.map((item) {
-      final map = _asStringKeyedMap(item);
-      if (map == null) return null;
-      final prioRaw = map['priority']?.toString().toLowerCase() ?? 'low';
-      final priority = switch (prioRaw) {
-        'high' => ActionPriority.high,
-        'medium' => ActionPriority.medium,
-        _ => ActionPriority.low,
-      };
-      return TodayTaskItem(
-        id: map['id']?.toString() ?? 'task',
-        title: map['title']?.toString() ?? 'Công việc',
-        target: map['target']?.toString() ?? '',
-        deadline: map['deadline'] != null
-            ? DateTime.tryParse(map['deadline'].toString()) ?? DateTime.now()
-            : DateTime.now(),
-        priority: priority,
-        isCompleted: map['isCompleted'] == true,
-      );
-    }).whereType<TodayTaskItem>().toList();
+    return list
+        .map((item) {
+          final map = _asStringKeyedMap(item);
+          if (map == null) return null;
+          final prioRaw = map['priority']?.toString().toLowerCase() ?? 'low';
+          final priority = switch (prioRaw) {
+            'high' => ActionPriority.high,
+            'medium' => ActionPriority.medium,
+            _ => ActionPriority.low,
+          };
+          return TodayTaskItem(
+            id: map['id']?.toString() ?? 'task',
+            title: map['title']?.toString() ?? 'Công việc',
+            target: map['target']?.toString() ?? '',
+            deadline: map['deadline'] != null
+                ? DateTime.tryParse(map['deadline'].toString()) ??
+                      DateTime.now()
+                : DateTime.now(),
+            priority: priority,
+            isCompleted: map['isCompleted'] == true,
+          );
+        })
+        .whereType<TodayTaskItem>()
+        .toList();
   }
 
-  Future<List<RecentActivityItem>?> _fetchRecentActivities(String? farmingAreaId) async {
+  Future<List<RecentActivityItem>?> _fetchRecentActivities(
+    String? farmingAreaId,
+  ) async {
     final res = await _api.get(
       ApiConstants.operationsRecent,
       queryParameters: _areaQuery(farmingAreaId),
@@ -617,28 +691,32 @@ class HomeRepositoryImpl implements HomeRepository {
     final list = _extractList(res.data);
     if (list == null) return const [];
 
-    return list.map((item) {
-      final map = _asStringKeyedMap(item);
-      if (map == null) return null;
-      final typeRaw = map['type']?.toString().toLowerCase() ?? 'sync';
-      final type = switch (typeRaw) {
-        'qrscan' || 'qr_scan' => ActivityType.qrScan,
-        'sensorupdate' || 'sensor_update' => ActivityType.sensorUpdate,
-        'aidetection' || 'ai_detection' => ActivityType.aiDetection,
-        'harvest' => ActivityType.harvest,
-        'alerthandled' || 'alert_handled' => ActivityType.alertHandled,
-        _ => ActivityType.sync,
-      };
-      return RecentActivityItem(
-        id: map['id']?.toString() ?? 'act',
-        title: map['title']?.toString() ?? 'Hoạt động',
-        description: map['description']?.toString() ?? '',
-        type: type,
-        timestamp: map['timestamp'] != null
-            ? DateTime.tryParse(map['timestamp'].toString()) ?? DateTime.now()
-            : DateTime.now(),
-      );
-    }).whereType<RecentActivityItem>().toList();
+    return list
+        .map((item) {
+          final map = _asStringKeyedMap(item);
+          if (map == null) return null;
+          final typeRaw = map['type']?.toString().toLowerCase() ?? 'sync';
+          final type = switch (typeRaw) {
+            'qrscan' || 'qr_scan' => ActivityType.qrScan,
+            'sensorupdate' || 'sensor_update' => ActivityType.sensorUpdate,
+            'aidetection' || 'ai_detection' => ActivityType.aiDetection,
+            'harvest' => ActivityType.harvest,
+            'alerthandled' || 'alert_handled' => ActivityType.alertHandled,
+            _ => ActivityType.sync,
+          };
+          return RecentActivityItem(
+            id: map['id']?.toString() ?? 'act',
+            title: map['title']?.toString() ?? 'Hoạt động',
+            description: map['description']?.toString() ?? '',
+            type: type,
+            timestamp: map['timestamp'] != null
+                ? DateTime.tryParse(map['timestamp'].toString()) ??
+                      DateTime.now()
+                : DateTime.now(),
+          );
+        })
+        .whereType<RecentActivityItem>()
+        .toList();
   }
 
   HomeStateData _emptyDataState() {

@@ -13,6 +13,8 @@ import '../../data/datasources/box_remote_data_source.dart';
 import '../../data/models/crab_model.dart';
 import '../widgets/action_panel.dart';
 import '../widgets/box_timeline_widget.dart';
+import '../widgets/box_history_panel.dart';
+import '../widgets/crab_avatar.dart';
 import '../../../../shared/widgets/errors/error_state_widget.dart';
 import '../../../../shared/widgets/loading/skeleton_loader.dart';
 import '../../domain/entities/box.dart';
@@ -31,10 +33,11 @@ class BoxDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => BlocProvider<BoxBloc>(
-        create: (_) => BoxBloc(getBoxDetails: sl<GetBoxDetailsUseCase>())
+    create: (_) =>
+        BoxBloc(getBoxDetails: sl<GetBoxDetailsUseCase>())
           ..add(BoxDetailsLoadRequested(boxId)),
-        child: _BoxDetailsView(boxId: boxId),
-      );
+    child: _BoxDetailsView(boxId: boxId),
+  );
 }
 
 // ─── Internal view ────────────────────────────────────────────────────────────
@@ -62,25 +65,56 @@ class _BoxDetailsView extends StatelessWidget {
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: Colors.white,
+                  ),
                   onPressed: () {
                     if (context.canPop()) context.pop();
                   },
                 ),
                 Expanded(
-                  child: Text(
-                    'Hộp nuôi ${boxId.length > 8 ? boxId.substring(0, 8).toUpperCase() : boxId.toUpperCase()}',
-                    style: const TextStyle(
-                      color: kHomeTextMain,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Hộp ${boxId.length > 8 ? boxId.substring(0, 8).toUpperCase() : boxId.toUpperCase()}',
+                        style: const TextStyle(
+                          color: kHomeTextMain,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const Text(
+                        'Chi tiết hộp nuôi',
+                        style: TextStyle(color: Colors.white70, fontSize: 11),
+                      ),
+                    ],
                   ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-                  onPressed: () =>
-                      context.read<BoxBloc>().add(BoxDetailsRefreshRequested(boxId)),
+                  onPressed: () => context.read<BoxBloc>().add(
+                    BoxDetailsRefreshRequested(boxId),
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(
+                    Icons.more_vert_rounded,
+                    color: Colors.white,
+                  ),
+                  onSelected: (value) {
+                    if (value == 'operations') {
+                      context.push(RoutePaths.operationsForBox(boxId));
+                    }
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      value: 'operations',
+                      child: Text('Nhật ký vận hành'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -105,8 +139,8 @@ class _BoxDetailsView extends StatelessWidget {
               onRefresh: () async {
                 context.read<BoxBloc>().add(BoxDetailsRefreshRequested(boxId));
                 await context.read<BoxBloc>().stream.firstWhere(
-                      (s) => s is BoxLoaded && !s.isRefreshing || s is BoxError,
-                    );
+                  (s) => s is BoxLoaded && !s.isRefreshing || s is BoxError,
+                );
               },
               child: _BoxContent(box: state.box),
             );
@@ -128,30 +162,268 @@ class _BoxContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 4,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          // Staleness banner
-          if (box.isDataStale) ...[
-            _StaleBanner(),
-            const SizedBox(height: 12),
-          ],
-
-          // Section 1: Box info
-          _BoxInfoCard(box: box),
+          if (box.isDataStale) ...[_StaleBanner(), const SizedBox(height: 12)],
+          _BoxHero(box: box),
           const SizedBox(height: 12),
-
-          // Section 2: Water quality
-          _WaterQualityCard(box: box),
-          const SizedBox(height: 12),
-
-          // Section 3: 2 tabs
-          _TabSection(box: box),
+          _BoxTabSection(box: box),
         ],
       ),
     );
   }
+}
+
+class _BoxHero extends StatelessWidget {
+  const _BoxHero({required this.box});
+  final Box box;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: homeCardDecoration(),
+    child: Row(
+      children: [
+        const CrabAvatar(size: 72),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                box.qrCode.isEmpty ? box.id : box.qrCode,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: kHomeTextMain,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${box.farmId}${box.pondId == null ? '' : ' • Ao ${box.pondId}'}',
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: kHomeTextSub, fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${box.currentCrabCount}/${box.capacity} cua • ${box.species.displayName}',
+                style: const TextStyle(
+                  color: kHomePrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _BoxTabSection extends StatelessWidget {
+  const _BoxTabSection({required this.box});
+  final Box box;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: homeCardDecoration(),
+    child: Column(
+      children: [
+        const TabBar(
+          isScrollable: true,
+          labelColor: kHomePrimary,
+          unselectedLabelColor: kHomeTextSub,
+          indicatorColor: kHomePrimary,
+          tabs: [
+            Tab(text: 'Tổng quan'),
+            Tab(text: 'Cho ăn'),
+            Tab(text: 'Lịch sử'),
+            Tab(text: 'Biểu đồ'),
+          ],
+        ),
+        SizedBox(
+          height: 560,
+          child: TabBarView(
+            children: [
+              _OverviewTab(box: box),
+              _FeedingTab(box: box),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: BoxTimelineWidget(events: const [], totalCount: 0),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: BoxHistoryPanel(boxId: box.id, boxCode: box.qrCode),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _OverviewTab extends StatelessWidget {
+  const _OverviewTab({required this.box});
+  final Box box;
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(16),
+    children: [
+      _OverviewMetrics(box: box),
+      const SizedBox(height: 16),
+      const Text(
+        'Điều kiện hiện tại',
+        style: TextStyle(fontWeight: FontWeight.w800, color: kHomeTextMain),
+      ),
+      const SizedBox(height: 8),
+      const _InfoCard(
+        icon: Icons.water_drop_outlined,
+        title: 'Theo dõi chất lượng nước',
+        text: 'Mở mục Chất lượng nước để xem dữ liệu cảm biến mới nhất.',
+      ),
+      const SizedBox(height: 10),
+      const _InfoCard(
+        icon: Icons.tips_and_updates_outlined,
+        title: 'Ghi chú CrabSense',
+        text:
+            'Dữ liệu hiển thị từ hệ thống; hãy kiểm tra lại khi cảnh báo đã quá hạn.',
+      ),
+      const SizedBox(height: 16),
+      BoxActionPanel(boxId: box.id, farmId: box.farmId),
+    ],
+  );
+}
+
+class _OverviewMetrics extends StatelessWidget {
+  const _OverviewMetrics({required this.box});
+  final Box box;
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      _Metric(
+        label: 'Số cua',
+        value: '${box.currentCrabCount}',
+        icon: Icons.grid_view_rounded,
+      ),
+      _Metric(
+        label: 'Sức chứa',
+        value: '${box.capacity}',
+        icon: Icons.inventory_2_outlined,
+      ),
+      _Metric(
+        label: 'TB (g)',
+        value: box.averageWeight.toStringAsFixed(1),
+        icon: Icons.monitor_weight_outlined,
+      ),
+      _Metric(
+        label: 'Còn trống',
+        value: '${box.remainingCapacity}',
+        icon: Icons.space_bar_rounded,
+      ),
+    ],
+  );
+}
+
+class _Metric extends StatelessWidget {
+  const _Metric({required this.label, required this.value, required this.icon});
+  final String label, value;
+  final IconData icon;
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Column(
+      children: [
+        Icon(icon, color: kHomePrimary, size: 18),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
+            color: kHomeTextMain,
+          ),
+        ),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 10, color: kHomeTextSub),
+        ),
+      ],
+    ),
+  );
+}
+
+class _InfoCard extends StatelessWidget {
+  const _InfoCard({
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
+  final IconData icon;
+  final String title, text;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: kHomePrimaryBg,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, color: kHomePrimary),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: kHomeTextMain,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                text,
+                style: const TextStyle(fontSize: 12, color: kHomeTextSub),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _FeedingTab extends StatelessWidget {
+  const _FeedingTab({required this.box});
+  final Box box;
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(16),
+    children: [
+      const Text(
+        'Ghi nhận cho ăn',
+        style: TextStyle(fontWeight: FontWeight.w800, color: kHomeTextMain),
+      ),
+      const SizedBox(height: 12),
+      const _InfoCard(
+        icon: Icons.restaurant_outlined,
+        title: 'Lịch sử vận hành',
+        text: 'Các lần cho ăn được lấy từ dữ liệu vận hành của hộp.',
+      ),
+      const SizedBox(height: 12),
+      OutlinedButton.icon(
+        onPressed: () => context.push(RoutePaths.operationsForBox(box.id)),
+        icon: const Icon(Icons.add),
+        label: const Text('Thêm bản ghi cho ăn'),
+      ),
+      const SizedBox(height: 12),
+      BoxHistoryPanel(boxId: box.id, boxCode: box.qrCode),
+    ],
+  );
 }
 
 // ─── Stale Banner ─────────────────────────────────────────────────────────────
@@ -212,13 +484,13 @@ class _BoxInfoCard extends StatelessWidget {
   String _statusLabel() {
     switch (box.status) {
       case BoxStatus.active:
-        return 'Đang nuôi';
+        return 'Bình thường';
       case BoxStatus.inactive:
-        return 'Trống';
       case BoxStatus.maintenance:
-        return 'Bảo trì';
       case BoxStatus.harvested:
-        return 'Đã thu hoạch';
+        return box.status == BoxStatus.maintenance
+            ? 'Cần theo dõi'
+            : 'Hộp trống';
     }
   }
 
@@ -239,8 +511,11 @@ class _BoxInfoCard extends StatelessWidget {
                   color: kHomePrimaryBg,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.inventory_2_rounded,
-                    color: kHomePrimary, size: 16),
+                child: const Icon(
+                  Icons.inventory_2_rounded,
+                  color: kHomePrimary,
+                  size: 16,
+                ),
               ),
               const SizedBox(width: 10),
               const Text(
@@ -253,8 +528,10 @@ class _BoxInfoCard extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: statusC.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(20),
@@ -276,20 +553,22 @@ class _BoxInfoCard extends StatelessWidget {
           const SizedBox(height: 14),
           _DetailRow(label: 'Mã hộp', value: box.id),
           _DetailRow(
-              label: 'Thể tích',
-              value: '${box.capacity} hộp • ${box.currentCrabCount} cua'),
+            label: 'Thể tích',
+            value: '${box.capacity} hộp • ${box.currentCrabCount} cua',
+          ),
           _DetailRow(
-              label: 'Khu vực',
-              value: box.pondId != null
-                  ? '${box.farmId} / Ao ${box.pondId}'
-                  : box.farmId),
+            label: 'Khu vực',
+            value: box.pondId != null
+                ? '${box.farmId} / Ao ${box.pondId}'
+                : box.farmId,
+          ),
           if (box.location.label != null)
             _DetailRow(label: 'Vị trí', value: box.location.label!),
           _DetailRow(
-              label: 'Khối lượng TB',
-              value: '${box.averageWeight.toStringAsFixed(1)}g'),
-          _DetailRow(
-              label: 'Giống cua', value: box.species.displayName),
+            label: 'Khối lượng TB',
+            value: '${box.averageWeight.toStringAsFixed(1)}g',
+          ),
+          _DetailRow(label: 'Giống cua', value: box.species.displayName),
         ],
       ),
     );
@@ -314,18 +593,20 @@ class _DetailRow extends StatelessWidget {
             child: Text(
               label,
               style: const TextStyle(
-                  fontSize: 13,
-                  color: kHomeTextSub,
-                  fontWeight: FontWeight.w500),
+                fontSize: 13,
+                color: kHomeTextSub,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           Expanded(
             child: Text(
               value,
               style: const TextStyle(
-                  fontSize: 13,
-                  color: kHomeTextMain,
-                  fontWeight: FontWeight.w600),
+                fontSize: 13,
+                color: kHomeTextMain,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -382,16 +663,20 @@ class _WaterQualityCardState extends State<_WaterQualityCard> {
                   color: kHomeSecondaryBg,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.water_drop_rounded,
-                    color: kHomeSecondary, size: 16),
+                child: const Icon(
+                  Icons.water_drop_rounded,
+                  color: kHomeSecondary,
+                  size: 16,
+                ),
               ),
               const SizedBox(width: 10),
               const Text(
                 'Chất lượng nước',
                 style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: kHomeTextMain),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: kHomeTextMain,
+                ),
               ),
             ],
           ),
@@ -445,11 +730,14 @@ class _WaterQualityCardState extends State<_WaterQualityCard> {
                     foregroundColor: kHomePrimary,
                     side: const BorderSide(color: kHomePrimary),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     minimumSize: Size.zero,
                     textStyle: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -468,11 +756,14 @@ class _WaterQualityCardState extends State<_WaterQualityCard> {
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     minimumSize: Size.zero,
                     textStyle: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -536,9 +827,10 @@ class _WqMetricTile extends StatelessWidget {
             child: Text(
               metric.isOk ? 'OK' : 'Nguy hiểm',
               style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  color: statusC),
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                color: statusC,
+              ),
             ),
           ),
         ],
@@ -610,7 +902,8 @@ class _TabSection extends StatelessWidget {
                             foregroundColor: kHomePrimary,
                             side: const BorderSide(color: kHomePrimary),
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         ),
                       ),
@@ -655,16 +948,19 @@ class _TabSection extends StatelessWidget {
                             label: 'Thu hoạch',
                             color: kHomeOrange,
                             onTap: () => context.push(
-                              RoutePaths.harvestForBox(box.id,
-                                  farmId: box.farmId),
+                              RoutePaths.harvestForBox(
+                                box.id,
+                                farmId: box.farmId,
+                              ),
                             ),
                           ),
                           _ActionButton(
                             icon: Icons.edit_note_rounded,
                             label: 'Nhật ký VH',
                             color: kHomeCyan,
-                            onTap: () =>
-                                context.push(RoutePaths.operationsForBox(box.id)),
+                            onTap: () => context.push(
+                              RoutePaths.operationsForBox(box.id),
+                            ),
                           ),
                           _ActionButton(
                             icon: Icons.camera_alt_rounded,

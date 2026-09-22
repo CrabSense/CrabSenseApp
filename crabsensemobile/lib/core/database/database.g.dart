@@ -1456,9 +1456,6 @@ class $CrabsTable extends Crabs with TableInfo<$CrabsTable, Crab> {
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES boxes (id)',
-    ),
   );
   static const VerificationMeta _speciesMeta = const VerificationMeta(
     'species',
@@ -4577,9 +4574,6 @@ class $HarvestsTable extends Harvests with TableInfo<$HarvestsTable, Harvest> {
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES boxes (id)',
-    ),
   );
   static const VerificationMeta _totalWeightMeta = const VerificationMeta(
     'totalWeight',
@@ -6808,6 +6802,1940 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
   }
 }
 
+class $EntitySyncMetadataTable extends EntitySyncMetadata
+    with TableInfo<$EntitySyncMetadataTable, EntitySyncMetadataData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $EntitySyncMetadataTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _entityTypeMeta = const VerificationMeta(
+    'entityType',
+  );
+  @override
+  late final GeneratedColumn<String> entityType = GeneratedColumn<String>(
+    'entity_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityIdMeta = const VerificationMeta(
+    'entityId',
+  );
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+    'entity_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverVersionMeta = const VerificationMeta(
+    'serverVersion',
+  );
+  @override
+  late final GeneratedColumn<int> serverVersion = GeneratedColumn<int>(
+    'server_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _localUpdatedAtMeta = const VerificationMeta(
+    'localUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> localUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'local_updated_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _serverUpdatedAtMeta = const VerificationMeta(
+    'serverUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> serverUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'server_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('synced'),
+  );
+  static const VerificationMeta _lastSyncErrorMeta = const VerificationMeta(
+    'lastSyncError',
+  );
+  @override
+  late final GeneratedColumn<String> lastSyncError = GeneratedColumn<String>(
+    'last_sync_error',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    entityType,
+    entityId,
+    serverVersion,
+    localUpdatedAt,
+    serverUpdatedAt,
+    syncStatus,
+    lastSyncError,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'entity_sync_metadata';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<EntitySyncMetadataData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('entity_type')) {
+      context.handle(
+        _entityTypeMeta,
+        entityType.isAcceptableOrUnknown(data['entity_type']!, _entityTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityTypeMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(
+        _entityIdMeta,
+        entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('server_version')) {
+      context.handle(
+        _serverVersionMeta,
+        serverVersion.isAcceptableOrUnknown(
+          data['server_version']!,
+          _serverVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('local_updated_at')) {
+      context.handle(
+        _localUpdatedAtMeta,
+        localUpdatedAt.isAcceptableOrUnknown(
+          data['local_updated_at']!,
+          _localUpdatedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_localUpdatedAtMeta);
+    }
+    if (data.containsKey('server_updated_at')) {
+      context.handle(
+        _serverUpdatedAtMeta,
+        serverUpdatedAt.isAcceptableOrUnknown(
+          data['server_updated_at']!,
+          _serverUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
+    if (data.containsKey('last_sync_error')) {
+      context.handle(
+        _lastSyncErrorMeta,
+        lastSyncError.isAcceptableOrUnknown(
+          data['last_sync_error']!,
+          _lastSyncErrorMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {entityType, entityId};
+  @override
+  EntitySyncMetadataData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return EntitySyncMetadataData(
+      entityType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_type'],
+      )!,
+      entityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_id'],
+      )!,
+      serverVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_version'],
+      )!,
+      localUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}local_updated_at'],
+      )!,
+      serverUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}server_updated_at'],
+      ),
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_status'],
+      )!,
+      lastSyncError: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_sync_error'],
+      ),
+    );
+  }
+
+  @override
+  $EntitySyncMetadataTable createAlias(String alias) {
+    return $EntitySyncMetadataTable(attachedDatabase, alias);
+  }
+}
+
+class EntitySyncMetadataData extends DataClass
+    implements Insertable<EntitySyncMetadataData> {
+  final String entityType;
+  final String entityId;
+  final int serverVersion;
+  final DateTime localUpdatedAt;
+  final DateTime? serverUpdatedAt;
+  final String syncStatus;
+  final String? lastSyncError;
+  const EntitySyncMetadataData({
+    required this.entityType,
+    required this.entityId,
+    required this.serverVersion,
+    required this.localUpdatedAt,
+    this.serverUpdatedAt,
+    required this.syncStatus,
+    this.lastSyncError,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['entity_type'] = Variable<String>(entityType);
+    map['entity_id'] = Variable<String>(entityId);
+    map['server_version'] = Variable<int>(serverVersion);
+    map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
+    if (!nullToAbsent || serverUpdatedAt != null) {
+      map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt);
+    }
+    map['sync_status'] = Variable<String>(syncStatus);
+    if (!nullToAbsent || lastSyncError != null) {
+      map['last_sync_error'] = Variable<String>(lastSyncError);
+    }
+    return map;
+  }
+
+  EntitySyncMetadataCompanion toCompanion(bool nullToAbsent) {
+    return EntitySyncMetadataCompanion(
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      serverVersion: Value(serverVersion),
+      localUpdatedAt: Value(localUpdatedAt),
+      serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverUpdatedAt),
+      syncStatus: Value(syncStatus),
+      lastSyncError: lastSyncError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncError),
+    );
+  }
+
+  factory EntitySyncMetadataData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return EntitySyncMetadataData(
+      entityType: serializer.fromJson<String>(json['entityType']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      serverVersion: serializer.fromJson<int>(json['serverVersion']),
+      localUpdatedAt: serializer.fromJson<DateTime>(json['localUpdatedAt']),
+      serverUpdatedAt: serializer.fromJson<DateTime?>(json['serverUpdatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      lastSyncError: serializer.fromJson<String?>(json['lastSyncError']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'entityType': serializer.toJson<String>(entityType),
+      'entityId': serializer.toJson<String>(entityId),
+      'serverVersion': serializer.toJson<int>(serverVersion),
+      'localUpdatedAt': serializer.toJson<DateTime>(localUpdatedAt),
+      'serverUpdatedAt': serializer.toJson<DateTime?>(serverUpdatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'lastSyncError': serializer.toJson<String?>(lastSyncError),
+    };
+  }
+
+  EntitySyncMetadataData copyWith({
+    String? entityType,
+    String? entityId,
+    int? serverVersion,
+    DateTime? localUpdatedAt,
+    Value<DateTime?> serverUpdatedAt = const Value.absent(),
+    String? syncStatus,
+    Value<String?> lastSyncError = const Value.absent(),
+  }) => EntitySyncMetadataData(
+    entityType: entityType ?? this.entityType,
+    entityId: entityId ?? this.entityId,
+    serverVersion: serverVersion ?? this.serverVersion,
+    localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
+    serverUpdatedAt: serverUpdatedAt.present
+        ? serverUpdatedAt.value
+        : this.serverUpdatedAt,
+    syncStatus: syncStatus ?? this.syncStatus,
+    lastSyncError: lastSyncError.present
+        ? lastSyncError.value
+        : this.lastSyncError,
+  );
+  EntitySyncMetadataData copyWithCompanion(EntitySyncMetadataCompanion data) {
+    return EntitySyncMetadataData(
+      entityType: data.entityType.present
+          ? data.entityType.value
+          : this.entityType,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      serverVersion: data.serverVersion.present
+          ? data.serverVersion.value
+          : this.serverVersion,
+      localUpdatedAt: data.localUpdatedAt.present
+          ? data.localUpdatedAt.value
+          : this.localUpdatedAt,
+      serverUpdatedAt: data.serverUpdatedAt.present
+          ? data.serverUpdatedAt.value
+          : this.serverUpdatedAt,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+      lastSyncError: data.lastSyncError.present
+          ? data.lastSyncError.value
+          : this.lastSyncError,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EntitySyncMetadataData(')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('serverVersion: $serverVersion, ')
+          ..write('localUpdatedAt: $localUpdatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('lastSyncError: $lastSyncError')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    entityType,
+    entityId,
+    serverVersion,
+    localUpdatedAt,
+    serverUpdatedAt,
+    syncStatus,
+    lastSyncError,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is EntitySyncMetadataData &&
+          other.entityType == this.entityType &&
+          other.entityId == this.entityId &&
+          other.serverVersion == this.serverVersion &&
+          other.localUpdatedAt == this.localUpdatedAt &&
+          other.serverUpdatedAt == this.serverUpdatedAt &&
+          other.syncStatus == this.syncStatus &&
+          other.lastSyncError == this.lastSyncError);
+}
+
+class EntitySyncMetadataCompanion
+    extends UpdateCompanion<EntitySyncMetadataData> {
+  final Value<String> entityType;
+  final Value<String> entityId;
+  final Value<int> serverVersion;
+  final Value<DateTime> localUpdatedAt;
+  final Value<DateTime?> serverUpdatedAt;
+  final Value<String> syncStatus;
+  final Value<String?> lastSyncError;
+  final Value<int> rowid;
+  const EntitySyncMetadataCompanion({
+    this.entityType = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.serverVersion = const Value.absent(),
+    this.localUpdatedAt = const Value.absent(),
+    this.serverUpdatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.lastSyncError = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  EntitySyncMetadataCompanion.insert({
+    required String entityType,
+    required String entityId,
+    this.serverVersion = const Value.absent(),
+    required DateTime localUpdatedAt,
+    this.serverUpdatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.lastSyncError = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : entityType = Value(entityType),
+       entityId = Value(entityId),
+       localUpdatedAt = Value(localUpdatedAt);
+  static Insertable<EntitySyncMetadataData> custom({
+    Expression<String>? entityType,
+    Expression<String>? entityId,
+    Expression<int>? serverVersion,
+    Expression<DateTime>? localUpdatedAt,
+    Expression<DateTime>? serverUpdatedAt,
+    Expression<String>? syncStatus,
+    Expression<String>? lastSyncError,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (entityType != null) 'entity_type': entityType,
+      if (entityId != null) 'entity_id': entityId,
+      if (serverVersion != null) 'server_version': serverVersion,
+      if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
+      if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (lastSyncError != null) 'last_sync_error': lastSyncError,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  EntitySyncMetadataCompanion copyWith({
+    Value<String>? entityType,
+    Value<String>? entityId,
+    Value<int>? serverVersion,
+    Value<DateTime>? localUpdatedAt,
+    Value<DateTime?>? serverUpdatedAt,
+    Value<String>? syncStatus,
+    Value<String?>? lastSyncError,
+    Value<int>? rowid,
+  }) {
+    return EntitySyncMetadataCompanion(
+      entityType: entityType ?? this.entityType,
+      entityId: entityId ?? this.entityId,
+      serverVersion: serverVersion ?? this.serverVersion,
+      localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
+      serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      lastSyncError: lastSyncError ?? this.lastSyncError,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (entityType.present) {
+      map['entity_type'] = Variable<String>(entityType.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (serverVersion.present) {
+      map['server_version'] = Variable<int>(serverVersion.value);
+    }
+    if (localUpdatedAt.present) {
+      map['local_updated_at'] = Variable<DateTime>(localUpdatedAt.value);
+    }
+    if (serverUpdatedAt.present) {
+      map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (lastSyncError.present) {
+      map['last_sync_error'] = Variable<String>(lastSyncError.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EntitySyncMetadataCompanion(')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('serverVersion: $serverVersion, ')
+          ..write('localUpdatedAt: $localUpdatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('lastSyncError: $lastSyncError, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PhotoAssetsTable extends PhotoAssets
+    with TableInfo<$PhotoAssetsTable, PhotoAsset> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PhotoAssetsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityTypeMeta = const VerificationMeta(
+    'entityType',
+  );
+  @override
+  late final GeneratedColumn<String> entityType = GeneratedColumn<String>(
+    'entity_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityIdMeta = const VerificationMeta(
+    'entityId',
+  );
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+    'entity_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _feedingIdMeta = const VerificationMeta(
+    'feedingId',
+  );
+  @override
+  late final GeneratedColumn<String> feedingId = GeneratedColumn<String>(
+    'feeding_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _boxIdMeta = const VerificationMeta('boxId');
+  @override
+  late final GeneratedColumn<String> boxId = GeneratedColumn<String>(
+    'box_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _crabIdMeta = const VerificationMeta('crabId');
+  @override
+  late final GeneratedColumn<String> crabId = GeneratedColumn<String>(
+    'crab_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _photoTypeMeta = const VerificationMeta(
+    'photoType',
+  );
+  @override
+  late final GeneratedColumn<String> photoType = GeneratedColumn<String>(
+    'photo_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _localPathMeta = const VerificationMeta(
+    'localPath',
+  );
+  @override
+  late final GeneratedColumn<String> localPath = GeneratedColumn<String>(
+    'local_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serverUrlMeta = const VerificationMeta(
+    'serverUrl',
+  );
+  @override
+  late final GeneratedColumn<String> serverUrl = GeneratedColumn<String>(
+    'server_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _uploadStatusMeta = const VerificationMeta(
+    'uploadStatus',
+  );
+  @override
+  late final GeneratedColumn<String> uploadStatus = GeneratedColumn<String>(
+    'upload_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _uploadedAtMeta = const VerificationMeta(
+    'uploadedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> uploadedAt = GeneratedColumn<DateTime>(
+    'uploaded_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastErrorMeta = const VerificationMeta(
+    'lastError',
+  );
+  @override
+  late final GeneratedColumn<String> lastError = GeneratedColumn<String>(
+    'last_error',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    entityType,
+    entityId,
+    feedingId,
+    boxId,
+    crabId,
+    photoType,
+    localPath,
+    serverId,
+    serverUrl,
+    uploadStatus,
+    createdAt,
+    uploadedAt,
+    lastError,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'photo_assets';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PhotoAsset> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('entity_type')) {
+      context.handle(
+        _entityTypeMeta,
+        entityType.isAcceptableOrUnknown(data['entity_type']!, _entityTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityTypeMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(
+        _entityIdMeta,
+        entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('feeding_id')) {
+      context.handle(
+        _feedingIdMeta,
+        feedingId.isAcceptableOrUnknown(data['feeding_id']!, _feedingIdMeta),
+      );
+    }
+    if (data.containsKey('box_id')) {
+      context.handle(
+        _boxIdMeta,
+        boxId.isAcceptableOrUnknown(data['box_id']!, _boxIdMeta),
+      );
+    }
+    if (data.containsKey('crab_id')) {
+      context.handle(
+        _crabIdMeta,
+        crabId.isAcceptableOrUnknown(data['crab_id']!, _crabIdMeta),
+      );
+    }
+    if (data.containsKey('photo_type')) {
+      context.handle(
+        _photoTypeMeta,
+        photoType.isAcceptableOrUnknown(data['photo_type']!, _photoTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_photoTypeMeta);
+    }
+    if (data.containsKey('local_path')) {
+      context.handle(
+        _localPathMeta,
+        localPath.isAcceptableOrUnknown(data['local_path']!, _localPathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_localPathMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    }
+    if (data.containsKey('server_url')) {
+      context.handle(
+        _serverUrlMeta,
+        serverUrl.isAcceptableOrUnknown(data['server_url']!, _serverUrlMeta),
+      );
+    }
+    if (data.containsKey('upload_status')) {
+      context.handle(
+        _uploadStatusMeta,
+        uploadStatus.isAcceptableOrUnknown(
+          data['upload_status']!,
+          _uploadStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('uploaded_at')) {
+      context.handle(
+        _uploadedAtMeta,
+        uploadedAt.isAcceptableOrUnknown(data['uploaded_at']!, _uploadedAtMeta),
+      );
+    }
+    if (data.containsKey('last_error')) {
+      context.handle(
+        _lastErrorMeta,
+        lastError.isAcceptableOrUnknown(data['last_error']!, _lastErrorMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PhotoAsset map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PhotoAsset(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      entityType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_type'],
+      )!,
+      entityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_id'],
+      )!,
+      feedingId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}feeding_id'],
+      ),
+      boxId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}box_id'],
+      ),
+      crabId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}crab_id'],
+      ),
+      photoType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}photo_type'],
+      )!,
+      localPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_path'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      ),
+      serverUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_url'],
+      ),
+      uploadStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}upload_status'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      uploadedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}uploaded_at'],
+      ),
+      lastError: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_error'],
+      ),
+    );
+  }
+
+  @override
+  $PhotoAssetsTable createAlias(String alias) {
+    return $PhotoAssetsTable(attachedDatabase, alias);
+  }
+}
+
+class PhotoAsset extends DataClass implements Insertable<PhotoAsset> {
+  final String id;
+  final String entityType;
+  final String entityId;
+  final String? feedingId;
+  final String? boxId;
+  final String? crabId;
+  final String photoType;
+  final String localPath;
+  final String? serverId;
+  final String? serverUrl;
+  final String uploadStatus;
+  final DateTime createdAt;
+  final DateTime? uploadedAt;
+  final String? lastError;
+  const PhotoAsset({
+    required this.id,
+    required this.entityType,
+    required this.entityId,
+    this.feedingId,
+    this.boxId,
+    this.crabId,
+    required this.photoType,
+    required this.localPath,
+    this.serverId,
+    this.serverUrl,
+    required this.uploadStatus,
+    required this.createdAt,
+    this.uploadedAt,
+    this.lastError,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['entity_type'] = Variable<String>(entityType);
+    map['entity_id'] = Variable<String>(entityId);
+    if (!nullToAbsent || feedingId != null) {
+      map['feeding_id'] = Variable<String>(feedingId);
+    }
+    if (!nullToAbsent || boxId != null) {
+      map['box_id'] = Variable<String>(boxId);
+    }
+    if (!nullToAbsent || crabId != null) {
+      map['crab_id'] = Variable<String>(crabId);
+    }
+    map['photo_type'] = Variable<String>(photoType);
+    map['local_path'] = Variable<String>(localPath);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<String>(serverId);
+    }
+    if (!nullToAbsent || serverUrl != null) {
+      map['server_url'] = Variable<String>(serverUrl);
+    }
+    map['upload_status'] = Variable<String>(uploadStatus);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || uploadedAt != null) {
+      map['uploaded_at'] = Variable<DateTime>(uploadedAt);
+    }
+    if (!nullToAbsent || lastError != null) {
+      map['last_error'] = Variable<String>(lastError);
+    }
+    return map;
+  }
+
+  PhotoAssetsCompanion toCompanion(bool nullToAbsent) {
+    return PhotoAssetsCompanion(
+      id: Value(id),
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      feedingId: feedingId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(feedingId),
+      boxId: boxId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(boxId),
+      crabId: crabId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(crabId),
+      photoType: Value(photoType),
+      localPath: Value(localPath),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+      serverUrl: serverUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverUrl),
+      uploadStatus: Value(uploadStatus),
+      createdAt: Value(createdAt),
+      uploadedAt: uploadedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(uploadedAt),
+      lastError: lastError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastError),
+    );
+  }
+
+  factory PhotoAsset.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PhotoAsset(
+      id: serializer.fromJson<String>(json['id']),
+      entityType: serializer.fromJson<String>(json['entityType']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      feedingId: serializer.fromJson<String?>(json['feedingId']),
+      boxId: serializer.fromJson<String?>(json['boxId']),
+      crabId: serializer.fromJson<String?>(json['crabId']),
+      photoType: serializer.fromJson<String>(json['photoType']),
+      localPath: serializer.fromJson<String>(json['localPath']),
+      serverId: serializer.fromJson<String?>(json['serverId']),
+      serverUrl: serializer.fromJson<String?>(json['serverUrl']),
+      uploadStatus: serializer.fromJson<String>(json['uploadStatus']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      uploadedAt: serializer.fromJson<DateTime?>(json['uploadedAt']),
+      lastError: serializer.fromJson<String?>(json['lastError']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'entityType': serializer.toJson<String>(entityType),
+      'entityId': serializer.toJson<String>(entityId),
+      'feedingId': serializer.toJson<String?>(feedingId),
+      'boxId': serializer.toJson<String?>(boxId),
+      'crabId': serializer.toJson<String?>(crabId),
+      'photoType': serializer.toJson<String>(photoType),
+      'localPath': serializer.toJson<String>(localPath),
+      'serverId': serializer.toJson<String?>(serverId),
+      'serverUrl': serializer.toJson<String?>(serverUrl),
+      'uploadStatus': serializer.toJson<String>(uploadStatus),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'uploadedAt': serializer.toJson<DateTime?>(uploadedAt),
+      'lastError': serializer.toJson<String?>(lastError),
+    };
+  }
+
+  PhotoAsset copyWith({
+    String? id,
+    String? entityType,
+    String? entityId,
+    Value<String?> feedingId = const Value.absent(),
+    Value<String?> boxId = const Value.absent(),
+    Value<String?> crabId = const Value.absent(),
+    String? photoType,
+    String? localPath,
+    Value<String?> serverId = const Value.absent(),
+    Value<String?> serverUrl = const Value.absent(),
+    String? uploadStatus,
+    DateTime? createdAt,
+    Value<DateTime?> uploadedAt = const Value.absent(),
+    Value<String?> lastError = const Value.absent(),
+  }) => PhotoAsset(
+    id: id ?? this.id,
+    entityType: entityType ?? this.entityType,
+    entityId: entityId ?? this.entityId,
+    feedingId: feedingId.present ? feedingId.value : this.feedingId,
+    boxId: boxId.present ? boxId.value : this.boxId,
+    crabId: crabId.present ? crabId.value : this.crabId,
+    photoType: photoType ?? this.photoType,
+    localPath: localPath ?? this.localPath,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    serverUrl: serverUrl.present ? serverUrl.value : this.serverUrl,
+    uploadStatus: uploadStatus ?? this.uploadStatus,
+    createdAt: createdAt ?? this.createdAt,
+    uploadedAt: uploadedAt.present ? uploadedAt.value : this.uploadedAt,
+    lastError: lastError.present ? lastError.value : this.lastError,
+  );
+  PhotoAsset copyWithCompanion(PhotoAssetsCompanion data) {
+    return PhotoAsset(
+      id: data.id.present ? data.id.value : this.id,
+      entityType: data.entityType.present
+          ? data.entityType.value
+          : this.entityType,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      feedingId: data.feedingId.present ? data.feedingId.value : this.feedingId,
+      boxId: data.boxId.present ? data.boxId.value : this.boxId,
+      crabId: data.crabId.present ? data.crabId.value : this.crabId,
+      photoType: data.photoType.present ? data.photoType.value : this.photoType,
+      localPath: data.localPath.present ? data.localPath.value : this.localPath,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      serverUrl: data.serverUrl.present ? data.serverUrl.value : this.serverUrl,
+      uploadStatus: data.uploadStatus.present
+          ? data.uploadStatus.value
+          : this.uploadStatus,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      uploadedAt: data.uploadedAt.present
+          ? data.uploadedAt.value
+          : this.uploadedAt,
+      lastError: data.lastError.present ? data.lastError.value : this.lastError,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PhotoAsset(')
+          ..write('id: $id, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('feedingId: $feedingId, ')
+          ..write('boxId: $boxId, ')
+          ..write('crabId: $crabId, ')
+          ..write('photoType: $photoType, ')
+          ..write('localPath: $localPath, ')
+          ..write('serverId: $serverId, ')
+          ..write('serverUrl: $serverUrl, ')
+          ..write('uploadStatus: $uploadStatus, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('uploadedAt: $uploadedAt, ')
+          ..write('lastError: $lastError')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    entityType,
+    entityId,
+    feedingId,
+    boxId,
+    crabId,
+    photoType,
+    localPath,
+    serverId,
+    serverUrl,
+    uploadStatus,
+    createdAt,
+    uploadedAt,
+    lastError,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PhotoAsset &&
+          other.id == this.id &&
+          other.entityType == this.entityType &&
+          other.entityId == this.entityId &&
+          other.feedingId == this.feedingId &&
+          other.boxId == this.boxId &&
+          other.crabId == this.crabId &&
+          other.photoType == this.photoType &&
+          other.localPath == this.localPath &&
+          other.serverId == this.serverId &&
+          other.serverUrl == this.serverUrl &&
+          other.uploadStatus == this.uploadStatus &&
+          other.createdAt == this.createdAt &&
+          other.uploadedAt == this.uploadedAt &&
+          other.lastError == this.lastError);
+}
+
+class PhotoAssetsCompanion extends UpdateCompanion<PhotoAsset> {
+  final Value<String> id;
+  final Value<String> entityType;
+  final Value<String> entityId;
+  final Value<String?> feedingId;
+  final Value<String?> boxId;
+  final Value<String?> crabId;
+  final Value<String> photoType;
+  final Value<String> localPath;
+  final Value<String?> serverId;
+  final Value<String?> serverUrl;
+  final Value<String> uploadStatus;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> uploadedAt;
+  final Value<String?> lastError;
+  final Value<int> rowid;
+  const PhotoAssetsCompanion({
+    this.id = const Value.absent(),
+    this.entityType = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.feedingId = const Value.absent(),
+    this.boxId = const Value.absent(),
+    this.crabId = const Value.absent(),
+    this.photoType = const Value.absent(),
+    this.localPath = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.serverUrl = const Value.absent(),
+    this.uploadStatus = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.uploadedAt = const Value.absent(),
+    this.lastError = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PhotoAssetsCompanion.insert({
+    required String id,
+    required String entityType,
+    required String entityId,
+    this.feedingId = const Value.absent(),
+    this.boxId = const Value.absent(),
+    this.crabId = const Value.absent(),
+    required String photoType,
+    required String localPath,
+    this.serverId = const Value.absent(),
+    this.serverUrl = const Value.absent(),
+    this.uploadStatus = const Value.absent(),
+    required DateTime createdAt,
+    this.uploadedAt = const Value.absent(),
+    this.lastError = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       entityType = Value(entityType),
+       entityId = Value(entityId),
+       photoType = Value(photoType),
+       localPath = Value(localPath),
+       createdAt = Value(createdAt);
+  static Insertable<PhotoAsset> custom({
+    Expression<String>? id,
+    Expression<String>? entityType,
+    Expression<String>? entityId,
+    Expression<String>? feedingId,
+    Expression<String>? boxId,
+    Expression<String>? crabId,
+    Expression<String>? photoType,
+    Expression<String>? localPath,
+    Expression<String>? serverId,
+    Expression<String>? serverUrl,
+    Expression<String>? uploadStatus,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? uploadedAt,
+    Expression<String>? lastError,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (entityType != null) 'entity_type': entityType,
+      if (entityId != null) 'entity_id': entityId,
+      if (feedingId != null) 'feeding_id': feedingId,
+      if (boxId != null) 'box_id': boxId,
+      if (crabId != null) 'crab_id': crabId,
+      if (photoType != null) 'photo_type': photoType,
+      if (localPath != null) 'local_path': localPath,
+      if (serverId != null) 'server_id': serverId,
+      if (serverUrl != null) 'server_url': serverUrl,
+      if (uploadStatus != null) 'upload_status': uploadStatus,
+      if (createdAt != null) 'created_at': createdAt,
+      if (uploadedAt != null) 'uploaded_at': uploadedAt,
+      if (lastError != null) 'last_error': lastError,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PhotoAssetsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? entityType,
+    Value<String>? entityId,
+    Value<String?>? feedingId,
+    Value<String?>? boxId,
+    Value<String?>? crabId,
+    Value<String>? photoType,
+    Value<String>? localPath,
+    Value<String?>? serverId,
+    Value<String?>? serverUrl,
+    Value<String>? uploadStatus,
+    Value<DateTime>? createdAt,
+    Value<DateTime?>? uploadedAt,
+    Value<String?>? lastError,
+    Value<int>? rowid,
+  }) {
+    return PhotoAssetsCompanion(
+      id: id ?? this.id,
+      entityType: entityType ?? this.entityType,
+      entityId: entityId ?? this.entityId,
+      feedingId: feedingId ?? this.feedingId,
+      boxId: boxId ?? this.boxId,
+      crabId: crabId ?? this.crabId,
+      photoType: photoType ?? this.photoType,
+      localPath: localPath ?? this.localPath,
+      serverId: serverId ?? this.serverId,
+      serverUrl: serverUrl ?? this.serverUrl,
+      uploadStatus: uploadStatus ?? this.uploadStatus,
+      createdAt: createdAt ?? this.createdAt,
+      uploadedAt: uploadedAt ?? this.uploadedAt,
+      lastError: lastError ?? this.lastError,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (entityType.present) {
+      map['entity_type'] = Variable<String>(entityType.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (feedingId.present) {
+      map['feeding_id'] = Variable<String>(feedingId.value);
+    }
+    if (boxId.present) {
+      map['box_id'] = Variable<String>(boxId.value);
+    }
+    if (crabId.present) {
+      map['crab_id'] = Variable<String>(crabId.value);
+    }
+    if (photoType.present) {
+      map['photo_type'] = Variable<String>(photoType.value);
+    }
+    if (localPath.present) {
+      map['local_path'] = Variable<String>(localPath.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (serverUrl.present) {
+      map['server_url'] = Variable<String>(serverUrl.value);
+    }
+    if (uploadStatus.present) {
+      map['upload_status'] = Variable<String>(uploadStatus.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (uploadedAt.present) {
+      map['uploaded_at'] = Variable<DateTime>(uploadedAt.value);
+    }
+    if (lastError.present) {
+      map['last_error'] = Variable<String>(lastError.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PhotoAssetsCompanion(')
+          ..write('id: $id, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('feedingId: $feedingId, ')
+          ..write('boxId: $boxId, ')
+          ..write('crabId: $crabId, ')
+          ..write('photoType: $photoType, ')
+          ..write('localPath: $localPath, ')
+          ..write('serverId: $serverId, ')
+          ..write('serverUrl: $serverUrl, ')
+          ..write('uploadStatus: $uploadStatus, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('uploadedAt: $uploadedAt, ')
+          ..write('lastError: $lastError, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SyncConflictsTable extends SyncConflicts
+    with TableInfo<$SyncConflictsTable, SyncConflict> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncConflictsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityTypeMeta = const VerificationMeta(
+    'entityType',
+  );
+  @override
+  late final GeneratedColumn<String> entityType = GeneratedColumn<String>(
+    'entity_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityIdMeta = const VerificationMeta(
+    'entityId',
+  );
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+    'entity_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _localPayloadMeta = const VerificationMeta(
+    'localPayload',
+  );
+  @override
+  late final GeneratedColumn<String> localPayload = GeneratedColumn<String>(
+    'local_payload',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverPayloadMeta = const VerificationMeta(
+    'serverPayload',
+  );
+  @override
+  late final GeneratedColumn<String> serverPayload = GeneratedColumn<String>(
+    'server_payload',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _localVersionMeta = const VerificationMeta(
+    'localVersion',
+  );
+  @override
+  late final GeneratedColumn<int> localVersion = GeneratedColumn<int>(
+    'local_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _serverVersionMeta = const VerificationMeta(
+    'serverVersion',
+  );
+  @override
+  late final GeneratedColumn<int> serverVersion = GeneratedColumn<int>(
+    'server_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _resolvedAtMeta = const VerificationMeta(
+    'resolvedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> resolvedAt = GeneratedColumn<DateTime>(
+    'resolved_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    entityType,
+    entityId,
+    localPayload,
+    serverPayload,
+    localVersion,
+    serverVersion,
+    status,
+    createdAt,
+    resolvedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_conflicts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncConflict> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('entity_type')) {
+      context.handle(
+        _entityTypeMeta,
+        entityType.isAcceptableOrUnknown(data['entity_type']!, _entityTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityTypeMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(
+        _entityIdMeta,
+        entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('local_payload')) {
+      context.handle(
+        _localPayloadMeta,
+        localPayload.isAcceptableOrUnknown(
+          data['local_payload']!,
+          _localPayloadMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_localPayloadMeta);
+    }
+    if (data.containsKey('server_payload')) {
+      context.handle(
+        _serverPayloadMeta,
+        serverPayload.isAcceptableOrUnknown(
+          data['server_payload']!,
+          _serverPayloadMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_serverPayloadMeta);
+    }
+    if (data.containsKey('local_version')) {
+      context.handle(
+        _localVersionMeta,
+        localVersion.isAcceptableOrUnknown(
+          data['local_version']!,
+          _localVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('server_version')) {
+      context.handle(
+        _serverVersionMeta,
+        serverVersion.isAcceptableOrUnknown(
+          data['server_version']!,
+          _serverVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('resolved_at')) {
+      context.handle(
+        _resolvedAtMeta,
+        resolvedAt.isAcceptableOrUnknown(data['resolved_at']!, _resolvedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SyncConflict map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncConflict(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      entityType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_type'],
+      )!,
+      entityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_id'],
+      )!,
+      localPayload: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_payload'],
+      )!,
+      serverPayload: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_payload'],
+      )!,
+      localVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}local_version'],
+      )!,
+      serverVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_version'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      resolvedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}resolved_at'],
+      ),
+    );
+  }
+
+  @override
+  $SyncConflictsTable createAlias(String alias) {
+    return $SyncConflictsTable(attachedDatabase, alias);
+  }
+}
+
+class SyncConflict extends DataClass implements Insertable<SyncConflict> {
+  final String id;
+  final String entityType;
+  final String entityId;
+  final String localPayload;
+  final String serverPayload;
+  final int localVersion;
+  final int serverVersion;
+  final String status;
+  final DateTime createdAt;
+  final DateTime? resolvedAt;
+  const SyncConflict({
+    required this.id,
+    required this.entityType,
+    required this.entityId,
+    required this.localPayload,
+    required this.serverPayload,
+    required this.localVersion,
+    required this.serverVersion,
+    required this.status,
+    required this.createdAt,
+    this.resolvedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['entity_type'] = Variable<String>(entityType);
+    map['entity_id'] = Variable<String>(entityId);
+    map['local_payload'] = Variable<String>(localPayload);
+    map['server_payload'] = Variable<String>(serverPayload);
+    map['local_version'] = Variable<int>(localVersion);
+    map['server_version'] = Variable<int>(serverVersion);
+    map['status'] = Variable<String>(status);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || resolvedAt != null) {
+      map['resolved_at'] = Variable<DateTime>(resolvedAt);
+    }
+    return map;
+  }
+
+  SyncConflictsCompanion toCompanion(bool nullToAbsent) {
+    return SyncConflictsCompanion(
+      id: Value(id),
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      localPayload: Value(localPayload),
+      serverPayload: Value(serverPayload),
+      localVersion: Value(localVersion),
+      serverVersion: Value(serverVersion),
+      status: Value(status),
+      createdAt: Value(createdAt),
+      resolvedAt: resolvedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resolvedAt),
+    );
+  }
+
+  factory SyncConflict.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncConflict(
+      id: serializer.fromJson<String>(json['id']),
+      entityType: serializer.fromJson<String>(json['entityType']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      localPayload: serializer.fromJson<String>(json['localPayload']),
+      serverPayload: serializer.fromJson<String>(json['serverPayload']),
+      localVersion: serializer.fromJson<int>(json['localVersion']),
+      serverVersion: serializer.fromJson<int>(json['serverVersion']),
+      status: serializer.fromJson<String>(json['status']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      resolvedAt: serializer.fromJson<DateTime?>(json['resolvedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'entityType': serializer.toJson<String>(entityType),
+      'entityId': serializer.toJson<String>(entityId),
+      'localPayload': serializer.toJson<String>(localPayload),
+      'serverPayload': serializer.toJson<String>(serverPayload),
+      'localVersion': serializer.toJson<int>(localVersion),
+      'serverVersion': serializer.toJson<int>(serverVersion),
+      'status': serializer.toJson<String>(status),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'resolvedAt': serializer.toJson<DateTime?>(resolvedAt),
+    };
+  }
+
+  SyncConflict copyWith({
+    String? id,
+    String? entityType,
+    String? entityId,
+    String? localPayload,
+    String? serverPayload,
+    int? localVersion,
+    int? serverVersion,
+    String? status,
+    DateTime? createdAt,
+    Value<DateTime?> resolvedAt = const Value.absent(),
+  }) => SyncConflict(
+    id: id ?? this.id,
+    entityType: entityType ?? this.entityType,
+    entityId: entityId ?? this.entityId,
+    localPayload: localPayload ?? this.localPayload,
+    serverPayload: serverPayload ?? this.serverPayload,
+    localVersion: localVersion ?? this.localVersion,
+    serverVersion: serverVersion ?? this.serverVersion,
+    status: status ?? this.status,
+    createdAt: createdAt ?? this.createdAt,
+    resolvedAt: resolvedAt.present ? resolvedAt.value : this.resolvedAt,
+  );
+  SyncConflict copyWithCompanion(SyncConflictsCompanion data) {
+    return SyncConflict(
+      id: data.id.present ? data.id.value : this.id,
+      entityType: data.entityType.present
+          ? data.entityType.value
+          : this.entityType,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      localPayload: data.localPayload.present
+          ? data.localPayload.value
+          : this.localPayload,
+      serverPayload: data.serverPayload.present
+          ? data.serverPayload.value
+          : this.serverPayload,
+      localVersion: data.localVersion.present
+          ? data.localVersion.value
+          : this.localVersion,
+      serverVersion: data.serverVersion.present
+          ? data.serverVersion.value
+          : this.serverVersion,
+      status: data.status.present ? data.status.value : this.status,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      resolvedAt: data.resolvedAt.present
+          ? data.resolvedAt.value
+          : this.resolvedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncConflict(')
+          ..write('id: $id, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('localPayload: $localPayload, ')
+          ..write('serverPayload: $serverPayload, ')
+          ..write('localVersion: $localVersion, ')
+          ..write('serverVersion: $serverVersion, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('resolvedAt: $resolvedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    entityType,
+    entityId,
+    localPayload,
+    serverPayload,
+    localVersion,
+    serverVersion,
+    status,
+    createdAt,
+    resolvedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncConflict &&
+          other.id == this.id &&
+          other.entityType == this.entityType &&
+          other.entityId == this.entityId &&
+          other.localPayload == this.localPayload &&
+          other.serverPayload == this.serverPayload &&
+          other.localVersion == this.localVersion &&
+          other.serverVersion == this.serverVersion &&
+          other.status == this.status &&
+          other.createdAt == this.createdAt &&
+          other.resolvedAt == this.resolvedAt);
+}
+
+class SyncConflictsCompanion extends UpdateCompanion<SyncConflict> {
+  final Value<String> id;
+  final Value<String> entityType;
+  final Value<String> entityId;
+  final Value<String> localPayload;
+  final Value<String> serverPayload;
+  final Value<int> localVersion;
+  final Value<int> serverVersion;
+  final Value<String> status;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> resolvedAt;
+  final Value<int> rowid;
+  const SyncConflictsCompanion({
+    this.id = const Value.absent(),
+    this.entityType = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.localPayload = const Value.absent(),
+    this.serverPayload = const Value.absent(),
+    this.localVersion = const Value.absent(),
+    this.serverVersion = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.resolvedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncConflictsCompanion.insert({
+    required String id,
+    required String entityType,
+    required String entityId,
+    required String localPayload,
+    required String serverPayload,
+    this.localVersion = const Value.absent(),
+    this.serverVersion = const Value.absent(),
+    this.status = const Value.absent(),
+    required DateTime createdAt,
+    this.resolvedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       entityType = Value(entityType),
+       entityId = Value(entityId),
+       localPayload = Value(localPayload),
+       serverPayload = Value(serverPayload),
+       createdAt = Value(createdAt);
+  static Insertable<SyncConflict> custom({
+    Expression<String>? id,
+    Expression<String>? entityType,
+    Expression<String>? entityId,
+    Expression<String>? localPayload,
+    Expression<String>? serverPayload,
+    Expression<int>? localVersion,
+    Expression<int>? serverVersion,
+    Expression<String>? status,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? resolvedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (entityType != null) 'entity_type': entityType,
+      if (entityId != null) 'entity_id': entityId,
+      if (localPayload != null) 'local_payload': localPayload,
+      if (serverPayload != null) 'server_payload': serverPayload,
+      if (localVersion != null) 'local_version': localVersion,
+      if (serverVersion != null) 'server_version': serverVersion,
+      if (status != null) 'status': status,
+      if (createdAt != null) 'created_at': createdAt,
+      if (resolvedAt != null) 'resolved_at': resolvedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncConflictsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? entityType,
+    Value<String>? entityId,
+    Value<String>? localPayload,
+    Value<String>? serverPayload,
+    Value<int>? localVersion,
+    Value<int>? serverVersion,
+    Value<String>? status,
+    Value<DateTime>? createdAt,
+    Value<DateTime?>? resolvedAt,
+    Value<int>? rowid,
+  }) {
+    return SyncConflictsCompanion(
+      id: id ?? this.id,
+      entityType: entityType ?? this.entityType,
+      entityId: entityId ?? this.entityId,
+      localPayload: localPayload ?? this.localPayload,
+      serverPayload: serverPayload ?? this.serverPayload,
+      localVersion: localVersion ?? this.localVersion,
+      serverVersion: serverVersion ?? this.serverVersion,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      resolvedAt: resolvedAt ?? this.resolvedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (entityType.present) {
+      map['entity_type'] = Variable<String>(entityType.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (localPayload.present) {
+      map['local_payload'] = Variable<String>(localPayload.value);
+    }
+    if (serverPayload.present) {
+      map['server_payload'] = Variable<String>(serverPayload.value);
+    }
+    if (localVersion.present) {
+      map['local_version'] = Variable<int>(localVersion.value);
+    }
+    if (serverVersion.present) {
+      map['server_version'] = Variable<int>(serverVersion.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (resolvedAt.present) {
+      map['resolved_at'] = Variable<DateTime>(resolvedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncConflictsCompanion(')
+          ..write('id: $id, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('localPayload: $localPayload, ')
+          ..write('serverPayload: $serverPayload, ')
+          ..write('localVersion: $localVersion, ')
+          ..write('serverVersion: $serverVersion, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('resolvedAt: $resolvedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $VideosTable extends Videos with TableInfo<$VideosTable, Video> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -6830,9 +8758,6 @@ class $VideosTable extends Videos with TableInfo<$VideosTable, Video> {
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES boxes (id)',
-    ),
   );
   static const VerificationMeta _localPathMeta = const VerificationMeta(
     'localPath',
@@ -7674,9 +9599,6 @@ class $AiDetectionsTable extends AiDetections
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES videos (id)',
-    ),
   );
   static const VerificationMeta _boxIdMeta = const VerificationMeta('boxId');
   @override
@@ -8471,9 +10393,6 @@ class $InspectionsTable extends Inspections
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES boxes (id)',
-    ),
   );
   static const VerificationMeta _relatedVideoIdMeta = const VerificationMeta(
     'relatedVideoId',
@@ -9400,6 +11319,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $HarvestsTable harvests = $HarvestsTable(this);
   late final $SalesTable sales = $SalesTable(this);
   late final $SyncQueueTable syncQueue = $SyncQueueTable(this);
+  late final $EntitySyncMetadataTable entitySyncMetadata =
+      $EntitySyncMetadataTable(this);
+  late final $PhotoAssetsTable photoAssets = $PhotoAssetsTable(this);
+  late final $SyncConflictsTable syncConflicts = $SyncConflictsTable(this);
   late final $VideosTable videos = $VideosTable(this);
   late final $AiDetectionsTable aiDetections = $AiDetectionsTable(this);
   late final $InspectionsTable inspections = $InspectionsTable(this);
@@ -9417,6 +11340,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     harvests,
     sales,
     syncQueue,
+    entitySyncMetadata,
+    photoAssets,
+    syncConflicts,
     videos,
     aiDetections,
     inspections,
@@ -9735,86 +11661,6 @@ typedef $$BoxesTableUpdateCompanionBuilder =
       Value<int> rowid,
     });
 
-final class $$BoxesTableReferences
-    extends BaseReferences<_$AppDatabase, $BoxesTable, Boxe> {
-  $$BoxesTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static MultiTypedResultKey<$CrabsTable, List<Crab>> _crabsRefsTable(
-    _$AppDatabase db,
-  ) => MultiTypedResultKey.fromTable(
-    db.crabs,
-    aliasName: 'boxes__id__crabs__box_id',
-  );
-
-  $$CrabsTableProcessedTableManager get crabsRefs {
-    final manager = $$CrabsTableTableManager(
-      $_db,
-      $_db.crabs,
-    ).filter((f) => f.boxId.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_crabsRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<$HarvestsTable, List<Harvest>> _harvestsRefsTable(
-    _$AppDatabase db,
-  ) => MultiTypedResultKey.fromTable(
-    db.harvests,
-    aliasName: 'boxes__id__harvests__box_id',
-  );
-
-  $$HarvestsTableProcessedTableManager get harvestsRefs {
-    final manager = $$HarvestsTableTableManager(
-      $_db,
-      $_db.harvests,
-    ).filter((f) => f.boxId.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_harvestsRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<$VideosTable, List<Video>> _videosRefsTable(
-    _$AppDatabase db,
-  ) => MultiTypedResultKey.fromTable(
-    db.videos,
-    aliasName: 'boxes__id__videos__box_id',
-  );
-
-  $$VideosTableProcessedTableManager get videosRefs {
-    final manager = $$VideosTableTableManager(
-      $_db,
-      $_db.videos,
-    ).filter((f) => f.boxId.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_videosRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<$InspectionsTable, List<Inspection>>
-  _inspectionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.inspections,
-    aliasName: 'boxes__id__inspections__box_id',
-  );
-
-  $$InspectionsTableProcessedTableManager get inspectionsRefs {
-    final manager = $$InspectionsTableTableManager(
-      $_db,
-      $_db.inspections,
-    ).filter((f) => f.boxId.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_inspectionsRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-}
-
 class $$BoxesTableFilterComposer extends Composer<_$AppDatabase, $BoxesTable> {
   $$BoxesTableFilterComposer({
     required super.$db,
@@ -9897,106 +11743,6 @@ class $$BoxesTableFilterComposer extends Composer<_$AppDatabase, $BoxesTable> {
     column: $table.cachedAt,
     builder: (column) => ColumnFilters(column),
   );
-
-  Expression<bool> crabsRefs(
-    Expression<bool> Function($$CrabsTableFilterComposer f) f,
-  ) {
-    final $$CrabsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.crabs,
-      getReferencedColumn: (t) => t.boxId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$CrabsTableFilterComposer(
-            $db: $db,
-            $table: $db.crabs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<bool> harvestsRefs(
-    Expression<bool> Function($$HarvestsTableFilterComposer f) f,
-  ) {
-    final $$HarvestsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.harvests,
-      getReferencedColumn: (t) => t.boxId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$HarvestsTableFilterComposer(
-            $db: $db,
-            $table: $db.harvests,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<bool> videosRefs(
-    Expression<bool> Function($$VideosTableFilterComposer f) f,
-  ) {
-    final $$VideosTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.videos,
-      getReferencedColumn: (t) => t.boxId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$VideosTableFilterComposer(
-            $db: $db,
-            $table: $db.videos,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<bool> inspectionsRefs(
-    Expression<bool> Function($$InspectionsTableFilterComposer f) f,
-  ) {
-    final $$InspectionsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.inspections,
-      getReferencedColumn: (t) => t.boxId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$InspectionsTableFilterComposer(
-            $db: $db,
-            $table: $db.inspections,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$BoxesTableOrderingComposer
@@ -10143,106 +11889,6 @@ class $$BoxesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get cachedAt =>
       $composableBuilder(column: $table.cachedAt, builder: (column) => column);
-
-  Expression<T> crabsRefs<T extends Object>(
-    Expression<T> Function($$CrabsTableAnnotationComposer a) f,
-  ) {
-    final $$CrabsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.crabs,
-      getReferencedColumn: (t) => t.boxId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$CrabsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.crabs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<T> harvestsRefs<T extends Object>(
-    Expression<T> Function($$HarvestsTableAnnotationComposer a) f,
-  ) {
-    final $$HarvestsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.harvests,
-      getReferencedColumn: (t) => t.boxId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$HarvestsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.harvests,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<T> videosRefs<T extends Object>(
-    Expression<T> Function($$VideosTableAnnotationComposer a) f,
-  ) {
-    final $$VideosTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.videos,
-      getReferencedColumn: (t) => t.boxId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$VideosTableAnnotationComposer(
-            $db: $db,
-            $table: $db.videos,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<T> inspectionsRefs<T extends Object>(
-    Expression<T> Function($$InspectionsTableAnnotationComposer a) f,
-  ) {
-    final $$InspectionsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.inspections,
-      getReferencedColumn: (t) => t.boxId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$InspectionsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.inspections,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$BoxesTableTableManager
@@ -10256,14 +11902,9 @@ class $$BoxesTableTableManager
           $$BoxesTableAnnotationComposer,
           $$BoxesTableCreateCompanionBuilder,
           $$BoxesTableUpdateCompanionBuilder,
-          (Boxe, $$BoxesTableReferences),
+          (Boxe, BaseReferences<_$AppDatabase, $BoxesTable, Boxe>),
           Boxe,
-          PrefetchHooks Function({
-            bool crabsRefs,
-            bool harvestsRefs,
-            bool videosRefs,
-            bool inspectionsRefs,
-          })
+          PrefetchHooks Function()
         > {
   $$BoxesTableTableManager(_$AppDatabase db, $BoxesTable table)
     : super(
@@ -10349,97 +11990,9 @@ class $$BoxesTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) =>
-                    (e.readTable(table), $$BoxesTableReferences(db, table, e)),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback:
-              ({
-                crabsRefs = false,
-                harvestsRefs = false,
-                videosRefs = false,
-                inspectionsRefs = false,
-              }) {
-                return PrefetchHooks(
-                  db: db,
-                  explicitlyWatchedTables: [
-                    if (crabsRefs) db.crabs,
-                    if (harvestsRefs) db.harvests,
-                    if (videosRefs) db.videos,
-                    if (inspectionsRefs) db.inspections,
-                  ],
-                  addJoins: null,
-                  getPrefetchedDataCallback: (items) async {
-                    return [
-                      if (crabsRefs)
-                        await $_getPrefetchedData<Boxe, $BoxesTable, Crab>(
-                          currentTable: table,
-                          referencedTable: $$BoxesTableReferences
-                              ._crabsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$BoxesTableReferences(db, table, p0).crabsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.boxId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (harvestsRefs)
-                        await $_getPrefetchedData<Boxe, $BoxesTable, Harvest>(
-                          currentTable: table,
-                          referencedTable: $$BoxesTableReferences
-                              ._harvestsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$BoxesTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).harvestsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.boxId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (videosRefs)
-                        await $_getPrefetchedData<Boxe, $BoxesTable, Video>(
-                          currentTable: table,
-                          referencedTable: $$BoxesTableReferences
-                              ._videosRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$BoxesTableReferences(db, table, p0).videosRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.boxId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (inspectionsRefs)
-                        await $_getPrefetchedData<
-                          Boxe,
-                          $BoxesTable,
-                          Inspection
-                        >(
-                          currentTable: table,
-                          referencedTable: $$BoxesTableReferences
-                              ._inspectionsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$BoxesTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).inspectionsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.boxId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                    ];
-                  },
-                );
-              },
+          prefetchHooksCallback: null,
         ),
       );
 }
@@ -10454,14 +12007,9 @@ typedef $$BoxesTableProcessedTableManager =
       $$BoxesTableAnnotationComposer,
       $$BoxesTableCreateCompanionBuilder,
       $$BoxesTableUpdateCompanionBuilder,
-      (Boxe, $$BoxesTableReferences),
+      (Boxe, BaseReferences<_$AppDatabase, $BoxesTable, Boxe>),
       Boxe,
-      PrefetchHooks Function({
-        bool crabsRefs,
-        bool harvestsRefs,
-        bool videosRefs,
-        bool inspectionsRefs,
-      })
+      PrefetchHooks Function()
     >;
 typedef $$CrabsTableCreateCompanionBuilder =
     CrabsCompanion Function({
@@ -10496,28 +12044,6 @@ typedef $$CrabsTableUpdateCompanionBuilder =
       Value<int> rowid,
     });
 
-final class $$CrabsTableReferences
-    extends BaseReferences<_$AppDatabase, $CrabsTable, Crab> {
-  $$CrabsTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static $BoxesTable _boxIdTable(_$AppDatabase db) =>
-      db.boxes.createAlias('crabs__box_id__boxes__id');
-
-  $$BoxesTableProcessedTableManager get boxId {
-    final $_column = $_itemColumn<String>('box_id')!;
-
-    final manager = $$BoxesTableTableManager(
-      $_db,
-      $_db.boxes,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_boxIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
 class $$CrabsTableFilterComposer extends Composer<_$AppDatabase, $CrabsTable> {
   $$CrabsTableFilterComposer({
     required super.$db,
@@ -10528,6 +12054,11 @@ class $$CrabsTableFilterComposer extends Composer<_$AppDatabase, $CrabsTable> {
   });
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get boxId => $composableBuilder(
+    column: $table.boxId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10580,29 +12111,6 @@ class $$CrabsTableFilterComposer extends Composer<_$AppDatabase, $CrabsTable> {
     column: $table.cachedAt,
     builder: (column) => ColumnFilters(column),
   );
-
-  $$BoxesTableFilterComposer get boxId {
-    final $$BoxesTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.boxId,
-      referencedTable: $db.boxes,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BoxesTableFilterComposer(
-            $db: $db,
-            $table: $db.boxes,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$CrabsTableOrderingComposer
@@ -10616,6 +12124,11 @@ class $$CrabsTableOrderingComposer
   });
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get boxId => $composableBuilder(
+    column: $table.boxId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -10668,29 +12181,6 @@ class $$CrabsTableOrderingComposer
     column: $table.cachedAt,
     builder: (column) => ColumnOrderings(column),
   );
-
-  $$BoxesTableOrderingComposer get boxId {
-    final $$BoxesTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.boxId,
-      referencedTable: $db.boxes,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BoxesTableOrderingComposer(
-            $db: $db,
-            $table: $db.boxes,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$CrabsTableAnnotationComposer
@@ -10704,6 +12194,9 @@ class $$CrabsTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get boxId =>
+      $composableBuilder(column: $table.boxId, builder: (column) => column);
 
   GeneratedColumn<String> get species =>
       $composableBuilder(column: $table.species, builder: (column) => column);
@@ -10738,29 +12231,6 @@ class $$CrabsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get cachedAt =>
       $composableBuilder(column: $table.cachedAt, builder: (column) => column);
-
-  $$BoxesTableAnnotationComposer get boxId {
-    final $$BoxesTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.boxId,
-      referencedTable: $db.boxes,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BoxesTableAnnotationComposer(
-            $db: $db,
-            $table: $db.boxes,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$CrabsTableTableManager
@@ -10774,9 +12244,9 @@ class $$CrabsTableTableManager
           $$CrabsTableAnnotationComposer,
           $$CrabsTableCreateCompanionBuilder,
           $$CrabsTableUpdateCompanionBuilder,
-          (Crab, $$CrabsTableReferences),
+          (Crab, BaseReferences<_$AppDatabase, $CrabsTable, Crab>),
           Crab,
-          PrefetchHooks Function({bool boxId})
+          PrefetchHooks Function()
         > {
   $$CrabsTableTableManager(_$AppDatabase db, $CrabsTable table)
     : super(
@@ -10850,52 +12320,9 @@ class $$CrabsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) =>
-                    (e.readTable(table), $$CrabsTableReferences(db, table, e)),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({boxId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (boxId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.boxId,
-                                referencedTable: $$CrabsTableReferences
-                                    ._boxIdTable(db),
-                                referencedColumn: $$CrabsTableReferences
-                                    ._boxIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ),
       );
 }
@@ -10910,9 +12337,9 @@ typedef $$CrabsTableProcessedTableManager =
       $$CrabsTableAnnotationComposer,
       $$CrabsTableCreateCompanionBuilder,
       $$CrabsTableUpdateCompanionBuilder,
-      (Crab, $$CrabsTableReferences),
+      (Crab, BaseReferences<_$AppDatabase, $CrabsTable, Crab>),
       Crab,
-      PrefetchHooks Function({bool boxId})
+      PrefetchHooks Function()
     >;
 typedef $$WaterQualityReadingsTableCreateCompanionBuilder =
     WaterQualityReadingsCompanion Function({
@@ -12071,28 +13498,6 @@ typedef $$HarvestsTableUpdateCompanionBuilder =
       Value<int> rowid,
     });
 
-final class $$HarvestsTableReferences
-    extends BaseReferences<_$AppDatabase, $HarvestsTable, Harvest> {
-  $$HarvestsTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static $BoxesTable _boxIdTable(_$AppDatabase db) =>
-      db.boxes.createAlias('harvests__box_id__boxes__id');
-
-  $$BoxesTableProcessedTableManager get boxId {
-    final $_column = $_itemColumn<String>('box_id')!;
-
-    final manager = $$BoxesTableTableManager(
-      $_db,
-      $_db.boxes,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_boxIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
 class $$HarvestsTableFilterComposer
     extends Composer<_$AppDatabase, $HarvestsTable> {
   $$HarvestsTableFilterComposer({
@@ -12104,6 +13509,11 @@ class $$HarvestsTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get boxId => $composableBuilder(
+    column: $table.boxId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -12161,29 +13571,6 @@ class $$HarvestsTableFilterComposer
     column: $table.cachedAt,
     builder: (column) => ColumnFilters(column),
   );
-
-  $$BoxesTableFilterComposer get boxId {
-    final $$BoxesTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.boxId,
-      referencedTable: $db.boxes,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BoxesTableFilterComposer(
-            $db: $db,
-            $table: $db.boxes,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$HarvestsTableOrderingComposer
@@ -12197,6 +13584,11 @@ class $$HarvestsTableOrderingComposer
   });
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get boxId => $composableBuilder(
+    column: $table.boxId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -12254,29 +13646,6 @@ class $$HarvestsTableOrderingComposer
     column: $table.cachedAt,
     builder: (column) => ColumnOrderings(column),
   );
-
-  $$BoxesTableOrderingComposer get boxId {
-    final $$BoxesTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.boxId,
-      referencedTable: $db.boxes,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BoxesTableOrderingComposer(
-            $db: $db,
-            $table: $db.boxes,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$HarvestsTableAnnotationComposer
@@ -12290,6 +13659,9 @@ class $$HarvestsTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get boxId =>
+      $composableBuilder(column: $table.boxId, builder: (column) => column);
 
   GeneratedColumn<double> get totalWeight => $composableBuilder(
     column: $table.totalWeight,
@@ -12333,29 +13705,6 @@ class $$HarvestsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get cachedAt =>
       $composableBuilder(column: $table.cachedAt, builder: (column) => column);
-
-  $$BoxesTableAnnotationComposer get boxId {
-    final $$BoxesTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.boxId,
-      referencedTable: $db.boxes,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BoxesTableAnnotationComposer(
-            $db: $db,
-            $table: $db.boxes,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$HarvestsTableTableManager
@@ -12369,9 +13718,9 @@ class $$HarvestsTableTableManager
           $$HarvestsTableAnnotationComposer,
           $$HarvestsTableCreateCompanionBuilder,
           $$HarvestsTableUpdateCompanionBuilder,
-          (Harvest, $$HarvestsTableReferences),
+          (Harvest, BaseReferences<_$AppDatabase, $HarvestsTable, Harvest>),
           Harvest,
-          PrefetchHooks Function({bool boxId})
+          PrefetchHooks Function()
         > {
   $$HarvestsTableTableManager(_$AppDatabase db, $HarvestsTable table)
     : super(
@@ -12449,54 +13798,9 @@ class $$HarvestsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$HarvestsTableReferences(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({boxId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (boxId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.boxId,
-                                referencedTable: $$HarvestsTableReferences
-                                    ._boxIdTable(db),
-                                referencedColumn: $$HarvestsTableReferences
-                                    ._boxIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ),
       );
 }
@@ -12511,9 +13815,9 @@ typedef $$HarvestsTableProcessedTableManager =
       $$HarvestsTableAnnotationComposer,
       $$HarvestsTableCreateCompanionBuilder,
       $$HarvestsTableUpdateCompanionBuilder,
-      (Harvest, $$HarvestsTableReferences),
+      (Harvest, BaseReferences<_$AppDatabase, $HarvestsTable, Harvest>),
       Harvest,
-      PrefetchHooks Function({bool boxId})
+      PrefetchHooks Function()
     >;
 typedef $$SalesTableCreateCompanionBuilder =
     SalesCompanion Function({
@@ -13194,6 +14498,953 @@ typedef $$SyncQueueTableProcessedTableManager =
       SyncQueueData,
       PrefetchHooks Function()
     >;
+typedef $$EntitySyncMetadataTableCreateCompanionBuilder =
+    EntitySyncMetadataCompanion Function({
+      required String entityType,
+      required String entityId,
+      Value<int> serverVersion,
+      required DateTime localUpdatedAt,
+      Value<DateTime?> serverUpdatedAt,
+      Value<String> syncStatus,
+      Value<String?> lastSyncError,
+      Value<int> rowid,
+    });
+typedef $$EntitySyncMetadataTableUpdateCompanionBuilder =
+    EntitySyncMetadataCompanion Function({
+      Value<String> entityType,
+      Value<String> entityId,
+      Value<int> serverVersion,
+      Value<DateTime> localUpdatedAt,
+      Value<DateTime?> serverUpdatedAt,
+      Value<String> syncStatus,
+      Value<String?> lastSyncError,
+      Value<int> rowid,
+    });
+
+class $$EntitySyncMetadataTableFilterComposer
+    extends Composer<_$AppDatabase, $EntitySyncMetadataTable> {
+  $$EntitySyncMetadataTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverVersion => $composableBuilder(
+    column: $table.serverVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get localUpdatedAt => $composableBuilder(
+    column: $table.localUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastSyncError => $composableBuilder(
+    column: $table.lastSyncError,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$EntitySyncMetadataTableOrderingComposer
+    extends Composer<_$AppDatabase, $EntitySyncMetadataTable> {
+  $$EntitySyncMetadataTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverVersion => $composableBuilder(
+    column: $table.serverVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get localUpdatedAt => $composableBuilder(
+    column: $table.localUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastSyncError => $composableBuilder(
+    column: $table.lastSyncError,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$EntitySyncMetadataTableAnnotationComposer
+    extends Composer<_$AppDatabase, $EntitySyncMetadataTable> {
+  $$EntitySyncMetadataTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<int> get serverVersion => $composableBuilder(
+    column: $table.serverVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get localUpdatedAt => $composableBuilder(
+    column: $table.localUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastSyncError => $composableBuilder(
+    column: $table.lastSyncError,
+    builder: (column) => column,
+  );
+}
+
+class $$EntitySyncMetadataTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $EntitySyncMetadataTable,
+          EntitySyncMetadataData,
+          $$EntitySyncMetadataTableFilterComposer,
+          $$EntitySyncMetadataTableOrderingComposer,
+          $$EntitySyncMetadataTableAnnotationComposer,
+          $$EntitySyncMetadataTableCreateCompanionBuilder,
+          $$EntitySyncMetadataTableUpdateCompanionBuilder,
+          (
+            EntitySyncMetadataData,
+            BaseReferences<
+              _$AppDatabase,
+              $EntitySyncMetadataTable,
+              EntitySyncMetadataData
+            >,
+          ),
+          EntitySyncMetadataData,
+          PrefetchHooks Function()
+        > {
+  $$EntitySyncMetadataTableTableManager(
+    _$AppDatabase db,
+    $EntitySyncMetadataTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$EntitySyncMetadataTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$EntitySyncMetadataTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$EntitySyncMetadataTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> entityType = const Value.absent(),
+                Value<String> entityId = const Value.absent(),
+                Value<int> serverVersion = const Value.absent(),
+                Value<DateTime> localUpdatedAt = const Value.absent(),
+                Value<DateTime?> serverUpdatedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<String?> lastSyncError = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => EntitySyncMetadataCompanion(
+                entityType: entityType,
+                entityId: entityId,
+                serverVersion: serverVersion,
+                localUpdatedAt: localUpdatedAt,
+                serverUpdatedAt: serverUpdatedAt,
+                syncStatus: syncStatus,
+                lastSyncError: lastSyncError,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String entityType,
+                required String entityId,
+                Value<int> serverVersion = const Value.absent(),
+                required DateTime localUpdatedAt,
+                Value<DateTime?> serverUpdatedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<String?> lastSyncError = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => EntitySyncMetadataCompanion.insert(
+                entityType: entityType,
+                entityId: entityId,
+                serverVersion: serverVersion,
+                localUpdatedAt: localUpdatedAt,
+                serverUpdatedAt: serverUpdatedAt,
+                syncStatus: syncStatus,
+                lastSyncError: lastSyncError,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$EntitySyncMetadataTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $EntitySyncMetadataTable,
+      EntitySyncMetadataData,
+      $$EntitySyncMetadataTableFilterComposer,
+      $$EntitySyncMetadataTableOrderingComposer,
+      $$EntitySyncMetadataTableAnnotationComposer,
+      $$EntitySyncMetadataTableCreateCompanionBuilder,
+      $$EntitySyncMetadataTableUpdateCompanionBuilder,
+      (
+        EntitySyncMetadataData,
+        BaseReferences<
+          _$AppDatabase,
+          $EntitySyncMetadataTable,
+          EntitySyncMetadataData
+        >,
+      ),
+      EntitySyncMetadataData,
+      PrefetchHooks Function()
+    >;
+typedef $$PhotoAssetsTableCreateCompanionBuilder =
+    PhotoAssetsCompanion Function({
+      required String id,
+      required String entityType,
+      required String entityId,
+      Value<String?> feedingId,
+      Value<String?> boxId,
+      Value<String?> crabId,
+      required String photoType,
+      required String localPath,
+      Value<String?> serverId,
+      Value<String?> serverUrl,
+      Value<String> uploadStatus,
+      required DateTime createdAt,
+      Value<DateTime?> uploadedAt,
+      Value<String?> lastError,
+      Value<int> rowid,
+    });
+typedef $$PhotoAssetsTableUpdateCompanionBuilder =
+    PhotoAssetsCompanion Function({
+      Value<String> id,
+      Value<String> entityType,
+      Value<String> entityId,
+      Value<String?> feedingId,
+      Value<String?> boxId,
+      Value<String?> crabId,
+      Value<String> photoType,
+      Value<String> localPath,
+      Value<String?> serverId,
+      Value<String?> serverUrl,
+      Value<String> uploadStatus,
+      Value<DateTime> createdAt,
+      Value<DateTime?> uploadedAt,
+      Value<String?> lastError,
+      Value<int> rowid,
+    });
+
+class $$PhotoAssetsTableFilterComposer
+    extends Composer<_$AppDatabase, $PhotoAssetsTable> {
+  $$PhotoAssetsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get feedingId => $composableBuilder(
+    column: $table.feedingId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get boxId => $composableBuilder(
+    column: $table.boxId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get crabId => $composableBuilder(
+    column: $table.crabId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get photoType => $composableBuilder(
+    column: $table.photoType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localPath => $composableBuilder(
+    column: $table.localPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverUrl => $composableBuilder(
+    column: $table.serverUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get uploadStatus => $composableBuilder(
+    column: $table.uploadStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get uploadedAt => $composableBuilder(
+    column: $table.uploadedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastError => $composableBuilder(
+    column: $table.lastError,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PhotoAssetsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PhotoAssetsTable> {
+  $$PhotoAssetsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get feedingId => $composableBuilder(
+    column: $table.feedingId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get boxId => $composableBuilder(
+    column: $table.boxId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get crabId => $composableBuilder(
+    column: $table.crabId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get photoType => $composableBuilder(
+    column: $table.photoType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get localPath => $composableBuilder(
+    column: $table.localPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverUrl => $composableBuilder(
+    column: $table.serverUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get uploadStatus => $composableBuilder(
+    column: $table.uploadStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get uploadedAt => $composableBuilder(
+    column: $table.uploadedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastError => $composableBuilder(
+    column: $table.lastError,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PhotoAssetsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PhotoAssetsTable> {
+  $$PhotoAssetsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get feedingId =>
+      $composableBuilder(column: $table.feedingId, builder: (column) => column);
+
+  GeneratedColumn<String> get boxId =>
+      $composableBuilder(column: $table.boxId, builder: (column) => column);
+
+  GeneratedColumn<String> get crabId =>
+      $composableBuilder(column: $table.crabId, builder: (column) => column);
+
+  GeneratedColumn<String> get photoType =>
+      $composableBuilder(column: $table.photoType, builder: (column) => column);
+
+  GeneratedColumn<String> get localPath =>
+      $composableBuilder(column: $table.localPath, builder: (column) => column);
+
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get serverUrl =>
+      $composableBuilder(column: $table.serverUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get uploadStatus => $composableBuilder(
+    column: $table.uploadStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get uploadedAt => $composableBuilder(
+    column: $table.uploadedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastError =>
+      $composableBuilder(column: $table.lastError, builder: (column) => column);
+}
+
+class $$PhotoAssetsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PhotoAssetsTable,
+          PhotoAsset,
+          $$PhotoAssetsTableFilterComposer,
+          $$PhotoAssetsTableOrderingComposer,
+          $$PhotoAssetsTableAnnotationComposer,
+          $$PhotoAssetsTableCreateCompanionBuilder,
+          $$PhotoAssetsTableUpdateCompanionBuilder,
+          (
+            PhotoAsset,
+            BaseReferences<_$AppDatabase, $PhotoAssetsTable, PhotoAsset>,
+          ),
+          PhotoAsset,
+          PrefetchHooks Function()
+        > {
+  $$PhotoAssetsTableTableManager(_$AppDatabase db, $PhotoAssetsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PhotoAssetsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PhotoAssetsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PhotoAssetsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> entityType = const Value.absent(),
+                Value<String> entityId = const Value.absent(),
+                Value<String?> feedingId = const Value.absent(),
+                Value<String?> boxId = const Value.absent(),
+                Value<String?> crabId = const Value.absent(),
+                Value<String> photoType = const Value.absent(),
+                Value<String> localPath = const Value.absent(),
+                Value<String?> serverId = const Value.absent(),
+                Value<String?> serverUrl = const Value.absent(),
+                Value<String> uploadStatus = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> uploadedAt = const Value.absent(),
+                Value<String?> lastError = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PhotoAssetsCompanion(
+                id: id,
+                entityType: entityType,
+                entityId: entityId,
+                feedingId: feedingId,
+                boxId: boxId,
+                crabId: crabId,
+                photoType: photoType,
+                localPath: localPath,
+                serverId: serverId,
+                serverUrl: serverUrl,
+                uploadStatus: uploadStatus,
+                createdAt: createdAt,
+                uploadedAt: uploadedAt,
+                lastError: lastError,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String entityType,
+                required String entityId,
+                Value<String?> feedingId = const Value.absent(),
+                Value<String?> boxId = const Value.absent(),
+                Value<String?> crabId = const Value.absent(),
+                required String photoType,
+                required String localPath,
+                Value<String?> serverId = const Value.absent(),
+                Value<String?> serverUrl = const Value.absent(),
+                Value<String> uploadStatus = const Value.absent(),
+                required DateTime createdAt,
+                Value<DateTime?> uploadedAt = const Value.absent(),
+                Value<String?> lastError = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PhotoAssetsCompanion.insert(
+                id: id,
+                entityType: entityType,
+                entityId: entityId,
+                feedingId: feedingId,
+                boxId: boxId,
+                crabId: crabId,
+                photoType: photoType,
+                localPath: localPath,
+                serverId: serverId,
+                serverUrl: serverUrl,
+                uploadStatus: uploadStatus,
+                createdAt: createdAt,
+                uploadedAt: uploadedAt,
+                lastError: lastError,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PhotoAssetsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PhotoAssetsTable,
+      PhotoAsset,
+      $$PhotoAssetsTableFilterComposer,
+      $$PhotoAssetsTableOrderingComposer,
+      $$PhotoAssetsTableAnnotationComposer,
+      $$PhotoAssetsTableCreateCompanionBuilder,
+      $$PhotoAssetsTableUpdateCompanionBuilder,
+      (
+        PhotoAsset,
+        BaseReferences<_$AppDatabase, $PhotoAssetsTable, PhotoAsset>,
+      ),
+      PhotoAsset,
+      PrefetchHooks Function()
+    >;
+typedef $$SyncConflictsTableCreateCompanionBuilder =
+    SyncConflictsCompanion Function({
+      required String id,
+      required String entityType,
+      required String entityId,
+      required String localPayload,
+      required String serverPayload,
+      Value<int> localVersion,
+      Value<int> serverVersion,
+      Value<String> status,
+      required DateTime createdAt,
+      Value<DateTime?> resolvedAt,
+      Value<int> rowid,
+    });
+typedef $$SyncConflictsTableUpdateCompanionBuilder =
+    SyncConflictsCompanion Function({
+      Value<String> id,
+      Value<String> entityType,
+      Value<String> entityId,
+      Value<String> localPayload,
+      Value<String> serverPayload,
+      Value<int> localVersion,
+      Value<int> serverVersion,
+      Value<String> status,
+      Value<DateTime> createdAt,
+      Value<DateTime?> resolvedAt,
+      Value<int> rowid,
+    });
+
+class $$SyncConflictsTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncConflictsTable> {
+  $$SyncConflictsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localPayload => $composableBuilder(
+    column: $table.localPayload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverPayload => $composableBuilder(
+    column: $table.serverPayload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get localVersion => $composableBuilder(
+    column: $table.localVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverVersion => $composableBuilder(
+    column: $table.serverVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get resolvedAt => $composableBuilder(
+    column: $table.resolvedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncConflictsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncConflictsTable> {
+  $$SyncConflictsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get localPayload => $composableBuilder(
+    column: $table.localPayload,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverPayload => $composableBuilder(
+    column: $table.serverPayload,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get localVersion => $composableBuilder(
+    column: $table.localVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverVersion => $composableBuilder(
+    column: $table.serverVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get resolvedAt => $composableBuilder(
+    column: $table.resolvedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncConflictsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncConflictsTable> {
+  $$SyncConflictsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get localPayload => $composableBuilder(
+    column: $table.localPayload,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get serverPayload => $composableBuilder(
+    column: $table.serverPayload,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get localVersion => $composableBuilder(
+    column: $table.localVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get serverVersion => $composableBuilder(
+    column: $table.serverVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get resolvedAt => $composableBuilder(
+    column: $table.resolvedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$SyncConflictsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncConflictsTable,
+          SyncConflict,
+          $$SyncConflictsTableFilterComposer,
+          $$SyncConflictsTableOrderingComposer,
+          $$SyncConflictsTableAnnotationComposer,
+          $$SyncConflictsTableCreateCompanionBuilder,
+          $$SyncConflictsTableUpdateCompanionBuilder,
+          (
+            SyncConflict,
+            BaseReferences<_$AppDatabase, $SyncConflictsTable, SyncConflict>,
+          ),
+          SyncConflict,
+          PrefetchHooks Function()
+        > {
+  $$SyncConflictsTableTableManager(_$AppDatabase db, $SyncConflictsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncConflictsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncConflictsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncConflictsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> entityType = const Value.absent(),
+                Value<String> entityId = const Value.absent(),
+                Value<String> localPayload = const Value.absent(),
+                Value<String> serverPayload = const Value.absent(),
+                Value<int> localVersion = const Value.absent(),
+                Value<int> serverVersion = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> resolvedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncConflictsCompanion(
+                id: id,
+                entityType: entityType,
+                entityId: entityId,
+                localPayload: localPayload,
+                serverPayload: serverPayload,
+                localVersion: localVersion,
+                serverVersion: serverVersion,
+                status: status,
+                createdAt: createdAt,
+                resolvedAt: resolvedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String entityType,
+                required String entityId,
+                required String localPayload,
+                required String serverPayload,
+                Value<int> localVersion = const Value.absent(),
+                Value<int> serverVersion = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                required DateTime createdAt,
+                Value<DateTime?> resolvedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncConflictsCompanion.insert(
+                id: id,
+                entityType: entityType,
+                entityId: entityId,
+                localPayload: localPayload,
+                serverPayload: serverPayload,
+                localVersion: localVersion,
+                serverVersion: serverVersion,
+                status: status,
+                createdAt: createdAt,
+                resolvedAt: resolvedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncConflictsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncConflictsTable,
+      SyncConflict,
+      $$SyncConflictsTableFilterComposer,
+      $$SyncConflictsTableOrderingComposer,
+      $$SyncConflictsTableAnnotationComposer,
+      $$SyncConflictsTableCreateCompanionBuilder,
+      $$SyncConflictsTableUpdateCompanionBuilder,
+      (
+        SyncConflict,
+        BaseReferences<_$AppDatabase, $SyncConflictsTable, SyncConflict>,
+      ),
+      SyncConflict,
+      PrefetchHooks Function()
+    >;
 typedef $$VideosTableCreateCompanionBuilder =
     VideosCompanion Function({
       required String id,
@@ -13231,46 +15482,6 @@ typedef $$VideosTableUpdateCompanionBuilder =
       Value<int> rowid,
     });
 
-final class $$VideosTableReferences
-    extends BaseReferences<_$AppDatabase, $VideosTable, Video> {
-  $$VideosTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static $BoxesTable _boxIdTable(_$AppDatabase db) =>
-      db.boxes.createAlias('videos__box_id__boxes__id');
-
-  $$BoxesTableProcessedTableManager get boxId {
-    final $_column = $_itemColumn<String>('box_id')!;
-
-    final manager = $$BoxesTableTableManager(
-      $_db,
-      $_db.boxes,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_boxIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-
-  static MultiTypedResultKey<$AiDetectionsTable, List<AiDetection>>
-  _aiDetectionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.aiDetections,
-    aliasName: 'videos__id__ai_detections__video_id',
-  );
-
-  $$AiDetectionsTableProcessedTableManager get aiDetectionsRefs {
-    final manager = $$AiDetectionsTableTableManager(
-      $_db,
-      $_db.aiDetections,
-    ).filter((f) => f.videoId.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_aiDetectionsRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-}
-
 class $$VideosTableFilterComposer
     extends Composer<_$AppDatabase, $VideosTable> {
   $$VideosTableFilterComposer({
@@ -13282,6 +15493,11 @@ class $$VideosTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get boxId => $composableBuilder(
+    column: $table.boxId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13344,54 +15560,6 @@ class $$VideosTableFilterComposer
     column: $table.cachedAt,
     builder: (column) => ColumnFilters(column),
   );
-
-  $$BoxesTableFilterComposer get boxId {
-    final $$BoxesTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.boxId,
-      referencedTable: $db.boxes,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BoxesTableFilterComposer(
-            $db: $db,
-            $table: $db.boxes,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  Expression<bool> aiDetectionsRefs(
-    Expression<bool> Function($$AiDetectionsTableFilterComposer f) f,
-  ) {
-    final $$AiDetectionsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.aiDetections,
-      getReferencedColumn: (t) => t.videoId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AiDetectionsTableFilterComposer(
-            $db: $db,
-            $table: $db.aiDetections,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$VideosTableOrderingComposer
@@ -13405,6 +15573,11 @@ class $$VideosTableOrderingComposer
   });
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get boxId => $composableBuilder(
+    column: $table.boxId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -13467,29 +15640,6 @@ class $$VideosTableOrderingComposer
     column: $table.cachedAt,
     builder: (column) => ColumnOrderings(column),
   );
-
-  $$BoxesTableOrderingComposer get boxId {
-    final $$BoxesTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.boxId,
-      referencedTable: $db.boxes,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BoxesTableOrderingComposer(
-            $db: $db,
-            $table: $db.boxes,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$VideosTableAnnotationComposer
@@ -13503,6 +15653,9 @@ class $$VideosTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get boxId =>
+      $composableBuilder(column: $table.boxId, builder: (column) => column);
 
   GeneratedColumn<String> get localPath =>
       $composableBuilder(column: $table.localPath, builder: (column) => column);
@@ -13553,54 +15706,6 @@ class $$VideosTableAnnotationComposer
 
   GeneratedColumn<DateTime> get cachedAt =>
       $composableBuilder(column: $table.cachedAt, builder: (column) => column);
-
-  $$BoxesTableAnnotationComposer get boxId {
-    final $$BoxesTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.boxId,
-      referencedTable: $db.boxes,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BoxesTableAnnotationComposer(
-            $db: $db,
-            $table: $db.boxes,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  Expression<T> aiDetectionsRefs<T extends Object>(
-    Expression<T> Function($$AiDetectionsTableAnnotationComposer a) f,
-  ) {
-    final $$AiDetectionsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.aiDetections,
-      getReferencedColumn: (t) => t.videoId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AiDetectionsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.aiDetections,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$VideosTableTableManager
@@ -13614,9 +15719,9 @@ class $$VideosTableTableManager
           $$VideosTableAnnotationComposer,
           $$VideosTableCreateCompanionBuilder,
           $$VideosTableUpdateCompanionBuilder,
-          (Video, $$VideosTableReferences),
+          (Video, BaseReferences<_$AppDatabase, $VideosTable, Video>),
           Video,
-          PrefetchHooks Function({bool boxId, bool aiDetectionsRefs})
+          PrefetchHooks Function()
         > {
   $$VideosTableTableManager(_$AppDatabase db, $VideosTable table)
     : super(
@@ -13698,67 +15803,9 @@ class $$VideosTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) =>
-                    (e.readTable(table), $$VideosTableReferences(db, table, e)),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({boxId = false, aiDetectionsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (aiDetectionsRefs) db.aiDetections],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (boxId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.boxId,
-                                referencedTable: $$VideosTableReferences
-                                    ._boxIdTable(db),
-                                referencedColumn: $$VideosTableReferences
-                                    ._boxIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (aiDetectionsRefs)
-                    await $_getPrefetchedData<Video, $VideosTable, AiDetection>(
-                      currentTable: table,
-                      referencedTable: $$VideosTableReferences
-                          ._aiDetectionsRefsTable(db),
-                      managerFromTypedResult: (p0) => $$VideosTableReferences(
-                        db,
-                        table,
-                        p0,
-                      ).aiDetectionsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.videoId == item.id),
-                      typedResults: items,
-                    ),
-                ];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ),
       );
 }
@@ -13773,9 +15820,9 @@ typedef $$VideosTableProcessedTableManager =
       $$VideosTableAnnotationComposer,
       $$VideosTableCreateCompanionBuilder,
       $$VideosTableUpdateCompanionBuilder,
-      (Video, $$VideosTableReferences),
+      (Video, BaseReferences<_$AppDatabase, $VideosTable, Video>),
       Video,
-      PrefetchHooks Function({bool boxId, bool aiDetectionsRefs})
+      PrefetchHooks Function()
     >;
 typedef $$AiDetectionsTableCreateCompanionBuilder =
     AiDetectionsCompanion Function({
@@ -13812,28 +15859,6 @@ typedef $$AiDetectionsTableUpdateCompanionBuilder =
       Value<int> rowid,
     });
 
-final class $$AiDetectionsTableReferences
-    extends BaseReferences<_$AppDatabase, $AiDetectionsTable, AiDetection> {
-  $$AiDetectionsTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static $VideosTable _videoIdTable(_$AppDatabase db) =>
-      db.videos.createAlias('ai_detections__video_id__videos__id');
-
-  $$VideosTableProcessedTableManager get videoId {
-    final $_column = $_itemColumn<String>('video_id')!;
-
-    final manager = $$VideosTableTableManager(
-      $_db,
-      $_db.videos,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_videoIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
 class $$AiDetectionsTableFilterComposer
     extends Composer<_$AppDatabase, $AiDetectionsTable> {
   $$AiDetectionsTableFilterComposer({
@@ -13845,6 +15870,11 @@ class $$AiDetectionsTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get videoId => $composableBuilder(
+    column: $table.videoId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13902,29 +15932,6 @@ class $$AiDetectionsTableFilterComposer
     column: $table.cachedAt,
     builder: (column) => ColumnFilters(column),
   );
-
-  $$VideosTableFilterComposer get videoId {
-    final $$VideosTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.videoId,
-      referencedTable: $db.videos,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$VideosTableFilterComposer(
-            $db: $db,
-            $table: $db.videos,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$AiDetectionsTableOrderingComposer
@@ -13938,6 +15945,11 @@ class $$AiDetectionsTableOrderingComposer
   });
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get videoId => $composableBuilder(
+    column: $table.videoId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -13995,29 +16007,6 @@ class $$AiDetectionsTableOrderingComposer
     column: $table.cachedAt,
     builder: (column) => ColumnOrderings(column),
   );
-
-  $$VideosTableOrderingComposer get videoId {
-    final $$VideosTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.videoId,
-      referencedTable: $db.videos,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$VideosTableOrderingComposer(
-            $db: $db,
-            $table: $db.videos,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$AiDetectionsTableAnnotationComposer
@@ -14031,6 +16020,9 @@ class $$AiDetectionsTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get videoId =>
+      $composableBuilder(column: $table.videoId, builder: (column) => column);
 
   GeneratedColumn<String> get boxId =>
       $composableBuilder(column: $table.boxId, builder: (column) => column);
@@ -14078,29 +16070,6 @@ class $$AiDetectionsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get cachedAt =>
       $composableBuilder(column: $table.cachedAt, builder: (column) => column);
-
-  $$VideosTableAnnotationComposer get videoId {
-    final $$VideosTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.videoId,
-      referencedTable: $db.videos,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$VideosTableAnnotationComposer(
-            $db: $db,
-            $table: $db.videos,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$AiDetectionsTableTableManager
@@ -14114,9 +16083,12 @@ class $$AiDetectionsTableTableManager
           $$AiDetectionsTableAnnotationComposer,
           $$AiDetectionsTableCreateCompanionBuilder,
           $$AiDetectionsTableUpdateCompanionBuilder,
-          (AiDetection, $$AiDetectionsTableReferences),
+          (
+            AiDetection,
+            BaseReferences<_$AppDatabase, $AiDetectionsTable, AiDetection>,
+          ),
           AiDetection,
-          PrefetchHooks Function({bool videoId})
+          PrefetchHooks Function()
         > {
   $$AiDetectionsTableTableManager(_$AppDatabase db, $AiDetectionsTable table)
     : super(
@@ -14194,54 +16166,9 @@ class $$AiDetectionsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$AiDetectionsTableReferences(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({videoId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (videoId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.videoId,
-                                referencedTable: $$AiDetectionsTableReferences
-                                    ._videoIdTable(db),
-                                referencedColumn: $$AiDetectionsTableReferences
-                                    ._videoIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ),
       );
 }
@@ -14256,9 +16183,12 @@ typedef $$AiDetectionsTableProcessedTableManager =
       $$AiDetectionsTableAnnotationComposer,
       $$AiDetectionsTableCreateCompanionBuilder,
       $$AiDetectionsTableUpdateCompanionBuilder,
-      (AiDetection, $$AiDetectionsTableReferences),
+      (
+        AiDetection,
+        BaseReferences<_$AppDatabase, $AiDetectionsTable, AiDetection>,
+      ),
       AiDetection,
-      PrefetchHooks Function({bool videoId})
+      PrefetchHooks Function()
     >;
 typedef $$InspectionsTableCreateCompanionBuilder =
     InspectionsCompanion Function({
@@ -14301,28 +16231,6 @@ typedef $$InspectionsTableUpdateCompanionBuilder =
       Value<int> rowid,
     });
 
-final class $$InspectionsTableReferences
-    extends BaseReferences<_$AppDatabase, $InspectionsTable, Inspection> {
-  $$InspectionsTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static $BoxesTable _boxIdTable(_$AppDatabase db) =>
-      db.boxes.createAlias('inspections__box_id__boxes__id');
-
-  $$BoxesTableProcessedTableManager get boxId {
-    final $_column = $_itemColumn<String>('box_id')!;
-
-    final manager = $$BoxesTableTableManager(
-      $_db,
-      $_db.boxes,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_boxIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
 class $$InspectionsTableFilterComposer
     extends Composer<_$AppDatabase, $InspectionsTable> {
   $$InspectionsTableFilterComposer({
@@ -14334,6 +16242,11 @@ class $$InspectionsTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get boxId => $composableBuilder(
+    column: $table.boxId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14406,29 +16319,6 @@ class $$InspectionsTableFilterComposer
     column: $table.cachedAt,
     builder: (column) => ColumnFilters(column),
   );
-
-  $$BoxesTableFilterComposer get boxId {
-    final $$BoxesTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.boxId,
-      referencedTable: $db.boxes,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BoxesTableFilterComposer(
-            $db: $db,
-            $table: $db.boxes,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$InspectionsTableOrderingComposer
@@ -14442,6 +16332,11 @@ class $$InspectionsTableOrderingComposer
   });
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get boxId => $composableBuilder(
+    column: $table.boxId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -14514,29 +16409,6 @@ class $$InspectionsTableOrderingComposer
     column: $table.cachedAt,
     builder: (column) => ColumnOrderings(column),
   );
-
-  $$BoxesTableOrderingComposer get boxId {
-    final $$BoxesTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.boxId,
-      referencedTable: $db.boxes,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BoxesTableOrderingComposer(
-            $db: $db,
-            $table: $db.boxes,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$InspectionsTableAnnotationComposer
@@ -14550,6 +16422,9 @@ class $$InspectionsTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get boxId =>
+      $composableBuilder(column: $table.boxId, builder: (column) => column);
 
   GeneratedColumn<String> get relatedVideoId => $composableBuilder(
     column: $table.relatedVideoId,
@@ -14606,29 +16481,6 @@ class $$InspectionsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get cachedAt =>
       $composableBuilder(column: $table.cachedAt, builder: (column) => column);
-
-  $$BoxesTableAnnotationComposer get boxId {
-    final $$BoxesTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.boxId,
-      referencedTable: $db.boxes,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BoxesTableAnnotationComposer(
-            $db: $db,
-            $table: $db.boxes,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$InspectionsTableTableManager
@@ -14642,9 +16494,12 @@ class $$InspectionsTableTableManager
           $$InspectionsTableAnnotationComposer,
           $$InspectionsTableCreateCompanionBuilder,
           $$InspectionsTableUpdateCompanionBuilder,
-          (Inspection, $$InspectionsTableReferences),
+          (
+            Inspection,
+            BaseReferences<_$AppDatabase, $InspectionsTable, Inspection>,
+          ),
           Inspection,
-          PrefetchHooks Function({bool boxId})
+          PrefetchHooks Function()
         > {
   $$InspectionsTableTableManager(_$AppDatabase db, $InspectionsTable table)
     : super(
@@ -14734,54 +16589,9 @@ class $$InspectionsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$InspectionsTableReferences(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({boxId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (boxId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.boxId,
-                                referencedTable: $$InspectionsTableReferences
-                                    ._boxIdTable(db),
-                                referencedColumn: $$InspectionsTableReferences
-                                    ._boxIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ),
       );
 }
@@ -14796,9 +16606,12 @@ typedef $$InspectionsTableProcessedTableManager =
       $$InspectionsTableAnnotationComposer,
       $$InspectionsTableCreateCompanionBuilder,
       $$InspectionsTableUpdateCompanionBuilder,
-      (Inspection, $$InspectionsTableReferences),
+      (
+        Inspection,
+        BaseReferences<_$AppDatabase, $InspectionsTable, Inspection>,
+      ),
       Inspection,
-      PrefetchHooks Function({bool boxId})
+      PrefetchHooks Function()
     >;
 
 class $AppDatabaseManager {
@@ -14822,6 +16635,12 @@ class $AppDatabaseManager {
       $$SalesTableTableManager(_db, _db.sales);
   $$SyncQueueTableTableManager get syncQueue =>
       $$SyncQueueTableTableManager(_db, _db.syncQueue);
+  $$EntitySyncMetadataTableTableManager get entitySyncMetadata =>
+      $$EntitySyncMetadataTableTableManager(_db, _db.entitySyncMetadata);
+  $$PhotoAssetsTableTableManager get photoAssets =>
+      $$PhotoAssetsTableTableManager(_db, _db.photoAssets);
+  $$SyncConflictsTableTableManager get syncConflicts =>
+      $$SyncConflictsTableTableManager(_db, _db.syncConflicts);
   $$VideosTableTableManager get videos =>
       $$VideosTableTableManager(_db, _db.videos);
   $$AiDetectionsTableTableManager get aiDetections =>

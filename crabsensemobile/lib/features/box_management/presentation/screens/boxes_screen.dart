@@ -1013,7 +1013,7 @@ class _FarmHeaderCard extends StatelessWidget {
                   onTap: () => onStatTap?.call(BoxQuickFilter.occupied),
                   child: _StatItem(
                     icon: Icons.check_circle_rounded,
-                    label: 'Đang nuôi',
+                    label: BoxStatus.normal.label,
                     value: '$activeBoxes',
                     color: kHomePrimaryDark,
                     tint: const Color(0xFFD5F5E3),

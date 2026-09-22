@@ -310,8 +310,6 @@ class HarvestSummaryCard extends StatelessWidget {
         return CrabSenseColors.primary;
       case QualityGrade.gradeC:
         return CrabSenseColors.warning;
-      case QualityGrade.rejected:
-        return CrabSenseColors.error;
     }
   }
 }

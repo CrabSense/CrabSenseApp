@@ -441,7 +441,12 @@ Future<void> init() async {
 
   // Repository
   sl.registerLazySingleton<BoxRepository>(
-    () => BoxRepositoryImpl(remoteDataSource: sl(), localDataSource: sl(), networkInfo: sl()),
+    () => BoxRepositoryImpl(
+      remoteDataSource: sl(),
+      localDataSource: sl(),
+      networkInfo: sl(),
+      syncService: sl(),
+    ),
   );
 
   // Use Cases

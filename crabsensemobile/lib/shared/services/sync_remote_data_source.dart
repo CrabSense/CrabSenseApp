@@ -20,10 +20,7 @@ abstract class SyncRemoteDataSource {
 
 /// Implementation of [SyncRemoteDataSource] using [ApiClient].
 class SyncRemoteDataSourceImpl implements SyncRemoteDataSource {
-  SyncRemoteDataSourceImpl({
-    required this.apiClient,
-    required this.logger,
-  });
+  SyncRemoteDataSourceImpl({required this.apiClient, required this.logger});
 
   final ApiClient apiClient;
   final Logger logger;
@@ -43,6 +40,11 @@ class SyncRemoteDataSourceImpl implements SyncRemoteDataSource {
               'operationType': item.operationType,
               'entityId': item.entityId,
               'payload': item.payload,
+              'idempotencyKey': item.id,
+              'baseVersion': item.payload['baseVersion'],
+              'clientUpdatedAt':
+                  item.payload['clientUpdatedAt'] ??
+                  item.createdAt.toIso8601String(),
               'createdAt': item.createdAt.toIso8601String(),
               'priority': item.priority.value,
               'retryCount': item.retryCount,
@@ -55,7 +57,8 @@ class SyncRemoteDataSourceImpl implements SyncRemoteDataSource {
         data: <String, dynamic>{'items': payloadList},
       );
 
-      return response.data ?? <String, dynamic>{'success': true, 'processedCount': items.length};
+      return response.data ??
+          <String, dynamic>{'success': true, 'processedCount': items.length};
     } on Exception catch (e) {
       logger.e('SyncRemoteDataSource: Batch upload failed: $e');
       throw ServerException(

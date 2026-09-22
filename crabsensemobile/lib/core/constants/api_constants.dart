@@ -66,7 +66,8 @@ class ApiConstants {
   static const String changePassword = '/auth/change-password';
   static const String verifyEmail = '/auth/verify-email';
   static const String currentUser = '/auth/me';
-  static const String notificationPreferences = '/auth/me/notification-preferences';
+  static const String notificationPreferences =
+      '/auth/me/notification-preferences';
 
   // ===========================================================================
   // User Endpoints
@@ -147,6 +148,7 @@ class ApiConstants {
   static String crabWeights(String crabId) => '/crabs/$crabId/weights';
   static String crabStatusHistory(String crabId) =>
       '/crabs/$crabId/status-history';
+  static const String dailyCrabStatusHistory = '/crabs/status-history-daily';
   static String crabHarvests(String crabId) => '/crabs/$crabId/harvests';
 
   // ===========================================================================
@@ -262,8 +264,7 @@ class ApiConstants {
   static String operationsForBox(String boxId) => '/operations/box/$boxId';
 
   /// Phiếu chăm sóc (cho ăn) của một con cua — lịch sử ăn.
-  static String operationsForCrab(String crabId) =>
-      '/operations/crab/$crabId';
+  static String operationsForCrab(String crabId) => '/operations/crab/$crabId';
 
   /// Prefer POST /operations (create) and PUT /operations/{id} (update).
   static const String createOperation = '/operations';

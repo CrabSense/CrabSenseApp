@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import '../database.dart';
 import 'migration_v1.dart';
 import 'migration_v2.dart';
+import 'migration_v3.dart';
 
 /// Encapsulates all database migration logic for the CrabSense local database.
 ///
@@ -59,9 +60,17 @@ class DatabaseMigrationManager {
   ///   await MigrationV2.apply(m, db);
   /// }
   /// ```
-  static Future<void> onUpgrade(Migrator m, int from, int to, AppDatabase db) async {
-    // No upgrades yet — only version 1 exists.
-    // Future migrations are added here as new numbered blocks:
-    // if (from < 2) { await MigrationV2.apply(m, db); }
+  static Future<void> onUpgrade(
+    Migrator m,
+    int from,
+    int to,
+    AppDatabase db,
+  ) async {
+    if (from < 2) {
+      await MigrationV2.apply(m, db);
+    }
+    if (from < 3) {
+      await MigrationV3.apply(m, db);
+    }
   }
 }

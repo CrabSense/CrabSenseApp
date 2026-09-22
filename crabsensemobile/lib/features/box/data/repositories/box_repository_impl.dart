@@ -12,6 +12,8 @@ import '../datasources/box_local_data_source.dart';
 import '../datasources/box_remote_data_source.dart';
 import '../models/box_model.dart';
 import '../models/crab_model.dart';
+import '../../../../shared/services/sync_queue_item.dart';
+import '../../../../shared/services/sync_service.dart';
 
 /// Concrete implementation of [BoxRepository].
 ///
@@ -34,11 +36,13 @@ class BoxRepositoryImpl implements BoxRepository {
     required this.remoteDataSource,
     required this.localDataSource,
     required this.networkInfo,
+    this.syncService,
   });
 
   final BoxRemoteDataSource remoteDataSource;
   final BoxLocalDataSource localDataSource;
   final NetworkInfo networkInfo;
+  final SyncService? syncService;
 
   // ---------------------------------------------------------------------------
   // BoxRepository implementation
@@ -123,7 +127,10 @@ class BoxRepositoryImpl implements BoxRepository {
   Future<Either<Failure, Crab>> addCrab(String boxId, Crab crab) async {
     if (await networkInfo.isConnected) {
       try {
-        final created = await remoteDataSource.addCrab(boxId, CrabModel.fromEntity(crab));
+        final created = await remoteDataSource.addCrab(
+          boxId,
+          CrabModel.fromEntity(crab),
+        );
         await localDataSource.cacheCrab(created);
         return Right(created.toEntity());
       } on ServerException catch (e) {
@@ -138,6 +145,17 @@ class BoxRepositoryImpl implements BoxRepository {
     // Offline — persist locally, mark dirty for later sync (Req 16.8, 16.9)
     try {
       await localDataSource.cacheCrab(crab, isDirty: true);
+      await syncService?.enqueue(
+        entityType: SyncEntityType.crab,
+        operationType: 'create_crab',
+        entityId: crab.id,
+        payload: <String, dynamic>{
+          'boxId': boxId,
+          'crab': CrabModel.fromEntity(crab).toJson(),
+          'clientUpdatedAt': DateTime.now().toIso8601String(),
+        },
+        priority: SyncPriority.high,
+      );
       return Right(crab);
     } on CacheException catch (e) {
       return Left(CacheFailure(e.message, e.code));
@@ -151,16 +169,26 @@ class BoxRepositoryImpl implements BoxRepository {
     String destinationBoxId,
   ) async {
     if (!await networkInfo.isConnected) {
-      return const Left(
-        NetworkFailure(
-          'Transfer requires an active connection. '
-          'Please retry when online.',
-        ),
+      await syncService?.enqueue(
+        entityType: SyncEntityType.transfer,
+        operationType: 'transfer_crab',
+        entityId: crabId,
+        payload: <String, dynamic>{
+          'sourceBoxId': sourceBoxId,
+          'destinationBoxId': destinationBoxId,
+          'clientUpdatedAt': DateTime.now().toIso8601String(),
+        },
+        priority: SyncPriority.high,
       );
+      return const Right(null);
     }
 
     try {
-      await remoteDataSource.transferCrab(crabId, sourceBoxId, destinationBoxId);
+      await remoteDataSource.transferCrab(
+        crabId,
+        sourceBoxId,
+        destinationBoxId,
+      );
       return const Right(null);
     } on ServerException catch (e) {
       return Left(_mapServerException(e));
@@ -173,7 +201,9 @@ class BoxRepositoryImpl implements BoxRepository {
   Future<Either<Failure, Box>> updateBox(Box box) async {
     if (await networkInfo.isConnected) {
       try {
-        final updated = await remoteDataSource.updateBox(BoxModel.fromEntity(box));
+        final updated = await remoteDataSource.updateBox(
+          BoxModel.fromEntity(box),
+        );
         await localDataSource.cacheBox(updated);
         return Right(updated.toEntity());
       } on ServerException catch (e) {
@@ -188,6 +218,16 @@ class BoxRepositoryImpl implements BoxRepository {
     // Offline — persist locally with dirty flag for sync later
     try {
       await localDataSource.cacheBox(box, isDirty: true);
+      await syncService?.enqueue(
+        entityType: SyncEntityType.box,
+        operationType: 'update_box',
+        entityId: box.id,
+        payload: <String, dynamic>{
+          'box': BoxModel.fromEntity(box).toJson(),
+          'clientUpdatedAt': DateTime.now().toIso8601String(),
+        },
+        priority: SyncPriority.medium,
+      );
       return Right(box);
     } on CacheException catch (e) {
       return Left(CacheFailure(e.message, e.code));

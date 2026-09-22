@@ -1,5 +1,23 @@
 import 'package:flutter/material.dart';
 
+class CrabStatusHistoryDay {
+  final DateTime date;
+  final int normal;
+  final int watch;
+  final int molting;
+  final int alert;
+  final int empty;
+
+  const CrabStatusHistoryDay({
+    required this.date,
+    required this.normal,
+    required this.watch,
+    required this.molting,
+    required this.alert,
+    required this.empty,
+  });
+}
+
 /// Trạng thái tổng quan trang trại (Farm Overview Hero)
 class FarmSummary {
   final int totalBoxes;
@@ -22,9 +40,9 @@ class FarmSummary {
 /// Mức độ sức khỏe trang trại (Farm Health Score - Điểm nhấn #1)
 enum HealthStatusLevel {
   excellent, // 85-100 (Success)
-  good,      // 70-84 (Info)
-  warning,   // 50-69 (Warning)
-  danger     // <50 (Danger)
+  good, // 70-84 (Info)
+  warning, // 50-69 (Warning)
+  danger, // <50 (Danger)
 }
 
 class FarmHealthScore {
@@ -60,6 +78,7 @@ class FarmHealthScore {
 
 /// Đề xuất hành động từ AI (AI Recommendation - Điểm nhấn #2)
 enum AiActionType { harvest, inspect, waterTreatment, observe }
+
 enum ActionPriority { high, medium, low }
 
 class AiRecommendation {
@@ -97,7 +116,8 @@ class AiRecommendation {
     targetBoxOrArea: 'Toàn trang trại',
     confidencePercentage: 99,
     priority: ActionPriority.low,
-    reason: 'Tất cả các thông số nước và tình trạng cua đều nằm trong ngưỡng an toàn.',
+    reason:
+        'Tất cả các thông số nước và tình trạng cua đều nằm trong ngưỡng an toàn.',
     optimalTimeframe: 'Duy trì giám sát',
     expectedImpact: 'Ổn định vận hành',
     hasActiveRecommendation: false,
@@ -146,6 +166,7 @@ class AlertSummaryItem {
 
 /// Tổng quan chất lượng nước (Water Quality Section B)
 enum MetricStatus { optimal, warning, danger }
+
 enum MetricTrend { up, down, stable }
 
 class WaterMetricItem {
@@ -211,7 +232,14 @@ class DeviceSummary {
 }
 
 /// Nhật ký hoạt động gần đây (Recent Activity Section E)
-enum ActivityType { qrScan, sensorUpdate, aiDetection, harvest, sync, alertHandled }
+enum ActivityType {
+  qrScan,
+  sensorUpdate,
+  aiDetection,
+  harvest,
+  sync,
+  alertHandled,
+}
 
 class RecentActivityItem {
   final String id;
