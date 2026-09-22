@@ -1,5 +1,7 @@
 // ignore_for_file: lines_longer_than_80_chars
 
+import 'package:drift/drift.dart';
+
 import '../../../../core/database/database.dart' as database;
 import '../../../../core/errors/exceptions.dart';
 import '../../domain/entities/box.dart';
@@ -54,6 +56,13 @@ abstract class BoxLocalDataSource {
   /// Throws [CacheException] on write failure.
   Future<void> deleteCachedCrab(String crabId);
 
+  /// Moves a cached crab to another box without waiting for the server.
+  Future<void> moveCachedCrab(String crabId, String destinationBoxId) =>
+      throw const CacheException(
+        message: 'Moving cached crabs is not supported by this data source.',
+        code: 'CACHE_WRITE_ERROR',
+      );
+
   /// Returns a live stream of a box row from the local cache.
   ///
   /// Emits the latest [Box] state whenever the row changes.
@@ -75,10 +84,15 @@ class BoxLocalDataSourceImpl implements BoxLocalDataSource {
   @override
   Future<BoxModel> getCachedBox(String boxId) async {
     try {
-      final row = await (db.select(db.boxes)..where((t) => t.id.equals(boxId))).getSingleOrNull();
+      final row = await (db.select(
+        db.boxes,
+      )..where((t) => t.id.equals(boxId))).getSingleOrNull();
 
       if (row == null) {
-        throw CacheException(message: 'No cached box found with id: $boxId', code: 'BOX_NOT_FOUND');
+        throw CacheException(
+          message: 'No cached box found with id: $boxId',
+          code: 'BOX_NOT_FOUND',
+        );
       }
 
       return BoxModel.fromDrift(
@@ -146,7 +160,9 @@ class BoxLocalDataSourceImpl implements BoxLocalDataSource {
   @override
   Future<List<BoxModel>> getCachedBoxesByFarm(String farmId) async {
     try {
-      final rows = await (db.select(db.boxes)..where((t) => t.farmId.equals(farmId))).get();
+      final rows = await (db.select(
+        db.boxes,
+      )..where((t) => t.farmId.equals(farmId))).get();
 
       return rows
           .map(
@@ -177,10 +193,15 @@ class BoxLocalDataSourceImpl implements BoxLocalDataSource {
   @override
   Future<void> cacheBox(Box box, {bool isDirty = false}) async {
     try {
-      final companion = BoxModel.fromEntity(box).toDriftCompanion(isDirty: isDirty);
+      final companion = BoxModel.fromEntity(
+        box,
+      ).toDriftCompanion(isDirty: isDirty);
       await db.into(db.boxes).insertOnConflictUpdate(companion);
     } catch (e) {
-      throw CacheException(message: 'Failed to cache box: $e', code: 'CACHE_WRITE_ERROR');
+      throw CacheException(
+        message: 'Failed to cache box: $e',
+        code: 'CACHE_WRITE_ERROR',
+      );
     }
   }
 
@@ -194,24 +215,34 @@ class BoxLocalDataSourceImpl implements BoxLocalDataSource {
         }
       });
     } catch (e) {
-      throw CacheException(message: 'Failed to cache boxes: $e', code: 'CACHE_WRITE_ERROR');
+      throw CacheException(
+        message: 'Failed to cache boxes: $e',
+        code: 'CACHE_WRITE_ERROR',
+      );
     }
   }
 
   @override
   Future<void> cacheCrab(domain.Crab crab, {bool isDirty = false}) async {
     try {
-      final companion = CrabModel.fromEntity(crab).toDriftCompanion(isDirty: isDirty);
+      final companion = CrabModel.fromEntity(
+        crab,
+      ).toDriftCompanion(isDirty: isDirty);
       await db.into(db.crabs).insertOnConflictUpdate(companion);
     } catch (e) {
-      throw CacheException(message: 'Failed to cache crab: $e', code: 'CACHE_WRITE_ERROR');
+      throw CacheException(
+        message: 'Failed to cache crab: $e',
+        code: 'CACHE_WRITE_ERROR',
+      );
     }
   }
 
   @override
   Future<List<CrabModel>> getCachedCrabsByBox(String boxId) async {
     try {
-      final rows = await (db.select(db.crabs)..where((t) => t.boxId.equals(boxId))).get();
+      final rows = await (db.select(
+        db.crabs,
+      )..where((t) => t.boxId.equals(boxId))).get();
 
       return rows
           .map(
@@ -243,6 +274,20 @@ class BoxLocalDataSourceImpl implements BoxLocalDataSource {
     } catch (e) {
       throw CacheException(
         message: 'Failed to delete crab from local cache: $e',
+        code: 'CACHE_WRITE_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<void> moveCachedCrab(String crabId, String destinationBoxId) async {
+    try {
+      await (db.update(db.crabs)..where((t) => t.id.equals(crabId))).write(
+        database.CrabsCompanion(boxId: Value(destinationBoxId)),
+      );
+    } catch (e) {
+      throw CacheException(
+        message: 'Failed to move crab in local cache: $e',
         code: 'CACHE_WRITE_ERROR',
       );
     }
