@@ -396,7 +396,7 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
   }) async {
     if (_pelletPhoto == null || _boxPhoto == null) {
       throw Exception(
-        'Cần 2 ảnh: viên thức ăn và hộp lúc cho ăn (để train AI).',
+        'Two photos are required: food pellet and feeding box (for AI training).',
       );
     }
 
@@ -621,9 +621,10 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
           const SizedBox(height: 10),
           _field(_feedGramCtrl, 'Bao nhiêu gam'),
           const SizedBox(height: 14),
-          _section('Ảnh train AI (bắt buộc)'),
+          _section('AI training photos (required)'),
           const Text(
-            'Chụp 2 tấm: viên thức ăn, rồi hộp lúc cho vào — để máy học ăn nhiều/ít.',
+            'Take two photos: the food pellet, then the box while feeding, '
+            'so AI can learn whether the crab eats a lot or a little.',
             style: TextStyle(fontSize: 12, color: kHomeTextSub),
           ),
           const SizedBox(height: 10),
@@ -631,7 +632,7 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
             children: [
               Expanded(
                 child: _photoSlot(
-                  title: 'Viên thức ăn',
+                  title: 'Food pellet',
                   file: _pelletPhoto,
                   onTap: () async {
                     final shot = await _pickPhoto();
@@ -644,7 +645,7 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
               const SizedBox(width: 10),
               Expanded(
                 child: _photoSlot(
-                  title: 'Hộp cho ăn',
+                  title: 'Feeding box',
                   file: _boxPhoto,
                   onTap: () async {
                     final shot = await _pickPhoto();
