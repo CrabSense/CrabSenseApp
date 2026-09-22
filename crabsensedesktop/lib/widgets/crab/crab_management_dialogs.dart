@@ -687,6 +687,7 @@ Future<void> showRecordMoltDialog(
   var moltDate = DateTime.now();
   var moltCount = crab.moltCount + 1;
   var condition = MoltCondition.normal;
+  final imagePaths = <String>[];
 
   final ok = await showDialog<bool>(
     context: context,
@@ -695,36 +696,153 @@ Future<void> showRecordMoltDialog(
         backgroundColor: DashboardColors.card,
         title: Text('Ghi nhận lột xác', style: GoogleFonts.notoSans(color: DashboardColors.textPrimary)),
         content: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Ngày lột xác'),
-                subtitle: Text(formatDate(moltDate)),
-                trailing: IconButton(
-                  icon: const Icon(Icons.calendar_today_outlined),
-                  onPressed: () async {
-                    final d = await showDatePicker(
-                      context: ctx,
-                      initialDate: moltDate,
-                      firstDate: DateTime(2024),
-                      lastDate: DateTime.now(),
-                    );
-                    if (d != null) setS(() => moltDate = d);
-                  },
+          width: 440,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Ngày lột xác'),
+                  subtitle: Text(formatDate(moltDate)),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.calendar_today_outlined),
+                    onPressed: () async {
+                      final d = await showDatePicker(
+                        context: ctx,
+                        initialDate: moltDate,
+                        firstDate: DateTime(2024),
+                        lastDate: DateTime.now(),
+                      );
+                      if (d != null) setS(() => moltDate = d);
+                    },
+                  ),
                 ),
-              ),
-              _dropdown(
-                'Số lần lột xác',
-                '$moltCount',
-                List.generate(8, (i) => '${i + 1}'),
-                (v) => setS(() => moltCount = int.parse(v!)),
-              ),
-              _enumDropdown('Tình trạng sau lột', condition, MoltCondition.values, (v) => setS(() => condition = v!), (c) => c.label),
-              _field(noteCtrl, 'Ghi chú', maxLines: 2),
-            ],
+                _dropdown(
+                  'Số lần lột xác',
+                  '$moltCount',
+                  List.generate(8, (i) => '${i + 1}'),
+                  (v) => setS(() => moltCount = int.parse(v!)),
+                ),
+                _enumDropdown('Tình trạng sau lột', condition, MoltCondition.values, (v) => setS(() => condition = v!), (c) => c.label),
+                _field(noteCtrl, 'Ghi chú', maxLines: 2),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Ảnh lột xác',
+                    style: GoogleFonts.notoSans(
+                      fontSize: 12,
+                      color: DashboardColors.textMuted,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (var i = 0; i < imagePaths.length; i++)
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.file(
+                              File(imagePaths[i]),
+                              width: 72,
+                              height: 72,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Positioned(
+                            top: -6,
+                            right: -6,
+                            child: InkWell(
+                              onTap: () => setS(() => imagePaths.removeAt(i)),
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  color: Colors.black87,
+                                  shape: BoxShape.circle,
+                                ),
+                                padding: const EdgeInsets.all(2),
+                                child: const Icon(Icons.close, size: 14, color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    if (imagePaths.length < 10)
+                      InkWell(
+                        onTap: () async {
+                          final remain = 10 - imagePaths.length;
+                          final result = await FilePicker.platform.pickFiles(
+                            type: FileType.custom,
+                            allowedExtensions: const [
+                              'jpg',
+                              'jpeg',
+                              'png',
+                              'webp',
+                              'gif',
+                              'heic',
+                              'heif',
+                            ],
+                            allowMultiple: true,
+                          );
+                          if (result == null) return;
+                          final added = <String>[];
+                          for (final f in result.files) {
+                            final path = f.path;
+                            if (path == null || path.isEmpty) continue;
+                            if (imagePaths.contains(path) || added.contains(path)) continue;
+                            added.add(path);
+                            if (added.length >= remain) break;
+                          }
+                          if (added.isEmpty) return;
+                          setS(() => imagePaths.addAll(added));
+                        },
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            color: DashboardColors.darkNavy.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: DashboardColors.textMuted.withValues(alpha: 0.35),
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.add_a_photo_outlined, color: DashboardColors.cyan, size: 22),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Thêm',
+                                style: GoogleFonts.notoSans(
+                                  fontSize: 11,
+                                  color: DashboardColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Tối đa 10 ảnh · jpeg, png, webp · tải lên Drive khi lưu',
+                    style: GoogleFonts.notoSans(
+                      fontSize: 11,
+                      color: DashboardColors.textMuted,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -746,13 +864,16 @@ Future<void> showRecordMoltDialog(
       moltCount: moltCount,
       condition: condition,
       note: noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim(),
+      imagePaths: List<String>.from(imagePaths),
     );
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             success
-                ? 'Đã ghi nhận lột xác. Xuất cua lột ở Thu hoạch & Bán hàng hoặc menu cua.'
+                ? (imagePaths.isEmpty
+                    ? 'Đã ghi nhận lột xác. Xuất cua lột ở Thu hoạch & Bán hàng hoặc menu cua.'
+                    : 'Đã ghi nhận lột xác và tải ${imagePaths.length} ảnh lên Drive.')
                 : (service.error ?? 'Lỗi'),
           ),
         ),

@@ -4,16 +4,20 @@ import 'crab_status.dart';
 
 class CrabMoltRecord {
   const CrabMoltRecord({
+    this.id,
     required this.number,
     required this.date,
     required this.condition,
     this.note,
+    this.photoUrls = const [],
   });
 
+  final String? id;
   final int number;
   final DateTime date;
   final MoltCondition condition;
   final String? note;
+  final List<String> photoUrls;
 }
 
 class CrabDiseaseRecord {

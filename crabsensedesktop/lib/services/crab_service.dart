@@ -415,9 +415,10 @@ class CrabService extends ChangeNotifier {
     String condition = 'Good',
     int deadOnArrival = 0,
     String? notes,
+    List<String> imagePaths = const [],
   }) async {
     try {
-      final lot = await _api.createCrabLot(
+      var lot = await _api.createCrabLot(
         token,
         name: name,
         importDate: importDate,
@@ -434,6 +435,12 @@ class CrabService extends ChangeNotifier {
         deadOnArrival: deadOnArrival,
         notes: notes,
       );
+      if (imagePaths.isNotEmpty) {
+        final urls = await _api.uploadLotImages(token, lot.id, imagePaths);
+        if (urls.isNotEmpty) {
+          lot = await _api.fetchCrabLot(token, lot.id);
+        }
+      }
       _lots = [lot, ..._lots.where((l) => l.id != lot.id)];
       notifyListeners();
       return lot;
@@ -653,13 +660,14 @@ class CrabService extends ChangeNotifier {
     required int moltCount,
     required MoltCondition condition,
     String? note,
+    List<String> imagePaths = const [],
   }) async {
     try {
       final y = date.year.toString().padLeft(4, '0');
       final m = date.month.toString().padLeft(2, '0');
       final d = date.day.toString().padLeft(2, '0');
       final crab = getById(id);
-      await _api.recordCrabMolt(
+      final moltId = await _api.recordCrabMolt(
         token,
         id,
         moltDate: '$y-$m-$d',
@@ -668,6 +676,16 @@ class CrabService extends ChangeNotifier {
         note: note,
         boxId: crab?.boxId,
       );
+      if (imagePaths.isNotEmpty) {
+        if (moltId == null || moltId.isEmpty) {
+          _error = 'Đã ghi lột xác nhưng không lấy được mã bản ghi để tải ảnh';
+          notifyListeners();
+          await load();
+          await loadDetail(id);
+          return false;
+        }
+        await _api.uploadMoltImages(token, moltId, imagePaths);
+      }
       await load();
       await loadDetail(id);
       return true;

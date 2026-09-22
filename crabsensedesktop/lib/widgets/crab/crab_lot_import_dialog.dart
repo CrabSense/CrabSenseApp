@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -45,12 +48,16 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
   final _other = TextEditingController(text: '0');
   final _dead = TextEditingController(text: '0');
   final _notes = TextEditingController();
+  final _area = TextEditingController();
+  final _transport = TextEditingController();
 
   DateTime _importDate = DateTime.now();
+  TimeOfDay _importTime = TimeOfDay.now();
   String _lotCode = 'LOT-…';
   String _condition = 'Good';
   var _loadingCode = true;
   var _saving = false;
+  final _imagePaths = <String>[];
 
   @override
   void initState() {
@@ -74,6 +81,8 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
     _other.dispose();
     _dead.dispose();
     _notes.dispose();
+    _area.dispose();
+    _transport.dispose();
     super.dispose();
   }
 
@@ -150,12 +159,12 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
       InputDecoration(
         hintText: hint,
         prefixText: prefix,
-        hintStyle: GoogleFonts.notoSans(
+        hintStyle: GoogleFonts.beVietnamPro(
           color: DashboardColors.textMuted.withValues(alpha: 0.7),
           fontSize: 14,
         ),
         filled: true,
-        fillColor: DashboardColors.darkNavy,
+        fillColor: DashboardColors.lightMint,
         suffixIcon: suffix,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         border: OutlineInputBorder(
@@ -168,7 +177,7 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: DashboardColors.purple, width: 1.2),
+          borderSide: const BorderSide(color: DashboardColors.brand, width: 1.2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -182,7 +191,7 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
       child: Text.rich(
         TextSpan(
           text: text.toUpperCase(),
-          style: GoogleFonts.notoSans(
+          style: GoogleFonts.beVietnamPro(
             color: DashboardColors.textMuted,
             fontSize: 11,
             fontWeight: FontWeight.w700,
@@ -208,8 +217,34 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
       lastDate: DateTime.now().add(const Duration(days: 1)),
     );
     if (picked == null) return;
-    setState(() => _importDate = picked);
+    setState(() {
+      _importDate = DateTime(
+        picked.year,
+        picked.month,
+        picked.day,
+        _importTime.hour,
+        _importTime.minute,
+      );
+    });
     await _refreshCode();
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _importTime,
+    );
+    if (picked == null) return;
+    setState(() {
+      _importTime = picked;
+      _importDate = DateTime(
+        _importDate.year,
+        _importDate.month,
+        _importDate.day,
+        picked.hour,
+        picked.minute,
+      );
+    });
   }
 
   Future<void> _save() async {
@@ -224,12 +259,27 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
     }
 
     setState(() => _saving = true);
+    final extra = <String>[
+      if (_area.text.trim().isNotEmpty) 'Khu vực nhập: ${_area.text.trim()}',
+      if (_transport.text.trim().isNotEmpty)
+        'Phương thức: ${_transport.text.trim()}',
+    ];
+    final noteParts = <String>[
+      if (_notes.text.trim().isNotEmpty) _notes.text.trim(),
+      ...extra,
+    ];
     final lot = await widget.service.importLot(
       name: _name.text.trim(),
-      importDate: _importDate,
+      importDate: DateTime(
+        _importDate.year,
+        _importDate.month,
+        _importDate.day,
+        _importTime.hour,
+        _importTime.minute,
+      ),
       quantity: qty,
       lotCode: _lotCode.startsWith('LOT-') ? _lotCode : null,
-      supplierName: _supplier.text.trim().isEmpty ? null : _supplier.text.trim(),
+      supplierName: _supplier.text.trim(),
       totalWeightKg: _kg,
       weightMinGram: _parseNum(_minG.text),
       weightMaxGram: _parseNum(_maxG.text),
@@ -238,7 +288,8 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
       otherCostVnd: _parseNum(_other.text),
       condition: _condition,
       deadOnArrival: dead,
-      notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+      notes: noteParts.isEmpty ? null : noteParts.join('\n'),
+      imagePaths: _imagePaths,
     );
     if (!mounted) return;
     if (lot == null) {
@@ -272,8 +323,8 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Nhập lô cua',
-                          style: GoogleFonts.notoSans(
+                          'Nhập lô cua mới',
+                          style: GoogleFonts.beVietnamPro(
                             color: DashboardColors.textPrimary,
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
@@ -282,7 +333,7 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
                         const SizedBox(height: 6),
                         Text(
                           'Phiếu nhập hàng. Cá thể cua được thêm sau khi phân vào hộp.',
-                          style: GoogleFonts.notoSans(
+                          style: GoogleFonts.beVietnamPro(
                             color: DashboardColors.textMuted,
                             fontSize: 13,
                             height: 1.4,
@@ -326,7 +377,7 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
                         ),
                         child: Text(
                           _lotCode,
-                          style: GoogleFonts.notoSans(
+                          style: GoogleFonts.beVietnamPro(
                             color: DashboardColors.textPrimary,
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -338,8 +389,10 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
                       TextFormField(
                         controller: _name,
                         decoration: _dec(hint: 'Lô cua tháng 9'),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Nhập tên lô' : null,
+                                validator: (v) =>
+                                    (v == null || v.trim().isEmpty)
+                                        ? '⚠ Vui lòng nhập tên lô.'
+                                        : null,
                       ),
                       const SizedBox(height: 16),
                       LayoutBuilder(
@@ -363,7 +416,7 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
                                   ),
                                   child: Text(
                                     _dateLabel(_importDate),
-                                    style: GoogleFonts.notoSans(
+                                    style: GoogleFonts.beVietnamPro(
                                       color: DashboardColors.textPrimary,
                                       fontSize: 14,
                                     ),
@@ -375,10 +428,13 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
                           final supplier = Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              _label('Nguồn cung cấp'),
+                              _label('Nhà cung cấp', required: true),
                               TextFormField(
                                 controller: _supplier,
-                                decoration: _dec(hint: 'Nhà cung cấp A'),
+                                decoration: _dec(hint: 'Nhà Duy'),
+                                validator: (v) => (v == null || v.trim().isEmpty)
+                                    ? '⚠ Vui lòng nhập nhà cung cấp.'
+                                    : null,
                               ),
                             ],
                           );
@@ -397,15 +453,75 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
                           );
                         },
                       ),
-                      const SizedBox(height: 20),
-                      Divider(color: DashboardColors.cardBorder),
+                      const SizedBox(height: 16),
+                      LayoutBuilder(
+                        builder: (context, c) {
+                          final time = Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _label('Giờ nhập'),
+                              InkWell(
+                                onTap: _saving ? null : _pickTime,
+                                borderRadius: BorderRadius.circular(12),
+                                child: InputDecorator(
+                                  decoration: _dec(
+                                    hint: _importTime.format(context),
+                                    suffix: Icon(
+                                      Icons.schedule_outlined,
+                                      color: DashboardColors.textMuted.withValues(alpha: 0.7),
+                                      size: 18,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    _importTime.format(context),
+                                    style: GoogleFonts.beVietnamPro(
+                                      color: DashboardColors.textPrimary,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                          final area = Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _label('Khu vực nhập', required: true),
+                              TextFormField(
+                                controller: _area,
+                                decoration: _dec(hint: 'FARM-005'),
+                                validator: (v) => (v == null || v.trim().isEmpty)
+                                    ? '⚠ Vui lòng chọn khu vực nhập.'
+                                    : null,
+                              ),
+                            ],
+                          );
+                          if (c.maxWidth <= 420) {
+                            return Column(children: [time, const SizedBox(height: 16), area]);
+                          }
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: time),
+                              const SizedBox(width: 12),
+                              Expanded(child: area),
+                            ],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _label('Phương thức vận chuyển'),
+                      TextFormField(
+                        controller: _transport,
+                        decoration: _dec(hint: 'Xe lạnh'),
+                      ),
                       const SizedBox(height: 16),
                       LayoutBuilder(
                         builder: (context, c) {
                           final qty = Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              _label('Số lượng', required: true),
+                              _label('Số lượng cua', required: true),
                               TextFormField(
                                 controller: _quantity,
                                 keyboardType: TextInputType.number,
@@ -413,7 +529,9 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
                                 decoration: _dec(hint: '100', suffix: _unit('con')),
                                 validator: (v) {
                                   final n = _parseInt(v ?? '');
-                                  if (n == null || n <= 0) return 'Nhập số con > 0';
+                                  if (n == null || n <= 0) {
+                                    return '⚠ Vui lòng nhập số lượng cua.';
+                                  }
                                   return null;
                                 },
                               ),
@@ -427,6 +545,14 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
                                 controller: _totalKg,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 decoration: _dec(hint: '12.5', suffix: _unit('kg')),
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) return null;
+                                  final n = _parseNum(v);
+                                  if (n == null || n < 0) {
+                                    return '⚠ Khối lượng không hợp lệ.';
+                                  }
+                                  return null;
+                                },
                               ),
                             ],
                           );
@@ -446,7 +572,7 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
                         const SizedBox(height: 10),
                         Text(
                           'Trọng lượng trung bình: ${_avgGram!.toStringAsFixed(0)} g/con',
-                          style: GoogleFonts.notoSans(
+                          style: GoogleFonts.beVietnamPro(
                             color: DashboardColors.cyan,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -468,7 +594,7 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
                             padding: const EdgeInsets.symmetric(horizontal: 10),
                             child: Text(
                               '→',
-                              style: GoogleFonts.notoSans(
+                              style: GoogleFonts.beVietnamPro(
                                 color: DashboardColors.textMuted,
                                 fontSize: 18,
                               ),
@@ -529,7 +655,7 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: DashboardColors.darkNavy,
+                            color: DashboardColors.darkNavy.withValues(alpha: 0.04),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: DashboardColors.cardBorder),
                           ),
@@ -538,7 +664,7 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
                             children: [
                               Text(
                                 'Tiền cua: ${_vnd(_crabCost)}',
-                                style: GoogleFonts.notoSans(
+                                style: GoogleFonts.beVietnamPro(
                                   color: DashboardColors.textMuted,
                                   fontSize: 13,
                                 ),
@@ -546,7 +672,7 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
                               const SizedBox(height: 4),
                               Text(
                                 'Tổng chi phí: ${_vnd(_totalCost)}',
-                                style: GoogleFonts.notoSans(
+                                style: GoogleFonts.beVietnamPro(
                                   color: DashboardColors.textPrimary,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
@@ -570,7 +696,7 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
                               value: item.$1,
                               child: Text(
                                 item.$2,
-                                style: GoogleFonts.notoSans(color: item.$3),
+                                style: GoogleFonts.beVietnamPro(color: item.$3),
                               ),
                             ),
                         ],
@@ -586,6 +712,9 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
                         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         decoration: _dec(hint: '0', suffix: _unit('con')),
                       ),
+                      const SizedBox(height: 16),
+                      _label('Ảnh lô nhập'),
+                      _photoPicker(),
                       const SizedBox(height: 16),
                       _label('Ghi chú'),
                       TextFormField(
@@ -613,7 +742,7 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
                     child: FilledButton(
                       onPressed: _saving ? null : _save,
                       style: FilledButton.styleFrom(
-                        backgroundColor: DashboardColors.oceanBlue,
+                        backgroundColor: DashboardColors.brand,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
@@ -626,7 +755,7 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Nhập lô'),
+                          : const Text('Lưu lô nhập'),
                     ),
                   ),
                 ],
@@ -638,6 +767,95 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
     );
   }
 
+  Widget _photoPicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (var i = 0; i < _imagePaths.length; i++)
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.file(
+                      File(_imagePaths[i]),
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  Positioned(
+                    top: -6,
+                    right: -6,
+                    child: InkWell(
+                      onTap: _saving
+                          ? null
+                          : () => setState(() => _imagePaths.removeAt(i)),
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.black87,
+                          shape: BoxShape.circle,
+                        ),
+                        padding: const EdgeInsets.all(2),
+                        child: const Icon(Icons.close, size: 14, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            InkWell(
+              onTap: _saving ? null : _pickImages,
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: DashboardColors.lightMint,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: DashboardColors.cardBorder),
+                ),
+                child: const Icon(Icons.add_a_photo_outlined, color: DashboardColors.brand),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Ảnh lưu Google Drive: CrabSense / CrabLots / mã đợt.',
+          style: GoogleFonts.beVietnamPro(
+            color: DashboardColors.textMuted,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickImages() async {
+    final remain = 10 - _imagePaths.length;
+    if (remain <= 0) return;
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'],
+      allowMultiple: true,
+    );
+    if (result == null) return;
+    final added = <String>[];
+    for (final f in result.files) {
+      final path = f.path;
+      if (path == null || path.isEmpty) continue;
+      if (_imagePaths.contains(path) || added.contains(path)) continue;
+      added.add(path);
+      if (added.length >= remain) break;
+    }
+    if (added.isEmpty) return;
+    setState(() => _imagePaths.addAll(added));
+  }
+
   Widget _unit(String text) => Padding(
         padding: const EdgeInsets.only(right: 12),
         child: Align(
@@ -645,7 +863,7 @@ class _CrabLotImportDialogState extends State<_CrabLotImportDialog> {
           widthFactor: 1,
           child: Text(
             text,
-            style: GoogleFonts.notoSans(
+            style: GoogleFonts.beVietnamPro(
               color: DashboardColors.textMuted,
               fontSize: 12,
               fontWeight: FontWeight.w600,

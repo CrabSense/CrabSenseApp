@@ -1,4 +1,5 @@
 import 'crab_lot_status.dart';
+import 'crab_profile.dart';
 import 'crab_status.dart';
 import 'farm_record.dart';
 
@@ -560,6 +561,7 @@ class FarmingBatchRecord {
     this.condition = 'Good',
     this.deadOnArrival = 0,
     this.notes,
+    this.imageUrls = const [],
   });
 
   final String id;
@@ -586,6 +588,7 @@ class FarmingBatchRecord {
   final String condition;
   final int deadOnArrival;
   final String? notes;
+  final List<String> imageUrls;
 
   int get placedCount => currentQuantity;
 
@@ -594,6 +597,34 @@ class FarmingBatchRecord {
         placed: placedCount,
         quantity: initialQuantity,
       );
+
+  String get lotName {
+    final n = name?.trim();
+    if (n != null && n.isNotEmpty) return n;
+    return batchCode;
+  }
+
+  int get remainingCount {
+    if (workflowStatus == CrabLotWorkflowStatus.cancelled) return 0;
+    final left = initialQuantity - placedCount - deadOnArrival;
+    return left < 0 ? 0 : left;
+  }
+
+  int get rejectedCount {
+    if (workflowStatus == CrabLotWorkflowStatus.cancelled) {
+      final leftover = initialQuantity - placedCount;
+      return deadOnArrival + (leftover < 0 ? 0 : leftover);
+    }
+    return deadOnArrival;
+  }
+
+  int get allocationPercent {
+    if (initialQuantity <= 0) return 0;
+    final p = ((placedCount / initialQuantity) * 100).round();
+    if (p < 0) return 0;
+    if (p > 100) return 100;
+    return p;
+  }
 
   /// Tên lô · mã lô (phiếu nhập).
   String get displayLabel {
@@ -677,6 +708,9 @@ class FarmingBatchRecord {
           ((json['deadOnArrival'] ?? json['DeadOnArrival']) as num?)?.toInt() ??
               0,
       notes: (json['notes'] ?? json['Notes'])?.toString(),
+      imageUrls: parseCrabImageUrls(
+        json['imageUrls'] ?? json['ImageUrls'] ?? json['imageUrlsJson'] ?? json['ImageUrlsJson'],
+      ),
     );
   }
 }

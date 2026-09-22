@@ -21,6 +21,7 @@ import '../../widgets/shared/mgmt_ui.dart';
 import 'area_boxes_tab.dart';
 import 'area_cameras_tab.dart';
 import 'area_environment_tab.dart';
+import 'area_history_tab.dart';
 
 const _kCamFallback = 'assets/images/maps.png';
 
@@ -91,8 +92,6 @@ class _AreaDetailPageState extends State<AreaDetailPage> {
   List<Map<String, dynamic>> _live = const [];
   List<CameraDevice> _cameras = const [];
   int _camIndex = 0;
-  List<_HistoryItem> _history = const [];
-  bool _historyLoading = false;
   Timer? _liveTimer;
   String _heatMetric = 'temp';
 
@@ -129,7 +128,6 @@ class _AreaDetailPageState extends State<AreaDetailPage> {
       });
       unawaited(_loadLive());
       unawaited(_loadCameras());
-      unawaited(_loadHistory());
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -164,57 +162,6 @@ class _AreaDetailPageState extends State<AreaDetailPage> {
         });
       }
     } catch (_) {}
-  }
-
-  Future<void> _loadHistory() async {
-    if (mounted) setState(() => _historyLoading = true);
-    final out = <_HistoryItem>[];
-    try {
-      final alerts = await _api.fetchAlertHistory(_token,
-          farmingAreaId: widget.areaId, days: 30);
-      for (final a in alerts) {
-        final at = DateTime.tryParse((a['createdAt'] ?? a['CreatedAt'] ?? '')
-                .toString())
-            ?.toLocal();
-        if (at == null) continue;
-        final sev = (a['severity'] ?? a['Severity'] ?? '').toString().toLowerCase();
-        out.add(_HistoryItem(
-          at: at,
-          kind: sev.contains('crit') || sev.contains('high')
-              ? _HistoryKind.alert
-              : _HistoryKind.warning,
-          title: (a['title'] ?? a['Title'] ?? a['alertType'] ?? 'Cảnh báo')
-              .toString(),
-          detail: (a['message'] ?? a['Message'] ?? '').toString(),
-        ));
-      }
-    } catch (_) {}
-    try {
-      final ops = await _api.fetchOperationsRecent(_token,
-          farmingAreaId: widget.areaId, limit: 40);
-      for (final o in ops) {
-        final at = DateTime.tryParse((o['timestamp'] ?? o['Timestamp'] ?? '')
-                .toString())
-            ?.toLocal();
-        if (at == null) continue;
-        final type = (o['type'] ?? o['Type'] ?? '').toString().toLowerCase();
-        out.add(_HistoryItem(
-          at: at,
-          kind: type.contains('device') || type.contains('ras')
-              ? _HistoryKind.device
-              : _HistoryKind.activity,
-          title: (o['title'] ?? o['Title'] ?? 'Hoạt động').toString(),
-          detail: (o['description'] ?? o['Description'] ?? '').toString(),
-        ));
-      }
-    } catch (_) {}
-    out.sort((a, b) => b.at.compareTo(a.at));
-    if (mounted) {
-      setState(() {
-        _history = out;
-        _historyLoading = false;
-      });
-    }
   }
 
   void _setTab(_Tab t) {
@@ -455,10 +402,18 @@ class _AreaDetailPageState extends State<AreaDetailPage> {
                     ? null
                     : () => widget.onNavigate!(AppRoute.deviceSetup),
               ),
-            _Tab.history => _HistoryCard(
-                items: _history,
-                loading: _historyLoading,
-                onOpenAlerts: () => widget.onNavigate?.call(AppRoute.alerts),
+            _Tab.history => AreaHistoryTab(
+                key: ValueKey('hist-${widget.areaId}'),
+                token: _token,
+                areaId: widget.areaId,
+                areaName: d.areaName,
+                areaCode: d.areaCode,
+                rows: _rows,
+                boxes: _boxes,
+                onOpenBox: widget.onOpenBox,
+                onOpenCrab: widget.onOpenCrab,
+                onOpenCameras: () => _setTab(_Tab.cameras),
+                onOpenRas: () => widget.onNavigate?.call(AppRoute.devices),
               ),
           },
           // Sơ đồ nhiệt + Camera AI chỉ hiện ở tab tổng quan (Danh sách dãy);
@@ -1190,123 +1145,6 @@ class _IconBtn extends StatelessWidget {
   }
 }
 
-
-// ── Tab: Camera ────────────────────────────────────────────────────────────
-
-// ── Tab: Lịch sử ───────────────────────────────────────────────────────────
-
-enum _HistoryKind { alert, warning, device, activity }
-
-class _HistoryItem {
-  const _HistoryItem({
-    required this.at,
-    required this.kind,
-    required this.title,
-    required this.detail,
-  });
-  final DateTime at;
-  final _HistoryKind kind;
-  final String title;
-  final String detail;
-}
-
-class _HistoryCard extends StatelessWidget {
-  const _HistoryCard({
-    required this.items,
-    required this.loading,
-    required this.onOpenAlerts,
-  });
-
-  final List<_HistoryItem> items;
-  final bool loading;
-  final VoidCallback onOpenAlerts;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      title: 'Lịch sử & nhật ký (30 ngày)',
-      trailing: MgmtOutlineButton(
-        icon: Icons.notifications_none_rounded,
-        label: 'Hệ thống cảnh báo',
-        height: 40,
-        onTap: onOpenAlerts,
-      ),
-      child: loading
-          ? const Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          : items.isEmpty
-              ? _emptyText('Chưa có cảnh báo hay thao tác nào được ghi cho khu này.')
-              : Column(
-                  children: [
-                    for (final it in items.take(12)) _HistoryLine(it: it),
-                  ],
-                ),
-    );
-  }
-}
-
-class _HistoryLine extends StatelessWidget {
-  const _HistoryLine({required this.it});
-  final _HistoryItem it;
-
-  @override
-  Widget build(BuildContext context) {
-    final (icon, color) = switch (it.kind) {
-      _HistoryKind.alert => (Icons.error_outline_rounded, DashboardColors.risk),
-      _HistoryKind.warning => (Icons.warning_amber_rounded, kMgmtAmber),
-      _HistoryKind.device => (Icons.settings_input_component_outlined, kMgmtBlue),
-      _HistoryKind.activity => (Icons.history_rounded, DashboardColors.brand),
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 9),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: DashboardColors.cardBorder, width: 0.8),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(9),
-            ),
-            alignment: Alignment.center,
-            child: Icon(icon, size: 16, color: color),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(it.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: bvText(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: DashboardColors.textPrimary,
-                    )),
-                if (it.detail.isNotEmpty)
-                  Text(it.detail,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: bvText(fontSize: 11.5, color: DashboardColors.textMuted)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(fmtDateTimeVn(it.at),
-              style: bvText(fontSize: 11.5, color: DashboardColors.textMuted)),
-        ],
-      ),
-    );
-  }
-}
 
 // ── Sơ đồ nhiệt ────────────────────────────────────────────────────────────
 

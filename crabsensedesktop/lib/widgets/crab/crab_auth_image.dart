@@ -18,6 +18,7 @@ class CrabAuthImage extends StatefulWidget {
     required this.index,
     required this.token,
     this.fallbackUrl,
+    this.proxyUrl,
     this.fit = BoxFit.cover,
     this.width,
     this.height,
@@ -28,13 +29,20 @@ class CrabAuthImage extends StatefulWidget {
   final int index;
   final String token;
   final String? fallbackUrl;
+  final String? proxyUrl;
   final BoxFit fit;
   final double? width;
   final double? height;
   final Widget? error;
 
-  static String proxyUrl(String crabId, int index) =>
+  static String crabProxyUrl(String crabId, int index) =>
       '${AppEnv.cloudApiUrl}/api/crabs/$crabId/photos/$index';
+
+  static String lotProxyUrl(String lotId, int index) =>
+      '${AppEnv.cloudApiUrl}/api/crab-lots/$lotId/photos/$index';
+
+  static String moltProxyUrl(String moltingId, int index) =>
+      '${AppEnv.cloudApiUrl}/api/moltings/$moltingId/photos/$index';
 
   @override
   State<CrabAuthImage> createState() => _CrabAuthImageState();
@@ -49,7 +57,7 @@ class _CrabAuthImageState extends State<CrabAuthImage> {
   int _gen = 0;
 
   String get _cacheKey =>
-      '${widget.crabId}|${widget.index}|${widget.fallbackUrl ?? ''}';
+      '${widget.crabId}|${widget.index}|${widget.proxyUrl ?? ''}|${widget.fallbackUrl ?? ''}';
 
   @override
   void initState() {
@@ -63,7 +71,8 @@ class _CrabAuthImageState extends State<CrabAuthImage> {
     if (oldWidget.crabId != widget.crabId ||
         oldWidget.index != widget.index ||
         oldWidget.token != widget.token ||
-        oldWidget.fallbackUrl != widget.fallbackUrl) {
+        oldWidget.fallbackUrl != widget.fallbackUrl ||
+        oldWidget.proxyUrl != widget.proxyUrl) {
       _load();
     }
   }
@@ -98,8 +107,11 @@ class _CrabAuthImageState extends State<CrabAuthImage> {
     });
 
     Uint8List? bytes;
-    if (widget.crabId.trim().isNotEmpty) {
-      bytes = await _getBytes(CrabAuthImage.proxyUrl(widget.crabId, widget.index));
+    final customProxy = widget.proxyUrl?.trim() ?? '';
+    if (customProxy.isNotEmpty) {
+      bytes = await _getBytes(customProxy);
+    } else if (widget.crabId.trim().isNotEmpty) {
+      bytes = await _getBytes(CrabAuthImage.crabProxyUrl(widget.crabId, widget.index));
     }
     if (bytes == null) {
       final raw = widget.fallbackUrl?.trim() ?? '';

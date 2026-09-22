@@ -56,7 +56,11 @@ class HarvestSalesService extends ChangeNotifier {
   }
 
   Future<String?> uploadPhoto(String path) =>
-      _api.uploadOperationPhoto(_session.token, path);
+      _api.uploadOperationPhoto(
+        _session.token,
+        path,
+        relatedEntityType: 'HarvestVouchers',
+      );
   String get areaName => _session.selectedFarm.name;
   String get areaId => _session.selectedFarm.id;
   String get token => _session.token;

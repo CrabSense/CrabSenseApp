@@ -7,10 +7,10 @@ import '../../models/crab_individual.dart';
 import '../../models/crab_status.dart';
 import '../../services/crab_service.dart';
 import '../../theme/dashboard_theme.dart';
-import 'crab_management_dialogs.dart';
+import 'crab_management_dialogs.dart' as crab_mgmt;
 
 Future<void> showAddCrabDialog(BuildContext context, CrabService service) =>
-    showCrabManagementFormDialog(context, service);
+    crab_mgmt.showCrabManagementFormDialog(context, service);
 
 Future<void> showUpdateWeightDialog(BuildContext context, CrabService service, CrabIndividual crab) async {
   final formKey = GlobalKey<FormState>();
@@ -68,51 +68,8 @@ Future<void> showUpdateWeightDialog(BuildContext context, CrabService service, C
   noteCtrl.dispose();
 }
 
-Future<void> showRecordMoltDialog(BuildContext context, CrabService service, CrabIndividual crab) async {
-  final noteCtrl = TextEditingController();
-  var date = DateTime.now();
-  var condition = MoltCondition.normal;
-  final formKey = GlobalKey<FormState>();
-
-  await _confirmDialog(
-    context,
-    title: 'Ghi nhận lột xác',
-    subtitle: crab.id,
-    child: Form(
-      key: formKey,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text('Ngày: ${formatDate(date)}', style: GoogleFonts.notoSans(fontSize: 12)),
-            trailing: TextButton(
-              onPressed: () async {
-                final p = await showDatePicker(context: context, initialDate: date, firstDate: crab.releaseDate, lastDate: DateTime.now());
-                if (p != null) date = p;
-              },
-              child: const Text('Chọn'),
-            ),
-          ),
-          _dropdown('Tình trạng sau lột', condition, MoltCondition.values, (v) => condition = v!, (c) => c.label),
-          _field(noteCtrl, 'Ghi chú', required: false),
-        ],
-      ),
-    ),
-    saveLabel: 'Ghi nhận lột xác',
-    onSave: () {
-      service.recordMolt(
-        crab.id,
-        date: date,
-        moltCount: crab.moltCount + 1,
-        condition: condition,
-        note: noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim(),
-      );
-      return true;
-    },
-  );
-  noteCtrl.dispose();
-}
+Future<void> showRecordMoltDialog(BuildContext context, CrabService service, CrabIndividual crab) =>
+    crab_mgmt.showRecordMoltDialog(context, service, crab);
 
 Future<void> showRecordDiseaseDialog(BuildContext context, CrabService service, CrabIndividual crab) async {
   final nameCtrl = TextEditingController();

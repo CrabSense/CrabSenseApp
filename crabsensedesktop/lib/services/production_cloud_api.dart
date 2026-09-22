@@ -717,10 +717,12 @@ extension ProductionCloudApi on CloudApiClient {
           .map((m) {
             final map = Map<String, dynamic>.from(m);
             return {
+              'id': map['id'] ?? map['Id'],
               'moltDate': map['moltTime'] ?? map['MoltTime'],
               'moltNumber': 0,
               'condition': map['result'] ?? map['Result'] ?? 'normal',
               'note': map['notes'] ?? map['Notes'],
+              'photoUrls': map['photoUrls'] ?? map['PhotoUrls'] ?? const [],
             };
           })
           .toList(),
@@ -753,7 +755,7 @@ extension ProductionCloudApi on CloudApiClient {
     _ensureOk(res);
   }
 
-  Future<void> recordCrabMolt(
+  Future<String?> recordCrabMolt(
     String token,
     String crabId, {
     required String moltDate,
@@ -777,6 +779,9 @@ extension ProductionCloudApi on CloudApiClient {
       }),
     );
     _ensureOk(res);
+    final data = _asMap(_dataOf(_decode(res)) ?? _decode(res));
+    final id = (data['id'] ?? data['Id'])?.toString();
+    return id != null && id.isNotEmpty ? id : null;
   }
 
   Future<BatchCrabRecord> updateBatchCrabExtended(
@@ -869,6 +874,36 @@ extension ProductionCloudApi on CloudApiClient {
   ) async {
     if (filePaths.isEmpty) return const [];
     final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crabs/images');
+    return _uploadImageFiles(token, uri, filePaths);
+  }
+
+  /// POST /api/crab-lots/{id}/images — lưu Drive CrabSense/CrabLots/{id}/, URL ghi DB.
+  Future<List<String>> uploadLotImages(
+    String token,
+    String lotId,
+    List<String> filePaths,
+  ) async {
+    if (filePaths.isEmpty) return const [];
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crab-lots/$lotId/images');
+    return _uploadImageFiles(token, uri, filePaths);
+  }
+
+  /// POST /api/moltings/{id}/images — {khu}/{dãy}/{hộp}/{cua}/LotXac/{ngày}.
+  Future<List<String>> uploadMoltImages(
+    String token,
+    String moltingId,
+    List<String> filePaths,
+  ) async {
+    if (filePaths.isEmpty) return const [];
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/moltings/$moltingId/images');
+    return _uploadImageFiles(token, uri, filePaths);
+  }
+
+  Future<List<String>> _uploadImageFiles(
+    String token,
+    Uri uri,
+    List<String> filePaths,
+  ) async {
     final req = http.MultipartRequest('POST', uri);
     req.headers.addAll(authHeaders(token));
     for (final path in filePaths.take(10)) {

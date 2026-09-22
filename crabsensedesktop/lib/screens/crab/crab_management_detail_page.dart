@@ -215,7 +215,7 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage>
                   ),
                 ),
                 _tabScroll(_HealthHistoryTab(crab: crab)),
-                _tabScroll(CrabMoltTimeline(crab: crab)),
+                _tabScroll(CrabMoltTimeline(crab: crab, token: widget.service.token)),
                 _tabScroll(
                   crab.weightHistory.isEmpty
                       ? Center(

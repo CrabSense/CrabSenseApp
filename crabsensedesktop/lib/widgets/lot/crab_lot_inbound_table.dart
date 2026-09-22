@@ -1,66 +1,114 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/crab_lot_status.dart';
 import '../../models/production_models.dart';
 import '../../theme/dashboard_theme.dart';
+import '../../utils/app_formatters.dart';
+import '../shared/mgmt_ui.dart';
 import 'crab_lot_status_badge.dart';
 
-enum CrabLotInboundAction { view, place, cancel }
+enum CrabLotRowMenu {
+  view,
+  edit,
+  place,
+  crabs,
+  boxes,
+  printSlip,
+  cancel,
+}
 
-typedef CrabLotInboundCallback = void Function(
-  FarmingBatchRecord lot,
-  CrabLotInboundAction action,
-);
+Color lotProgressColor(FarmingBatchRecord lot) {
+  final p = lot.allocationPercent;
+  if (p >= 100) return DashboardColors.brand;
+  if (p >= 50) return kLotBlue;
+  if (p >= 1) return kLotAmber;
+  return lot.workflowStatus == CrabLotWorkflowStatus.cancelled
+      ? DashboardColors.risk
+      : kLotSlate;
+}
 
 class CrabLotInboundTable extends StatelessWidget {
   const CrabLotInboundTable({
     super.key,
     required this.lots,
-    required this.onAction,
+    required this.selectedId,
+    required this.checkedIds,
+    required this.onToggle,
+    required this.onToggleAll,
+    required this.onSelectRow,
+    required this.onOpenCode,
+    required this.onView,
+    required this.onMenu,
   });
 
   final List<FarmingBatchRecord> lots;
-  final CrabLotInboundCallback onAction;
+  final String? selectedId;
+  final Set<String> checkedIds;
+  final ValueChanged<FarmingBatchRecord> onToggle;
+  final VoidCallback onToggleAll;
+  final ValueChanged<FarmingBatchRecord> onSelectRow;
+  final ValueChanged<FarmingBatchRecord> onOpenCode;
+  final ValueChanged<FarmingBatchRecord> onView;
+  final void Function(FarmingBatchRecord lot, CrabLotRowMenu action) onMenu;
 
-  String _date(DateTime d) {
-    final dd = d.day.toString().padLeft(2, '0');
-    final mm = d.month.toString().padLeft(2, '0');
-    return '$dd/$mm/${d.year}';
-  }
+  bool get _allChecked =>
+      lots.isNotEmpty && lots.every((l) => checkedIds.contains(l.id));
 
-  String _kg(double? kg) => kg == null ? '—' : '${kg.toStringAsFixed(kg % 1 == 0 ? 0 : 1)} kg';
+  bool get _someChecked => lots.any((l) => checkedIds.contains(l.id));
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: constraints.maxWidth),
-            child: DataTable(
-              headingRowHeight: 48,
-              dataRowMinHeight: 56,
-              dataRowMaxHeight: 68,
-              columnSpacing: 20,
-              headingTextStyle: GoogleFonts.notoSans(
-                color: DashboardColors.textMuted,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.5,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
+              child: DataTable(
+                headingRowHeight: 40,
+                dataRowMinHeight: 52,
+                dataRowMaxHeight: 58,
+                columnSpacing: 14,
+                horizontalMargin: 12,
+                headingRowColor: const WidgetStatePropertyAll(DashboardColors.lightMint),
+                headingTextStyle: bvText(
+                  color: DashboardColors.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4,
+                ),
+                showCheckboxColumn: false,
+                columns: [
+                  DataColumn(
+                    label: SizedBox(
+                      width: 28,
+                      child: Checkbox(
+                        value: _allChecked
+                            ? true
+                            : _someChecked
+                                ? null
+                                : false,
+                        tristate: true,
+                        onChanged: (_) => onToggleAll(),
+                        activeColor: DashboardColors.brand,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ),
+                  const DataColumn(label: Text('MÃ LÔ')),
+                  const DataColumn(label: Text('TÊN LÔ')),
+                  const DataColumn(label: Text('NGÀY NHẬP')),
+                  const DataColumn(label: Text('NHÀ CUNG CẤP')),
+                  const DataColumn(label: Text('SỐ LƯỢNG'), numeric: true),
+                  const DataColumn(label: Text('ĐÃ PHÂN HỘP'), numeric: true),
+                  const DataColumn(label: Text('TỶ LỆ')),
+                  const DataColumn(label: Text('TRẠNG THÁI')),
+                  const DataColumn(label: Text('THAO TÁC')),
+                ],
+                rows: lots.map(_row).toList(),
               ),
-              columns: const [
-                DataColumn(label: Text('MÃ LÔ')),
-                DataColumn(label: Text('TÊN LÔ')),
-                DataColumn(label: Text('NGÀY NHẬP')),
-                DataColumn(label: Text('SỐ LƯỢNG')),
-                DataColumn(label: Text('TỔNG KL')),
-                DataColumn(label: Text('NHÀ CUNG CẤP')),
-                DataColumn(label: Text('TRẠNG THÁI')),
-                DataColumn(label: Text('THAO TÁC')),
-              ],
-              rows: lots.map(_row).toList(),
             ),
           ),
         );
@@ -69,70 +117,160 @@ class CrabLotInboundTable extends StatelessWidget {
   }
 
   DataRow _row(FarmingBatchRecord lot) {
-    final cell = GoogleFonts.notoSans(
-      color: DashboardColors.textPrimary,
-      fontSize: 13,
-    );
-    final muted = GoogleFonts.notoSans(
-      color: DashboardColors.textMuted,
-      fontSize: 12,
-    );
-    final placed = lot.placedCount;
-    final qty = lot.initialQuantity;
+    final selected = lot.id == selectedId;
+    final checked = checkedIds.contains(lot.id);
+    final pct = lot.allocationPercent;
+    final color = lotProgressColor(lot);
     return DataRow(
+      selected: selected,
+      color: WidgetStateProperty.resolveWith((states) {
+        if (selected) return DashboardColors.lightMint;
+        if (states.contains(WidgetState.hovered)) {
+          return DashboardColors.mint.withValues(alpha: 0.35);
+        }
+        return Colors.white;
+      }),
+      onSelectChanged: (_) => onSelectRow(lot),
       cells: [
         DataCell(
+          Checkbox(
+            value: checked,
+            onChanged: (_) => onToggle(lot),
+            activeColor: DashboardColors.brand,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+        DataCell(
           InkWell(
-            onTap: () => onAction(lot, CrabLotInboundAction.view),
+            onTap: () => onOpenCode(lot),
             child: Text(
-              lot.batchCode,
-              style: cell.copyWith(
+              lot.batchCode.isEmpty ? '—' : lot.batchCode,
+              style: bvText(
+                fontSize: 12.5,
                 fontWeight: FontWeight.w700,
-                color: DashboardColors.oceanBlue,
+                color: DashboardColors.brand,
               ),
             ),
           ),
         ),
-        DataCell(Text(lot.name?.trim().isNotEmpty == true ? lot.name! : lot.batchCode, style: cell)),
-        DataCell(Text(_date(lot.startDate), style: cell)),
+        DataCell(Text(
+          lot.lotName,
+          style: bvText(fontSize: 13, color: DashboardColors.textPrimary),
+        )),
+        DataCell(Text(
+          formatDate(lot.startDate),
+          style: bvText(fontSize: 13, color: DashboardColors.textPrimary),
+        )),
+        DataCell(Text(
+          (lot.supplierName?.trim().isNotEmpty == true)
+              ? lot.supplierName!.trim()
+              : '—',
+          style: bvText(fontSize: 13, color: DashboardColors.textPrimary),
+        )),
+        DataCell(Text(
+          formatInt(lot.initialQuantity),
+          style: bvText(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: DashboardColors.textPrimary,
+          ),
+        )),
+        DataCell(Text(
+          formatInt(lot.placedCount),
+          style: bvText(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: DashboardColors.textPrimary,
+          ),
+        )),
         DataCell(
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('$qty con', style: cell),
-              Text('Đã thả $placed/$qty', style: muted),
-            ],
+          SizedBox(
+            width: 88,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$pct%',
+                  style: bvText(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: LinearProgressIndicator(
+                    value: pct / 100,
+                    minHeight: 3,
+                    backgroundColor: DashboardColors.cardBorder,
+                    valueColor: AlwaysStoppedAnimation(color),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        DataCell(Text(_kg(lot.totalWeightKg), style: cell)),
-        DataCell(Text(lot.supplierName?.trim().isNotEmpty == true ? lot.supplierName! : '—', style: cell)),
         DataCell(CrabLotStatusBadge(status: lot.workflowStatus)),
         DataCell(
-          PopupMenuButton<CrabLotInboundAction>(
-            tooltip: 'Thao tác',
-            onSelected: (a) => onAction(lot, a),
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: CrabLotInboundAction.view,
-                child: Text('Xem chi tiết'),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: 'Xem chi tiết',
+                onPressed: () => onView(lot),
+                icon: Icon(Icons.visibility_outlined, size: 18, color: DashboardColors.textMuted),
+                visualDensity: VisualDensity.compact,
+                splashRadius: 18,
               ),
-              if (lot.workflowStatus != CrabLotWorkflowStatus.cancelled &&
-                  lot.workflowStatus != CrabLotWorkflowStatus.completed)
-                const PopupMenuItem(
-                  value: CrabLotInboundAction.place,
-                  child: Text('Phân cua vào hộp'),
-                ),
-              if (lot.workflowStatus != CrabLotWorkflowStatus.cancelled &&
-                  lot.workflowStatus != CrabLotWorkflowStatus.completed)
-                const PopupMenuItem(
-                  value: CrabLotInboundAction.cancel,
-                  child: Text('Hủy lô'),
-                ),
+              PopupMenuButton<CrabLotRowMenu>(
+                tooltip: 'Thao tác',
+                padding: EdgeInsets.zero,
+                offset: const Offset(0, 28),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                color: Colors.white,
+                onSelected: (a) => onMenu(lot, a),
+                itemBuilder: (_) => [
+                  _item(CrabLotRowMenu.view, 'Xem chi tiết'),
+                  _item(CrabLotRowMenu.edit, 'Chỉnh sửa thông tin'),
+                  if (lot.workflowStatus.canAllocate)
+                    _item(CrabLotRowMenu.place, 'Tiếp tục phân hộp'),
+                  _item(CrabLotRowMenu.crabs, 'Xem danh sách cua'),
+                  _item(CrabLotRowMenu.boxes, 'Xem hộp đã phân'),
+                  _item(CrabLotRowMenu.printSlip, 'In phiếu nhập'),
+                  if (lot.workflowStatus.canCancel)
+                    const PopupMenuItem(
+                      value: CrabLotRowMenu.cancel,
+                      height: 38,
+                      child: Text(
+                        'Hủy lô',
+                        style: TextStyle(
+                          color: DashboardColors.risk,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
+                child: Icon(Icons.more_horiz_rounded, size: 20, color: DashboardColors.textMuted),
+              ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  PopupMenuItem<CrabLotRowMenu> _item(CrabLotRowMenu v, String label) {
+    return PopupMenuItem(
+      value: v,
+      height: 38,
+      child: Text(
+        label,
+        style: bvText(fontSize: 13, color: DashboardColors.textPrimary),
+      ),
     );
   }
 }

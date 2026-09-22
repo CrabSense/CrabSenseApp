@@ -471,8 +471,14 @@ class CloudApiClient {
   Future<List<Map<String, dynamic>>> fetchOperations(
     String token, {
     String? farmingAreaId,
+    int limit = 200,
   }) =>
-      _getDataList(token, '/api/operations', farmingAreaId: farmingAreaId);
+      _getDataList(
+        token,
+        '/api/operations',
+        farmingAreaId: farmingAreaId,
+        extraQuery: {'page': '1', 'limit': '$limit'},
+      );
 
   Future<List<Map<String, dynamic>>> fetchOperationsRecent(
     String token, {
@@ -527,12 +533,20 @@ class CloudApiClient {
     String token,
     String filePath, {
     String? boxId,
+    String? relatedEntityType,
+    String? relatedEntityId,
   }) async {
     final uri = Uri.parse('$_base/api/operations/photo');
     final req = http.MultipartRequest('POST', uri);
     req.headers.addAll(authHeaders(token));
     req.files.add(await http.MultipartFile.fromPath('file', filePath));
     if (boxId != null && boxId.isNotEmpty) req.fields['boxId'] = boxId;
+    if (relatedEntityType != null && relatedEntityType.isNotEmpty) {
+      req.fields['relatedEntityType'] = relatedEntityType;
+    }
+    if (relatedEntityId != null && relatedEntityId.isNotEmpty) {
+      req.fields['relatedEntityId'] = relatedEntityId;
+    }
     final streamed = await _client.send(req);
     final res = await http.Response.fromStream(streamed);
     final body = _decode(res);

@@ -7,6 +7,7 @@ import '../../models/crab_individual.dart';
 import '../../models/crab_status.dart';
 import '../../theme/dashboard_theme.dart';
 import '../dashboard/glass_card.dart';
+import 'crab_auth_image.dart';
 import 'crab_status_badge.dart';
 
 class CrabPhotoCard extends StatelessWidget {
@@ -458,9 +459,10 @@ class CrabFeedingTable extends StatelessWidget {
 }
 
 class CrabMoltTimeline extends StatelessWidget {
-  const CrabMoltTimeline({super.key, required this.crab});
+  const CrabMoltTimeline({super.key, required this.crab, this.token});
 
   final CrabIndividual crab;
+  final String? token;
 
   @override
   Widget build(BuildContext context) {
@@ -547,6 +549,30 @@ class CrabMoltTimeline extends StatelessWidget {
                 ),
                 if (m.note != null)
                   Text(m.note!, style: GoogleFonts.notoSans(color: DashboardColors.textMuted, fontSize: 11)),
+                if (m.photoUrls.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (var i = 0; i < m.photoUrls.length; i++)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: CrabAuthImage(
+                            crabId: crab.id,
+                            index: i,
+                            token: token ?? '',
+                            fallbackUrl: m.photoUrls[i],
+                            proxyUrl: (m.id ?? '').isNotEmpty
+                                ? CrabAuthImage.moltProxyUrl(m.id!, i)
+                                : null,
+                            width: 48,
+                            height: 48,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

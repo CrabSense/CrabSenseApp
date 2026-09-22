@@ -166,7 +166,7 @@ class CrabDetailPage extends StatelessWidget {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              CrabMoltTimeline(crab: crab),
+                              CrabMoltTimeline(crab: crab, token: service.token),
                               const SizedBox(height: 16),
                               CrabDiseaseList(crab: crab),
                               const SizedBox(height: 16),
@@ -189,7 +189,7 @@ class CrabDetailPage extends StatelessWidget {
                       const SizedBox(height: 16),
                       CrabFeedingTable(crab: crab),
                       const SizedBox(height: 16),
-                      CrabMoltTimeline(crab: crab),
+                      CrabMoltTimeline(crab: crab, token: service.token),
                       const SizedBox(height: 16),
                       CrabDiseaseList(crab: crab),
                       const SizedBox(height: 16),

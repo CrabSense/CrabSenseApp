@@ -157,10 +157,12 @@ CrabIndividual mergeCrabDetail(
       if (date == null) continue;
       molts.add(
         CrabMoltRecord(
+          id: (map['id'] ?? map['Id'])?.toString(),
           number: (map['moltNumber'] as num?)?.toInt() ?? molts.length + 1,
           date: date,
           condition: mapMoltCondition((map['condition'] ?? 'normal').toString()),
           note: map['note']?.toString(),
+          photoUrls: photoUrlsFromJson(map['photoUrls'] ?? map['PhotoUrls']),
         ),
       );
     }
@@ -348,4 +350,12 @@ CrabIndividual? findCrabById(List<CrabIndividual> crabs, String id) {
     if (c.id == id) return c;
   }
   return null;
+}
+
+List<String> photoUrlsFromJson(dynamic raw) {
+  if (raw is! List) return const [];
+  return [
+    for (final item in raw)
+      if (item != null && item.toString().trim().isNotEmpty) item.toString().trim(),
+  ];
 }

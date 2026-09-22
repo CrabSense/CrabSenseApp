@@ -694,9 +694,9 @@ class _MainShellScreenState extends State<MainShellScreen> {
 
     if (_route == AppRoute.inboundLots) {
       return _shellTopBar(
-        searchHint: 'Tìm kiếm mã lô, tên lô hoặc nhà cung cấp...',
-        onSearchChanged: _inboundLotService.setSearch,
+        hideSearch: true,
         centerTitle: const SizedBox.shrink(),
+        alertCount: _farmDashboardService.alertCount,
       );
     }
 
