@@ -123,6 +123,9 @@ class FakeSyncService implements SyncService {
   Future<void> markFailed(String id, String errorMessage) async {}
 
   @override
+  Stream<int> watchPendingCount() => Stream.value(pendingCount);
+
+  @override
   Future<void> remove(String id) async {}
 
   @override
@@ -168,6 +171,7 @@ void main() {
     expect(syncBloc.state.isConnected, isTrue);
     expect(syncBloc.state.lastSyncTimestamp, equals(now));
     expect(syncBloc.state.pendingCount, equals(5));
+    expect(fakeSyncManager.syncNowCalled, isFalse);
   });
 
   test('SyncConnectivityChanged updates network status and pending count', () async {

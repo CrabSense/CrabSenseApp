@@ -11,6 +11,8 @@
 ///               22.1 (app launches quickly)
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -19,6 +21,8 @@ import 'package:logger/logger.dart';
 
 import '../core/di/injection.dart';
 import '../features/authentication/presentation/bloc/auth_bloc.dart';
+import '../features/authentication/presentation/bloc/auth_event.dart';
+import '../features/authentication/presentation/bloc/auth_state.dart';
 import '../shared/bloc/sync/sync_bloc.dart';
 import '../shared/bloc/sync/sync_event.dart';
 import '../shared/services/notification_navigation_service.dart';
@@ -57,18 +61,25 @@ class _CrabSenseAppState extends State<CrabSenseApp> {
   // NotificationNavigationService can hold a reference to the router.
   // Requirements: 14.4, 14.5, 14.8
   late final NotificationNavigationService _notificationNavService;
+  StreamSubscription<AuthState>? _authSub;
 
   @override
   void initState() {
     super.initState();
     _authBloc = sl<AuthBloc>();
     _syncBloc = sl<SyncBloc>()..add(const SyncStarted());
+    _authSub = _authBloc.stream.listen((state) {
+      if (state is Authenticated) {
+        _syncBloc.add(const SyncManualTriggered());
+      }
+    });
     _router = createRouter(_authBloc);
     _notificationNavService = NotificationNavigationService(router: _router, logger: sl<Logger>());
   }
 
   @override
   void dispose() {
+    unawaited(_authSub?.cancel());
     _authBloc.close();
     _syncBloc.close();
     super.dispose();

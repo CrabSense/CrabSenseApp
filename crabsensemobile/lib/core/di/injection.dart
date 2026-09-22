@@ -71,6 +71,8 @@ import '../../shared/services/storage_service.dart';
 import '../../shared/services/sync_progress.dart';
 import '../../shared/services/sync_remote_data_source.dart';
 import '../../shared/services/sync_service.dart';
+import '../../shared/services/conflict_resolver.dart';
+import '../../shared/services/sync_conflict_store.dart';
 
 // Features - Manual Inspection
 import '../../features/manual_inspection/data/datasources/inspection_local_data_source.dart';
@@ -300,6 +302,11 @@ Future<void> init() async {
   // Bidirectional Sync Manager — detects network restoration, batches uploads,
   // downloads server changes, applies exponential backoff, and streams sync progress.
   // Requirements: 13.5-13.8
+  sl.registerLazySingleton<ConflictResolverService>(
+    () => ConflictResolverServiceImpl(logger: sl()),
+  );
+  sl.registerLazySingleton(() => SyncConflictStore(sl()));
+
   sl.registerLazySingleton<BidirectionalSyncManager>(
     () => BidirectionalSyncManagerImpl(
       syncService: sl(),
@@ -308,6 +315,8 @@ Future<void> init() async {
       secureStorage: sl(),
       logger: sl(),
       localDataSource: sl(),
+      conflictResolver: sl(),
+      conflictStore: sl(),
     ),
   );
 
