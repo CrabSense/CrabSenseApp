@@ -331,7 +331,7 @@ class _FarmLayoutPageState extends State<FarmLayoutPage> {
       padding: const EdgeInsets.fromLTRB(24, 18, 24, 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+      children: [
           _KpiRow(
             areas: svc.areas.length,
             rows: rows.length,
@@ -345,7 +345,7 @@ class _FarmLayoutPageState extends State<FarmLayoutPage> {
             ),
           ],
           const SizedBox(height: 14),
-          Expanded(
+        Expanded(
             child: LayoutBuilder(
               builder: (context, c) {
                 final stacked = c.maxWidth < 1020;
@@ -353,7 +353,7 @@ class _FarmLayoutPageState extends State<FarmLayoutPage> {
                 final side = _buildSidePanel(svc, rows);
                 if (stacked) {
                   return Column(
-                    children: [
+            children: [
                       Expanded(child: map),
                       const SizedBox(height: 14),
                       SizedBox(height: 260, child: side),
@@ -577,9 +577,9 @@ class _FarmLayoutPageState extends State<FarmLayoutPage> {
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
                           color: DashboardColors.brand,
-                        ),
-                      ),
-                    ),
+          ),
+        ),
+      ),
                   ),
               ],
             );
@@ -606,12 +606,12 @@ class _FarmLayoutPageState extends State<FarmLayoutPage> {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+      children: [
           GlassCard(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
                 Text(
                   'Thông tin khu vực',
                   style: _bv(
@@ -695,7 +695,7 @@ class _FarmLayoutPageState extends State<FarmLayoutPage> {
                 const SizedBox(height: 10),
                 FilledButton.icon(
                   onPressed: selected == null || widget.onOpenAreaDetail == null
-                      ? null
+                    ? null
                       : () => widget.onOpenAreaDetail!(selected.id),
                   style: FilledButton.styleFrom(
                     backgroundColor: DashboardColors.brandGreen,
@@ -714,7 +714,7 @@ class _FarmLayoutPageState extends State<FarmLayoutPage> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+                const SizedBox(height: 12),
           GlassCard(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -744,7 +744,7 @@ class _FarmLayoutPageState extends State<FarmLayoutPage> {
                   decoration: InputDecoration(
                     hintText: 'Tìm dãy, hộp...',
                     hintStyle: _bv(
-                      color: DashboardColors.textMuted,
+                        color: DashboardColors.textMuted,
                       fontSize: 12.5,
                     ),
                     prefixIcon: Icon(
@@ -781,9 +781,9 @@ class _FarmLayoutPageState extends State<FarmLayoutPage> {
                     height: 1.35,
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
+        ),
         ],
       ),
     );
@@ -879,7 +879,7 @@ class _MiniKpi extends StatelessWidget {
         ],
       ),
       child: Row(
-        children: [
+      children: [
           Container(
             width: 34,
             height: 34,
@@ -890,12 +890,12 @@ class _MiniKpi extends StatelessWidget {
             child: Icon(spec.icon, size: 18, color: spec.color),
           ),
           const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
+            children: [
+              Text(
                   spec.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -910,12 +910,12 @@ class _MiniKpi extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
-                    Text(
+              Text(
                       spec.value,
                       style: _bv(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
-                        color: DashboardColors.textPrimary,
+                  color: DashboardColors.textPrimary,
                       ),
                     ),
                     if (spec.sub.isNotEmpty) ...[
@@ -927,7 +927,7 @@ class _MiniKpi extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: _bv(
                             fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w600,
                             color: spec.color,
                           ),
                         ),
@@ -972,7 +972,7 @@ class _AreaOverlay extends StatelessWidget {
           cursor: SystemMouseCursors.click,
           child: Stack(
             clipBehavior: Clip.none,
-            children: [
+                children: [
               Positioned.fill(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -1079,9 +1079,9 @@ class _RowMarker extends StatelessWidget {
                   color: Colors.black.withValues(alpha: 0.12),
                   blurRadius: 6,
                   offset: const Offset(0, 2),
-                ),
-              ],
-            ),
+              ),
+            ],
+          ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1225,7 +1225,7 @@ class _AreaInfoCard extends StatelessWidget {
           Text(
             '$rows dãy · ${summary.total} hộp',
             style: _bv(
-              fontSize: 12,
+                fontSize: 12,
               fontWeight: FontWeight.w600,
               color: DashboardColors.textPrimary,
             ),
@@ -1467,7 +1467,7 @@ class _PillButton extends StatelessWidget {
                 style: _bv(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
-                  color: DashboardColors.textPrimary,
+                color: DashboardColors.textPrimary,
                 ),
               ),
             ],
@@ -1613,28 +1613,28 @@ class _RowChip extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
-        child: Container(
+      child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: DashboardColors.cardBorder),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: DashboardColors.cardBorder),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
               Icon(Icons.view_week_outlined,
                   size: 16, color: DashboardColors.brand),
               const SizedBox(width: 6),
-              Text(
+            Text(
                 'Dãy $label',
                 style: _bv(
-                  fontSize: 12,
+                fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: DashboardColors.textPrimary,
-                ),
               ),
+            ),
               const SizedBox(width: 6),
-              Text(
+            Text(
                 '${boxes.length} hộp',
                 style: _bv(fontSize: 11, color: DashboardColors.textMuted),
               ),
@@ -1685,12 +1685,12 @@ class _BoxesPanel extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 150),
       padding: const EdgeInsets.all(12),
       decoration: _panelDeco(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
+          children: [
+            Row(
+              children: [
               InkWell(
                 onTap: onBack,
                 borderRadius: BorderRadius.circular(8),
@@ -1700,20 +1700,20 @@ class _BoxesPanel extends StatelessWidget {
                       size: 18, color: DashboardColors.brand),
                 ),
               ),
-              const SizedBox(width: 6),
+                const SizedBox(width: 6),
               Text(
                 'Dãy $rowLabel · ${boxes.length} hộp',
                 style: _bv(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w800,
-                  color: DashboardColors.textPrimary,
-                ),
-              ),
+                      color: DashboardColors.textPrimary,
+                    ),
+                  ),
             ],
-          ),
+                ),
           const SizedBox(height: 8),
           if (boxes.isEmpty)
-            Text(
+                Text(
               'Không có hộp phù hợp với bộ lọc.',
               style: _bv(fontSize: 12, color: DashboardColors.textMuted),
             )
@@ -1728,10 +1728,10 @@ class _BoxesPanel extends StatelessWidget {
                   item: boxes[i],
                   onTap: () => onBoxTap(boxes[i]),
                 ),
-              ),
+                  ),
+                ),
+              ],
             ),
-        ],
-      ),
     );
   }
 }
@@ -1769,7 +1769,7 @@ class _InfoRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
-        children: [
+                children: [
           Icon(icon, size: 16, color: color ?? DashboardColors.textMuted),
           const SizedBox(width: 8),
           Expanded(
@@ -1825,21 +1825,21 @@ class _Dropdown<T> extends StatelessWidget {
       ],
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
+      decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: DashboardColors.cardBorder),
-        ),
-        child: Row(
-          children: [
-            Expanded(
+      ),
+      child: Row(
+        children: [
+          Expanded(
               child: Text(
                 valueLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: _bv(
                   fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w600,
                   color: DashboardColors.textPrimary,
                 ),
               ),

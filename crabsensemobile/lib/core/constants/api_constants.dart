@@ -322,6 +322,7 @@ class ApiConstants {
   static const String syncQueue = '/sync/queue';
   static const String syncStatus = '/sync/status';
   static const String uploadBatch = '/sync/batch';
+  static const String syncPull = '/sync/pull';
 
   // ===========================================================================
   // Health Check

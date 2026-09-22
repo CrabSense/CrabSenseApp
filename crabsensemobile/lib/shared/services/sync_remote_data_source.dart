@@ -77,11 +77,15 @@ class SyncRemoteDataSourceImpl implements SyncRemoteDataSource {
       }
 
       final response = await apiClient.get<Map<String, dynamic>>(
-        ApiConstants.syncQueue,
+        ApiConstants.syncPull,
         queryParameters: queryParams,
       );
 
-      return response.data ?? <String, dynamic>{'changes': <String, dynamic>{}};
+      final raw = response.data ?? <String, dynamic>{};
+      if (raw['data'] is Map) {
+        return Map<String, dynamic>.from(raw['data'] as Map);
+      }
+      return raw;
     } on Exception catch (e) {
       logger.e('SyncRemoteDataSource: Download server changes failed: $e');
       throw ServerException(

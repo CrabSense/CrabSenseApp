@@ -3,6 +3,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logger/logger.dart';
 
 import '../../core/network/network_info.dart';
+import '../../features/box/data/datasources/box_local_data_source.dart';
+import '../../features/box/data/models/box_model.dart';
+import '../../features/box/data/models/crab_model.dart';
 import 'conflict_resolver.dart';
 import 'sync_progress.dart';
 import 'sync_queue_item.dart';
@@ -77,6 +80,7 @@ class BidirectionalSyncManagerImpl implements BidirectionalSyncManager {
     required this.logger,
     this.conflictResolver,
     this.conflictStore,
+    this.localDataSource,
     this.batchSize = 10,
   }) {
     _initLastSyncTime();
@@ -90,6 +94,7 @@ class BidirectionalSyncManagerImpl implements BidirectionalSyncManager {
   @override
   final ConflictResolverService? conflictResolver;
   final SyncConflictStore? conflictStore;
+  final BoxLocalDataSource? localDataSource;
   final int batchSize;
 
   final StreamController<SyncProgress> _progressController =
@@ -342,6 +347,7 @@ class BidirectionalSyncManagerImpl implements BidirectionalSyncManager {
       final serverChanges = await remoteDataSource.downloadServerChanges(
         since: lastSyncTime,
       );
+      await _applyPulledChanges(serverChanges, allPending);
 
       if (conflictResolver != null && serverChanges['changes'] is Map) {
         final changesMap = serverChanges['changes'] as Map<String, dynamic>;
@@ -416,6 +422,41 @@ class BidirectionalSyncManagerImpl implements BidirectionalSyncManager {
       return failedProgress;
     } finally {
       _isSyncing = false;
+    }
+  }
+
+  Future<void> _applyPulledChanges(
+    Map<String, dynamic> serverChanges,
+    List<SyncQueueItem> pending,
+  ) async {
+    final store = localDataSource;
+    if (store == null) return;
+
+    final pendingIds = pending.map((item) => item.entityId).toSet();
+    final changes = serverChanges['changes'];
+    if (changes is! Map) return;
+    final changeMap = Map<String, dynamic>.from(changes);
+
+    final boxes = changeMap['box'] ?? changeMap['boxes'];
+    if (boxes is List) {
+      for (final raw in boxes) {
+        if (raw is! Map) continue;
+        final json = Map<String, dynamic>.from(raw);
+        final id = json['id']?.toString() ?? '';
+        if (id.isEmpty || pendingIds.contains(id)) continue;
+        await store.cacheBox(BoxModel.fromJson(json));
+      }
+    }
+
+    final crabs = changeMap['crab'] ?? changeMap['crabs'];
+    if (crabs is List) {
+      for (final raw in crabs) {
+        if (raw is! Map) continue;
+        final json = Map<String, dynamic>.from(raw);
+        final id = json['id']?.toString() ?? '';
+        if (id.isEmpty || pendingIds.contains(id)) continue;
+        await store.cacheCrab(CrabModel.fromJson(json));
+      }
     }
   }
 

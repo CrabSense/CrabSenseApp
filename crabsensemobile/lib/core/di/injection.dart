@@ -307,6 +307,7 @@ Future<void> init() async {
       networkInfo: sl(),
       secureStorage: sl(),
       logger: sl(),
+      localDataSource: sl(),
     ),
   );
 
