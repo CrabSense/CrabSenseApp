@@ -16,6 +16,8 @@ class FakeApiClient implements ApiClient {
   bool shouldThrowOnPost = false;
   bool shouldThrowOnGet = false;
 
+  Map<String, dynamic>? postEnvelope;
+
   @override
   Future<Response<T>> post<T>(
     String path, {
@@ -36,7 +38,8 @@ class FakeApiClient implements ApiClient {
     }
     return Response<T>(
       requestOptions: RequestOptions(path: path),
-      data: <String, dynamic>{'success': true, 'processedCount': 1} as T,
+      data: (postEnvelope ??
+          <String, dynamic>{'success': true, 'processedCount': 1}) as T,
       statusCode: 200,
     );
   }
@@ -73,7 +76,7 @@ void main() {
 
   setUp(() {
     fakeApiClient = FakeApiClient();
-    logger = Logger(printer: PrettyPrinter(enabled: false));
+    logger = Logger(level: Level.off);
     remoteDataSource = SyncRemoteDataSourceImpl(
       apiClient: fakeApiClient,
       logger: logger,
@@ -106,6 +109,21 @@ void main() {
       expect(fakeApiClient.lastPostPath, ApiConstants.uploadBatch);
       expect(fakeApiClient.lastPostData, isNotNull);
       expect(fakeApiClient.lastPostData!['items'], isA<List>());
+    });
+
+    test('uploadBatch unwraps ApiResponse data envelope', () async {
+      fakeApiClient.postEnvelope = <String, dynamic>{
+        'success': true,
+        'data': <String, dynamic>{
+          'acceptedItemIds': <String>['q1'],
+          'processedItemIds': <String>['q1'],
+        },
+      };
+
+      final result = await remoteDataSource.uploadBatch([testItem]);
+
+      expect(result['acceptedItemIds'], ['q1']);
+      expect(result.containsKey('data'), isFalse);
     });
 
     test('uploadBatch throws ServerException when HTTP call fails', () async {

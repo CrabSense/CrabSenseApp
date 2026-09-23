@@ -2,12 +2,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../shared/services/bidirectional_sync_manager.dart';
+import '../../../../shared/services/sync_service.dart';
 import '../../data/models/profile_models.dart';
 import '../../data/repositories/profile_repository_impl.dart';
 import '../../domain/repositories/profile_repository.dart';
 
 final profileRepositoryProvider = Provider<ProfileRepository>(
-  (ref) => ProfileRepositoryImpl(api: sl<ApiClient>()),
+  (ref) => ProfileRepositoryImpl(
+    api: sl<ApiClient>(),
+    syncManager: sl<BidirectionalSyncManager>(),
+    syncService: sl<SyncService>(),
+  ),
 );
 
 /// Provider for Profile Screen Master State
