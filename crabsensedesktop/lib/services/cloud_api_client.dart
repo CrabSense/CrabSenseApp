@@ -11,6 +11,9 @@ import '../models/area_environment_metric.dart';
 import '../models/farm_dashboard_overview.dart';
 import '../models/feed_management_overview.dart';
 import '../models/water_quality.dart';
+import '../models/crab_feeding_activity.dart';
+import '../models/crab_growth_molt.dart';
+import '../models/crab_lifecycle_event.dart';
 import '../models/crab_profile.dart';
 import '../models/production_models.dart';
 

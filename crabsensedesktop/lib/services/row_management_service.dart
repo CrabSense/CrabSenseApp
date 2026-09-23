@@ -133,6 +133,12 @@ class RowManagementService extends ChangeNotifier {
 
   Future<String> fetchNextCode() => _api.fetchNextDayCode(token);
 
+  Future<({RowRecord row, List<BoxRecord> boxes})> fetchDetail(String rowId) async {
+    final row = await _api.fetchRowById(token, rowId);
+    final boxes = await _api.fetchBoxes(token, rowId);
+    return (row: row, boxes: boxes);
+  }
+
   Future<void> load() async {
     loading = true;
     error = null;
@@ -177,6 +183,7 @@ class RowManagementService extends ChangeNotifier {
     int capacity = 0,
     String? description,
     FarmStatus status = FarmStatus.active,
+    int sortOrder = 1,
   }) async {
     final row = await _api.createRow(
       token,
@@ -186,9 +193,56 @@ class RowManagementService extends ChangeNotifier {
       capacity: capacity,
       description: description,
       status: status,
+      sortOrder: sortOrder,
     );
     await load();
     return row;
+  }
+
+  bool isNameTakenInArea(String areaId, String name, {String? excludeRowId}) {
+    final n = name.trim().toLowerCase();
+    if (n.isEmpty) return false;
+    return items.any(
+      (r) =>
+          r.areaId == areaId &&
+          r.rowName.trim().toLowerCase() == n &&
+          r.rowId != excludeRowId,
+    );
+  }
+
+  Future<List<BoxRecord>> createBoxesForRow({
+    required String rowId,
+    required int count,
+    required String prefix,
+  }) async {
+    final cleaned = prefix.trim().replaceAll(RegExp(r'-+$'), '');
+    final used = <String>{};
+    try {
+      final existing = await _api.fetchAllBoxes(token);
+      used.addAll(existing.map((b) => b.boxCode.trim().toUpperCase()));
+    } catch (_) {}
+
+    final created = <BoxRecord>[];
+    var seq = 1;
+    while (created.length < count && seq < count + 500) {
+      final code = '$cleaned-${seq.toString().padLeft(3, '0')}';
+      seq++;
+      if (used.contains(code.toUpperCase())) continue;
+      try {
+        final box = await _api.createBox(token, rowId, boxCode: code);
+        created.add(box);
+        used.add(code.toUpperCase());
+      } on CloudApiException catch (e) {
+        final msg = e.message.toLowerCase();
+        if (msg.contains('already exists') || msg.contains('conflict')) {
+          used.add(code.toUpperCase());
+          continue;
+        }
+        rethrow;
+      }
+    }
+    await load();
+    return created;
   }
 
   Future<RowRecord> update(
@@ -198,6 +252,7 @@ class RowManagementService extends ChangeNotifier {
     int? capacity,
     String? description,
     FarmStatus status = FarmStatus.active,
+    int? sortOrder,
   }) async {
     final row = await _api.updateRow(
       token,
@@ -207,6 +262,7 @@ class RowManagementService extends ChangeNotifier {
       capacity: capacity,
       description: description,
       status: status,
+      sortOrder: sortOrder,
     );
     await load();
     return row;

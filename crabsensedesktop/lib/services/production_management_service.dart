@@ -222,6 +222,28 @@ class ProductionManagementService extends ChangeNotifier {
     }
   }
 
+  Future<List<RowRecord>> fetchRowsForArea(String areaId) =>
+      _api.fetchRows(token, areaId);
+
+  Future<RowRecord> fetchRowById(String id) => _api.fetchRowById(token, id);
+
+  Future<List<BoxRecord>> createBoxesInRow({
+    required String rowId,
+    required int count,
+  }) async {
+    if (count <= 0) return const [];
+    final created = await _api.createBoxesQuantity(token, rowId, count);
+    if (created.isEmpty && count > 0) {
+      throw CloudApiException('Không tạo được hộp. Vui lòng thử lại.');
+    }
+    boxes = [...boxes, ...created]..sort((x, y) => x.boxCode.compareTo(y.boxCode));
+    notifyListeners();
+    return created;
+  }
+
+  Future<List<BoxRecord>> fetchBoxesOfRow(String rowId) =>
+      _api.fetchBoxes(token, rowId);
+
   Future<void> loadBoxes() async {
     final rowId = selectedRowId;
     if (rowId == null) return;
@@ -406,18 +428,9 @@ class ProductionManagementService extends ChangeNotifier {
     String status = 'empty',
   }) async {
     final rowId = selectedRowId!;
-    final List<BoxRecord> created;
-    if (count <= 1) {
-      final one = await _api.createBox(token, rowId,
-          position: positionPrefix, volume: volume, status: status);
-      created = [one];
-    } else {
-      created = await _api.createBoxesBulk(token, rowId,
-          count: count,
-          positionPrefix: positionPrefix,
-          volume: volume,
-          status: status);
-    }
+    final created = count <= 1
+        ? [await _api.createBox(token, rowId)]
+        : await _api.createBoxesBulk(token, rowId, count: count);
     boxes = [...boxes, ...created]..sort((x, y) => x.boxCode.compareTo(y.boxCode));
     notifyListeners();
     return created;

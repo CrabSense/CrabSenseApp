@@ -185,7 +185,9 @@ class _AreaDetailPageState extends State<AreaDetailPage> {
     showRowDetailDialog(
       context,
       item: RowListItem(row: r, areaCode: d?.areaCode ?? ''),
+      productionService: widget.productionService,
       onEdit: () => widget.onNavigate?.call(AppRoute.rowManagement),
+      onViewBoxes: () => widget.onViewBoxesOfRow?.call(r),
     );
   }
 
@@ -207,7 +209,11 @@ class _AreaDetailPageState extends State<AreaDetailPage> {
     }
     prod.selectArea(widget.areaId);
     prod.selectRow(target.id);
-    await showBoxFormDialog(context, prod);
+    await showBoxFormDialog(
+      context,
+      prod,
+      onNavigate: widget.onNavigate,
+    );
     if (mounted) await _load();
   }
 

@@ -145,7 +145,7 @@ class CrabDataTable extends StatelessWidget {
           ),
         ),
         DataCell(Text('${c.moltCount} lần')),
-        DataCell(CrabHealthBadge(status: c.healthStatus)),
+        DataCell(CrabHealthBadge(status: c.displayHealth)),
         DataCell(CrabLifeBadge(status: c.lifeStatus)),
         DataCell(
           Row(

@@ -46,6 +46,7 @@ class _AppSidebarState extends State<AppSidebar> {
     AppRoute.boxManagement,
     AppRoute.inboundLots,
     AppRoute.productionCrabManagement,
+    AppRoute.harvestSales,
     AppRoute.devices,
     AppRoute.controllers,
     AppRoute.environment,

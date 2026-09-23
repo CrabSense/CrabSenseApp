@@ -134,6 +134,11 @@ class AreaManagementService extends ChangeNotifier {
     required String areaName,
     String? description,
     String status = 'active',
+    String? location,
+    String? address,
+    DateTime? establishedAt,
+    double? latitude,
+    double? longitude,
   }) async {
     final a = await _api.createArea(
       token,
@@ -141,6 +146,11 @@ class AreaManagementService extends ChangeNotifier {
       areaName: areaName,
       description: description,
       status: status,
+      location: location,
+      address: address,
+      establishedAt: establishedAt,
+      latitude: latitude,
+      longitude: longitude,
     );
     await load();
     return a;
@@ -151,6 +161,11 @@ class AreaManagementService extends ChangeNotifier {
     required String areaName,
     String? description,
     required String status,
+    String? location,
+    String? address,
+    DateTime? establishedAt,
+    double? latitude,
+    double? longitude,
   }) async {
     final a = await _api.updateArea(
       token,
@@ -159,6 +174,11 @@ class AreaManagementService extends ChangeNotifier {
       areaName: areaName,
       description: description,
       status: status,
+      location: location,
+      address: address,
+      establishedAt: establishedAt,
+      latitude: latitude,
+      longitude: longitude,
     );
     await load();
     return a;

@@ -23,6 +23,24 @@ class CrabBatchChoice {
   final String label;
 }
 
+enum CrabListSort {
+  updatedDesc,
+  code,
+  weight,
+  status,
+  health,
+  enteredAt;
+
+  String get label => switch (this) {
+        CrabListSort.updatedDesc => 'Mới nhất',
+        CrabListSort.code => 'Mã cua',
+        CrabListSort.weight => 'Cân nặng',
+        CrabListSort.status => 'Trạng thái',
+        CrabListSort.health => 'Sức khỏe',
+        CrabListSort.enteredAt => 'Ngày nhập trại',
+      };
+}
+
 class CrabService extends ChangeNotifier {
   CrabService({
     required AuthSession session,
@@ -34,7 +52,9 @@ class CrabService extends ChangeNotifier {
   final CloudApiClient _api;
 
   List<CrabIndividual> _crabs = [];
+  List<AreaRecord> _areas = [];
   List<RowRecord> _rowsInArea = [];
+  List<BoxRecord> _boxes = [];
   List<FarmingBatchRecord> _lots = [];
   CrabManagementSummary _summary = const CrabManagementSummary(
     total: 0,
@@ -53,20 +73,30 @@ class CrabService extends ChangeNotifier {
   String _rowFilter = kAllFilter;
   String _boxFilter = kAllFilter;
   String _batchFilter = kAllFilter;
+  CrabGender? _genderFilter;
+  CrabLifecycleStatus? _lifecycleFilter;
+  CrabDisplayHealth? _healthFilter;
   CrabManagementStatusFilter _statusFilter = CrabManagementStatusFilter.all;
+  CrabListSort _sort = CrabListSort.updatedDesc;
 
-  static const _pageSize = 10;
+  int _pageSize = 10;
   int _currentPage = 1;
 
   bool get loading => _loading;
   String? get error => _error;
   List<CrabIndividual> get crabs => List.unmodifiable(_crabs);
+  List<AreaRecord> get areas => List.unmodifiable(_areas);
 
   String get areaFilter => _areaFilter;
   String get rowFilter => _rowFilter;
   String get boxFilter => _boxFilter;
   String get batchFilter => _batchFilter;
+  CrabGender? get genderFilter => _genderFilter;
+  CrabLifecycleStatus? get lifecycleFilter => _lifecycleFilter;
+  CrabDisplayHealth? get healthFilter => _healthFilter;
   CrabManagementStatusFilter get statusFilter => _statusFilter;
+  CrabListSort get sort => _sort;
+  String get searchQuery => _searchQuery;
 
   int get currentPage => _currentPage;
   int get pageSize => _pageSize;
@@ -76,11 +106,29 @@ class CrabService extends ChangeNotifier {
 
   String get token => _session.token;
   String get farmId => _session.selectedFarm.id;
+  List<FarmingBatchRecord> get lots => List.unmodifiable(_lots);
+  List<FarmingBatchRecord> get availableLots =>
+      _lots.where((l) => l.remainingCount > 0).toList();
+  CloudApiClient get api => _api;
+  String get operatorName => _session.user.displayName;
+
+  bool get hasActiveFilters =>
+      _searchQuery.isNotEmpty ||
+      _areaFilter != kAllFilter ||
+      _rowFilter != kAllFilter ||
+      _boxFilter != kAllFilter ||
+      _batchFilter != kAllFilter ||
+      _genderFilter != null ||
+      _lifecycleFilter != null ||
+      _healthFilter != null ||
+      _statusFilter != CrabManagementStatusFilter.all;
 
   void updateSession(AuthSession session) {
     _session = session;
     _crabs = [];
+    _areas = [];
     _rowsInArea = [];
+    _boxes = [];
     _lots = [];
     _profiles.clear();
     _summary = const CrabManagementSummary(
@@ -95,40 +143,88 @@ class CrabService extends ChangeNotifier {
     _areaFilter = kAllFilter;
     _rowFilter = kAllFilter;
     _boxFilter = kAllFilter;
+    _batchFilter = kAllFilter;
+    _genderFilter = null;
+    _lifecycleFilter = null;
+    _healthFilter = null;
+    _statusFilter = CrabManagementStatusFilter.all;
     notifyListeners();
+  }
+
+  List<(String, String)> get areaFilterItems {
+    final items = <(String, String)>[];
+    final seen = <String>{};
+    for (final a in _areas) {
+      if (seen.add(a.id)) {
+        items.add((a.id, '${a.areaCode} — ${a.areaName}'));
+      }
+    }
+    for (final c in _crabs) {
+      if (c.areaId.isEmpty || !seen.add(c.areaId)) continue;
+      items.add((
+        c.areaId,
+        c.areaCode.isNotEmpty ? '${c.areaCode} — ${c.areaName}' : c.areaLabel,
+      ));
+    }
+    return items;
+  }
+
+  List<(String, String)> get rowFilterItems {
+    final areaId = _areaFilter == kAllFilter ? null : _areaFilter;
+    final items = <(String, String)>[];
+    final seen = <String>{};
+    for (final r in _rowsInArea) {
+      if (areaId != null && r.areaId != areaId) continue;
+      if (!seen.add(r.id)) continue;
+      final name = r.rowName.trim().isNotEmpty ? r.rowName : r.rowCode;
+      items.add((r.id, name));
+    }
+    if (items.isEmpty) {
+      for (final c in _crabs) {
+        if (areaId != null && c.areaId != areaId) continue;
+        if (c.rowId.isEmpty || !seen.add(c.rowId)) continue;
+        items.add((c.rowId, c.rowLabel));
+      }
+    }
+    return items;
+  }
+
+  List<(String, String)> get boxFilterItems {
+    final areaId = _areaFilter == kAllFilter ? null : _areaFilter;
+    final rowId = _rowFilter == kAllFilter ? null : _rowFilter;
+    final items = <(String, String)>[];
+    final seen = <String>{};
+    for (final b in _boxes) {
+      if (areaId != null && b.areaId != null && b.areaId != areaId) continue;
+      if (rowId != null && b.rowId != rowId) continue;
+      if (!seen.add(b.id)) continue;
+      items.add((b.id, b.boxCode));
+    }
+    if (items.isEmpty) {
+      for (final c in _crabs) {
+        if (areaId != null && c.areaId != areaId) continue;
+        if (rowId != null && c.rowId != rowId) continue;
+        if (c.boxId.isEmpty || !seen.add(c.boxId)) continue;
+        items.add((c.boxId, c.boxLabel));
+      }
+    }
+    return items;
   }
 
   List<String> get areaOptions => [
         kAllFilter,
-        ..._crabs.map((c) => c.areaName).toSet(),
+        ...areaFilterItems.map((e) => e.$2),
       ];
 
-  List<String> get rowOptions {
-    if (_rowsInArea.isNotEmpty) {
-      return [
+  List<String> get rowOptions => [
         kAllFilter,
-        ..._rowsInArea.map((r) {
-          final name = r.rowName.trim();
-          return name.isNotEmpty ? name : r.rowCode;
-        }),
+        ...rowFilterItems.map((e) => e.$2),
       ];
-    }
-    return [
-      kAllFilter,
-      ..._crabs.map((c) => c.rowName).where((n) => n.trim().isNotEmpty).toSet(),
-    ];
-  }
 
-  List<String> get boxOptions {
-    var list = _crabs;
-    if (_areaFilter != kAllFilter) {
-      list = list.where((c) => c.areaName == _areaFilter).toList();
-    }
-    if (_rowFilter != kAllFilter) {
-      list = list.where((c) => c.rowName == _rowFilter).toList();
-    }
-    return [kAllFilter, ...list.map((c) => c.boxLabel).toSet()];
-  }
+  List<String> get boxOptions => [
+        kAllFilter,
+        ...boxFilterItems.map((e) => e.$2),
+      ];
 
   List<String> get batchOptions => [
         kAllFilter,
@@ -185,16 +281,25 @@ class CrabService extends ChangeNotifier {
   List<CrabIndividual> get filteredCrabs {
     var list = _crabs;
     if (_areaFilter != kAllFilter) {
-      list = list.where((c) => c.areaName == _areaFilter).toList();
+      list = list.where((c) => c.areaId == _areaFilter).toList();
     }
     if (_rowFilter != kAllFilter) {
-      list = list.where((c) => c.rowName == _rowFilter).toList();
+      list = list.where((c) => c.rowId == _rowFilter).toList();
     }
     if (_boxFilter != kAllFilter) {
-      list = list.where((c) => c.boxLabel == _boxFilter).toList();
+      list = list.where((c) => c.boxId == _boxFilter).toList();
     }
     if (_batchFilter != kAllFilter) {
       list = list.where((c) => c.batchId == _batchFilter).toList();
+    }
+    if (_genderFilter != null) {
+      list = list.where((c) => c.gender == _genderFilter).toList();
+    }
+    if (_lifecycleFilter != null) {
+      list = list.where((c) => c.lifecycleStatus == _lifecycleFilter).toList();
+    }
+    if (_healthFilter != null) {
+      list = list.where((c) => c.displayHealth == _healthFilter).toList();
     }
     if (_statusFilter != CrabManagementStatusFilter.all) {
       list = list.where((c) => c.matchesStatusFilter(_statusFilter)).toList();
@@ -207,11 +312,26 @@ class CrabService extends ChangeNotifier {
                 c.code.toLowerCase().contains(q) ||
                 c.id.toLowerCase().contains(q) ||
                 c.boxId.toLowerCase().contains(q) ||
+                c.boxLabel.toLowerCase().contains(q) ||
                 c.batchId.toLowerCase().contains(q),
           )
           .toList();
     }
+    list = [...list]..sort(_compare);
     return list;
+  }
+
+  int _compare(CrabIndividual a, CrabIndividual b) {
+    return switch (_sort) {
+      CrabListSort.updatedDesc => b.lastUpdated.compareTo(a.lastUpdated),
+      CrabListSort.code => a.code.compareTo(b.code),
+      CrabListSort.weight => b.weightGram.compareTo(a.weightGram),
+      CrabListSort.status =>
+        a.lifecycleStatus.index.compareTo(b.lifecycleStatus.index),
+      CrabListSort.health =>
+        a.displayHealth.index.compareTo(b.displayHealth.index),
+      CrabListSort.enteredAt => b.releaseDate.compareTo(a.releaseDate),
+    };
   }
 
   List<CrabIndividual> get paginatedCrabs {
@@ -246,15 +366,20 @@ class CrabService extends ChangeNotifier {
       }
       _lastListItems = result.crabs;
       _crabs = result.crabs.map(crabFromListItem).toList();
-      final s = result.summary;
-      _summary = CrabManagementSummary(
-        total: s.total,
-        alive: s.alive,
-        dead: s.dead,
-        molting: s.molting,
-        readyHarvest: s.readyHarvest,
-        aliveRate: s.total > 0 ? s.alive / s.total * 100 : 0,
-      );
+      _summary = summarizeCrabs(_crabs);
+      try {
+        _areas = await _api.fetchAreas(token, '');
+      } catch (_) {
+        _areas = [];
+      }
+      try {
+        _boxes = await _api.fetchAllBoxes(
+          token,
+          areaId: farmId.isEmpty ? null : farmId,
+        );
+      } catch (_) {
+        _boxes = [];
+      }
       _error = null;
     } on CloudApiException catch (e) {
       _error = e.message;
@@ -338,8 +463,80 @@ class CrabService extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setGenderFilter(CrabGender? value) {
+    _genderFilter = value;
+    _currentPage = 1;
+    notifyListeners();
+  }
+
+  void setLifecycleFilter(CrabLifecycleStatus? value) {
+    _lifecycleFilter = value;
+    if (value == null) {
+      if (_statusFilter != CrabManagementStatusFilter.monitoring) {
+        _statusFilter = CrabManagementStatusFilter.all;
+      }
+    } else {
+      _statusFilter = switch (value) {
+        CrabLifecycleStatus.growing => CrabManagementStatusFilter.growing,
+        CrabLifecycleStatus.molting => CrabManagementStatusFilter.molting,
+        CrabLifecycleStatus.readyHarvest =>
+          CrabManagementStatusFilter.readyHarvest,
+        CrabLifecycleStatus.dead => CrabManagementStatusFilter.dead,
+        CrabLifecycleStatus.harvested => CrabManagementStatusFilter.all,
+      };
+    }
+    _currentPage = 1;
+    notifyListeners();
+  }
+
+  void setHealthFilter(CrabDisplayHealth? value) {
+    _healthFilter = value;
+    if (value == CrabDisplayHealth.monitoring) {
+      _statusFilter = CrabManagementStatusFilter.monitoring;
+    } else if (_statusFilter == CrabManagementStatusFilter.monitoring) {
+      _statusFilter = CrabManagementStatusFilter.all;
+    }
+    _currentPage = 1;
+    notifyListeners();
+  }
+
   void setStatusFilter(CrabManagementStatusFilter value) {
     _statusFilter = value;
+    _lifecycleFilter = switch (value) {
+      CrabManagementStatusFilter.growing => CrabLifecycleStatus.growing,
+      CrabManagementStatusFilter.molting => CrabLifecycleStatus.molting,
+      CrabManagementStatusFilter.readyHarvest => CrabLifecycleStatus.readyHarvest,
+      CrabManagementStatusFilter.dead => CrabLifecycleStatus.dead,
+      _ => null,
+    };
+    _healthFilter = value == CrabManagementStatusFilter.monitoring
+        ? CrabDisplayHealth.monitoring
+        : null;
+    _currentPage = 1;
+    notifyListeners();
+  }
+
+  void setSort(CrabListSort value) {
+    _sort = value;
+    notifyListeners();
+  }
+
+  void setPageSize(int value) {
+    _pageSize = value;
+    _currentPage = 1;
+    notifyListeners();
+  }
+
+  void clearFilters() {
+    _searchQuery = '';
+    _areaFilter = kAllFilter;
+    _rowFilter = kAllFilter;
+    _boxFilter = kAllFilter;
+    _batchFilter = kAllFilter;
+    _genderFilter = null;
+    _lifecycleFilter = null;
+    _healthFilter = null;
+    _statusFilter = CrabManagementStatusFilter.all;
     _currentPage = 1;
     notifyListeners();
   }
@@ -480,15 +677,21 @@ class CrabService extends ChangeNotifier {
     String? areaId,
     String? rowId,
   }) async {
-    final boxes = await _api.fetchAllBoxes(
-      token,
-      areaId: areaId,
-      rowId: rowId,
-    );
+    final boxes = await fetchBoxes(areaId: areaId, rowId: rowId);
     return boxes.where((b) => !b.hasCrab).toList();
   }
 
-  Future<bool> addCrab({
+  Future<List<BoxRecord>> fetchBoxes({
+    String? areaId,
+    String? rowId,
+  }) =>
+      _api.fetchAllBoxes(
+        token,
+        areaId: areaId,
+        rowId: rowId,
+      );
+
+  Future<({String code, String? boxCode})> addCrab({
     required String batchId,
     required CrabGender gender,
     double? weightGram,
@@ -504,37 +707,100 @@ class CrabService extends ChangeNotifier {
     DateTime? stockedAt,
     List<String>? imagePaths,
   }) async {
-    try {
-      final imageUrls = (imagePaths == null || imagePaths.isEmpty)
-          ? const <String>[]
-          : await _api.uploadCrabImages(token, imagePaths);
-      await _api.createBatchCrabExtended(
-        token,
-        batchId,
-        gender: genderToApi(gender),
-        weight: weightGram,
-        shellWidth: carapaceWidthMm,
-        carapaceLengthMm: carapaceLengthMm,
-        profileNote: note,
-        boxId: boxId,
-        farmingAreaId: farmingAreaId ?? farmId,
-        farmingRowId: farmingRowId,
-        crabType: crabType,
-        initialCondition: initialCondition,
-        condition: condition,
-        stockedAt: stockedAt,
-        imageUrls: imageUrls.isEmpty ? null : imageUrls,
-      );
-      await load();
-      return true;
-    } on CloudApiException catch (e) {
-      _error = e.message;
-      notifyListeners();
-      return false;
-    }
+    final imageUrls = (imagePaths == null || imagePaths.isEmpty)
+        ? const <String>[]
+        : await _api.uploadCrabImages(token, imagePaths);
+    final created = await _api.createBatchCrabExtended(
+      token,
+      batchId,
+      gender: genderToApi(gender),
+      weight: weightGram,
+      shellWidth: carapaceWidthMm,
+      carapaceLengthMm: carapaceLengthMm,
+      profileNote: note,
+      boxId: boxId,
+      farmingAreaId: farmingAreaId,
+      farmingRowId: farmingRowId,
+      crabType: crabType,
+      initialCondition: initialCondition,
+      condition: condition,
+      stockedAt: stockedAt,
+      imageUrls: imageUrls.isEmpty ? null : imageUrls,
+    );
+    await load();
+    await refreshLots();
+    return (
+      code: created.crabCode.isEmpty ? created.id : created.crabCode,
+      boxCode: created.boxCode,
+    );
   }
 
   Future<({int saved, List<String> errors})> addCrabsBulk(
+    List<({
+      String batchId,
+      CrabGender gender,
+      double weightGram,
+      double carapaceWidthMm,
+      double carapaceLengthMm,
+      String? note,
+      String? boxId,
+      String? farmingAreaId,
+      String? farmingRowId,
+      String? crabType,
+      String? initialCondition,
+      String condition,
+      DateTime? stockedAt,
+      List<String>? imagePaths,
+    })> rows,
+  ) async {
+    if (rows.isEmpty) return (saved: 0, errors: const ['Không có dòng nào để lưu.']);
+    final first = rows.first;
+    try {
+      final items = <Map<String, dynamic>>[];
+      for (final row in rows) {
+        final imageUrls = (row.imagePaths == null || row.imagePaths!.isEmpty)
+            ? const <String>[]
+            : await _api.uploadCrabImages(token, row.imagePaths!);
+        items.add({
+          'gender': genderToApi(row.gender),
+          'weightGram': row.weightGram,
+          'carapaceWidthMm': row.carapaceWidthMm,
+          'carapaceLengthMm': row.carapaceLengthMm,
+          'autoAssign': row.boxId == null || row.boxId!.isEmpty,
+          if (row.boxId != null && row.boxId!.isNotEmpty) 'targetBoxId': row.boxId,
+          if (row.note != null && row.note!.isNotEmpty) 'note': row.note,
+          if (imageUrls.isNotEmpty) 'imageUrls': imageUrls,
+        });
+      }
+      final saved = await _api.createCrabsBulk(
+        token,
+        batchId: first.batchId,
+        farmingAreaId: first.farmingAreaId,
+        farmingRowId: first.farmingRowId,
+        crabType: first.crabType,
+        condition: first.condition,
+        initialCondition: first.initialCondition,
+        stockedAt: first.stockedAt,
+        items: items,
+      );
+      await load();
+      await refreshLots();
+      return (saved: saved, errors: const <String>[]);
+    } on CloudApiException catch (e) {
+      if (e.statusCode == 404) {
+        return _addCrabsBulkSequential(rows);
+      }
+      _error = e.message;
+      notifyListeners();
+      return (saved: 0, errors: [e.message]);
+    } catch (e) {
+      _error = '$e';
+      notifyListeners();
+      return (saved: 0, errors: ['$e']);
+    }
+  }
+
+  Future<({int saved, List<String> errors})> _addCrabsBulkSequential(
     List<({
       String batchId,
       CrabGender gender,
@@ -585,7 +851,35 @@ class CrabService extends ChangeNotifier {
       }
     }
     await load();
+    await refreshLots();
     return (saved: saved, errors: errors);
+  }
+
+  Future<bool> updateCrabProfile(CrabIndividual crab) async {
+    try {
+      await _api.updateCrabProfile(
+        token,
+        crab.id,
+        gender: genderToApi(crab.gender),
+        crabType: crab.crabType,
+        growthStage: lifecycleToMoltingStage(crab.lifecycleStatus, crab.developmentStage),
+        condition: crab.lifecycleStatus == CrabLifecycleStatus.molting
+            ? 'molting'
+            : crab.lifecycleStatus == CrabLifecycleStatus.readyHarvest
+                ? 'softshell'
+                : healthDisplayToCondition(crab.displayHealth),
+        notes: crab.quickNote,
+        isAlive: crab.lifecycleStatus != CrabLifecycleStatus.dead
+            && crab.lifecycleStatus != CrabLifecycleStatus.harvested,
+      );
+      await load();
+      await loadDetail(crab.id);
+      return true;
+    } on CloudApiException catch (e) {
+      _error = e.message;
+      notifyListeners();
+      return false;
+    }
   }
 
   Future<bool> updateCrab(CrabIndividual crab) async {
@@ -754,12 +1048,97 @@ class CrabService extends ChangeNotifier {
     return updateCrab(
       crab.copyWith(
         lifeStatus: CrabLifeStatus.dead,
+        lifecycleStatus: CrabLifecycleStatus.dead,
         healthStatus: CrabHealthStatus.atRisk,
         healthScore: 0,
         updatedAt: date,
         quickNote: 'Đã chết ($cause) — ${formatDate(date)}',
       ),
     );
+  }
+
+  Future<bool> markMolting(
+    String id, {
+    required DateTime date,
+    String? note,
+  }) async {
+    final crab = getById(id);
+    if (crab == null) return false;
+    final ok = await recordMolt(
+      id,
+      date: date,
+      moltCount: crab.moltCount + 1,
+      condition: MoltCondition.normal,
+      note: note,
+    );
+    if (!ok) return false;
+    return updateCrab(
+      (getById(id) ?? crab).copyWith(
+        lifecycleStatus: CrabLifecycleStatus.molting,
+        lastMoltDate: date,
+        updatedAt: date,
+        quickNote: note ?? crab.quickNote,
+      ),
+    );
+  }
+
+  Future<bool> markReadyHarvest(String id) async {
+    final crab = getById(id);
+    if (crab == null) return false;
+    return updateCrab(
+      crab.copyWith(
+        developmentStage: CrabDevelopmentStage.harvestReady,
+        lifecycleStatus: CrabLifecycleStatus.readyHarvest,
+        updatedAt: DateTime.now(),
+      ),
+    );
+  }
+
+  Future<void> transferToBox(
+    String id, {
+    required String destinationBoxId,
+    String? notes,
+    String? targetFarmAreaId,
+    String? targetRowId,
+    String? reasonCode,
+    String? reasonText,
+    String? note,
+  }) async {
+    final crab = getById(id);
+    await _api.transferCrab(
+      token,
+      crabId: id,
+      destinationBoxId: destinationBoxId,
+      sourceBoxId: crab?.boxId,
+      notes: notes,
+      targetFarmAreaId: targetFarmAreaId,
+      targetRowId: targetRowId,
+      reasonCode: reasonCode,
+      reasonText: reasonText,
+      note: note,
+    );
+    await load();
+    await loadDetail(id);
+  }
+
+  Future<bool> bulkUpdateHealth(
+    Iterable<String> ids,
+    CrabDisplayHealth health,
+  ) async {
+    final mapped = switch (health) {
+      CrabDisplayHealth.healthy => CrabHealthStatus.healthy,
+      CrabDisplayHealth.monitoring => CrabHealthStatus.monitoring,
+      CrabDisplayHealth.weak => CrabHealthStatus.atRisk,
+      CrabDisplayHealth.alert => CrabHealthStatus.atRisk,
+    };
+    var ok = true;
+    for (final id in ids) {
+      final crab = getById(id);
+      if (crab == null) continue;
+      final saved = await updateCrab(crab.copyWith(healthStatus: mapped));
+      if (!saved) ok = false;
+    }
+    return ok;
   }
 
   void updateWeight(

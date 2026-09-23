@@ -123,6 +123,9 @@ class RouteNames {
   /// Crab tracking — daily monitoring of crabs in a box.
   static const String crabTracking = 'crabTracking';
 
+  /// Crab management — full individual crab management screen.
+  static const String crabManagement = 'crabManagement';
+
   /// Mineral dosing calculator (Ca/Mg) for RAS water.
   static const String mineralDosing = 'mineralDosing';
 }
@@ -239,6 +242,9 @@ class RoutePaths {
 
   /// `/crab-tracking` — Daily crab tracking / monitoring.
   static const String crabTracking = '/crab-tracking';
+
+  /// `/crab-management` — Full crab management screen.
+  static const String crabManagement = '/crab-management';
 
   /// `/mineral-dosing` — Tính liều khoáng Ca/Mg cho nước RAS.
   static const String mineralDosing = '/mineral-dosing';

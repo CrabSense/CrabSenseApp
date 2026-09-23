@@ -47,6 +47,7 @@ class AreaRecord {
     this.description,
     this.status = 'active',
     this.createdAt,
+    this.establishedAt,
     this.rowCount = 0,
     this.boxCount = 0,
     this.esp32Count = 0,
@@ -59,6 +60,8 @@ class AreaRecord {
     this.location,
     this.region,
     this.address,
+    this.latitude,
+    this.longitude,
     this.avatarUrl,
     this.updatedAt,
     this.crabCount = 0,
@@ -76,6 +79,7 @@ class AreaRecord {
   final String? description;
   final String status;
   final DateTime? createdAt;
+  final DateTime? establishedAt;
   final int rowCount;
   final int boxCount;
   final int esp32Count;
@@ -87,6 +91,10 @@ class AreaRecord {
   /// Tên nơi / vùng (BE `region`), vd. "Lầu Gà lá é"; `address` giữ cột cũ.
   final String? region;
   final String? address;
+  final double? latitude;
+  final double? longitude;
+
+  bool get hasGps => latitude != null && longitude != null;
 
   /// Tên nơi hiển thị cạnh mã khu: region → description → address.
   String? get placeName {
@@ -153,6 +161,7 @@ class AreaRecord {
             ? 'disabled'
             : (json['status'] ?? json['Status'] ?? 'active').toString(),
         createdAt: _parseAreaDate(json['createdAt'] ?? json['CreatedAt']),
+        establishedAt: _parseAreaDate(json['establishedAt'] ?? json['EstablishedAt']),
         rowCount:
             ((json['rowCount'] ?? json['RowCount']) as num?)?.toInt() ?? 0,
         boxCount:
@@ -170,6 +179,8 @@ class AreaRecord {
         location: (json['location'] ?? json['Location'])?.toString(),
         region: (json['region'] ?? json['Region'])?.toString(),
         address: (json['address'] ?? json['Address'])?.toString(),
+        latitude: _parseCoord(json['latitude'] ?? json['Latitude']),
+        longitude: _parseCoord(json['longitude'] ?? json['Longitude']),
         avatarUrl: (json['avatarUrl'] ?? json['AvatarUrl'])?.toString(),
         updatedAt: _parseAreaDate(
           json['updatedAt'] ?? json['UpdatedAt'] ?? json['createdAt'] ?? json['CreatedAt'],
@@ -208,6 +219,7 @@ class AreaRecord {
         description: description,
         status: status,
         createdAt: createdAt,
+        establishedAt: establishedAt,
         rowCount: rowCount ?? this.rowCount,
         boxCount: boxCount ?? this.boxCount,
         esp32Count: esp32Count ?? this.esp32Count,
@@ -220,6 +232,8 @@ class AreaRecord {
         location: location,
         region: region,
         address: address,
+        latitude: latitude,
+        longitude: longitude,
         avatarUrl: avatarUrl,
         updatedAt: updatedAt,
         crabCount: crabCount,
@@ -229,6 +243,13 @@ class AreaRecord {
         alertBoxCount: alertBoxCount,
         emptyBoxCount: emptyBoxCount,
       );
+}
+
+double? _parseCoord(dynamic raw) {
+  if (raw == null) return null;
+  final v = raw is num ? raw.toDouble() : double.tryParse(raw.toString());
+  if (v == null || v.isNaN) return null;
+  return v;
 }
 
 /// Toạ độ bản đồ BE trả dạng tỉ lệ 0–1 (numeric) — chấp nhận num hoặc chuỗi.
@@ -258,7 +279,9 @@ class RowRecord {
     this.occupiedBoxCount = 0,
     this.watchBoxCount = 0,
     this.emptyBoxCount = 0,
+    this.sortOrder = 1,
     this.updatedAt,
+    this.createdAt,
     this.mapX,
     this.mapY,
   });
@@ -283,7 +306,9 @@ class RowRecord {
   final int occupiedBoxCount;
   final int watchBoxCount;
   final int emptyBoxCount;
+  final int sortOrder;
   final DateTime? updatedAt;
+  final DateTime? createdAt;
 
   int get occupiedBoxes =>
       occupiedBoxCount > 0 ? occupiedBoxCount : crabCount.clamp(0, boxCount);
@@ -351,8 +376,14 @@ class RowRecord {
       occupiedBoxCount: _rowInt(json, 'occupiedBoxCount', 'OccupiedBoxCount'),
       watchBoxCount: _rowInt(json, 'watchBoxCount', 'WatchBoxCount'),
       emptyBoxCount: _rowInt(json, 'emptyBoxCount', 'EmptyBoxCount'),
+      sortOrder: () {
+        final n = _rowInt(json, 'sortOrder', 'SortOrder');
+        return n < 1 ? 1 : n;
+      }(),
       updatedAt: DateTime.tryParse(
           (json['updatedAt'] ?? json['UpdatedAt'] ?? '').toString()),
+      createdAt: DateTime.tryParse(
+          (json['createdAt'] ?? json['CreatedAt'] ?? '').toString()),
       mapX: _parseRatio(json['mapX'] ?? json['MapX']),
       mapY: _parseRatio(json['mapY'] ?? json['MapY']),
     );
@@ -724,6 +755,7 @@ class BatchCrabRecord {
     this.weight,
     this.shellWidth,
     required this.status,
+    this.boxCode,
   });
 
   final String id;
@@ -733,6 +765,7 @@ class BatchCrabRecord {
   final double? weight;
   final double? shellWidth;
   final String status;
+  final String? boxCode;
 
   factory BatchCrabRecord.fromJson(Map<String, dynamic> json) {
     final status = resolveCrabLifecycleStatus(json);
@@ -745,12 +778,19 @@ class BatchCrabRecord {
               json['BatchId'] ??
               '')
           .toString(),
-      crabCode: (json['tag'] ?? json['Tag'] ?? json['crabCode'] ?? json['CrabCode'] ?? '')
+      crabCode: (json['code'] ??
+              json['Code'] ??
+              json['tag'] ??
+              json['Tag'] ??
+              json['crabCode'] ??
+              json['CrabCode'] ??
+              '')
           .toString(),
       gender: (json['gender'] ?? json['Gender'] ?? 'unknown').toString(),
       weight: weightRaw is num ? weightRaw.toDouble() : null,
       shellWidth: _crabWidthMm(json),
       status: status,
+      boxCode: (json['boxCode'] ?? json['BoxCode'])?.toString(),
     );
   }
 }
@@ -816,6 +856,7 @@ class CrabManagementListItem {
     this.growthStage,
     this.profileNote,
     required this.batchStartDate,
+    this.updatedAt,
   });
 
   final String id;
@@ -841,6 +882,7 @@ class CrabManagementListItem {
   final String? growthStage;
   final String? profileNote;
   final String batchStartDate;
+  final String? updatedAt;
 
   factory CrabManagementListItem.fromJson(Map<String, dynamic> json) {
     final molting = (json['moltingStage'] ?? json['MoltingStage'] ?? '').toString();
@@ -911,6 +953,7 @@ class CrabManagementListItem {
               json['BatchStartDate'] ??
               '')
           .toString(),
+      updatedAt: (json['updatedAt'] ?? json['UpdatedAt'])?.toString(),
     );
   }
 }

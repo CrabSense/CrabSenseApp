@@ -146,7 +146,8 @@ class BoxListToolbar extends StatelessWidget {
             icon: const Icon(Icons.add, size: 18),
             label: const Text('Thêm hộp'),
             style: FilledButton.styleFrom(
-              backgroundColor: DashboardColors.purple,
+              backgroundColor: DashboardColors.brand,
+              foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
             ),
           );

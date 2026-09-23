@@ -46,6 +46,13 @@ String fmtDateTimeVn(DateTime? dt) {
   return '${two(l.day)}/${two(l.month)}/${l.year} ${two(l.hour)}:${two(l.minute)}';
 }
 
+String fmtDateVn(DateTime? dt) {
+  if (dt == null) return '—';
+  final l = dt.isUtc ? dt.toLocal() : dt;
+  String two(int v) => v.toString().padLeft(2, '0');
+  return '${two(l.day)}/${two(l.month)}/${l.year}';
+}
+
 // ── KPI card ────────────────────────────────────────────────────────────────
 
 class MgmtKpiCard extends StatelessWidget {

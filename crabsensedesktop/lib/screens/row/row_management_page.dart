@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../models/farm_record.dart';
-import '../../models/production_models.dart';
 import '../../models/row_list_item.dart';
 import '../../models/row_status.dart';
 import '../../navigation/app_route.dart';
@@ -85,61 +84,8 @@ class _RowManagementPageState extends State<RowManagementPage> {
       );
       return;
     }
-    var areaId = svc.areaFilterId;
-    if (areaId == null && svc.areas.length == 1) areaId = svc.areas.first.id;
-    if (areaId == null) {
-      final picked = await _pickArea(svc.areas);
-      if (picked == null || !mounted) return;
-      areaId = picked;
-    }
+    final areaId = svc.areaFilterId ?? svc.areas.first.id;
     await showCreateRowDialog(context, svc, areaId: areaId);
-    if (mounted) await svc.load();
-  }
-
-  Future<String?> _pickArea(List<AreaRecord> areas) async {
-    String? selected = areas.isNotEmpty ? areas.first.id : null;
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          title: Text(
-            'Chọn khu để thêm dãy',
-            style: bvText(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: DashboardColors.textPrimary,
-            ),
-          ),
-          content: DropdownButtonFormField<String>(
-            initialValue: selected,
-            dropdownColor: Colors.white,
-            decoration: const InputDecoration(labelText: 'Khu'),
-            items: [
-              for (final a in areas)
-                DropdownMenuItem(
-                  value: a.id,
-                  child: Text('${a.areaCode} — ${a.areaName}'),
-                ),
-            ],
-            onChanged: (v) => setLocal(() => selected = v),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Hủy'),
-            ),
-            MgmtPrimaryButton(
-              label: 'Tiếp tục',
-              height: 38,
-              onTap:
-                  selected == null ? null : () => Navigator.pop(ctx, selected),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<void> _onEdit(RowListItem item) async {
@@ -154,11 +100,19 @@ class _RowManagementPageState extends State<RowManagementPage> {
       message: '${item.rowName} (${item.rowCode})?',
     );
     if (!ok || !mounted) return;
+    await _performDelete(item);
+  }
+
+  Future<void> _performDelete(RowListItem item) async {
     try {
       await widget.service.deleteRow(item);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã xóa dãy')),
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: DashboardColors.brand,
+            content: Text('✓ Đã xóa dãy ${item.rowName}.'),
+          ),
         );
       }
     } catch (e) {
@@ -166,14 +120,18 @@ class _RowManagementPageState extends State<RowManagementPage> {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('$e')));
       }
+      rethrow;
     }
   }
 
   void _onDetail(RowListItem item) => showRowDetailDialog(
         context,
         item: item,
+        rowService: widget.service,
+        productionService: widget.productionService,
         onEdit: () => _onEdit(item),
-        onDelete: () => _onDelete(item),
+        onViewBoxes: () => _onViewBoxes(item),
+        onDelete: () => _performDelete(item),
       );
 
   void _onViewBoxes(RowListItem item) {

@@ -8,7 +8,7 @@ enum CrabGender {
   female;
 
   String get label => switch (this) {
-        CrabGender.unknown => 'Chưa rõ',
+        CrabGender.unknown => 'Chưa xác định',
         CrabGender.male => 'Đực',
         CrabGender.female => 'Cái',
       };
@@ -38,37 +38,99 @@ enum CrabHealthStatus {
       };
 }
 
-/// Bộ lọc trạng thái trên màn Quản lý Cua.
+/// Bộ lọc chip nhanh trên màn Quản lý Cua.
+/// “Theo dõi” là SỨC KHỎE; các chip còn lại là TRẠNG THÁI.
 enum CrabManagementStatusFilter {
   all,
-  alive,
+  growing,
+  monitoring,
   molting,
-  sickWeak,
-  dead,
-  harvested;
+  readyHarvest,
+  dead;
 
   String get label => switch (this) {
         CrabManagementStatusFilter.all => 'Tất cả',
-        CrabManagementStatusFilter.alive => 'Đang sống',
+        CrabManagementStatusFilter.growing => 'Đang nuôi',
+        CrabManagementStatusFilter.monitoring => 'Theo dõi',
         CrabManagementStatusFilter.molting => 'Đang lột xác',
-        CrabManagementStatusFilter.sickWeak => 'Bệnh/yếu',
+        CrabManagementStatusFilter.readyHarvest => 'Sắp thu hoạch',
         CrabManagementStatusFilter.dead => 'Chết',
-        CrabManagementStatusFilter.harvested => 'Đã thu hoạch',
+      };
+}
+
+/// Trạng thái nuôi — tách biệt với sức khỏe.
+enum CrabLifecycleStatus {
+  growing,
+  molting,
+  readyHarvest,
+  harvested,
+  dead;
+
+  String get label => switch (this) {
+        CrabLifecycleStatus.growing => 'Đang nuôi',
+        CrabLifecycleStatus.molting => 'Đang lột xác',
+        CrabLifecycleStatus.readyHarvest => 'Sắp thu hoạch',
+        CrabLifecycleStatus.harvested => 'Đã thu hoạch',
+        CrabLifecycleStatus.dead => 'Chết',
+      };
+
+  Color get color => switch (this) {
+        CrabLifecycleStatus.growing => DashboardColors.brand,
+        CrabLifecycleStatus.molting => const Color(0xFF7C3AED),
+        CrabLifecycleStatus.readyHarvest => DashboardColors.seaGreen,
+        CrabLifecycleStatus.harvested => const Color(0xFF2495E8),
+        CrabLifecycleStatus.dead => DashboardColors.risk,
+      };
+}
+
+/// Sức khỏe hiển thị — không gồm “Đang lột xác”.
+enum CrabDisplayHealth {
+  healthy,
+  monitoring,
+  weak,
+  alert;
+
+  String get label => switch (this) {
+        CrabDisplayHealth.healthy => 'Khỏe mạnh',
+        CrabDisplayHealth.monitoring => 'Theo dõi',
+        CrabDisplayHealth.weak => 'Bệnh / Yếu',
+        CrabDisplayHealth.alert => 'Cảnh báo',
+      };
+
+  Color get color => switch (this) {
+        CrabDisplayHealth.healthy => DashboardColors.brand,
+        CrabDisplayHealth.monitoring => const Color(0xFFF5B700),
+        CrabDisplayHealth.weak => DashboardColors.risk,
+        CrabDisplayHealth.alert => const Color(0xFFF97316),
       };
 }
 
 enum CrabDevelopmentStage {
   juvenile,
   growing,
+  preMolt,
+  molting,
+  postMolt,
   preHarvest,
   harvestReady;
 
   String get label => switch (this) {
         CrabDevelopmentStage.juvenile => 'Ấu trùng',
-        CrabDevelopmentStage.growing => 'Đang lớn',
+        CrabDevelopmentStage.growing => 'Sinh trưởng',
+        CrabDevelopmentStage.preMolt => 'Chuẩn bị lột',
+        CrabDevelopmentStage.molting => 'Đang lột',
+        CrabDevelopmentStage.postMolt => 'Sau lột',
         CrabDevelopmentStage.preHarvest => 'Gần thu hoạch',
-        CrabDevelopmentStage.harvestReady => 'Sẵn thu hoạch',
+        CrabDevelopmentStage.harvestReady => 'Sắp thu hoạch',
       };
+
+  static const editOptions = [
+    CrabDevelopmentStage.growing,
+    CrabDevelopmentStage.preMolt,
+    CrabDevelopmentStage.molting,
+    CrabDevelopmentStage.postMolt,
+    CrabDevelopmentStage.harvestReady,
+  ];
 }
 
 /// Badge trạng thái vận hành (bảng danh sách).

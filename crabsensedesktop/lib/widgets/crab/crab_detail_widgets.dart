@@ -717,7 +717,7 @@ class CrabHealthHeaderBadge extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        CrabHealthBadge(status: crab.healthStatus),
+        CrabHealthBadge(status: crab.displayHealth),
         const SizedBox(width: 12),
         CrabLifeBadge(status: crab.lifeStatus),
       ],

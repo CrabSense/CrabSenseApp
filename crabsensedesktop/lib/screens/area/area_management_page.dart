@@ -243,7 +243,13 @@ class _AreaManagementPageState extends State<AreaManagementPage> {
                     label: 'Thêm khu',
                     onTap: svc.loading
                         ? null
-                        : () => showAreaFormDialog(context, svc),
+                        : () => showAreaFormDialog(
+                              context,
+                              svc,
+                              onAfterCreate: (area, {required setupRows}) {
+                                if (setupRows) widget.onViewRows?.call(area);
+                              },
+                            ),
                   ),
                 ],
               );
@@ -327,7 +333,13 @@ class _AreaManagementPageState extends State<AreaManagementPage> {
             )
           else if (items.isEmpty)
             _EmptyState(
-              onAdd: () => showAreaFormDialog(context, svc),
+              onAdd: () => showAreaFormDialog(
+                context,
+                svc,
+                onAfterCreate: (area, {required setupRows}) {
+                  if (setupRows) widget.onViewRows?.call(area);
+                },
+              ),
             )
           else
             for (var i = 0; i < items.length; i++) ...[

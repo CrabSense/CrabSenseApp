@@ -2,25 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/production_models.dart';
+import '../../services/box_management_service.dart';
 import '../../services/production_management_service.dart';
+import '../../services/row_management_service.dart';
+import '../../navigation/app_route.dart';
 import '../../theme/dashboard_theme.dart';
+import 'add_box_modal.dart';
 
 Future<void> showBoxFormDialog(
   BuildContext context,
   ProductionManagementService svc, {
   BoxRecord? existing,
+  BoxManagementService? boxService,
+  RowManagementService? rowService,
+  void Function(AppRoute route)? onNavigate,
 }) async {
+  if (existing == null) {
+    await showAddBoxModal(
+      context,
+      productionService: svc,
+      boxService: boxService,
+      rowService: rowService,
+      onNavigate: onNavigate,
+    );
+    return;
+  }
   if (svc.areas.isEmpty) {
     await svc.loadAreas();
-  }
-  var preview = 'H-…';
-  if (existing == null) {
-    final rowId = svc.selectedRowId;
-    if (rowId != null) {
-      try {
-        preview = await svc.fetchNextBoxCode();
-      } catch (_) {}
-    }
   }
   if (!context.mounted) return;
   await showDialog<void>(
@@ -29,7 +37,7 @@ Future<void> showBoxFormDialog(
     builder: (_) => BoxFormDialog(
       svc: svc,
       existing: existing,
-      autoCode: existing?.boxCode ?? preview,
+      autoCode: existing.boxCode,
     ),
   );
 }

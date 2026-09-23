@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-import '../../utils/app_formatters.dart';
 import '../../models/crab_individual.dart';
 import '../../theme/dashboard_theme.dart';
+import '../shared/mgmt_ui.dart';
 import 'crab_status_badge.dart';
 
 enum CrabManagementAction {
   view,
   edit,
-  recordHealth,
-  recordMolt,
-  recordDead,
-  recordHarvest,
-  exportSoftshell,
-  delete,
+  history,
+  viewBox,
+  move,
+  molt,
+  readyHarvest,
+  dead,
 }
 
 typedef CrabManagementActionCallback = void Function(
@@ -27,46 +26,107 @@ class CrabManagementDataTable extends StatelessWidget {
     super.key,
     required this.crabs,
     required this.onAction,
+    required this.selectedId,
+    required this.checkedIds,
+    required this.onToggle,
+    required this.onToggleAll,
+    required this.onSelectRow,
+    this.onOpenCode,
+    this.sortColumn,
+    this.sortAsc = true,
+    this.onSort,
   });
 
   final List<CrabIndividual> crabs;
   final CrabManagementActionCallback onAction;
+  final String? selectedId;
+  final Set<String> checkedIds;
+  final ValueChanged<CrabIndividual> onToggle;
+  final VoidCallback onToggleAll;
+  final ValueChanged<CrabIndividual> onSelectRow;
+  final ValueChanged<CrabIndividual>? onOpenCode;
+  final int? sortColumn;
+  final bool sortAsc;
+  final void Function(int column, bool asc)? onSort;
+
+  bool get _allChecked =>
+      crabs.isNotEmpty && crabs.every((c) => checkedIds.contains(c.id));
+
+  bool get _someChecked => crabs.any((c) => checkedIds.contains(c.id));
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: constraints.maxWidth),
-            child: DataTable(
-              headingRowHeight: 48,
-              dataRowMinHeight: 56,
-              dataRowMaxHeight: 72,
-              columnSpacing: 16,
-              headingTextStyle: GoogleFonts.notoSans(
-                color: DashboardColors.textMuted,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.5,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
+              child: DataTable(
+                headingRowHeight: 40,
+                dataRowMinHeight: 54,
+                dataRowMaxHeight: 62,
+                columnSpacing: 14,
+                horizontalMargin: 12,
+                headingRowColor:
+                    const WidgetStatePropertyAll(DashboardColors.lightMint),
+                headingTextStyle: bvText(
+                  color: DashboardColors.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4,
+                ),
+                showCheckboxColumn: false,
+                sortColumnIndex: sortColumn,
+                sortAscending: sortAsc,
+                columns: [
+                  DataColumn(
+                    label: SizedBox(
+                      width: 28,
+                      child: Checkbox(
+                        value: _allChecked
+                            ? true
+                            : _someChecked
+                                ? null
+                                : false,
+                        tristate: true,
+                        onChanged: (_) => onToggleAll(),
+                        activeColor: DashboardColors.brand,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: const Text('MÃ CUA'),
+                    onSort: onSort == null ? null : (i, a) => onSort!(i, a),
+                  ),
+                  const DataColumn(label: Text('LÔ CUA')),
+                  const DataColumn(label: Text('DÃY / HỘP')),
+                  const DataColumn(label: Text('GIỚI TÍNH')),
+                  DataColumn(
+                    label: const Text('CÂN NẶNG'),
+                    numeric: true,
+                    onSort: onSort == null ? null : (i, a) => onSort!(i, a),
+                  ),
+                  const DataColumn(label: Text('KÍCH THƯỚC')),
+                  DataColumn(
+                    label: const Text('SỨC KHỎE'),
+                    onSort: onSort == null ? null : (i, a) => onSort!(i, a),
+                  ),
+                  DataColumn(
+                    label: const Text('TRẠNG THÁI'),
+                    onSort: onSort == null ? null : (i, a) => onSort!(i, a),
+                  ),
+                  DataColumn(
+                    label: const Text('CẬP NHẬT'),
+                    onSort: onSort == null ? null : (i, a) => onSort!(i, a),
+                  ),
+                  const DataColumn(label: Text('THAO TÁC')),
+                ],
+                rows: crabs.map(_row).toList(),
               ),
-              columns: const [
-                DataColumn(label: Text('MÃ CUA')),
-                DataColumn(label: Text('LÔ CUA')),
-                DataColumn(label: Text('DÃY')),
-                DataColumn(label: Text('HỘP')),
-                DataColumn(label: Text('GIỚI TÍNH')),
-                DataColumn(label: Text('CÂN NẶNG')),
-                DataColumn(label: Text('BỀ NGANG')),
-                DataColumn(label: Text('BỀ RỘNG')),
-                DataColumn(label: Text('LỘT XÁC')),
-                DataColumn(label: Text('SỨC KHỎE')),
-                DataColumn(label: Text('TRẠNG THÁI')),
-                DataColumn(label: Text('CẬP NHẬT')),
-                DataColumn(label: Text('THAO TÁC')),
-              ],
-              rows: crabs.map(_row).toList(),
             ),
           ),
         );
@@ -75,133 +135,128 @@ class CrabManagementDataTable extends StatelessWidget {
   }
 
   DataRow _row(CrabIndividual c) {
+    final selected = c.id == selectedId;
+    final checked = checkedIds.contains(c.id);
     return DataRow(
+      selected: selected,
+      color: WidgetStateProperty.resolveWith((states) {
+        if (selected) return DashboardColors.lightMint;
+        if (states.contains(WidgetState.hovered)) {
+          return DashboardColors.mint.withValues(alpha: 0.35);
+        }
+        return Colors.white;
+      }),
+      onSelectChanged: (_) => onSelectRow(c),
       cells: [
-        DataCell(_codeCell(c)),
-        DataCell(Text(c.batchId, style: _cellStyle())),
+        DataCell(
+          Checkbox(
+            value: checked,
+            onChanged: (_) => onToggle(c),
+            activeColor: DashboardColors.brand,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+        DataCell(
+          CrabCodeCell(
+            code: c.code,
+            onTap: () => (onOpenCode ?? onSelectRow)(c),
+          ),
+        ),
         DataCell(Text(
-          c.rowName.trim().isEmpty ? '—' : c.rowName,
-          style: _cellStyle(),
-        )),
-        DataCell(Text(c.boxLabel, style: _cellStyle())),
-        DataCell(_genderChip(c.gender.label)),
-        DataCell(Text(
-          c.weightGram > 0 ? '${c.weightGram.toStringAsFixed(0)} g' : '—',
-          style: _cellStyle(bold: true),
+          c.batchId.trim().isEmpty ? '—' : c.batchId,
+          style: bvText(fontSize: 12.5, color: DashboardColors.textPrimary),
         )),
         DataCell(Text(
-          c.carapaceLengthMm > 0 ? '${c.carapaceLengthMm.toStringAsFixed(1)} mm' : '—',
-          style: _cellStyle(),
+          '${c.rowLabel} / ${c.boxLabel}',
+          style: bvText(fontSize: 12.5, color: DashboardColors.textPrimary),
+        )),
+        DataCell(CrabGenderBadge(gender: c.gender)),
+        DataCell(Text(
+          c.weightLabel,
+          style: bvText(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: DashboardColors.textPrimary,
+          ),
         )),
         DataCell(Text(
-          c.shellSizeCm > 0 ? '${c.shellSizeCm.toStringAsFixed(1)} mm' : '—',
-          style: _cellStyle(),
+          c.sizeLabel,
+          style: bvText(fontSize: 12.5, color: DashboardColors.textPrimary),
         )),
-        DataCell(Text('${c.moltCount}', style: _cellStyle())),
-        DataCell(CrabHealthBadge(status: c.healthStatus)),
-        DataCell(CrabOperationalBadge(status: c.operationalStatus)),
-        DataCell(Text(_relativeUpdate(c.lastUpdated), style: _cellStyle(muted: true))),
+        DataCell(CrabHealthBadge(status: c.displayHealth)),
+        DataCell(CrabLifecycleBadge(status: c.lifecycleStatus)),
+        DataCell(Text(
+          _stamp(c.lastUpdated),
+          style: bvText(fontSize: 12, color: DashboardColors.textMuted),
+        )),
         DataCell(_actions(c)),
       ],
     );
   }
 
-  Widget _codeCell(CrabIndividual c) {
+  Widget _actions(CrabIndividual c) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: DashboardColors.oceanBlue.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(Icons.pets, size: 16, color: DashboardColors.oceanBlue),
+        IconButton(
+          tooltip: 'Xem nhanh',
+          onPressed: () => onSelectRow(c),
+          icon: Icon(Icons.visibility_outlined, size: 18, color: DashboardColors.textMuted),
+          visualDensity: VisualDensity.compact,
+          splashRadius: 16,
         ),
-        const SizedBox(width: 8),
-        Text(
-          c.code,
-          style: GoogleFonts.notoSans(
-            color: DashboardColors.oceanBlue,
-            fontWeight: FontWeight.w600,
-            fontSize: 12,
-          ),
+        PopupMenuButton<CrabManagementAction>(
+          icon: Icon(Icons.more_horiz, color: DashboardColors.textMuted, size: 20),
+          color: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          onSelected: (a) => onAction(c, a),
+          itemBuilder: (_) => [
+            _item(CrabManagementAction.view, Icons.visibility_outlined, 'Xem chi tiết'),
+            _item(CrabManagementAction.edit, Icons.edit_outlined, 'Cập nhật thông tin'),
+            _item(CrabManagementAction.history, Icons.history_rounded, 'Xem lịch sử'),
+            _item(CrabManagementAction.viewBox, Icons.inventory_2_outlined, 'Xem hộp hiện tại'),
+            _item(CrabManagementAction.move, Icons.swap_horiz_rounded, 'Chuyển hộp'),
+            _item(CrabManagementAction.molt, Icons.sync_outlined, 'Đánh dấu lột xác'),
+            _item(
+              CrabManagementAction.readyHarvest,
+              Icons.shopping_basket_outlined,
+              'Đánh dấu sắp thu hoạch',
+            ),
+            _item(
+              CrabManagementAction.dead,
+              Icons.heart_broken_outlined,
+              'Đánh dấu chết',
+              danger: true,
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _genderChip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: DashboardColors.cardBorder.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(label, style: GoogleFonts.notoSans(fontSize: 11)),
-    );
-  }
-
-  Widget _actions(CrabIndividual c) {
-    return PopupMenuButton<CrabManagementAction>(
-      icon: Icon(Icons.more_horiz, color: DashboardColors.textMuted, size: 20),
-      color: DashboardColors.card,
-      onSelected: (a) => onAction(c, a),
-      itemBuilder: (_) => [
-        _menuItem(CrabManagementAction.view, Icons.visibility_outlined, 'Xem chi tiết'),
-        _menuItem(CrabManagementAction.edit, Icons.edit_outlined, 'Chỉnh sửa'),
-        _menuItem(CrabManagementAction.recordHealth, Icons.monitor_heart_outlined, 'Ghi nhận sức khỏe'),
-        _menuItem(CrabManagementAction.recordMolt, Icons.sync_outlined, 'Ghi nhận lột xác'),
-        _menuItem(CrabManagementAction.exportSoftshell, Icons.outbox_outlined, 'Xuất cua lột'),
-        _menuItem(CrabManagementAction.recordDead, Icons.heart_broken_outlined, 'Ghi nhận chết'),
-        _menuItem(CrabManagementAction.recordHarvest, Icons.shopping_basket_outlined, 'Ghi nhận thu hoạch'),
-        const PopupMenuDivider(),
-        _menuItem(CrabManagementAction.delete, Icons.delete_outline, 'Xóa', danger: true),
-      ],
-    );
-  }
-
-  PopupMenuItem<CrabManagementAction> _menuItem(
+  PopupMenuItem<CrabManagementAction> _item(
     CrabManagementAction value,
     IconData icon,
     String label, {
     bool danger = false,
   }) {
+    final color = danger ? DashboardColors.risk : DashboardColors.textPrimary;
     return PopupMenuItem(
       value: value,
       child: Row(
         children: [
           Icon(icon, size: 18, color: danger ? DashboardColors.risk : DashboardColors.textMuted),
           const SizedBox(width: 10),
-          Text(
-            label,
-            style: GoogleFonts.notoSans(
-              color: danger ? DashboardColors.risk : DashboardColors.textPrimary,
-              fontSize: 13,
-            ),
-          ),
+          Text(label, style: bvText(fontSize: 13, color: color)),
         ],
       ),
     );
   }
 
-  TextStyle _cellStyle({bool bold = false, bool muted = false}) {
-    return GoogleFonts.notoSans(
-      color: muted ? DashboardColors.textMuted : DashboardColors.textPrimary,
-      fontSize: 12,
-      fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
-    );
-  }
-
-  String _relativeUpdate(DateTime d) {
-    final diff = DateTime.now().difference(d);
-    if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
-    if (diff.inHours < 24) {
-      return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')} Hôm nay';
-    }
-    if (diff.inDays == 1) return 'Hôm qua';
-    if (diff.inDays < 7) return '${diff.inDays} ngày trước';
-    return formatDate(d);
+  String _stamp(DateTime d) {
+    final l = d.isUtc ? d.toLocal() : d;
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${two(l.day)}/${two(l.month)}/${l.year}\n${two(l.hour)}:${two(l.minute)}';
   }
 }

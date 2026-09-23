@@ -97,10 +97,15 @@ class CrabIndividual {
     required this.lifeStatus,
     required this.healthScore,
     this.displayCode,
+    this.areaId = '',
+    this.areaCode = '',
     this.areaName = 'Khu A',
+    this.rowId = '',
     this.rowName = 'Dãy 01',
     this.boxName,
     this.developmentStage = CrabDevelopmentStage.growing,
+    this.lifecycleStatus = CrabLifecycleStatus.growing,
+    this.crabType = 'Cua biển',
     this.updatedAt,
     this.lastMoltDate,
     this.quickNote = '',
@@ -120,10 +125,15 @@ class CrabIndividual {
   final String? displayCode;
   final String boxId;
   final String batchId;
+  final String areaId;
+  final String areaCode;
   final String areaName;
+  final String rowId;
   final String rowName;
   final String? boxName;
   final CrabDevelopmentStage developmentStage;
+  final CrabLifecycleStatus lifecycleStatus;
+  final String crabType;
   final DateTime? updatedAt;
   final CrabGender gender;
   final double weightGram;
@@ -151,52 +161,100 @@ class CrabIndividual {
 
   String get code => displayCode ?? id;
 
-  String get boxLabel => boxName ?? 'Hộp $boxId';
+  String get boxLabel {
+    final code = (boxName ?? '').trim();
+    if (code.isNotEmpty) return code;
+    return boxId.trim().isEmpty ? '—' : 'Hộp $boxId';
+  }
 
-  String get locationLine => '$areaName · $rowName · $boxLabel';
+  String get areaLabel {
+    if (areaCode.trim().isNotEmpty && areaName.trim().isNotEmpty) {
+      return '$areaCode — $areaName';
+    }
+    if (areaCode.trim().isNotEmpty) return areaCode;
+    if (areaName.trim().isNotEmpty) return areaName;
+    return '—';
+  }
+
+  String get rowLabel {
+    final name = rowName.trim();
+    if (name.isNotEmpty) return name;
+    return '—';
+  }
+
+  String get locationLine => '$areaLabel · $rowLabel · $boxLabel';
 
   DateTime get lastUpdated => updatedAt ?? releaseDate;
 
+  /// Sức khỏe hiển thị — không dùng “Đang lột xác” (đó là trạng thái).
+  CrabDisplayHealth get displayHealth {
+    switch (healthStatus) {
+      case CrabHealthStatus.monitoring:
+        return CrabDisplayHealth.monitoring;
+      case CrabHealthStatus.atRisk:
+        return alertCount > 0 ? CrabDisplayHealth.alert : CrabDisplayHealth.weak;
+      case CrabHealthStatus.molting:
+        if (healthScore > 0 && healthScore < 70) {
+          return CrabDisplayHealth.monitoring;
+        }
+        return CrabDisplayHealth.healthy;
+      case CrabHealthStatus.healthy:
+      case CrabHealthStatus.good:
+        return CrabDisplayHealth.healthy;
+    }
+  }
+
+  String get sizeLabel {
+    final w = normalizeCarapaceMm(shellSizeCm);
+    final l = normalizeCarapaceMm(carapaceLengthMm);
+    if (w <= 0 && l <= 0) return '—';
+    if (l <= 0) return '${formatMm(w)} mm';
+    if (w <= 0) return '${formatMm(l)} mm';
+    return '${formatMm(w)} × ${formatMm(l)} mm';
+  }
+
+  String get weightLabel =>
+      weightGram > 0 ? '${weightGram.round()} g' : '—';
+
   CrabOperationalStatus get operationalStatus {
-    if (lifeStatus == CrabLifeStatus.dead) return CrabOperationalStatus.dead;
-    if (lifeStatus == CrabLifeStatus.sold) return CrabOperationalStatus.sold;
-    if (lifeStatus == CrabLifeStatus.readyForSale) {
-      return CrabOperationalStatus.harvested;
-    }
-    if (healthStatus == CrabHealthStatus.molting) {
-      return CrabOperationalStatus.molting;
-    }
-    if (developmentStage == CrabDevelopmentStage.harvestReady) {
-      return CrabOperationalStatus.readyHarvest;
-    }
-    if (healthStatus == CrabHealthStatus.atRisk ||
-        healthStatus == CrabHealthStatus.monitoring ||
-        healthScore < 70) {
-      return CrabOperationalStatus.warning;
-    }
-    return CrabOperationalStatus.alive;
+    return switch (lifecycleStatus) {
+      CrabLifecycleStatus.dead => CrabOperationalStatus.dead,
+      CrabLifecycleStatus.harvested => CrabOperationalStatus.harvested,
+      CrabLifecycleStatus.molting => CrabOperationalStatus.molting,
+      CrabLifecycleStatus.readyHarvest => CrabOperationalStatus.readyHarvest,
+      CrabLifecycleStatus.growing => CrabOperationalStatus.alive,
+    };
   }
 
   bool matchesStatusFilter(CrabManagementStatusFilter filter) {
     switch (filter) {
       case CrabManagementStatusFilter.all:
         return true;
-      case CrabManagementStatusFilter.alive:
-        return lifeStatus == CrabLifeStatus.raising ||
-            lifeStatus == CrabLifeStatus.readyForSale;
+      case CrabManagementStatusFilter.growing:
+        return lifecycleStatus == CrabLifecycleStatus.growing;
+      case CrabManagementStatusFilter.monitoring:
+        return displayHealth == CrabDisplayHealth.monitoring;
       case CrabManagementStatusFilter.molting:
-        return healthStatus == CrabHealthStatus.molting ||
-            operationalStatus == CrabOperationalStatus.molting;
-      case CrabManagementStatusFilter.sickWeak:
-        return healthStatus == CrabHealthStatus.atRisk ||
-            healthStatus == CrabHealthStatus.monitoring ||
-            healthScore < 75;
+        return lifecycleStatus == CrabLifecycleStatus.molting;
+      case CrabManagementStatusFilter.readyHarvest:
+        return lifecycleStatus == CrabLifecycleStatus.readyHarvest;
       case CrabManagementStatusFilter.dead:
-        return lifeStatus == CrabLifeStatus.dead;
-      case CrabManagementStatusFilter.harvested:
-        return lifeStatus == CrabLifeStatus.readyForSale ||
-            lifeStatus == CrabLifeStatus.sold;
+        return lifecycleStatus == CrabLifecycleStatus.dead;
     }
+  }
+
+  static double normalizeCarapaceMm(double value) {
+    if (value <= 0) return 0;
+    var v = value;
+    while (v >= 200) {
+      v /= 10;
+    }
+    return v;
+  }
+
+  static String formatMm(double value) {
+    if (value == value.roundToDouble()) return value.toStringAsFixed(0);
+    return value.toStringAsFixed(1);
   }
 
   int get ageDays => DateTime.now().difference(releaseDate).inDays;
@@ -239,10 +297,15 @@ class CrabIndividual {
     String? displayCode,
     String? boxId,
     String? batchId,
+    String? areaId,
+    String? areaCode,
     String? areaName,
+    String? rowId,
     String? rowName,
     String? boxName,
     CrabDevelopmentStage? developmentStage,
+    CrabLifecycleStatus? lifecycleStatus,
+    String? crabType,
     DateTime? updatedAt,
     CrabGender? gender,
     double? weightGram,
@@ -271,10 +334,15 @@ class CrabIndividual {
       displayCode: displayCode ?? this.displayCode,
       boxId: boxId ?? this.boxId,
       batchId: batchId ?? this.batchId,
+      areaId: areaId ?? this.areaId,
+      areaCode: areaCode ?? this.areaCode,
       areaName: areaName ?? this.areaName,
+      rowId: rowId ?? this.rowId,
       rowName: rowName ?? this.rowName,
       boxName: boxName ?? this.boxName,
       developmentStage: developmentStage ?? this.developmentStage,
+      lifecycleStatus: lifecycleStatus ?? this.lifecycleStatus,
+      crabType: crabType ?? this.crabType,
       updatedAt: updatedAt ?? this.updatedAt,
       gender: gender ?? this.gender,
       weightGram: weightGram ?? this.weightGram,
@@ -309,6 +377,7 @@ class CrabManagementSummary {
     required this.molting,
     required this.readyHarvest,
     required this.aliveRate,
+    this.monitoring = 0,
   });
 
   final int total;
@@ -317,6 +386,9 @@ class CrabManagementSummary {
   final int molting;
   final int readyHarvest;
   final double aliveRate;
+  final int monitoring;
+
+  double pct(int n) => total <= 0 ? 0 : n / total * 100;
 }
 
 class CrabSummaryKpi {

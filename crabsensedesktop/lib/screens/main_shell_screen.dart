@@ -10,7 +10,6 @@ import '../services/batch_service.dart';
 import '../services/crab_service.dart';
 import '../widgets/dashboard/app_sidebar.dart';
 import '../widgets/dashboard/wave_background.dart';
-import '../widgets/shared/app_footer.dart';
 import '../widgets/shared/app_top_bar.dart';
 import 'batch/batch_detail_page.dart';
 import 'batch/batch_list_page.dart';
@@ -367,9 +366,12 @@ class _MainShellScreenState extends State<MainShellScreen> {
       if (route != AppRoute.batchDetail) {
         _selectedBatch = null;
       }
+      // Giữ crab đang xem khi mở Chi tiết hộp từ Chi tiết cua (quay lại được).
       if (route != AppRoute.individualDetail &&
           route != AppRoute.individualHealth &&
-          route != AppRoute.crabManagementDetail) {
+          route != AppRoute.crabManagementDetail &&
+          !(route == AppRoute.boxDetail &&
+              _boxDetailBack == AppRoute.crabManagementDetail)) {
         _selectedCrabId = null;
       }
       if (route != AppRoute.inboundLotDetail) {
@@ -597,7 +599,6 @@ class _MainShellScreenState extends State<MainShellScreen> {
                   children: [
                     _buildTopBar(),
                     Expanded(child: _buildBody()),
-                    const AppFooter(),
                   ],
                 ),
               ),
@@ -940,6 +941,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
         return BoxManagementPage(
           service: _boxManagementService,
           productionService: _productionManagementService,
+          rowService: _rowManagementService,
           onNavigate: _navigate,
           onBoxTap: (item) {
             _selectedBoxItem = item;
@@ -1004,6 +1006,9 @@ class _MainShellScreenState extends State<MainShellScreen> {
           service: _crabService,
           onNavigate: _navigate,
           onOpenDetail: _openCrabManagementDetail,
+          onOpenArea: _openAreaDetail,
+          onOpenBoxes: ({required String areaId, String? rowId}) =>
+              _openBoxes(areaId: areaId, rowId: rowId),
         );
       case AppRoute.crabManagementDetail:
         final crabId = _selectedCrabId ??
@@ -1017,6 +1022,9 @@ class _MainShellScreenState extends State<MainShellScreen> {
             service: _crabService,
             onNavigate: _navigate,
             onOpenDetail: _openCrabManagementDetail,
+            onOpenArea: _openAreaDetail,
+            onOpenBoxes: ({required String areaId, String? rowId}) =>
+                _openBoxes(areaId: areaId, rowId: rowId),
           );
         }
         return CrabManagementDetailPage(
@@ -1025,6 +1033,23 @@ class _MainShellScreenState extends State<MainShellScreen> {
           cameraService: _cameraDeviceService,
           gatewayService: _gatewayService,
           onBack: _backToCrabManagementList,
+          onNavigate: _navigate,
+          onOpenArea: _openAreaDetail,
+          onOpenBoxes: ({required String areaId, String? rowId}) =>
+              _openBoxes(areaId: areaId, rowId: rowId),
+          onOpenBox: (box, crab) {
+            _selectedBoxItem = BoxListItem(
+              box: box,
+              areaId: crab.areaId,
+              areaCode: box.areaCode ?? crab.areaCode,
+              areaName: box.areaName ?? crab.areaName,
+              rowId: box.rowId,
+              rowCode: box.rowCode ?? '',
+              rowName: box.rowName ?? crab.rowName,
+            );
+            _boxDetailBack = AppRoute.crabManagementDetail;
+            _navigate(AppRoute.boxDetail);
+          },
         );
       case AppRoute.individuals:
         return CrabListPage(

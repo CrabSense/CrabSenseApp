@@ -6,8 +6,13 @@ import '../models/production_models.dart';
 import '../theme/dashboard_theme.dart';
 import 'app_formatters.dart';
 
-String areaDisplayLabel(CrabManagementListItem item) =>
-    '${item.areaCode} — ${item.areaName}';
+String areaDisplayLabel(CrabManagementListItem item) {
+  if (item.areaCode.trim().isNotEmpty && item.areaName.trim().isNotEmpty) {
+    return '${item.areaCode} — ${item.areaName}';
+  }
+  if (item.areaCode.trim().isNotEmpty) return item.areaCode;
+  return item.areaName;
+}
 
 CrabGender mapGender(String api) => switch (api.toLowerCase()) {
       'male' || 'đực' || 'm' => CrabGender.male,
@@ -28,6 +33,40 @@ CrabLifeStatus mapLifeStatus(String api) => switch (api.toLowerCase()) {
       _ => CrabLifeStatus.raising,
     };
 
+CrabLifecycleStatus mapLifecycleStatus({
+  required String status,
+  String? growthStage,
+  String? healthStatus,
+}) {
+  final s = status.toLowerCase();
+  if (s == 'dead') return CrabLifecycleStatus.dead;
+  if (s == 'harvested' || s == 'sold') return CrabLifecycleStatus.harvested;
+  if (s == 'molting' || s.contains('molt')) return CrabLifecycleStatus.molting;
+  final g = (growthStage ?? '').toLowerCase();
+  if (g.contains('harvest') || g.contains('thu')) {
+    return CrabLifecycleStatus.readyHarvest;
+  }
+  final h = (healthStatus ?? '').toLowerCase();
+  if (h.contains('molt')) return CrabLifecycleStatus.molting;
+  return CrabLifecycleStatus.growing;
+}
+
+CrabDisplayHealth mapDisplayHealth(String? api) {
+  final s = (api ?? '').toLowerCase();
+  if (s.contains('alert') || s.contains('cảnh')) return CrabDisplayHealth.alert;
+  if (s.contains('risk') ||
+      s.contains('weak') ||
+      s.contains('yếu') ||
+      s.contains('bệnh') ||
+      s.contains('sick')) {
+    return CrabDisplayHealth.weak;
+  }
+  if (s.contains('monitor') || s.contains('theo')) {
+    return CrabDisplayHealth.monitoring;
+  }
+  return CrabDisplayHealth.healthy;
+}
+
 String lifeStatusToApi(CrabLifeStatus life) => switch (life) {
       CrabLifeStatus.dead => 'dead',
       CrabLifeStatus.sold => 'sold',
@@ -38,7 +77,15 @@ String lifeStatusToApi(CrabLifeStatus life) => switch (life) {
 CrabHealthStatus mapHealthStatus(String? api) {
   final s = (api ?? 'healthy').toLowerCase();
   if (s.contains('molt')) return CrabHealthStatus.molting;
-  if (s.contains('risk') || s.contains('nguy')) return CrabHealthStatus.atRisk;
+  if (s.contains('risk') ||
+      s.contains('nguy') ||
+      s.contains('weak') ||
+      s.contains('yếu') ||
+      s.contains('bệnh') ||
+      s.contains('sick') ||
+      s.contains('alert')) {
+    return CrabHealthStatus.atRisk;
+  }
   if (s.contains('monitor') || s.contains('theo')) {
     return CrabHealthStatus.monitoring;
   }
@@ -59,19 +106,44 @@ CrabDevelopmentStage mapGrowthStage(String? api) {
   if (s.contains('juvenile') || s.contains('ấu')) {
     return CrabDevelopmentStage.juvenile;
   }
-  if (s.contains('pre')) return CrabDevelopmentStage.preHarvest;
+  if (s.contains('premolt') || s.contains('pre_molt') || s.contains('chuẩn bị lột') || s.contains('saplot')) {
+    return CrabDevelopmentStage.preMolt;
+  }
+  if (s.contains('post') || s.contains('soft') || s.contains('sau lột')) {
+    return CrabDevelopmentStage.postMolt;
+  }
+  if (s.contains('molt') || s.contains('đang lột')) {
+    return CrabDevelopmentStage.molting;
+  }
   if (s.contains('harvest') || s.contains('thu')) {
     return CrabDevelopmentStage.harvestReady;
   }
+  if (s.contains('pre')) return CrabDevelopmentStage.preHarvest;
   return CrabDevelopmentStage.growing;
 }
 
 String growthStageToApi(CrabDevelopmentStage s) => switch (s) {
       CrabDevelopmentStage.juvenile => 'juvenile',
       CrabDevelopmentStage.growing => 'growing',
+      CrabDevelopmentStage.preMolt => 'premolt',
+      CrabDevelopmentStage.molting => 'molting',
+      CrabDevelopmentStage.postMolt => 'softshell',
       CrabDevelopmentStage.preHarvest => 'pre_harvest',
       CrabDevelopmentStage.harvestReady => 'harvest_ready',
     };
+
+String healthDisplayToCondition(CrabDisplayHealth h) => switch (h) {
+      CrabDisplayHealth.healthy => 'normal',
+      CrabDisplayHealth.monitoring => 'weak',
+      CrabDisplayHealth.weak => 'problem',
+      CrabDisplayHealth.alert => 'problem',
+    };
+
+String lifecycleToMoltingStage(CrabLifecycleStatus s, CrabDevelopmentStage stage) {
+  if (s == CrabLifecycleStatus.molting) return 'molting';
+  if (s == CrabLifecycleStatus.readyHarvest) return 'harvest_ready';
+  return growthStageToApi(stage);
+}
 
 MoltCondition mapMoltCondition(String api) {
   final s = api.toLowerCase();
@@ -98,12 +170,20 @@ DateTime? parseApiDate(String? value) {
 
 CrabIndividual crabFromListItem(CrabManagementListItem item) {
   final release = parseApiDate(item.batchStartDate) ?? DateTime.now();
+  final lifecycle = mapLifecycleStatus(
+    status: item.status,
+    growthStage: item.growthStage,
+    healthStatus: item.healthStatus,
+  );
   return CrabIndividual(
     id: item.id,
     displayCode: item.crabCode,
     boxId: item.boxId,
     batchId: item.batchCode,
-    areaName: areaDisplayLabel(item),
+    areaId: item.areaId,
+    areaCode: item.areaCode,
+    areaName: item.areaName,
+    rowId: item.rowId,
     rowName: item.rowName.isNotEmpty ? item.rowName : item.rowCode,
     boxName: item.boxCode,
     gender: mapGender(item.gender),
@@ -115,9 +195,10 @@ CrabIndividual crabFromListItem(CrabManagementListItem item) {
     lastMoltDate: parseApiDate(item.lastMoltDate),
     healthStatus: mapHealthStatus(item.healthStatus),
     lifeStatus: mapLifeStatus(item.status),
+    lifecycleStatus: lifecycle,
     healthScore: _healthScore(item),
     developmentStage: mapGrowthStage(item.growthStage),
-    updatedAt: DateTime.now(),
+    updatedAt: parseApiDate(item.updatedAt) ?? DateTime.now(),
     quickNote: item.profileNote ?? '',
   );
 }
@@ -148,17 +229,17 @@ CrabIndividual mergeCrabDetail(
   CrabIndividual base,
   Map<String, dynamic> body,
 ) {
-  final molts = <CrabMoltRecord>[];
+  final parsedMolts = <CrabMoltRecord>[];
   final rawMolts = body['moltLogs'];
   if (rawMolts is List) {
     for (final m in rawMolts.whereType<Map>()) {
       final map = Map<String, dynamic>.from(m);
       final date = parseApiDate(map['moltDate']?.toString());
       if (date == null) continue;
-      molts.add(
+      parsedMolts.add(
         CrabMoltRecord(
           id: (map['id'] ?? map['Id'])?.toString(),
-          number: (map['moltNumber'] as num?)?.toInt() ?? molts.length + 1,
+          number: 0,
           date: date,
           condition: mapMoltCondition((map['condition'] ?? 'normal').toString()),
           note: map['note']?.toString(),
@@ -167,6 +248,18 @@ CrabIndividual mergeCrabDetail(
       );
     }
   }
+  parsedMolts.sort((a, b) => a.date.compareTo(b.date));
+  final molts = [
+    for (var i = 0; i < parsedMolts.length; i++)
+      CrabMoltRecord(
+        id: parsedMolts[i].id,
+        number: i + 1,
+        date: parsedMolts[i].date,
+        condition: parsedMolts[i].condition,
+        note: parsedMolts[i].note,
+        photoUrls: parsedMolts[i].photoUrls,
+      ),
+  ];
 
   final healthLogs = <CrabHealthLogEntry>[];
   final rawHealth = body['healthRecords'];
@@ -255,7 +348,7 @@ CrabIndividual mergeCrabDetail(
     weightHistory: weightHistory.isNotEmpty ? weightHistory : base.weightHistory,
     feedings: feedings.isNotEmpty ? feedings : base.feedings,
     diseases: diseases.isNotEmpty ? diseases : base.diseases,
-    moltCount: molts.isNotEmpty ? molts.last.number : base.moltCount,
+    moltCount: molts.isNotEmpty ? molts.length : base.moltCount,
     lastMoltDate: molts.isNotEmpty ? molts.last.date : base.lastMoltDate,
     estimatedValueVnd: estimatedVnd,
     meatQualityScore: meatScore,
@@ -285,63 +378,72 @@ List<CrabSummaryKpi> crabManagementSummaryKpis(CrabManagementSummary s) => [
       CrabSummaryKpi(
         label: 'TỔNG SỐ CUA',
         value: formatInt(s.total),
-        subtext: 'Theo dữ liệu khu đang chọn',
-        icon: Icons.groups_outlined,
-        accentColor: DashboardColors.oceanBlue,
+        subtext: 'Tất cả cá thể trong hệ thống',
+        icon: Icons.set_meal_outlined,
+        accentColor: const Color(0xFF2495E8),
       ),
       CrabSummaryKpi(
-        label: 'CUA ĐANG SỐNG',
+        label: 'ĐANG NUÔI',
         value: formatInt(s.alive),
-        subtext: '${s.aliveRate.toStringAsFixed(1)}% tỷ lệ sống',
-        icon: Icons.favorite_outline,
-        accentColor: DashboardColors.healthy,
-        showProgress: true,
-        progress: s.aliveRate / 100,
+        subtext: '${s.pct(s.alive).toStringAsFixed(1)}%',
+        icon: Icons.eco_outlined,
+        accentColor: DashboardColors.brandGreen,
       ),
       CrabSummaryKpi(
-        label: 'CUA CHẾT',
-        value: formatInt(s.dead),
-        subtext: '',
-        icon: Icons.heart_broken_outlined,
-        accentColor: DashboardColors.risk,
+        label: 'THEO DÕI',
+        value: formatInt(s.monitoring),
+        subtext: '${s.pct(s.monitoring).toStringAsFixed(1)}%',
+        icon: Icons.warning_amber_rounded,
+        accentColor: const Color(0xFFF5B700),
       ),
       CrabSummaryKpi(
         label: 'ĐANG LỘT XÁC',
         value: formatInt(s.molting),
-        subtext: 'Trạng thái nhạy cảm',
+        subtext: '${s.pct(s.molting).toStringAsFixed(1)}%',
         icon: Icons.sync_outlined,
-        accentColor: DashboardColors.molting,
+        accentColor: const Color(0xFF7C3AED),
       ),
       CrabSummaryKpi(
         label: 'SẮP THU HOẠCH',
         value: formatInt(s.readyHarvest),
-        subtext: 'Kích thước đạt chuẩn',
+        subtext: '${s.pct(s.readyHarvest).toStringAsFixed(1)}%',
         icon: Icons.shopping_basket_outlined,
         accentColor: DashboardColors.seaGreen,
+      ),
+      CrabSummaryKpi(
+        label: 'CUA CHẾT',
+        value: formatInt(s.dead),
+        subtext: '${s.pct(s.dead).toStringAsFixed(1)}%',
+        icon: Icons.heart_broken_outlined,
+        accentColor: DashboardColors.risk,
       ),
     ];
 
 List<CrabSummaryKpi> crabSummaryKpis(List<CrabIndividual> crabs) {
-  final alive = crabs
-      .where((c) =>
-          c.lifeStatus != CrabLifeStatus.dead &&
-          c.lifeStatus != CrabLifeStatus.sold)
-      .length;
-  final dead = crabs.where((c) => c.lifeStatus == CrabLifeStatus.dead).length;
-  final molting =
-      crabs.where((c) => c.healthStatus == CrabHealthStatus.molting).length;
-  final ready =
-      crabs.where((c) => c.lifeStatus == CrabLifeStatus.readyForSale).length;
+  return crabManagementSummaryKpis(summarizeCrabs(crabs));
+}
+
+CrabManagementSummary summarizeCrabs(List<CrabIndividual> crabs) {
   final total = crabs.length;
-  return crabManagementSummaryKpis(
-    CrabManagementSummary(
-      total: total,
-      alive: alive,
-      dead: dead,
-      molting: molting,
-      readyHarvest: ready,
-      aliveRate: total == 0 ? 0 : alive / total * 100,
-    ),
+  final growing =
+      crabs.where((c) => c.lifecycleStatus == CrabLifecycleStatus.growing).length;
+  final monitoring =
+      crabs.where((c) => c.displayHealth == CrabDisplayHealth.monitoring).length;
+  final molting =
+      crabs.where((c) => c.lifecycleStatus == CrabLifecycleStatus.molting).length;
+  final ready = crabs
+      .where((c) => c.lifecycleStatus == CrabLifecycleStatus.readyHarvest)
+      .length;
+  final dead =
+      crabs.where((c) => c.lifecycleStatus == CrabLifecycleStatus.dead).length;
+  return CrabManagementSummary(
+    total: total,
+    alive: growing,
+    dead: dead,
+    molting: molting,
+    readyHarvest: ready,
+    aliveRate: total == 0 ? 0 : growing / total * 100,
+    monitoring: monitoring,
   );
 }
 

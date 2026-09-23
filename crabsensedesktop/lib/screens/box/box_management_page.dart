@@ -5,6 +5,7 @@ import '../../models/box_list_item.dart';
 import '../../navigation/app_route.dart';
 import '../../services/box_management_service.dart';
 import '../../services/production_management_service.dart';
+import '../../services/row_management_service.dart';
 import '../../theme/dashboard_theme.dart';
 import '../../widgets/area/area_list_toolbar.dart';
 import '../../widgets/box/box_cards.dart';
@@ -16,12 +17,14 @@ class BoxManagementPage extends StatefulWidget {
     super.key,
     required this.service,
     required this.productionService,
+    this.rowService,
     this.onNavigate,
     this.onBoxTap,
   });
 
   final BoxManagementService service;
   final ProductionManagementService productionService;
+  final RowManagementService? rowService;
   final void Function(AppRoute route)? onNavigate;
   final void Function(BoxListItem item)? onBoxTap;
 
@@ -59,109 +62,14 @@ class _BoxManagementPageState extends State<BoxManagementPage> {
       );
       return;
     }
-    if (svc.rows.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Chưa có dãy — thêm dãy trước')),
-      );
-      return;
-    }
-
-    var areaId = svc.areaFilterId;
-    var rowId = svc.rowFilterId;
-    if (rowId == null) {
-      final picked = await _pickRow(svc);
-      if (picked == null || !mounted) return;
-      areaId = picked.$1;
-      rowId = picked.$2;
-    } else {
-      areaId ??= svc.rows
-          .where((r) => r.id == rowId)
-          .map((r) => r.areaId)
-          .firstOrNull;
-    }
-
-    final prod = widget.productionService;
-    prod.selectArea(areaId);
-    prod.selectRow(rowId);
-    await showBoxFormDialog(context, prod);
-    if (mounted) await svc.load();
-  }
-
-  Future<(String, String)?> _pickRow(BoxManagementService svc) async {
-    var areaId = svc.areaFilterId ??
-        (svc.areas.length == 1 ? svc.areas.first.id : svc.areas.first.id);
-    var rows = svc.rows.where((r) => r.areaId == areaId).toList();
-    if (rows.isEmpty) rows = List.of(svc.rows);
-    String? rowId = rows.isNotEmpty ? rows.first.id : null;
-
-    return showDialog<(String, String)>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) {
-          final areaRows = svc.rows.where((r) => r.areaId == areaId).toList();
-          return AlertDialog(
-            backgroundColor: DashboardColors.card,
-            title: Text(
-              'Chọn dãy để thêm hộp',
-              style: GoogleFonts.notoSans(color: DashboardColors.textPrimary),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  value: areaId,
-                  dropdownColor: DashboardColors.card,
-                  decoration: const InputDecoration(labelText: 'Khu'),
-                  items: [
-                    for (final a in svc.areas)
-                      DropdownMenuItem(
-                        value: a.id,
-                        child: Text('${a.areaCode} — ${a.areaName}'),
-                      ),
-                  ],
-                  onChanged: (v) {
-                    if (v == null) return;
-                    setLocal(() {
-                      areaId = v;
-                      final next = svc.rows.where((r) => r.areaId == v).toList();
-                      rowId = next.isNotEmpty ? next.first.id : null;
-                    });
-                  },
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: rowId != null && areaRows.any((r) => r.id == rowId)
-                      ? rowId
-                      : (areaRows.isNotEmpty ? areaRows.first.id : null),
-                  dropdownColor: DashboardColors.card,
-                  decoration: const InputDecoration(labelText: 'Dãy'),
-                  items: [
-                    for (final r in areaRows)
-                      DropdownMenuItem(
-                        value: r.id,
-                        child: Text('${r.rowCode} — ${r.rowName}'),
-                      ),
-                  ],
-                  onChanged: (v) => setLocal(() => rowId = v),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Hủy'),
-              ),
-              FilledButton(
-                onPressed: rowId == null
-                    ? null
-                    : () => Navigator.pop(ctx, (areaId, rowId!)),
-                child: const Text('Tiếp tục'),
-              ),
-            ],
-          );
-        },
-      ),
+    await showBoxFormDialog(
+      context,
+      widget.productionService,
+      boxService: svc,
+      rowService: widget.rowService,
+      onNavigate: widget.onNavigate,
     );
+    if (mounted) await svc.load();
   }
 
   Future<void> _onAction(BoxListItem item, _BoxAction type) async {

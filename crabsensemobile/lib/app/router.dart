@@ -66,6 +66,7 @@ import '../features/water_quality/presentation/screens/water_quality_screen.dart
 import '../features/sales/presentation/screens/sales_screen.dart';
 import '../features/stock_management/presentation/screens/add_crab_screen.dart';
 import '../features/stock_management/presentation/screens/crab_tracking_screen.dart';
+import '../features/crab_management/presentation/screens/crab_management_screen.dart';
 import '../features/operation_logs/domain/entities/operation_log.dart';
 import '../features/operation_logs/presentation/screens/operation_history_screen.dart';
 import '../features/operation_logs/presentation/screens/operation_log_screen.dart';
@@ -576,6 +577,13 @@ GoRouter createRouter(AuthBloc authBloc) {
         path: RoutePaths.crabTracking,
         name: RouteNames.crabTracking,
         builder: (context, state) => const CrabTrackingScreen(),
+      ),
+
+      // ── /crab-management ──────────────────────────────────────────────
+      GoRoute(
+        path: RoutePaths.crabManagement,
+        name: RouteNames.crabManagement,
+        builder: (context, state) => const CrabManagementScreen(),
       ),
 
       // ── /ai-results/:videoId ─────────────────────────────────────────

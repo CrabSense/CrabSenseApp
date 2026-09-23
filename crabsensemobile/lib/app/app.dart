@@ -64,7 +64,10 @@ class _CrabSenseAppState extends State<CrabSenseApp> {
     _authBloc = sl<AuthBloc>();
     _syncBloc = sl<SyncBloc>()..add(const SyncStarted());
     _router = createRouter(_authBloc);
-    _notificationNavService = NotificationNavigationService(router: _router, logger: sl<Logger>());
+    _notificationNavService = NotificationNavigationService(
+      router: _router,
+      logger: sl<Logger>(),
+    );
   }
 
   @override

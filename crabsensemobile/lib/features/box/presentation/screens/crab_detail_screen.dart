@@ -1,8 +1,10 @@
+// ignore_for_file: lines_longer_than_80_chars
 import 'dart:convert';
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/api_constants.dart';
@@ -10,10 +12,25 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../shared/models/crab_condition.dart';
 import '../../data/models/crab_model.dart';
-import '../../../home/presentation/widgets/home_palette.dart';
 import '../widgets/crab_avatar.dart';
+import '../widgets/crab_feeding_activity_tab.dart';
 
-/// Chi tiết cua — dùng `/crabs/{id}/profile` (timeline vòng đời) + cân nặng.
+// ── Design tokens ─────────────────────────────────────────────────────────────
+const Color _primary = Color(0xFF12A87A);
+const Color _primaryDark = Color(0xFF087F5B);
+const Color _primaryLight = Color(0xFFDDF7EE);
+const Color _mintBg = Color(0xFFF3FBF8);
+const Color _bg = Color(0xFFF7FCFA);
+const Color _surface = Color(0xFFFFFFFF);
+const Color _border = Color(0xFFD8E9E4);
+const Color _textMain = Color(0xFF12332D);
+const Color _textSub = Color(0xFF66847C);
+const Color _textHint = Color(0xFF94A3B8);
+const Color _danger = Color(0xFFEF4444);
+const Color _amber = Color(0xFFF5B700);
+
+/// Chi tiết cua — tabbed layout
+/// Tabs: Tổng quan | Sinh trưởng & Lột xác | Ăn & Vận động | Lịch sử & Nhật ký
 class CrabDetailScreen extends StatefulWidget {
   const CrabDetailScreen({
     super.key,
@@ -21,6 +38,7 @@ class CrabDetailScreen extends StatefulWidget {
     this.boxId,
     this.boxCode,
     this.initial,
+    this.initialTab,
   });
 
   final String crabId;
@@ -28,11 +46,16 @@ class CrabDetailScreen extends StatefulWidget {
   final String? boxCode;
   final CrabModel? initial;
 
+  /// 0=Tổng quan 1=Sinh trưởng 2=Ăn&Vận động 3=Lịch sử
+  final int? initialTab;
+
   @override
   State<CrabDetailScreen> createState() => _CrabDetailScreenState();
 }
 
-class _CrabDetailScreenState extends State<CrabDetailScreen> {
+class _CrabDetailScreenState extends State<CrabDetailScreen>
+    with SingleTickerProviderStateMixin {
+  // State
   bool _loading = true;
   String? _error;
   Map<String, dynamic>? _profileCrab;
@@ -45,10 +68,30 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
   List<_AlertItem> _alerts = [];
   List<String> _photos = [];
 
+  late final TabController _tabCtrl;
+
+  static const _tabs = [
+    'Tổng quan',
+    'Sinh trưởng & Lột xác',
+    'Ăn & Vận động',
+    'Lịch sử & Nhật ký',
+  ];
+
   @override
   void initState() {
     super.initState();
+    _tabCtrl = TabController(
+      length: _tabs.length,
+      vsync: this,
+      initialIndex: widget.initialTab ?? 0,
+    );
     _load();
+  }
+
+  @override
+  void dispose() {
+    _tabCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -58,8 +101,9 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
     });
     final api = sl<ApiClient>();
     try {
-      final profileRes =
-          await api.get<dynamic>(ApiConstants.crabProfile(widget.crabId));
+      final profileRes = await api.get<dynamic>(
+        ApiConstants.crabProfile(widget.crabId),
+      );
       final body = _unwrap(profileRes.data);
       if (body is Map) {
         _profileCrab = _asMap(body['crab'] ?? body['Crab']);
@@ -74,30 +118,25 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
               _profileCrab?['imageUrls'] ??
               _profileCrab?['ImageUrls'],
         );
-        final avatar = (_profileCrab?['avatarUrl'] ??
-                _profileCrab?['AvatarUrl'])
-            ?.toString();
-        if (avatar != null &&
-            avatar.isNotEmpty &&
-            !_photos.contains(avatar)) {
+        final avatar =
+            (_profileCrab?['avatarUrl'] ?? _profileCrab?['AvatarUrl'])
+                ?.toString();
+        if (avatar != null && avatar.isNotEmpty && !_photos.contains(avatar)) {
           _photos = [avatar, ..._photos];
         }
       }
-
       try {
-        final wRes =
-            await api.get<dynamic>(ApiConstants.crabWeights(widget.crabId));
+        final wRes = await api.get<dynamic>(
+          ApiConstants.crabWeights(widget.crabId),
+        );
         _weights = _parseWeights(wRes.data);
       } catch (_) {}
-
       try {
         final fRes = await api.get<dynamic>(
           ApiConstants.operationsForCrab(widget.crabId),
         );
         _feedings = _parseFeedings(fRes.data);
       } catch (_) {}
-
-      // Profile chưa gồm chuyển hộp — luôn ghép allocations.
       await _mergeBoxMoves(api);
     } catch (e) {
       _error = e.toString();
@@ -111,13 +150,15 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
 
   Future<void> _mergeBoxMoves(ApiClient api) async {
     try {
-      final allocRes =
-          await api.get<dynamic>(ApiConstants.crabAllocations(widget.crabId));
+      final allocRes = await api.get<dynamic>(
+        ApiConstants.crabAllocations(widget.crabId),
+      );
       final moves = _parseAlloc(allocRes.data);
       if (moves.isEmpty && _timeline.isNotEmpty) return;
       if (moves.isEmpty) {
-        final moltRes =
-            await api.get<dynamic>(ApiConstants.crabMoltings(widget.crabId));
+        final moltRes = await api.get<dynamic>(
+          ApiConstants.crabMoltings(widget.crabId),
+        );
         _timeline = [..._timeline, ..._parseMolt(moltRes.data)]
           ..sort((a, b) => b.at.compareTo(a.at));
         return;
@@ -126,14 +167,16 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
         ..sort((a, b) => b.at.compareTo(a.at));
     } catch (_) {
       if (_timeline.isEmpty) {
-        final moltRes =
-            await api.get<dynamic>(ApiConstants.crabMoltings(widget.crabId));
+        final moltRes = await api.get<dynamic>(
+          ApiConstants.crabMoltings(widget.crabId),
+        );
         _timeline = _parseMolt(moltRes.data)
           ..sort((a, b) => b.at.compareTo(a.at));
       }
     }
   }
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
   static dynamic _unwrap(dynamic raw) {
     dynamic body = raw;
     try {
@@ -162,7 +205,8 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
     final out = <_TimelineItem>[];
     for (final item in raw) {
       if (item is! Map) continue;
-      final at = DateTime.tryParse(
+      final at =
+          DateTime.tryParse(
             (item['at'] ?? item['At'] ?? '').toString(),
           )?.toLocal() ??
           DateTime.now();
@@ -205,15 +249,13 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
       final at = DateTime.tryParse(
         (item['measuredAt'] ?? item['MeasuredAt'] ?? '').toString(),
       )?.toLocal();
-      if (g is num && at != null) {
+      if (g is num && at != null)
         out.add(_WeightPt(at: at, grams: g.toDouble()));
-      }
     }
     out.sort((a, b) => a.at.compareTo(b.at));
     return out;
   }
 
-  /// Phiếu chăm sóc ghi theo cua — dùng cho mục "Lịch sử ăn".
   static List<_FeedItem> _parseFeedings(dynamic raw) {
     final data = _unwrap(raw);
     if (data is! List) return const [];
@@ -236,7 +278,7 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
         ),
       );
     }
-    out.sort((a, b) => b.at.compareTo(a.at)); // mới nhất trước
+    out.sort((a, b) => b.at.compareTo(a.at));
     return out;
   }
 
@@ -246,7 +288,8 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
     final out = <_TimelineItem>[];
     for (final item in data) {
       if (item is! Map) continue;
-      final start = DateTime.tryParse(
+      final start =
+          DateTime.tryParse(
             (item['startTime'] ?? item['StartTime'] ?? '').toString(),
           )?.toLocal() ??
           DateTime.now();
@@ -270,7 +313,8 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
     final out = <_TimelineItem>[];
     for (final item in data) {
       if (item is! Map) continue;
-      final at = DateTime.tryParse(
+      final at =
+          DateTime.tryParse(
             (item['moltedAt'] ??
                     item['MoltedAt'] ??
                     item['moltTime'] ??
@@ -279,7 +323,8 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
                 .toString(),
           )?.toLocal() ??
           DateTime.now();
-      final stage = item['stage'] ??
+      final stage =
+          item['stage'] ??
           item['moltingStage'] ??
           item['result'] ??
           item['Result'];
@@ -296,208 +341,498 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
   }
 
   String get _title {
-    final tag = _profileCrab?['tag'] ??
+    final tag =
+        _profileCrab?['tag'] ??
         _profileCrab?['Tag'] ??
         _profileCrab?['code'] ??
         _profileCrab?['Code'];
-    if (tag != null && tag.toString().trim().isNotEmpty) {
-      return tag.toString();
-    }
+    if (tag != null && tag.toString().trim().isNotEmpty) return tag.toString();
     if (widget.initial != null) return crabDisplayTag(widget.initial!);
     return 'Chi tiết cua';
   }
 
+  // ── Build ──────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final crab = widget.initial;
-
     return Scaffold(
-      backgroundColor: kHomeBg,
-      appBar: AppBar(
-        backgroundColor: kHomeSurface,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: kHomePrimaryDark,
-            size: 18,
-          ),
-          onPressed: () => context.pop(),
-        ),
-        title: Text(
-          _title,
-          style: const TextStyle(
-            color: kHomePrimaryDark,
-            fontWeight: FontWeight.w800,
-            fontSize: 17,
-          ),
-        ),
-        actions: [
-          IconButton(
-            onPressed: _loading ? null : _load,
-            icon: const Icon(Icons.refresh_rounded, color: kHomePrimaryDark),
-          ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: kHomePrimary))
-          : RefreshIndicator(
-              color: kHomePrimary,
-              onRefresh: _load,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (_error != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Text(
-                          'Một phần dữ liệu chưa tải: $_error',
-                          style: const TextStyle(
-                            color: kHomeWarning,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    if (_photos.isNotEmpty)
-                      SizedBox(
-                        height: 108,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _photos.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(width: 8),
-                          itemBuilder: (_, i) => ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              _photos[i],
-                              width: 108,
-                              height: 108,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                width: 108,
-                                height: 108,
-                                color: kHomePrimaryBg,
-                                child: const Icon(
-                                  Icons.broken_image_outlined,
-                                  color: kHomeTextSub,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
-                    else
-                      const Center(child: CrabAvatar(size: 88)),
-                    const SizedBox(height: 16),
-                    _infoCard(_buildInfoRows(crab)),
-                    if (_lot != null) ...[
-                      const SizedBox(height: 12),
-                      _sectionTitle('Lô nhập'),
-                      _simpleCard(
-                        '${_lot!['lotCode'] ?? _lot!['LotCode'] ?? '—'}'
-                        '${(_lot!['name'] ?? _lot!['Name']) != null ? ' · ${_lot!['name'] ?? _lot!['Name']}' : ''}',
-                      ),
-                    ],
-                    if (_location != null) ...[
-                      const SizedBox(height: 12),
-                      _sectionTitle('Vị trí'),
-                      _simpleCard(
-                        [
-                          _location!['areaName'] ?? _location!['AreaName'],
-                          _location!['rowName'] ?? _location!['RowName'],
-                          _location!['boxCode'] ??
-                              _location!['BoxCode'] ??
-                              widget.boxCode,
-                        ].where((e) => e != null && e.toString().isNotEmpty).join(' › '),
-                      ),
-                    ],
-                    if (_ai != null &&
-                        [
-                          _ai!['prediction'] ?? _ai!['Prediction'],
-                          _ai!['recommendation'] ?? _ai!['Recommendation'],
-                          _ai!['activityLevel'] ?? _ai!['ActivityLevel'],
-                        ].any((e) => e != null && e.toString().isNotEmpty)) ...[
-                      const SizedBox(height: 12),
-                      _sectionTitle('AI'),
-                      _simpleCard(
-                        [
-                          if ((_ai!['prediction'] ?? _ai!['Prediction']) != null)
-                            'Dự đoán: ${_ai!['prediction'] ?? _ai!['Prediction']}',
-                          if ((_ai!['recommendation'] ??
-                                  _ai!['Recommendation']) !=
-                              null)
-                            '${_ai!['recommendation'] ?? _ai!['Recommendation']}',
-                          if ((_ai!['activityLevel'] ??
-                                  _ai!['ActivityLevel']) !=
-                              null)
-                            'Hoạt động: ${_ai!['activityLevel'] ?? _ai!['ActivityLevel']}',
-                        ].join('\n'),
-                      ),
-                    ],
-                    if (_weights.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      _sectionTitle('Cân nặng'),
-                      const SizedBox(height: 8),
-                      if (_weights.length >= 2)
-                        Container(
-                          height: 140,
-                          padding: const EdgeInsets.fromLTRB(8, 12, 12, 8),
-                          decoration: BoxDecoration(
-                            color: kHomeSurface,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: kHomeBorder),
-                          ),
-                          child: _WeightChart(points: _weights),
-                        )
-                      else
-                        _simpleCard(
-                          '${_weights.first.grams.round()} g · ${DateFormat('dd/MM/yyyy HH:mm').format(_weights.first.at)}',
-                        ),
-                    ],
-                    if (_feedings.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      _sectionTitle('Lịch sử ăn'),
-                      const SizedBox(height: 8),
-                      _AppetiteChart(feedings: _feedings),
-                      const SizedBox(height: 8),
-                      ..._feedings.take(20).map(_feedingTile),
-                    ],
-                    if (_alerts.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      _sectionTitle('Cảnh báo'),
-                      ..._alerts.map(
-                        (a) => _simpleCard(
-                          a.detail == null || a.detail!.isEmpty
-                              ? a.title
-                              : '${a.title} — ${a.detail}',
-                          danger: true,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-                    _sectionTitle('Nhật ký vòng đời'),
-                    const SizedBox(height: 8),
-                    if (_timeline.isEmpty)
-                      _simpleCard('Chưa có sự kiện lịch sử')
-                    else
-                      ..._timeline.map(_timelineTile),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
+      backgroundColor: _bg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Crab header card ────────────────────────────────────────────
+            _buildHeader(context),
+            // ── Tab bar ─────────────────────────────────────────────────────
+            _buildTabBar(),
+            // ── Tab views ───────────────────────────────────────────────────
+            Expanded(
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: _primary),
+                    )
+                  : TabBarView(
+                      controller: _tabCtrl,
+                      children: [
+                        _buildOverviewTab(),
+                        _buildGrowthTab(),
+                        CrabFeedingActivityTab(crabId: widget.crabId),
+                        _buildHistoryTab(),
+                      ],
+                    ),
             ),
+          ],
+        ),
+      ),
     );
   }
 
-  List<Widget> _buildInfoRows(CrabModel? crab) {
+  // ── Header ─────────────────────────────────────────────────────────────────
+
+  Widget _buildHeader(BuildContext context) {
+    final crab = widget.initial;
     final p = _profileCrab;
-    String pick(String a, String b, [String? fallback]) {
+
+    String pick(String a, String b, [String? fb]) {
       final v = p?[a] ?? p?[b];
-      if (v != null && v.toString().isNotEmpty) return v.toString();
-      return fallback ?? '—';
+      return (v != null && v.toString().isNotEmpty)
+          ? v.toString()
+          : (fb ?? '—');
+    }
+
+    final crabId = _title;
+    final lifecycle = pick(
+      'lifecycleStatus',
+      'LifecycleStatus',
+      pick('status', 'Status'),
+    );
+    final gender = p != null
+        ? pick('gender', 'Gender')
+        : (crab != null ? crabSpeciesVi(crab.species) : '—');
+    final weight = p != null
+        ? (p['weightGram'] ?? p['WeightGram']) is num
+              ? '${(p['weightGram'] ?? p['WeightGram'] as num).round()} g'
+              : '—'
+        : crab != null
+        ? '${crab.weight.round()} g'
+        : '—';
+    final farmArea = _location?['areaName'] ?? _location?['AreaName'] ?? '—';
+    final rowName = _location?['rowName'] ?? _location?['RowName'] ?? '—';
+    final boxCode =
+        _location?['boxCode'] ?? _location?['BoxCode'] ?? widget.boxCode ?? '—';
+    final lotCode =
+        _lot?['lotCode'] ?? _lot?['LotCode'] ?? _lot?['code'] ?? '—';
+    final enteredAt = p?['enteredAt'] ?? p?['EnteredAt'] ?? p?['addedAt'];
+    final enteredStr = enteredAt != null
+        ? DateFormat('dd/MM/yyyy').format(
+            DateTime.tryParse(enteredAt.toString())?.toLocal() ??
+                DateTime.now(),
+          )
+        : '—';
+    final moltCount = p?['moltCount'] ?? p?['MoltCount'] ?? '—';
+
+    // Lifecycle badge
+    final (badgeBg, badgeFg, badgeLabel) = _lifecycleBadge(lifecycle);
+
+    return Container(
+      color: _surface,
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+      child: Column(
+        children: [
+          // Top row: back + actions
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => context.pop(),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      size: 14,
+                      color: _primary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Quay lại',
+                      style: GoogleFonts.nunito(
+                        fontSize: 13,
+                        color: _primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              // Chuyển hộp button
+              OutlinedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.swap_horiz_rounded, size: 14),
+                label: Text(
+                  'Chuyển hộp',
+                  style: GoogleFonts.nunito(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _primary,
+                  side: const BorderSide(color: _primary),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: _mintBg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _border),
+                ),
+                child: const Icon(
+                  Icons.more_horiz_rounded,
+                  size: 16,
+                  color: _textSub,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Info row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Crab image / avatar
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: _primaryLight,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _border),
+                ),
+                child: _photos.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(11),
+                        child: Image.network(
+                          _photos.first,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              const Center(child: CrabAvatar(size: 48)),
+                        ),
+                      )
+                    : const Center(child: CrabAvatar(size: 48)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            crabId,
+                            style: GoogleFonts.nunito(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: _textMain,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: badgeBg,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: badgeFg,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                badgeLabel,
+                                style: GoogleFonts.nunito(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: badgeFg,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Cua biển  •  Giới tính: $gender',
+                      style: GoogleFonts.nunito(fontSize: 12, color: _textSub),
+                    ),
+                    const SizedBox(height: 6),
+                    // Quick info chips
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 4,
+                      children: [
+                        _InfoChip(
+                          icon: Icons.location_on_outlined,
+                          label: '$farmArea  >  $rowName  >  $boxCode',
+                        ),
+                        _InfoChip(
+                          icon: Icons.inventory_2_outlined,
+                          label: 'Lô: $lotCode',
+                        ),
+                        _InfoChip(
+                          icon: Icons.calendar_today_outlined,
+                          label: 'Nhập: $enteredStr',
+                        ),
+                        _InfoChip(
+                          icon: Icons.autorenew_rounded,
+                          label: 'Lột xác: $moltCount lần',
+                        ),
+                        _InfoChip(
+                          icon: Icons.monitor_weight_outlined,
+                          label: weight,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Tab bar ────────────────────────────────────────────────────────────────
+
+  Widget _buildTabBar() => Container(
+    color: _surface,
+    child: Column(
+      children: [
+        const Divider(height: 1, color: _border),
+        TabBar(
+          controller: _tabCtrl,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          indicatorColor: _primary,
+          indicatorWeight: 2.5,
+          labelColor: _primary,
+          unselectedLabelColor: _textSub,
+          labelStyle: GoogleFonts.nunito(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+          unselectedLabelStyle: GoogleFonts.nunito(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+          dividerColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          tabs: _tabs.map((t) => Tab(text: t, height: 40)).toList(),
+        ),
+      ],
+    ),
+  );
+
+  // ── Overview tab ───────────────────────────────────────────────────────────
+
+  Widget _buildOverviewTab() {
+    final crab = widget.initial;
+    final p = _profileCrab;
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: _primary,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Text(
+                  'Một phần dữ liệu chưa tải: $_error',
+                  style: GoogleFonts.nunito(color: _amber, fontSize: 12),
+                ),
+              ),
+            _sectionTitle('Thông tin cơ bản'),
+            const SizedBox(height: 8),
+            _infoCard(_buildInfoRows(crab, p)),
+            if (_lot != null) ...[
+              const SizedBox(height: 12),
+              _sectionTitle('Lô nhập'),
+              const SizedBox(height: 6),
+              _simpleCard(
+                '${_lot!['lotCode'] ?? _lot!['LotCode'] ?? '—'}'
+                '${(_lot!['name'] ?? _lot!['Name']) != null ? ' · ${_lot!['name'] ?? _lot!['Name']}' : ''}',
+              ),
+            ],
+            if (_location != null) ...[
+              const SizedBox(height: 12),
+              _sectionTitle('Vị trí'),
+              const SizedBox(height: 6),
+              _simpleCard(
+                [
+                      _location!['areaName'] ?? _location!['AreaName'],
+                      _location!['rowName'] ?? _location!['RowName'],
+                      _location!['boxCode'] ??
+                          _location!['BoxCode'] ??
+                          widget.boxCode,
+                    ]
+                    .where((e) => e != null && e.toString().isNotEmpty)
+                    .join(' › '),
+              ),
+            ],
+            if (_ai != null) ...[
+              const SizedBox(height: 12),
+              _sectionTitle('AI'),
+              const SizedBox(height: 6),
+              _simpleCard(
+                [
+                  if ((_ai!['prediction'] ?? _ai!['Prediction']) != null)
+                    'Dự đoán: ${_ai!['prediction'] ?? _ai!['Prediction']}',
+                  if ((_ai!['recommendation'] ?? _ai!['Recommendation']) !=
+                      null)
+                    '${_ai!['recommendation'] ?? _ai!['Recommendation']}',
+                  if ((_ai!['activityLevel'] ?? _ai!['ActivityLevel']) != null)
+                    'Hoạt động: ${_ai!['activityLevel'] ?? _ai!['ActivityLevel']}',
+                ].join('\n'),
+              ),
+            ],
+            // Today's feeding/activity compact card
+            const SizedBox(height: 14),
+            _TodayFeedingCard(
+              feedings: _feedings,
+              onViewAnalysis: () => _tabCtrl.animateTo(2),
+            ),
+            if (_alerts.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _sectionTitle('Cảnh báo'),
+              ..._alerts.map(
+                (a) => _simpleCard(
+                  a.detail == null || a.detail!.isEmpty
+                      ? a.title
+                      : '${a.title} — ${a.detail}',
+                  danger: true,
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Growth tab ─────────────────────────────────────────────────────────────
+
+  Widget _buildGrowthTab() => RefreshIndicator(
+    onRefresh: _load,
+    color: _primary,
+    child: SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_weights.isNotEmpty) ...[
+            _sectionTitle('Cân nặng'),
+            const SizedBox(height: 8),
+            if (_weights.length >= 2)
+              Container(
+                height: 140,
+                padding: const EdgeInsets.fromLTRB(8, 12, 12, 8),
+                decoration: BoxDecoration(
+                  color: _surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: _border),
+                ),
+                child: _WeightChart(points: _weights),
+              )
+            else
+              _simpleCard(
+                '${_weights.first.grams.round()} g · ${DateFormat('dd/MM/yyyy HH:mm').format(_weights.first.at)}',
+              ),
+          ],
+          if (_timeline.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _sectionTitle('Nhật ký vòng đời'),
+            const SizedBox(height: 8),
+            ..._timeline.map(_timelineTile),
+          ],
+          const SizedBox(height: 24),
+        ],
+      ),
+    ),
+  );
+
+  // ── History tab ────────────────────────────────────────────────────────────
+
+  Widget _buildHistoryTab() => RefreshIndicator(
+    onRefresh: _load,
+    color: _primary,
+    child: SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle('Nhật ký vòng đời'),
+          const SizedBox(height: 8),
+          if (_timeline.isEmpty)
+            _simpleCard('Chưa có sự kiện lịch sử')
+          else
+            ..._timeline.map(_timelineTile),
+          if (_feedings.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _sectionTitle('Lịch sử ăn (tóm tắt)'),
+            const SizedBox(height: 8),
+            _AppetiteChart(feedings: _feedings),
+            const SizedBox(height: 8),
+            ..._feedings.take(20).map(_feedingTile),
+          ],
+          const SizedBox(height: 24),
+        ],
+      ),
+    ),
+  );
+
+  // ── Shared helpers ─────────────────────────────────────────────────────────
+
+  List<Widget> _buildInfoRows(CrabModel? crab, Map<String, dynamic>? p) {
+    String pick(String a, String b, [String? fb]) {
+      final v = p?[a] ?? p?[b];
+      return (v != null && v.toString().isNotEmpty)
+          ? v.toString()
+          : (fb ?? '—');
     }
 
     if (p != null) {
@@ -508,21 +843,21 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
         _row('Giới tính', pick('gender', 'Gender')),
         _row('Loại', pick('crabType', 'CrabType')),
         _row('Vỏ / lột', pick('moltingStage', 'MoltingStage')),
-        _row('Tình trạng', pick('condition', 'Condition', pick('status', 'Status'))),
+        _row(
+          'Tình trạng',
+          pick('condition', 'Condition', pick('status', 'Status')),
+        ),
         _row('Sống', (p['isAlive'] ?? p['IsAlive']) == false ? 'Không' : 'Có'),
       ];
     }
-    if (crab == null) {
-      return [const Text('Không có dữ liệu', style: TextStyle(color: kHomeTextSub))];
-    }
+    if (crab == null)
+      return [
+        Text('Không có dữ liệu', style: GoogleFonts.nunito(color: _textSub)),
+      ];
     return [
       _row('Mã cua', crabDisplayTag(crab)),
       _row('Cân nặng', '${crab.weight.round()} g'),
       _row('Loài', crabSpeciesVi(crab.species)),
-      // Tình trạng lấy từ trường `Condition` của BE rồi quy về 5 nhãn của
-      // [BoxStatus] — cùng bảng với thẻ hộp. Trước đây in `moltingStatus` /
-      // `healthStatus`, mà BE không trả hai trường đó nên lúc nào cũng ra
-      // "Vỏ cứng" / "Chưa rõ".
       _row(
         'Tình trạng',
         displayStatusOf(CrabCondition.tryParse(crab.condition)).label,
@@ -536,32 +871,97 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
     ];
   }
 
+  static (Color bg, Color fg, String label) _lifecycleBadge(String raw) {
+    switch (raw.toUpperCase()) {
+      case 'GROWING':
+        return (const Color(0xFFDCFCE7), const Color(0xFF087F5B), 'Đang nuôi');
+      case 'MOLTING':
+        return (
+          const Color(0xFFF3EEFF),
+          const Color(0xFF7C3AED),
+          'Đang lột xác',
+        );
+      case 'READY_TO_HARVEST':
+        return (
+          const Color(0xFFCCFBF1),
+          const Color(0xFF0D9488),
+          'Sắp thu hoạch',
+        );
+      case 'HARVESTED':
+        return (
+          const Color(0xFFEEF2F6),
+          const Color(0xFF64748B),
+          'Đã thu hoạch',
+        );
+      case 'DEAD':
+        return (const Color(0xFFFEE2E2), const Color(0xFFEF4444), 'Chết');
+      default:
+        return (_mintBg, _primary, 'Đang nuôi');
+    }
+  }
+
   Widget _sectionTitle(String t) => Text(
-        t,
-        style: const TextStyle(
-          fontWeight: FontWeight.w800,
-          fontSize: 15,
-          color: kHomePrimaryDark,
-        ),
-      );
+    t,
+    style: GoogleFonts.nunito(
+      fontWeight: FontWeight.w800,
+      fontSize: 15,
+      color: _primaryDark,
+    ),
+  );
 
   Widget _simpleCard(String text, {bool danger = false}) => Container(
-        width: double.infinity,
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: danger ? const Color(0x14E53935) : kHomeSurface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: danger ? kHomeDanger : kHomeBorder),
-        ),
-        child: Text(
-          text.isEmpty ? '—' : text,
-          style: TextStyle(
-            color: danger ? kHomeDanger : kHomeTextMain,
-            fontSize: 13,
+    width: double.infinity,
+    margin: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: danger ? const Color(0x14EF4444) : _surface,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: danger ? _danger : _border),
+    ),
+    child: Text(
+      text.isEmpty ? '—' : text,
+      style: GoogleFonts.nunito(
+        color: danger ? _danger : _textMain,
+        fontSize: 13,
+      ),
+    ),
+  );
+
+  Widget _infoCard(List<Widget> rows) => Container(
+    decoration: BoxDecoration(
+      color: _surface,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: _border),
+    ),
+    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+    child: Column(children: rows),
+  );
+
+  Widget _row(String label, String value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 9),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 110,
+          child: Text(
+            label,
+            style: GoogleFonts.nunito(color: _textSub, fontSize: 13),
           ),
         ),
-      );
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: GoogleFonts.nunito(
+              color: _textMain,
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _timelineTile(_TimelineItem item) {
     final time = DateFormat('dd/MM/yyyy HH:mm').format(item.at);
@@ -578,9 +978,9 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: kHomeSurface,
+        color: _surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kHomeBorder),
+        border: Border.all(color: _border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -589,10 +989,10 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: kHomePrimaryBg,
+              color: _primaryLight,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 17, color: kHomePrimaryDark),
+            child: Icon(icon, size: 17, color: _primaryDark),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -601,24 +1001,21 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
               children: [
                 Text(
                   item.title,
-                  style: const TextStyle(
+                  style: GoogleFonts.nunito(
                     fontWeight: FontWeight.w800,
-                    color: kHomeTextMain,
+                    color: _textMain,
                     fontSize: 13,
                   ),
                 ),
                 if (item.detail != null && item.detail!.isNotEmpty)
                   Text(
                     item.detail!,
-                    style: const TextStyle(fontSize: 12, color: kHomeTextSub),
+                    style: GoogleFonts.nunito(fontSize: 12, color: _textSub),
                   ),
               ],
             ),
           ),
-          Text(
-            time,
-            style: const TextStyle(fontSize: 11, color: kHomeTextHint),
-          ),
+          Text(time, style: GoogleFonts.nunito(fontSize: 11, color: _textHint)),
         ],
       ),
     );
@@ -627,18 +1024,18 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
   Widget _feedingTile(_FeedItem f) {
     final time = DateFormat('dd/MM HH:mm').format(f.at);
     final bits = [
-      if (f.foodType != null && f.foodType!.trim().isNotEmpty) f.foodType!.trim(),
+      if (f.foodType != null && f.foodType!.trim().isNotEmpty)
+        f.foodType!.trim(),
       if (f.quantity != null)
-        '${f.quantity!.toStringAsFixed(f.quantity! % 1 == 0 ? 0 : 1)}'
-            '${f.unit ?? 'g'}',
+        '${f.quantity!.toStringAsFixed(f.quantity! % 1 == 0 ? 0 : 1)}${f.unit ?? 'g'}',
     ];
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: kHomeSurface,
+        color: _surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kHomeBorder),
+        border: Border.all(color: _border),
       ),
       child: Row(
         children: [
@@ -661,7 +1058,7 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
                       child: Text(
                         _appetiteLabel(f.appetite),
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: GoogleFonts.nunito(
                           fontWeight: FontWeight.w800,
                           fontSize: 13,
                           color: _appetiteColor(f.appetite),
@@ -680,74 +1077,37 @@ class _CrabDetailScreenState extends State<CrabDetailScreen> {
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
                       bits.join(' · '),
-                      style: const TextStyle(fontSize: 12, color: kHomeTextSub),
+                      style: GoogleFonts.nunito(fontSize: 12, color: _textSub),
                     ),
                   ),
               ],
             ),
           ),
-          Text(
-            time,
-            style: const TextStyle(fontSize: 11, color: kHomeTextHint),
-          ),
+          Text(time, style: GoogleFonts.nunito(fontSize: 11, color: _textHint)),
         ],
       ),
     );
   }
 
   Widget _chip(String text, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.5)),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w700,
-            color: color,
-          ),
-        ),
-      );
-
-  Widget _infoCard(List<Widget> rows) => Container(
-        decoration: BoxDecoration(
-          color: kHomeSurface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: kHomeBorder),
-        ),
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-        child: Column(children: rows),
-      );
-
-  Widget _row(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 110,
-              child: Text(
-                label,
-                style: const TextStyle(color: kHomeTextSub, fontSize: 13),
-              ),
-            ),
-            Expanded(
-              child: Text(
-                value,
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                  color: kHomeTextMain,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: color.withValues(alpha: 0.5)),
+    ),
+    child: Text(
+      text,
+      style: GoogleFonts.nunito(
+        fontSize: 10.5,
+        fontWeight: FontWeight.w700,
+        color: color,
+      ),
+    ),
+  );
 }
+
+// ── Domain models ─────────────────────────────────────────────────────────────
 
 class _TimelineItem {
   const _TimelineItem({
@@ -768,7 +1128,6 @@ class _WeightPt {
   final double grams;
 }
 
-/// Một phiếu chăm sóc/cho ăn của con cua.
 class _FeedItem {
   const _FeedItem({
     required this.at,
@@ -786,41 +1145,182 @@ class _FeedItem {
   final String? unit;
 }
 
+class _AlertItem {
+  const _AlertItem({required this.title, this.detail, required this.severity});
+  final String title;
+  final String? detail;
+  final String severity;
+}
+
+// ── Info chip ─────────────────────────────────────────────────────────────────
+
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 12, color: _textHint),
+      const SizedBox(width: 3),
+      Text(label, style: GoogleFonts.nunito(fontSize: 11, color: _textSub)),
+    ],
+  );
+}
+
+// ── Today feeding card (for Overview tab) ─────────────────────────────────────
+
+class _TodayFeedingCard extends StatelessWidget {
+  const _TodayFeedingCard({
+    required this.feedings,
+    required this.onViewAnalysis,
+  });
+  final List<_FeedItem> feedings;
+  final VoidCallback onViewAnalysis;
+
+  @override
+  Widget build(BuildContext context) {
+    final today = feedings.where((f) {
+      final now = DateTime.now();
+      return f.at.year == now.year &&
+          f.at.month == now.month &&
+          f.at.day == now.day;
+    }).toList();
+
+    final lastFeed = feedings.isNotEmpty ? feedings.first : null;
+    final lastTime = lastFeed != null
+        ? DateFormat('HH:mm').format(lastFeed.at)
+        : '—';
+    final lastAmt = lastFeed?.quantity != null
+        ? '${lastFeed!.quantity!.toStringAsFixed(0)}g'
+        : '—';
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _mintBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('🍴', style: TextStyle(fontSize: 14)),
+              const SizedBox(width: 6),
+              Text(
+                'Ăn & vận động hôm nay',
+                style: GoogleFonts.nunito(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: _textMain,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: onViewAnalysis,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Xem phân tích',
+                      style: GoogleFonts.nunito(
+                        fontSize: 11,
+                        color: _primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 12,
+                      color: _primary,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _MiniStat(
+                  label: 'Lần ăn hôm nay',
+                  value: '${today.length}',
+                ),
+              ),
+              Expanded(
+                child: _MiniStat(label: 'Lần ăn cuối', value: lastTime),
+              ),
+              Expanded(
+                child: _MiniStat(label: 'Khẩu phần', value: lastAmt),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  const _MiniStat({required this.label, required this.value});
+  final String label;
+  final String value;
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      Text(
+        value,
+        style: GoogleFonts.nunito(
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
+          color: _primary,
+        ),
+      ),
+      Text(
+        label,
+        style: GoogleFonts.nunito(fontSize: 10, color: _textSub),
+        textAlign: TextAlign.center,
+      ),
+    ],
+  );
+}
+
+// ── Appetite helpers ──────────────────────────────────────────────────────────
+
 String _appetiteLabel(String? v) => switch ((v ?? '').toLowerCase()) {
-      'many' => 'Ăn nhiều',
-      'little' => 'Ăn ít',
-      'none' => 'Không ăn',
-      _ => 'Chưa ghi',
-    };
+  'many' => 'Ăn nhiều',
+  'little' => 'Ăn ít',
+  'none' => 'Không ăn',
+  _ => 'Chưa ghi',
+};
 
 Color _appetiteColor(String? v) => switch ((v ?? '').toLowerCase()) {
-      'many' => const Color(0xFF2E7D32),
-      'little' => const Color(0xFFF9A825),
-      'none' => kHomeDanger,
-      _ => kHomeTextSub,
-    };
+  'many' => const Color(0xFF087F5B),
+  'little' => const Color(0xFFF5B700),
+  'none' => _danger,
+  _ => _textSub,
+};
 
 String _conditionLabel(String? v) {
   final condition = CrabCondition.tryParse(v);
   return condition == null ? '—' : condition.displayStatus.label;
 }
 
-/// Nhãn + màu lấy từ [BoxStatus] — cùng bảng với thẻ hộp và app desktop.
 Color _conditionColor(String? v) {
   final condition = CrabCondition.tryParse(v);
-  // Chưa ghi gì, hoặc cua đã kết thúc (chết / bán / thu hoạch) ⇒ xám.
-  if (condition == null || condition == CrabCondition.empty) {
-    return kHomeTextSub;
-  }
+  if (condition == null || condition == CrabCondition.empty) return _textSub;
   return condition.displayStatus.color;
 }
 
-/// Điểm mức ăn để vẽ trục tung: 0 = không ăn, 1 = ít, 2 = nhiều.
 double _appetiteScore(String? v) => switch ((v ?? '').toLowerCase()) {
-      'many' => 2,
-      'little' => 1,
-      _ => 0,
-    };
+  'many' => 2,
+  'little' => 1,
+  _ => 0,
+};
 
 Widget _appetiteAxisLabel(double value, TitleMeta meta) {
   final text = switch (value.round()) {
@@ -830,30 +1330,26 @@ Widget _appetiteAxisLabel(double value, TitleMeta meta) {
     _ => '',
   };
   if (text.isEmpty) return const SizedBox.shrink();
-  return Text(
-    text,
-    style: const TextStyle(fontSize: 9, color: kHomeTextSub),
-  );
+  return Text(text, style: GoogleFonts.nunito(fontSize: 9, color: _textSub));
 }
 
-/// Cột mức ăn theo ngày — nhìn nhanh con cua ăn tăng hay giảm dần.
+// ── Appetite bar chart ────────────────────────────────────────────────────────
+
 class _AppetiteChart extends StatelessWidget {
   const _AppetiteChart({required this.feedings});
   final List<_FeedItem> feedings;
-
   static const int _maxBars = 14;
 
   @override
   Widget build(BuildContext context) {
-    // feedings: mới nhất trước → đảo lại để trục thời gian tăng dần.
     final recent = feedings.take(_maxBars).toList().reversed.toList();
     return Container(
       height: 138,
       padding: const EdgeInsets.fromLTRB(6, 12, 12, 6),
       decoration: BoxDecoration(
-        color: kHomeSurface,
+        color: _surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kHomeBorder),
+        border: Border.all(color: _border),
       ),
       child: BarChart(
         BarChartData(
@@ -862,19 +1358,20 @@ class _AppetiteChart extends StatelessWidget {
           gridData: FlGridData(
             show: true,
             drawVerticalLine: false,
-            getDrawingHorizontalLine: (_) => FlLine(
-              color: kHomeBorder.withValues(alpha: 0.6),
-              strokeWidth: 1,
-            ),
+            getDrawingHorizontalLine: (_) =>
+                FlLine(color: _border.withValues(alpha: 0.6), strokeWidth: 1),
           ),
           borderData: FlBorderData(show: false),
           titlesData: FlTitlesData(
-            topTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            bottomTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            bottomTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
@@ -904,16 +1401,7 @@ class _AppetiteChart extends StatelessWidget {
   }
 }
 
-class _AlertItem {
-  const _AlertItem({
-    required this.title,
-    this.detail,
-    required this.severity,
-  });
-  final String title;
-  final String? detail;
-  final String severity;
-}
+// ── Weight line chart ─────────────────────────────────────────────────────────
 
 class _WeightChart extends StatelessWidget {
   const _WeightChart({required this.points});
@@ -921,7 +1409,7 @@ class _WeightChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spots = <FlSpot>[
+    final spots = [
       for (var i = 0; i < points.length; i++)
         FlSpot(i.toDouble(), points[i].grams),
     ];
@@ -934,10 +1422,8 @@ class _WeightChart extends StatelessWidget {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          getDrawingHorizontalLine: (_) => FlLine(
-            color: kHomeBorder.withValues(alpha: 0.7),
-            strokeWidth: 1,
-          ),
+          getDrawingHorizontalLine: (_) =>
+              FlLine(color: _border.withValues(alpha: 0.7), strokeWidth: 1),
         ),
         borderData: FlBorderData(show: false),
         titlesData: const FlTitlesData(
@@ -952,12 +1438,12 @@ class _WeightChart extends StatelessWidget {
           LineChartBarData(
             spots: spots,
             isCurved: true,
-            color: kHomePrimaryDark,
+            color: _primaryDark,
             barWidth: 2.5,
             dotData: const FlDotData(show: true),
             belowBarData: BarAreaData(
               show: true,
-              color: kHomePrimary.withValues(alpha: 0.18),
+              color: _primary.withValues(alpha: 0.18),
             ),
           ),
         ],
