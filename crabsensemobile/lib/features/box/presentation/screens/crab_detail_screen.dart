@@ -5,7 +5,9 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:dio/dio.dart';
 
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection.dart';
@@ -490,6 +492,31 @@ class _CrabDetailScreenState extends State<CrabDetailScreen>
                 ),
               ),
               const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: () => _showMediaCaptureSheet(context),
+                icon: const Icon(Icons.photo_camera_outlined, size: 14),
+                label: Text(
+                  'Ảnh / video',
+                  style: GoogleFonts.nunito(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _primaryDark,
+                  side: const BorderSide(color: _primaryDark),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+              const SizedBox(width: 8),
               Container(
                 width: 30,
                 height: 30,
@@ -627,6 +654,76 @@ class _CrabDetailScreenState extends State<CrabDetailScreen>
         ],
       ),
     );
+  }
+
+  Future<void> _showMediaCaptureSheet(BuildContext context) async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined, color: _primary),
+              title: const Text('Chụp ảnh thức ăn / cân'),
+              subtitle: const Text('Lưu vào bộ dữ liệu của con cua này'),
+              onTap: () => Navigator.pop(ctx, 'image'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.videocam_outlined, color: _primary),
+              title: const Text('Quay video tình trạng ăn'),
+              subtitle: const Text('Khuyến nghị quay khoảng 10–20 giây'),
+              onTap: () => Navigator.pop(ctx, 'video'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (choice != null && mounted) await _pickAndUploadMedia(choice);
+  }
+
+  Future<void> _pickAndUploadMedia(String type) async {
+    final picker = ImagePicker();
+    final picked = type == 'image'
+        ? await picker.pickImage(source: ImageSource.camera, imageQuality: 85)
+        : await picker.pickVideo(
+            source: ImageSource.camera,
+            maxDuration: const Duration(seconds: 30),
+          );
+    if (picked == null || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      SnackBar(content: Text(type == 'image' ? 'Đang tải ảnh...' : 'Đang tải video...')),
+    );
+    try {
+      final api = sl<ApiClient>();
+      final form = FormData.fromMap({
+        'file': await MultipartFile.fromFile(picked.path, filename: picked.name),
+        'category': type,
+        'crabId': widget.crabId,
+        if (widget.boxId != null) 'boxId': widget.boxId,
+        'relatedEntityType': type == 'image' ? 'feeding-event' : 'observation-event',
+        'notes': type == 'image'
+            ? 'Food/scale capture'
+            : 'Feeding observation video',
+      });
+      await api.dio.post<dynamic>('/media/upload', data: form);
+      if (!mounted) return;
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Đã lưu media thành công')),
+      );
+    } on DioException catch (e) {
+      if (!mounted) return;
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(content: Text('Upload thất bại: ${e.message ?? 'lỗi kết nối'}')),
+      );
+    }
   }
 
   // ── Tab bar ────────────────────────────────────────────────────────────────
