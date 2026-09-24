@@ -2,9 +2,24 @@ import 'package:flutter/foundation.dart';
 
 import '../models/auth_models.dart';
 import '../models/box_list_item.dart';
-import '../models/crab_condition.dart';
 import '../models/production_models.dart';
 import 'cloud_api_client.dart';
+
+class BoxKpiSnapshot {
+  const BoxKpiSnapshot({
+    required this.total,
+    required this.occupied,
+    required this.empty,
+    required this.monitoring,
+    required this.alerts,
+  });
+
+  final int total;
+  final int occupied;
+  final int empty;
+  final int monitoring;
+  final int alerts;
+}
 
 class BoxManagementService extends ChangeNotifier {
   BoxManagementService({
@@ -24,10 +39,12 @@ class BoxManagementService extends ChangeNotifier {
   String search = '';
   String? areaFilterId;
   String? rowFilterId;
-  BoxOccupancyFilter occupancyFilter = BoxOccupancyFilter.all;
-  CrabConditionFilter crabFilter = CrabConditionFilter.all;
+  BoxStatusFilter statusFilter = BoxStatusFilter.all;
+  BoxHealthFilter healthFilter = BoxHealthFilter.all;
+  var alertOnly = false;
+  BoxListSort sort = BoxListSort.newest;
   int page = 0;
-  static const int pageSize = 6;
+  int pageSize = 12;
 
   AuthSession get session => _session;
   String get token => _session.token;
@@ -38,6 +55,18 @@ class BoxManagementService extends ChangeNotifier {
     return rows.where((r) => r.areaId == areaFilterId).toList();
   }
 
+  /// KPI từ toàn bộ hộp đã tải (không tính theo trang).
+  BoxKpiSnapshot get kpi {
+    final all = items;
+    return BoxKpiSnapshot(
+      total: all.length,
+      occupied: all.where((i) => i.uiStatus == BoxUiStatus.occupied).length,
+      empty: all.where((i) => i.uiStatus == BoxUiStatus.empty).length,
+      monitoring: all.where((i) => i.healthUi == BoxHealthUi.monitoring).length,
+      alerts: all.where((i) => i.hasAlert).length,
+    );
+  }
+
   void updateSession(AuthSession session) {
     _session = session;
     areas = [];
@@ -45,8 +74,10 @@ class BoxManagementService extends ChangeNotifier {
     items = [];
     areaFilterId = _defaultAreaId(session);
     rowFilterId = null;
-    occupancyFilter = BoxOccupancyFilter.all;
-    crabFilter = CrabConditionFilter.all;
+    statusFilter = BoxStatusFilter.all;
+    healthFilter = BoxHealthFilter.all;
+    alertOnly = false;
+    sort = BoxListSort.newest;
     page = 0;
     notifyListeners();
   }
@@ -57,6 +88,7 @@ class BoxManagementService extends ChangeNotifier {
   }
 
   void setSearch(String value) {
+    if (search == value) return;
     search = value;
     page = 0;
     notifyListeners();
@@ -76,20 +108,63 @@ class BoxManagementService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setOccupancyFilter(BoxOccupancyFilter filter) {
-    occupancyFilter = filter;
+  void setStatusFilter(BoxStatusFilter filter) {
+    statusFilter = filter;
+    if (filter != BoxStatusFilter.all) alertOnly = false;
     page = 0;
     notifyListeners();
   }
 
-  void setCrabFilter(CrabConditionFilter filter) {
-    crabFilter = filter;
+  void setHealthFilter(BoxHealthFilter filter) {
+    healthFilter = filter;
     page = 0;
+    notifyListeners();
+  }
+
+  void setAlertOnly(bool value) {
+    alertOnly = value;
+    if (value) statusFilter = BoxStatusFilter.all;
+    page = 0;
+    notifyListeners();
+  }
+
+  void setSort(BoxListSort value) {
+    sort = value;
     notifyListeners();
   }
 
   void setPage(int value) {
     page = value;
+    notifyListeners();
+  }
+
+  void setPageSize(int value) {
+    if (pageSize == value) return;
+    pageSize = value;
+    page = 0;
+    notifyListeners();
+  }
+
+  void clearFilters() {
+    search = '';
+    rowFilterId = null;
+    statusFilter = BoxStatusFilter.all;
+    healthFilter = BoxHealthFilter.all;
+    alertOnly = false;
+    page = 0;
+    notifyListeners();
+  }
+
+  void applyKpi(BoxStatusFilter? status, {bool alerts = false, BoxHealthFilter? health}) {
+    statusFilter = status ?? BoxStatusFilter.all;
+    healthFilter = health ?? BoxHealthFilter.all;
+    alertOnly = alerts;
+    page = 0;
+    notifyListeners();
+  }
+
+  void attachDevices(List<BoxListItem> next) {
+    items = next;
     notifyListeners();
   }
 
@@ -105,23 +180,74 @@ class BoxManagementService extends ChangeNotifier {
     final q = search.trim().toLowerCase();
     if (q.isNotEmpty) {
       list = list.where((i) {
-        final crab = i.box.crabTag?.toLowerCase() ?? '';
-        return i.displayName.toLowerCase().contains(q) ||
-            i.box.boxCode.toLowerCase().contains(q) ||
-            crab.contains(q);
+        final hay = [
+          i.box.boxCode,
+          i.displayName,
+          i.box.crabTag,
+          i.box.position,
+          i.areaName,
+          i.areaCode,
+          i.rowName,
+          i.rowCode,
+        ].whereType<String>().join(' ').toLowerCase();
+        return hay.contains(q);
       }).toList();
     }
 
-    list = switch (occupancyFilter) {
-      BoxOccupancyFilter.occupied => list.where((i) => i.hasCrab).toList(),
-      BoxOccupancyFilter.empty => list.where((i) => !i.hasCrab).toList(),
-      BoxOccupancyFilter.alert => list.where((i) => i.hasAlert).toList(),
-      BoxOccupancyFilter.all => list,
+    list = switch (statusFilter) {
+      BoxStatusFilter.occupied => list.where((i) => i.uiStatus == BoxUiStatus.occupied).toList(),
+      BoxStatusFilter.empty => list.where((i) => i.uiStatus == BoxUiStatus.empty).toList(),
+      BoxStatusFilter.maintenance => list.where((i) => i.uiStatus == BoxUiStatus.maintenance).toList(),
+      BoxStatusFilter.locked => list.where((i) => i.uiStatus == BoxUiStatus.locked).toList(),
+      BoxStatusFilter.offline => list.where((i) => i.uiStatus == BoxUiStatus.offline || (i.deviceTotal > 0 && i.deviceOnline == 0)).toList(),
+      BoxStatusFilter.all => list,
     };
 
-    final crab = crabFilter.condition;
-    if (crab != null) {
-      list = list.where((i) => i.crabCondition == crab).toList();
+    list = switch (healthFilter) {
+      BoxHealthFilter.healthy => list.where((i) => i.healthUi == BoxHealthUi.healthy).toList(),
+      BoxHealthFilter.monitoring => list.where((i) => i.healthUi == BoxHealthUi.monitoring).toList(),
+      BoxHealthFilter.weak => list.where((i) => i.healthUi == BoxHealthUi.weak).toList(),
+      BoxHealthFilter.alert => list.where((i) => i.healthUi == BoxHealthUi.alert).toList(),
+      BoxHealthFilter.empty => list.where((i) => i.healthUi == BoxHealthUi.none).toList(),
+      BoxHealthFilter.all => list,
+    };
+
+    if (alertOnly) {
+      list = list.where((i) => i.hasAlert).toList();
+    }
+
+    list = [...list];
+    int byCode(BoxListItem a, BoxListItem b) => a.box.boxCode.toLowerCase().compareTo(b.box.boxCode.toLowerCase());
+    DateTime ts(BoxListItem i) => i.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+    switch (sort) {
+      case BoxListSort.newest:
+        list.sort((a, b) {
+          final c = ts(b).compareTo(ts(a));
+          return c != 0 ? c : byCode(a, b);
+        });
+      case BoxListSort.codeAz:
+        list.sort(byCode);
+      case BoxListSort.codeZa:
+        list.sort((a, b) => byCode(b, a));
+      case BoxListSort.mostAlerts:
+        list.sort((a, b) {
+          final c = b.box.alertCount.compareTo(a.box.alertCount);
+          return c != 0 ? c : byCode(a, b);
+        });
+      case BoxListSort.watchFirst:
+        list.sort((a, b) {
+          final aw = a.healthUi == BoxHealthUi.monitoring || a.healthUi == BoxHealthUi.weak || a.healthUi == BoxHealthUi.alert ? 1 : 0;
+          final bw = b.healthUi == BoxHealthUi.monitoring || b.healthUi == BoxHealthUi.weak || b.healthUi == BoxHealthUi.alert ? 1 : 0;
+          final c = bw.compareTo(aw);
+          return c != 0 ? c : byCode(a, b);
+        });
+      case BoxListSort.emptyFirst:
+        list.sort((a, b) {
+          final ae = a.uiStatus == BoxUiStatus.empty ? 0 : 1;
+          final be = b.uiStatus == BoxUiStatus.empty ? 0 : 1;
+          final c = ae.compareTo(be);
+          return c != 0 ? c : byCode(a, b);
+        });
     }
     return list;
   }
@@ -170,14 +296,12 @@ class BoxManagementService extends ChangeNotifier {
           rowCode: box.rowCode ?? row?.rowCode ?? '',
           rowName: box.rowName ?? row?.rowName ?? '',
         );
-      }).toList()
-        ..sort((a, b) => a.box.boxCode.compareTo(b.box.boxCode));
+      }).toList();
 
       if (areaFilterId != null && !areas.any((a) => a.id == areaFilterId)) {
         areaFilterId = null;
       }
-      if (rowFilterId != null &&
-          !rowsForFilter.any((r) => r.id == rowFilterId)) {
+      if (rowFilterId != null && !rowsForFilter.any((r) => r.id == rowFilterId)) {
         rowFilterId = null;
       }
       error = null;

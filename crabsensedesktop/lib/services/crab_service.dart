@@ -407,8 +407,34 @@ class CrabService extends ChangeNotifier {
       } else if (urls.isNotEmpty) {
         _profiles[crabId] = existingProfile.withImageUrls(urls);
       }
-      final base = getById(crabId);
-      if (base == null) return;
+      var base = getById(crabId);
+      base ??= CrabIndividual(
+        id: (body['id'] ?? body['Id'] ?? crabId).toString(),
+        displayCode: (body['code'] ?? body['Code'] ?? body['tag'] ?? body['Tag'] ?? '').toString(),
+        boxId: (body['boxId'] ?? body['BoxId'] ?? '').toString(),
+        batchId: (body['lotCode'] ?? body['LotCode'] ?? body['crabLotId'] ?? body['CrabLotId'] ?? '').toString(),
+        gender: mapGender((body['gender'] ?? body['Gender'] ?? '').toString()),
+        weightGram: _asDouble(body['weightGram'] ?? body['WeightGram']),
+        shellSizeCm: _asDouble(body['carapaceWidthMm'] ?? body['CarapaceWidthMm']),
+        carapaceLengthMm: _asDouble(body['carapaceLengthMm'] ?? body['CarapaceLengthMm']),
+        releaseDate: DateTime.tryParse('${body['stockedAt'] ?? body['StockedAt'] ?? ''}') ?? DateTime.now(),
+        moltCount: 0,
+        healthStatus: mapHealthStatus((body['condition'] ?? body['Condition'] ?? body['initialCondition'])?.toString()),
+        lifeStatus: mapLifeStatus((body['status'] ?? body['Status'] ?? 'alive').toString()),
+        healthScore: 90,
+        areaId: (body['farmingAreaId'] ?? body['FarmingAreaId'] ?? '').toString(),
+        areaCode: (body['areaCode'] ?? body['AreaCode'] ?? '').toString(),
+        areaName: (body['areaName'] ?? body['AreaName'] ?? '').toString(),
+        rowId: (body['farmingRowId'] ?? body['FarmingRowId'] ?? '').toString(),
+        rowName: (body['rowName'] ?? body['RowName'] ?? body['rowCode'] ?? '').toString(),
+        boxName: (body['boxCode'] ?? body['BoxCode'] ?? '').toString(),
+        crabType: (body['crabType'] ?? body['CrabType'] ?? 'Cua biển').toString(),
+        lifecycleStatus: mapLifecycleStatus(
+          status: (body['status'] ?? body['Status'] ?? 'alive').toString(),
+          growthStage: (body['moltingStage'] ?? body['MoltingStage'])?.toString(),
+          healthStatus: (body['condition'] ?? body['Condition'])?.toString(),
+        ),
+      );
       final profile = _profiles[crabId];
       var merged = mergeCrabDetail(base, body);
       if (profile != null) {
@@ -419,11 +445,13 @@ class CrabService extends ChangeNotifier {
           batchId: profile.lotCode.isNotEmpty ? profile.lotCode : merged.batchId,
         );
       }
-      final i = _crabs.indexWhere((c) => c.id == crabId);
+      final i = _crabs.indexWhere((c) => c.id == merged.id || c.id == crabId);
       if (i >= 0) {
         _crabs = [..._crabs]..[i] = merged;
-        notifyListeners();
+      } else {
+        _crabs = [..._crabs, merged];
       }
+      notifyListeners();
     } on CloudApiException catch (e) {
       _error = e.message;
       notifyListeners();
@@ -1202,3 +1230,5 @@ class CrabService extends ChangeNotifier {
   @Deprecated('Dùng API batch')
   String generateNextId(String boxId) => 'legacy-$boxId';
 }
+
+double _asDouble(dynamic value) => value is num ? value.toDouble() : 0;

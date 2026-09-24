@@ -448,8 +448,13 @@ CrabManagementSummary summarizeCrabs(List<CrabIndividual> crabs) {
 }
 
 CrabIndividual? findCrabById(List<CrabIndividual> crabs, String id) {
+  final key = id.trim();
+  if (key.isEmpty) return null;
   for (final c in crabs) {
-    if (c.id == id) return c;
+    if (c.id == key) return c;
+  }
+  for (final c in crabs) {
+    if (c.code == key || c.displayCode == key) return c;
   }
   return null;
 }

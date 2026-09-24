@@ -6,7 +6,12 @@ class AreaEnvironmentMetric {
     required this.icon,
     required this.status,
     this.sensorType,
+    this.sensorCode,
+    this.sensorId,
+    this.locationName,
     this.recordedAt,
+    this.minThreshold,
+    this.maxThreshold,
   });
 
   final String label;
@@ -15,17 +20,30 @@ class AreaEnvironmentMetric {
   final String icon;
   final String status;
   final String? sensorType;
+  final String? sensorCode;
+  final String? sensorId;
+  final String? locationName;
   final DateTime? recordedAt;
+  final double? minThreshold;
+  final double? maxThreshold;
+
+  bool get isMissing => recordedAt == null && value == 0;
 
   factory AreaEnvironmentMetric.fromJson(Map<String, dynamic> json) {
+    double? n(dynamic v) => v is num ? v.toDouble() : double.tryParse('$v');
     return AreaEnvironmentMetric(
       label: (json['label'] ?? json['Label'] ?? '').toString(),
-      value: (json['value'] ?? json['Value'] as num?)?.toDouble() ?? 0,
+      value: n(json['value'] ?? json['Value']) ?? 0,
       unit: (json['unit'] ?? json['Unit'] ?? '').toString(),
       icon: (json['icon'] ?? json['Icon'] ?? 'sensor').toString(),
       status: (json['status'] ?? json['Status'] ?? 'good').toString(),
       sensorType: (json['sensorType'] ?? json['SensorType'])?.toString(),
+      sensorCode: (json['sensorCode'] ?? json['SensorCode'])?.toString(),
+      sensorId: (json['sensorId'] ?? json['SensorId'])?.toString(),
+      locationName: (json['locationName'] ?? json['LocationName'])?.toString(),
       recordedAt: _parseDate(json['recordedAt'] ?? json['RecordedAt']),
+      minThreshold: n(json['minThreshold'] ?? json['MinThreshold']),
+      maxThreshold: n(json['maxThreshold'] ?? json['MaxThreshold']),
     );
   }
 
@@ -75,16 +93,24 @@ class AreaSensorLatestData {
         raw['latestMeasuredAt'] ?? raw['LatestMeasuredAt'],
       );
       if (at != null && (latest == null || at.isAfter(latest))) latest = at;
-      final alarm = raw['alarm'] == true || raw['Alarm'] == true;
+      final alarm = raw['alarm'] == true ||
+          raw['Alarm'] == true ||
+          (raw['alarm'] ?? raw['Alarm'] ?? '').toString().toLowerCase().contains('warn');
+      double? n(dynamic v) => v is num ? v.toDouble() : double.tryParse('$v');
       metrics.add(
         AreaEnvironmentMetric(
           label: _liveLabel(type),
           value: value,
           unit: (raw['unit'] ?? raw['Unit'] ?? '').toString(),
           icon: _liveIcon(type),
-          status: alarm ? 'alert' : 'good',
+          status: alarm ? 'warning' : 'good',
           sensorType: type,
+          sensorCode: (raw['sensorCode'] ?? raw['SensorCode'])?.toString(),
+          sensorId: (raw['sensorId'] ?? raw['SensorId'] ?? raw['id'] ?? raw['Id'])?.toString(),
+          locationName: (raw['locationName'] ?? raw['LocationName'] ?? raw['rowName'] ?? raw['RowName'])?.toString(),
           recordedAt: at,
+          minThreshold: n(raw['minThreshold'] ?? raw['MinThreshold']),
+          maxThreshold: n(raw['maxThreshold'] ?? raw['MaxThreshold']),
         ),
       );
     }

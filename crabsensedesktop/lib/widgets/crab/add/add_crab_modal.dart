@@ -42,6 +42,9 @@ Future<bool> showAddCrabModal(
   BuildContext context,
   CrabService service, {
   String? initialLotId,
+  String? initialAreaId,
+  String? initialRowId,
+  String? initialBoxId,
   VoidCallback? onManageLots,
 }) async {
   final ok = await showDialog<bool>(
@@ -51,6 +54,9 @@ Future<bool> showAddCrabModal(
     builder: (_) => AddCrabModal(
       service: service,
       initialLotId: initialLotId,
+      initialAreaId: initialAreaId,
+      initialRowId: initialRowId,
+      initialBoxId: initialBoxId,
       onManageLots: onManageLots,
     ),
   );
@@ -62,11 +68,17 @@ class AddCrabModal extends StatefulWidget {
     super.key,
     required this.service,
     this.initialLotId,
+    this.initialAreaId,
+    this.initialRowId,
+    this.initialBoxId,
     this.onManageLots,
   });
 
   final CrabService service;
   final String? initialLotId;
+  final String? initialAreaId;
+  final String? initialRowId;
+  final String? initialBoxId;
   final VoidCallback? onManageLots;
 
   @override
@@ -144,6 +156,9 @@ class _AddCrabModalState extends State<AddCrabModal> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialBoxId != null && widget.initialBoxId!.isNotEmpty) {
+      _autoAssign = false;
+    }
     _bootstrap();
   }
 
@@ -171,7 +186,8 @@ class _AddCrabModalState extends State<AddCrabModal> {
         lot = lots.where((l) => l.id == widget.initialLotId).firstOrNull;
       }
       lot ??= lots.isEmpty ? null : lots.first;
-      var areaId = _svc.areaFilter != kAllFilter ? _svc.areaFilter : null;
+      var areaId = widget.initialAreaId;
+      areaId ??= _svc.areaFilter != kAllFilter ? _svc.areaFilter : null;
       areaId ??= areas.isEmpty ? null : areas.first.id;
       if (!mounted) return;
       setState(() {
@@ -179,6 +195,8 @@ class _AddCrabModalState extends State<AddCrabModal> {
         _lot = lot;
         _areas = areas;
         _areaId = areaId;
+        _rowId = widget.initialRowId;
+        _boxId = widget.initialBoxId;
         _previewCode = next?.code ?? 'CRAB-0001';
         _previewQr = next?.qrCode ?? 'QR-${next?.code ?? 'CRAB-0001'}';
         _loading = false;
@@ -328,9 +346,11 @@ class _AddCrabModalState extends State<AddCrabModal> {
       setState(() {
         _saving = false;
         _conflict = conflict;
-        _error = e.message;
-        if (e.message.contains('trống')) {
-          _boxError = e.message;
+        _error = conflict
+            ? '${_target?.boxCode ?? widget.initialBoxId ?? 'Hộp'} vừa được sử dụng. Vui lòng chọn hộp khác.'
+            : e.message;
+        if (e.message.contains('trống') || conflict) {
+          _boxError = _error;
         }
       });
     } catch (e) {

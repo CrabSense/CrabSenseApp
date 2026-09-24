@@ -9,6 +9,8 @@ class CameraDevice {
   final String status;
   final DateTime? lastSeenAt;
   final String? boxCode;
+  final String? snapshotUrl;
+  final String? message;
 
   CameraDevice({
     required this.id,
@@ -21,6 +23,8 @@ class CameraDevice {
     required this.status,
     this.lastSeenAt,
     this.boxCode,
+    this.snapshotUrl,
+    this.message,
   });
 
   factory CameraDevice.fromBoxCamera(
@@ -46,6 +50,8 @@ class CameraDevice {
             )
           : null,
       boxCode: boxId,
+      snapshotUrl: (json['snapshotUrl'] ?? json['SnapshotUrl'])?.toString(),
+      message: (json['message'] ?? json['Message'])?.toString(),
     );
   }
 
@@ -66,10 +72,12 @@ class CameraDevice {
       ipAddress: (json['ipAddress'] ?? json['IpAddress'] ?? json['ip_address'])
           ?.toString(),
       status: '${json['status'] ?? json['Status'] ?? 'offline'}',
-      lastSeenAt: json['lastSeenAt'] != null
-          ? DateTime.parse(json['lastSeenAt'] as String)
+      lastSeenAt: json['lastSeenAt'] != null || json['LastSeenAt'] != null
+          ? DateTime.tryParse((json['lastSeenAt'] ?? json['LastSeenAt']).toString())
           : null,
-      boxCode: json['boxCode'] as String?,
+      boxCode: json['boxCode'] as String? ?? json['BoxCode'] as String?,
+      snapshotUrl: (json['snapshotUrl'] ?? json['SnapshotUrl'])?.toString(),
+      message: (json['message'] ?? json['Message'])?.toString(),
     );
   }
 

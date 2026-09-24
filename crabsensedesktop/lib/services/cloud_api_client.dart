@@ -798,6 +798,24 @@ class CloudApiClient {
   Future<List<Map<String, dynamic>>> fetchBoxCrabs(String token, String boxId) =>
       _getDataList(token, '/api/boxes/$boxId/crabs');
 
+  Future<List<Map<String, dynamic>>> fetchBoxStatusHistory(
+    String token,
+    String boxId, {
+    DateTime? from,
+    DateTime? to,
+  }) =>
+      _getDataList(
+        token,
+        '/api/boxes/$boxId/status-history',
+        extraQuery: {
+          if (from != null) 'from': from.toUtc().toIso8601String(),
+          if (to != null) 'to': to.toUtc().toIso8601String(),
+        },
+      );
+
+  Future<List<Map<String, dynamic>>> fetchBoxAllocations(String token, String boxId) =>
+      _getDataList(token, '/api/boxes/$boxId/allocations');
+
   /// CrabSenseBE `GET /api/iot/live`
   Future<List<Map<String, dynamic>>> fetchIotLive(
     String token, {
@@ -854,12 +872,20 @@ class CloudApiClient {
         extraQuery: {'days': '$days'},
       );
 
-  Future<void> acknowledgeAlert(String token, String alertId) async {
+  Future<void> acknowledgeAlert(
+    String token,
+    String alertId, {
+    String? userId,
+    String? note,
+  }) async {
     final uri = Uri.parse('$_base/api/alerts/$alertId/acknowledge');
     final res = await _client.post(
       uri,
       headers: {...authHeaders(token), 'Content-Type': 'application/json'},
-      body: '{}',
+      body: jsonEncode({
+        if (userId != null && userId.isNotEmpty) 'userId': userId,
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      }),
     );
     final body = _decode(res);
     if (_isApiFailure(res, body)) {
@@ -870,9 +896,21 @@ class CloudApiClient {
     }
   }
 
-  Future<void> resolveAlert(String token, String alertId) async {
+  Future<void> resolveAlert(
+    String token,
+    String alertId, {
+    String? resolutionCode,
+    String? note,
+  }) async {
     final uri = Uri.parse('$_base/api/alerts/$alertId/resolve');
-    final res = await _client.post(uri, headers: authHeaders(token));
+    final res = await _client.post(
+      uri,
+      headers: {...authHeaders(token), 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        if (resolutionCode != null && resolutionCode.isNotEmpty) 'resolutionCode': resolutionCode,
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      }),
+    );
     final body = _decode(res);
     if (_isApiFailure(res, body)) {
       throw CloudApiException(

@@ -1,19 +1,29 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
 
-import '../../models/production_models.dart';
-import '../../models/camera_device.dart';
 import '../../models/box_alert.dart';
-import '../../models/area_environment_metric.dart';
+import '../../models/production_models.dart';
+import '../../navigation/app_route.dart';
 import '../../services/area_environment_service.dart';
-import '../../services/crab_profile_service.dart';
 import '../../services/camera_device_service.dart';
+import '../../services/controller_service.dart';
+import '../../services/crab_profile_service.dart';
+import '../../services/crab_service.dart';
+import '../../services/production_management_service.dart';
 import '../../theme/dashboard_theme.dart';
-import '../../utils/camera_stream_url_helper.dart';
-import '../../widgets/camera/camera_connect_test_dialog.dart';
-import '../../widgets/camera/camera_stream_player.dart';
-import '../../widgets/dashboard/glass_card.dart';
-import '../../widgets/environment/area_environment_panel.dart';
+import '../../widgets/box/detail/box_alert_tab.dart';
+import '../../widgets/box/detail/box_camera_ai_tab.dart';
+import '../../widgets/box/detail/box_history_tab.dart';
+import '../../widgets/box/detail/box_crab_tab.dart';
+import '../../widgets/box/detail/box_detail_header.dart';
+import '../../widgets/box/detail/box_labels.dart';
+import '../../widgets/box/detail/box_overview_tab.dart';
+import '../../widgets/box/detail/box_sensor_tab.dart';
+import '../../widgets/crab/add/add_crab_modal.dart';
+import '../../widgets/crab/crab_action_modals.dart';
+import '../../widgets/crab/feeding/add_feeding_modal.dart';
+import '../../widgets/production/production_dialogs.dart';
+import '../../widgets/shared/mgmt_ui.dart';
 
 class BoxDetailPage extends StatefulWidget {
   const BoxDetailPage({
@@ -26,28 +36,55 @@ class BoxDetailPage extends StatefulWidget {
     required this.areaEnvironmentService,
     required this.areaId,
     this.areaCode,
+    this.rowId,
+    this.rowCode,
     this.onBack,
+    this.onNavigate,
+    this.onOpenArea,
+    this.onOpenRow,
+    this.onOpenCrab,
+    this.onBoxUpdated,
+    this.productionService,
+    this.crabService,
+    this.controllerService,
+    this.initialTab = 0,
   });
 
   final BoxRecord box;
   final String areaId;
   final String? areaCode;
   final String areaName;
+  final String? rowId;
+  final String? rowCode;
   final String rowName;
   final CrabProfileService crabProfileService;
   final CameraDeviceService cameraService;
   final AreaEnvironmentService areaEnvironmentService;
   final VoidCallback? onBack;
+  final void Function(AppRoute route)? onNavigate;
+  final VoidCallback? onOpenArea;
+  final VoidCallback? onOpenRow;
+  final void Function(String crabId, {BoxOpenCrabTarget target})? onOpenCrab;
+  final ValueChanged<BoxRecord>? onBoxUpdated;
+  final ProductionManagementService? productionService;
+  final CrabService? crabService;
+  final ControllerService? controllerService;
+  final int initialTab;
 
   @override
   State<BoxDetailPage> createState() => _BoxDetailPageState();
 }
 
-class _BoxDetailPageState extends State<BoxDetailPage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProviderStateMixin {
+  late TabController _tabs;
+  late BoxRecord _box;
   List<BoxAlert> _alerts = const [];
+  List<BoxActivityItem> _activities = const [];
+  List<BoxActivityItem> _fetchedActivities = const [];
   var _alertsLoading = false;
+  var _activityLoading = false;
+  var _locking = false;
+  String? _pageError;
 
   CrabProfileService get _svc => widget.crabProfileService;
   CrabProfileData? get _crab => _svc.data;
@@ -55,14 +92,25 @@ class _BoxDetailPageState extends State<BoxDetailPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _box = widget.box;
+    _tabs = TabController(length: 6, vsync: this, initialIndex: widget.initialTab.clamp(0, 5));
     _svc.addListener(_onUpdate);
-    _svc.loadByBox(widget.box.id);
-    _loadAlerts();
     widget.cameraService.addListener(_onUpdate);
-    widget.cameraService.loadCamerasByBox(widget.box.id);
     widget.areaEnvironmentService.addListener(_onUpdate);
-    widget.areaEnvironmentService.startLiveRefreshByBox(widget.box.id);
+    widget.controllerService?.addListener(_onUpdate);
+    _reload();
+  }
+
+  @override
+  void didUpdateWidget(covariant BoxDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.box.id != widget.box.id) {
+      _box = widget.box;
+      _reload();
+    }
+    if (oldWidget.initialTab != widget.initialTab) {
+      _tabs.animateTo(widget.initialTab.clamp(0, 5));
+    }
   }
 
   @override
@@ -70,22 +118,44 @@ class _BoxDetailPageState extends State<BoxDetailPage>
     _svc.removeListener(_onUpdate);
     widget.cameraService.removeListener(_onUpdate);
     widget.areaEnvironmentService.removeListener(_onUpdate);
+    widget.controllerService?.removeListener(_onUpdate);
     widget.areaEnvironmentService.stopLiveRefresh(notify: false);
-    _tabController.dispose();
+    _tabs.dispose();
     super.dispose();
+  }
+
+  void _onUpdate() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(_composeActivities);
+    });
+  }
+
+  Future<void> _reload() async {
+    setState(() => _pageError = null);
+    widget.cameraService.loadCamerasByBox(_box.id);
+    widget.areaEnvironmentService.startLiveRefreshByBox(_box.id);
+    final ctrl = widget.controllerService;
+    if (ctrl != null && ctrl.items.isEmpty && !ctrl.loading) {
+      ctrl.load();
+    }
+    await Future.wait([
+      _svc.loadByBox(_box.id),
+      _loadAlerts(),
+    ]);
+    if (!mounted) return;
+    await _loadActivity();
   }
 
   Future<void> _loadAlerts() async {
     setState(() => _alertsLoading = true);
     try {
-      final rows = await _svc.fetchBoxAlerts(
-        boxId: widget.box.id,
-        farmingAreaId: widget.areaId,
-      );
-      final mapped = rows.map(_alertFromJson).toList();
+      final rows = await _svc.fetchBoxAlerts(boxId: _box.id, farmingAreaId: widget.areaId);
       if (!mounted) return;
       setState(() {
-        _alerts = mapped;
+        _alerts = rows.map(_alertFromJson).toList()
+          ..sort((a, b) => (b.occurredAt ?? DateTime(0)).compareTo(a.occurredAt ?? DateTime(0)));
         _alertsLoading = false;
       });
     } catch (_) {
@@ -97,962 +167,627 @@ class _BoxDetailPageState extends State<BoxDetailPage>
     }
   }
 
-  BoxAlert _alertFromJson(Map<String, dynamic> json) {
-    final sev = (json['severity'] ?? json['Severity'] ?? 'info')
-        .toString()
-        .toLowerCase();
-    final at = DateTime.tryParse(
-      (json['createdAt'] ?? json['CreatedAt'] ?? '').toString(),
-    );
-    String time = '';
-    if (at != null) {
-      final l = at.toLocal();
-      time =
-          '${l.day.toString().padLeft(2, '0')}/${l.month.toString().padLeft(2, '0')}/${l.year} '
-          '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
-    }
-    return BoxAlert(
-      severity: sev.contains('crit')
-          ? 'critical'
-          : (sev.contains('warn') ? 'warning' : 'info'),
-      message: (json['message'] ??
-              json['Message'] ??
-              json['title'] ??
-              json['Title'] ??
-              '')
-          .toString(),
-      time: time,
-    );
-  }
+  Future<void> _loadActivity() async {
+    setState(() => _activityLoading = true);
+    final items = <BoxActivityItem>[];
+    try {
+      final rows = await _svc.fetchBoxStatusHistory(_box.id);
+      for (final raw in rows) {
+        final at = DateTime.tryParse((raw['changedAt'] ?? raw['ChangedAt'] ?? '').toString());
+        if (at == null) continue;
+        final reason = (raw['reason'] ?? raw['Reason'] ?? '').toString();
+        final next = (raw['newStatus'] ?? raw['NewStatus'] ?? '').toString();
+        items.add(BoxActivityItem(
+          at: at.toLocal(),
+          title: reason.trim().isEmpty ? 'Cập nhật trạng thái hộp' : reason,
+          detail: next.isEmpty ? '' : 'Trạng thái: ${boxOperationalLabel(next)}',
+          source: 'System',
+        ));
+      }
+    } catch (_) {}
 
-  void _onUpdate() {
+    final crabId = _svc.data?.id;
+    if (crabId != null && crabId.isNotEmpty) {
+      try {
+        final page = await _svc.fetchCrabLifecycle(crabId);
+        for (final e in page.items) {
+          items.add(BoxActivityItem(
+            at: e.occurredAt.isUtc ? e.occurredAt.toLocal() : e.occurredAt,
+            title: e.title.trim().isEmpty ? e.eventType.label : e.title,
+            detail: e.summary,
+            source: _activitySource(e.source, e.actor.name),
+          ));
+        }
+      } catch (_) {}
+      try {
+        final growth = await _svc.fetchCrabGrowth(crabId);
+        for (final m in growth.measurements) {
+          final parts = <String>[
+            'Cân nặng: ${m.weightGram.toStringAsFixed(0)} g',
+            if (m.shellWidthMm != null && m.shellWidthMm! > 0) 'Rộng mai: ${m.shellWidthMm!.toStringAsFixed(0)} mm',
+            if (m.shellLengthMm != null && m.shellLengthMm! > 0) 'Dài mai: ${m.shellLengthMm!.toStringAsFixed(0)} mm',
+          ];
+          items.add(BoxActivityItem(
+            at: m.measuredAt.isUtc ? m.measuredAt.toLocal() : m.measuredAt,
+            title: 'Cập nhật sinh trưởng',
+            detail: parts.join('  ·  '),
+            source: (m.recordedBy ?? '').trim().isEmpty ? 'Admin' : m.recordedBy!,
+          ));
+        }
+        for (final molt in growth.molts) {
+          items.add(BoxActivityItem(
+            at: molt.at,
+            title: 'Lột xác',
+            detail: molt.status.label,
+            source: molt.sourceLabel,
+          ));
+        }
+      } catch (_) {}
+    }
+
+    try {
+      final ops = await _svc.fetchAreaOperations(widget.areaId);
+      for (final raw in ops) {
+        if (!_operationMatchesBox(raw)) continue;
+        final at = DateTime.tryParse((raw['timestamp'] ?? raw['Timestamp'] ?? '').toString());
+        if (at == null) continue;
+        items.add(BoxActivityItem(
+          at: at.toLocal(),
+          title: (raw['type'] ?? raw['Type'] ?? raw['title'] ?? raw['Title'] ?? 'Hoạt động').toString(),
+          detail: (raw['notes'] ?? raw['Notes'] ?? raw['description'] ?? raw['Description'] ?? '').toString(),
+          source: (raw['operatorName'] ?? raw['OperatorName'] ?? 'Admin').toString(),
+        ));
+      }
+    } catch (_) {}
+
     if (!mounted) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() {});
+    setState(() {
+      _fetchedActivities = items;
+      _activityLoading = false;
+      _composeActivities();
     });
   }
 
-  // ─── helpers ───────────────────────────────────────────────────────
-
-  TextStyle _font({
-    double size = 14,
-    FontWeight weight = FontWeight.w400,
-    Color? color,
-  }) =>
-      GoogleFonts.notoSans(
-        fontSize: size,
-        fontWeight: weight,
-        color: color ?? DashboardColors.textPrimary,
-      );
-
-  String _fmtDateTime(String isoOrDate) {
-    final d = DateTime.tryParse(isoOrDate);
-    if (d == null) return isoOrDate;
-    return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  bool _operationMatchesBox(Map<String, dynamic> raw) {
+    final ids = raw['boxIds'] ?? raw['BoxIds'];
+    if (ids is List && ids.map((e) => e.toString()).contains(_box.id)) return true;
+    final one = (raw['boxId'] ?? raw['BoxId'] ?? '').toString();
+    if (one == _box.id) return true;
+    final loc = '${raw['locationLabel'] ?? raw['LocationLabel'] ?? raw['notes'] ?? raw['Notes'] ?? ''}';
+    return loc.contains(_box.boxCode);
   }
 
-  String _fmtCurrency(double v) {
-    final s = v.toInt().toString();
-    final buf = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
-      buf.write(s[i]);
+  String _activitySource(String source, String actor) {
+    final s = source.toLowerCase();
+    if (s.contains('sensor')) return 'Sensor';
+    if (s.contains('ai')) return 'AI Camera';
+    if (s.contains('controller')) return 'Controller';
+    if (s.contains('manual') || actor.toLowerCase().contains('admin')) return 'Admin';
+    if (actor.trim().isNotEmpty && actor.toLowerCase() != 'system') return actor;
+    return 'System';
+  }
+
+  void _composeActivities() {
+    final items = List<BoxActivityItem>.from(_fetchedActivities);
+    final seen = <String>{
+      for (final e in items) '${e.at.millisecondsSinceEpoch}|${e.title}|${e.detail}',
+    };
+
+    void add(BoxActivityItem e) {
+      final key = '${e.at.millisecondsSinceEpoch}|${e.title}|${e.detail}';
+      if (seen.add(key)) items.add(e);
     }
-    return '${buf}đ';
+
+    final env = widget.areaEnvironmentService;
+    final envAt = env.data?.lastUpdatedAt ?? env.lastRefreshedAt;
+    if (env.metrics.isNotEmpty && envAt != null) {
+      final parts = <String>[];
+      for (final m in env.metrics.take(4)) {
+        if (m.value == 0 && m.recordedAt == null) continue;
+        final label = m.label.toLowerCase();
+        final digits = label == 'ph' ? 2 : 1;
+        parts.add('${m.label}: ${m.value.toStringAsFixed(digits)}${m.unit.isEmpty ? '' : ' ${m.unit}'}');
+      }
+      add(BoxActivityItem(
+        at: envAt.isUtc ? envAt.toLocal() : envAt,
+        title: 'Cập nhật số liệu môi trường',
+        detail: parts.join('  ·  '),
+        source: 'Sensor',
+      ));
+    }
+
+    final crab = _svc.data;
+    if (crab != null) {
+      for (final f in crab.feedingLogs) {
+        final at = DateTime.tryParse(f.fedAt);
+        if (at == null) continue;
+        add(BoxActivityItem(
+          at: at.toLocal(),
+          title: 'Cho ăn',
+          detail: 'Lượng: ${f.quantity.toStringAsFixed(0)} ${f.unit}',
+          source: 'Admin',
+        ));
+      }
+      final stocked = DateTime.tryParse(crab.startDate);
+      if (stocked != null) {
+        add(BoxActivityItem(
+          at: stocked.toLocal(),
+          title: 'Phân cua vào hộp',
+          detail: crab.crabCode,
+          source: 'System',
+        ));
+      }
+      if (crab.weight != null && crab.weight! > 0) {
+        final at = stocked ?? DateTime.now();
+        add(BoxActivityItem(
+          at: at.toLocal(),
+          title: 'Cập nhật sinh trưởng',
+          detail: [
+            'Cân nặng: ${crab.weight!.toStringAsFixed(0)} g',
+            if (crab.shellWidth != null && crab.shellWidth! > 0) 'Rộng mai: ${crab.shellWidth!.toStringAsFixed(0)} mm',
+            if (crab.shellLength != null && crab.shellLength! > 0) 'Dài mai: ${crab.shellLength!.toStringAsFixed(0)} mm',
+          ].join('  ·  '),
+          source: 'Admin',
+        ));
+      }
+    }
+
+    final cam = widget.cameraService.cameras.where((c) => c.lastSeenAt != null).firstOrNull;
+    if (cam?.lastSeenAt != null) {
+      add(BoxActivityItem(
+        at: cam!.lastSeenAt!,
+        title: 'Camera AI',
+        detail: cam.isOnline ? 'Không phát hiện bất thường' : 'Camera mất kết nối',
+        source: 'AI Camera',
+      ));
+    }
+
+    for (final a in _alerts.take(8)) {
+      if (a.occurredAt == null) continue;
+      final resolved = a.statusLabel == 'Đã xử lý' || a.statusLabel == 'Đã khôi phục';
+      add(BoxActivityItem(
+        at: a.occurredAt!,
+        title: resolved ? 'Cảnh báo đã được xử lý' : a.message,
+        detail: resolved ? a.message : a.statusLabel,
+        source: 'Hệ thống cảnh báo',
+      ));
+    }
+
+    items.sort((a, b) => b.at.compareTo(a.at));
+    _activities = items;
   }
 
-  Color _statusColor(String status) => switch (status.toLowerCase()) {
-        'active' || 'đang nuôi' => DashboardColors.healthy,
-        'empty' || 'trống' => DashboardColors.textMuted,
-        'maintenance' || 'bảo trì' => DashboardColors.monitoring,
-        _ => DashboardColors.cyan,
-      };
+  BoxAlert _alertFromJson(Map<String, dynamic> json) {
+    final sev = (json['severity'] ?? json['Severity'] ?? 'info').toString().toLowerCase();
+    final at = DateTime.tryParse((json['createdAt'] ?? json['CreatedAt'] ?? '').toString());
+    return BoxAlert(
+      severity: sev.contains('crit') ? 'critical' : (sev.contains('warn') ? 'warning' : 'info'),
+      message: (json['message'] ?? json['Message'] ?? json['title'] ?? json['Title'] ?? '').toString(),
+      time: at == null ? '' : fmtDateTimeVn(at),
+      status: (json['status'] ?? json['Status'] ?? 'open').toString(),
+      occurredAt: at?.toLocal(),
+    );
+  }
 
-  String _statusLabel(String status) => switch (status.toLowerCase()) {
-        'active' => 'Đang nuôi',
-        'empty' => 'Trống',
-        'maintenance' => 'Bảo trì',
-        _ => status,
-      };
+  String get _rowLabel {
+    final name = widget.rowName.trim();
+    final code = (widget.rowCode ?? _box.rowCode ?? '').trim();
+    if (name.isNotEmpty) return name;
+    return code;
+  }
 
-  Color _alertColor(String severity) => switch (severity) {
-        'critical' => DashboardColors.risk,
-        'warning' => DashboardColors.monitoring,
-        _ => DashboardColors.cyan,
-      };
+  String get _areaCode => (widget.areaCode ?? _box.areaCode ?? '').trim();
 
-  IconData _envIcon(String key) => switch (key) {
-        'pH' => Icons.science_outlined,
-        'temp' => Icons.thermostat_outlined,
-        'do' => Icons.bubble_chart_outlined,
-        'sal' => Icons.water_drop_outlined,
-        'nh3' => Icons.warning_amber_rounded,
-        'no2' => Icons.analytics_outlined,
-        _ => Icons.sensors_outlined,
-      };
+  String get _sensorStatus {
+    final env = widget.areaEnvironmentService;
+    if (env.error != null && env.metrics.isEmpty) return 'offline';
+    if (env.metrics.isEmpty) return 'offline';
+    if (isSensorStale(env.data?.lastUpdatedAt ?? env.lastRefreshedAt)) return 'degraded';
+    return 'online';
+  }
 
-  Color _envColor(String status) => switch (status) {
-        'warning' => DashboardColors.monitoring,
-        'danger' => DashboardColors.risk,
-        _ => DashboardColors.healthy,
-      };
+  String get _controllerStatus {
+    final items = widget.controllerService?.items ?? const [];
+    if (items.isEmpty) return 'offline';
+    if (items.any((d) => d.isOnline)) return 'online';
+    return 'offline';
+  }
 
-  Widget _statusBadge(String label, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(8),
+  String? get _sensorSource {
+    for (final m in widget.areaEnvironmentService.metrics) {
+      final code = (m.sensorCode ?? '').trim();
+      if (code.isNotEmpty) return code;
+    }
+    return null;
+  }
+
+  String get _sensorNote {
+    final row = _rowLabel;
+    if (widget.areaEnvironmentService.data?.inheritedByBox == true || widget.areaEnvironmentService.metrics.isNotEmpty) {
+      return row.isEmpty ? 'Nước tuần hoàn của khu vực.' : 'Nước tuần hoàn dãy $row';
+    }
+    return 'Nguồn cảm biến của hộp.';
+  }
+
+  Future<void> _editBox() async {
+    final prod = widget.productionService;
+    if (prod == null) return;
+    if (widget.areaId.isNotEmpty) prod.selectArea(widget.areaId);
+    if ((widget.rowId ?? _box.rowId).isNotEmpty) prod.selectRow(widget.rowId ?? _box.rowId);
+    await showBoxFormDialog(context, prod, existing: _box);
+    if (!mounted) return;
+    try {
+      await prod.loadBoxes();
+      final next = prod.boxes.where((b) => b.id == _box.id).firstOrNull;
+      if (next != null) {
+        setState(() => _box = next);
+        widget.onBoxUpdated?.call(next);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleLock() async {
+    final prod = widget.productionService;
+    if (prod == null) return;
+    final locked = isBoxLocked(_box.status);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(locked ? 'Mở khóa ${_box.boxCode}?' : 'Khóa ${_box.boxCode}?', style: bvText(fontSize: 16, fontWeight: FontWeight.w800)),
+        content: Text(
+          locked
+              ? 'Hộp sẽ trở lại trạng thái hoạt động.'
+              : (_box.hasCrab || _crab != null)
+                  ? 'Hộp đang chứa cua. Khi khóa sẽ không cho thêm hoặc chuyển cua vào hộp này.'
+                  : 'Khi khóa sẽ không cho thêm hoặc chuyển cua vào hộp này.',
+          style: bvText(color: DashboardColors.textMuted),
         ),
-        child: Text(label, style: _font(size: 12, weight: FontWeight.w600, color: color)),
-      );
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: DashboardColors.brand),
+            child: Text(locked ? 'Mở khóa' : 'Khóa hộp'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _locking = true);
+    try {
+      final nextStatus = locked ? ((_box.hasCrab || _crab != null) ? 'active' : 'empty') : 'maintenance';
+      final updated = await prod.updateBox(_box, boxCode: _box.boxCode, position: _box.position, volume: _box.volume, status: nextStatus);
+      if (!mounted) return;
+      setState(() {
+        _box = updated;
+        _locking = false;
+      });
+      widget.onBoxUpdated?.call(updated);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(locked ? 'Đã mở khóa ${_box.boxCode}.' : 'Đã khóa ${_box.boxCode}.')));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _locking = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
 
-  Widget _infoRow(String label, String value, {Color? valueColor}) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 140,
-              child: Text(label, style: _font(size: 13, color: DashboardColors.textMuted)),
+  Future<void> _addCrab() async {
+    final svc = widget.crabService;
+    if (svc == null) {
+      widget.onNavigate?.call(AppRoute.productionCrabManagement);
+      return;
+    }
+    if (isBoxLocked(_box.status)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hộp đang khóa, không thể thêm cua.')));
+      return;
+    }
+    if (widget.areaId.isNotEmpty) svc.setAreaFilter(widget.areaId);
+    final ok = await showAddCrabModal(
+      context,
+      svc,
+      onManageLots: () {
+        Navigator.of(context).maybePop();
+        widget.onNavigate?.call(AppRoute.inboundLots);
+      },
+    );
+    if (ok && mounted) _reload();
+  }
+
+  Future<void> _more(BoxHeaderAction a) async {
+    switch (a) {
+      case BoxHeaderAction.qr:
+      case BoxHeaderAction.print:
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Text(_box.boxCode, style: bvText(fontSize: 18, fontWeight: FontWeight.w800)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.qr_code_2_rounded, size: 120, color: DashboardColors.brand),
+                const SizedBox(height: 8),
+                Text('QR-${_box.boxCode}', style: bvText(fontWeight: FontWeight.w700)),
+              ],
             ),
-            Expanded(
-              child: Text(
-                value,
-                style: _font(size: 13, weight: FontWeight.w600, color: valueColor),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: _box.boxCode));
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                child: const Text('Sao chép mã'),
               ),
-            ),
-          ],
-        ),
-      );
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng')),
+            ],
+          ),
+        );
+      case BoxHeaderAction.history:
+        _tabs.animateTo(5);
+      case BoxHeaderAction.transfer:
+        await _transferCrab();
+      case BoxHeaderAction.maintenance:
+        if (!isBoxLocked(_box.status)) await _toggleLock();
+      case BoxHeaderAction.delete:
+        if (!await confirmDelete(context, title: 'Xóa hộp?', message: '${_box.boxCode}?')) return;
+        final prod = widget.productionService;
+        if (prod == null) return;
+        try {
+          await prod.deleteBox(_box);
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Đã xóa ${_box.boxCode}.')));
+          widget.onBack?.call();
+        } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        }
+    }
+  }
 
-  // ─── build ─────────────────────────────────────────────────────────
+  void _openCrab({BoxOpenCrabTarget target = BoxOpenCrabTarget.overview}) {
+    final id = (_crab?.id ?? _box.crabId ?? '').trim();
+    if (id.isEmpty || id == 'null') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không tìm thấy mã cua trong hộp này.')),
+      );
+      return;
+    }
+    widget.onOpenCrab?.call(id, target: target);
+  }
+
+  Future<void> _transferCrab() async {
+    final svc = widget.crabService;
+    final id = _crab?.id ?? _box.crabId;
+    if (svc == null || id == null || id.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hộp chưa có cua để chuyển.')));
+      return;
+    }
+    await svc.loadDetail(id);
+    final crab = svc.getById(id);
+    if (crab == null || !mounted) return;
+    final ok = await showMoveCrabModal(context, svc, crab);
+    if (ok && mounted) _reload();
+  }
+
+  Future<void> _addFeeding() async {
+    final svc = widget.crabService;
+    final crab = _crab;
+    if (svc == null || crab == null || crab.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không tìm thấy cua để ghi nhận cho ăn.')));
+      return;
+    }
+    final input = await showAddFeedingModal(
+      context,
+      crabCode: crab.crabCode,
+      boxLabel: _box.boxCode,
+      boxId: _box.id,
+      token: svc.token,
+      api: svc.api,
+      cameras: widget.cameraService.cameras,
+    );
+    if (input == null || !mounted) return;
+    try {
+      await _svc.recordFeeding(
+        crabId: crab.id!,
+        boxId: _box.id,
+        input: input,
+        operatorName: svc.operatorName,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã ghi nhận cho ăn.')));
+      _reload();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(gradient: DashboardColors.pageGradient),
+    final initialLoading = _svc.loading && _crab == null && _alertsLoading;
+    return ColoredBox(
+      color: const Color(0xFFF7FCFA),
       child: Column(
         children: [
-          _buildHeader(),
-          _buildBoxInfoCard(),
-          _buildTabBar(),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(22, 8, 22, 24),
               children: [
-                _buildOverviewTab(),
-                _buildCrabProfileTab(),
-                _buildSensorTab(),
-                _buildCameraTab(),
-                _buildAlertTab(),
-                _buildHistoryTab(),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── header ────────────────────────────────────────────────────────
-
-  Widget _buildHeader() => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-        child: Row(
-          children: [
-            IconButton(
-              onPressed: widget.onBack,
-              icon: Icon(Icons.arrow_back_rounded, color: DashboardColors.textPrimary),
-              tooltip: 'Quay lại',
-            ),
-            const SizedBox(width: 8),
-            Icon(Icons.inventory_2_outlined, size: 16, color: DashboardColors.textMuted),
-            const SizedBox(width: 6),
-            Text(
-              '${widget.areaName} / ${widget.rowName}',
-              style: _font(size: 13, color: DashboardColors.textMuted),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              widget.box.boxCode,
-              style: _font(size: 22, weight: FontWeight.w700),
-            ),
-            const Spacer(),
-            _statusBadge(_statusLabel(widget.box.status), _statusColor(widget.box.status)),
-          ],
-        ),
-      );
-
-  // ─── box info card ─────────────────────────────────────────────────
-
-  Widget _buildBoxInfoCard() => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-        child: GlassCard(
-          padding: const EdgeInsets.all(16),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final chips = <Widget>[
-                _chipInfo(Icons.qr_code_2_outlined, 'Mã hộp', widget.box.boxCode),
-                _chipInfo(Icons.map_outlined, 'Khu', widget.areaName),
-                _chipInfo(Icons.view_column_outlined, 'Dãy', widget.rowName),
-                _chipInfo(
-                  Icons.pin_drop_outlined,
-                  'Vị trí',
-                  widget.box.position ?? '—',
+                BoxDetailBreadcrumb(
+                  areaName: widget.areaName,
+                  rowName: _rowLabel,
+                  boxCode: _box.boxCode,
+                  onBoxes: widget.onBack ?? () => widget.onNavigate?.call(AppRoute.boxManagement),
+                  onArea: widget.onOpenArea,
+                  onRow: widget.onOpenRow,
                 ),
-                _chipInfo(
-                  Icons.straighten_outlined,
-                  'Thể tích',
-                  widget.box.volume != null ? '${widget.box.volume!.toStringAsFixed(1)} L' : '—',
-                ),
-              ];
-              return Wrap(spacing: 24, runSpacing: 12, children: chips);
-            },
-          ),
-        ),
-      );
-
-  Widget _chipInfo(IconData icon, String label, String value) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: DashboardColors.cyan),
-          const SizedBox(width: 6),
-          Text('$label: ', style: _font(size: 12, color: DashboardColors.textMuted)),
-          Text(value, style: _font(size: 12, weight: FontWeight.w600)),
-        ],
-      );
-
-  // ─── tab bar ───────────────────────────────────────────────────────
-
-  Widget _buildTabBar() => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          labelStyle: _font(size: 13, weight: FontWeight.w600),
-          unselectedLabelStyle: _font(size: 13),
-          labelColor: DashboardColors.cyan,
-          unselectedLabelColor: DashboardColors.textMuted,
-          indicatorColor: DashboardColors.cyan,
-          indicatorSize: TabBarIndicatorSize.label,
-          dividerHeight: 0.5,
-          dividerColor: DashboardColors.cardBorder,
-          tabs: const [
-            Tab(text: 'Tổng quan'),
-            Tab(text: 'Profile Cua'),
-            Tab(text: 'Cảm biến'),
-            Tab(text: 'Camera AI'),
-            Tab(text: 'Cảnh báo'),
-            Tab(text: 'Lịch sử'),
-          ],
-        ),
-      );
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  TAB 1 – Tổng quan
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  Widget _buildOverviewTab() {
-    if (_svc.loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_svc.error != null) {
-      return Center(child: Text('Lỗi: ${_svc.error}', style: _font(color: DashboardColors.risk)));
-    }
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        _overviewCrabSummary(),
-        const SizedBox(height: 16),
-        _overviewEnvironment(),
-        const SizedBox(height: 16),
-        _overviewQuickAlerts(),
-      ],
-    );
-  }
-
-  Widget _overviewCrabSummary() => GlassCard(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.pest_control_outlined, size: 20, color: DashboardColors.cyan),
-                const SizedBox(width: 8),
-                Text('Cua trong hộp', style: _font(size: 16, weight: FontWeight.w700)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final wide = constraints.maxWidth > 500;
-                return wide
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(child: _crabQuickInfo()),
-                          const SizedBox(width: 20),
-                          _healthScoreCircle(),
-                        ],
-                      )
-                    : Column(
-                        children: [
-                          _crabQuickInfo(),
-                          const SizedBox(height: 16),
-                          _healthScoreCircle(),
-                        ],
-                      );
-              },
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () => _tabController.animateTo(1),
-                icon: Icon(Icons.visibility_outlined, size: 16, color: DashboardColors.cyan),
-                label: Text('Xem Profile', style: _font(size: 13, color: DashboardColors.cyan)),
-              ),
-            ),
-          ],
-        ),
-      );
-
-  Widget _crabQuickInfo() {
-    final c = _crab;
-    if (c == null) {
-      return Text('Chưa có cua trong hộp', style: _font(color: DashboardColors.textMuted));
-    }
-    final healthColor = switch (c.healthStatus) {
-      'healthy' => DashboardColors.healthy,
-      'monitoring' => DashboardColors.monitoring,
-      'at_risk' => DashboardColors.risk,
-      'molting' => DashboardColors.molting,
-      _ => DashboardColors.cyan,
-    };
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _infoRow('Mã cua', c.crabCode),
-        _infoRow('Giới tính', c.genderLabel),
-        _infoRow('Cân nặng', '${c.weight?.toStringAsFixed(0) ?? '—'} g'),
-        _infoRow('Kích thước mai', '${c.shellWidth?.toStringAsFixed(1) ?? '—'} cm'),
-        Row(
-          children: [
-            SizedBox(
-              width: 140,
-              child: Text('Sức khỏe', style: _font(size: 13, color: DashboardColors.textMuted)),
-            ),
-            _statusBadge(c.healthStatusLabel, healthColor),
-          ],
-        ),
-        const SizedBox(height: 4),
-        _infoRow('Trạng thái', c.statusLabel),
-        _infoRow('Giai đoạn', c.growthStageLabel),
-      ],
-    );
-  }
-
-  Widget _healthScoreCircle() {
-    final score = _crab?.meatQuality?.toInt() ?? 0;
-    return Column(
-      children: [
-        SizedBox(
-          width: 100,
-          height: 100,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox(
-                width: 100,
-                height: 100,
-                child: CircularProgressIndicator(
-                  value: score / 100,
-                  strokeWidth: 8,
-                  backgroundColor: DashboardColors.cardBorder,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    score >= 85
-                        ? DashboardColors.healthy
-                        : score >= 70
-                            ? DashboardColors.monitoring
-                            : DashboardColors.risk,
-                  ),
-                ),
-              ),
-              Text('$score', style: _font(size: 28, weight: FontWeight.w700)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text('Chất lượng', style: _font(size: 12, color: DashboardColors.textMuted)),
-      ],
-    );
-  }
-
-  Widget _overviewEnvironment() => GlassCard(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.sensors_outlined, size: 20, color: DashboardColors.seaGreen),
-                const SizedBox(width: 8),
-                Text('Môi trường realtime', style: _font(size: 16, weight: FontWeight.w700)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (widget.areaEnvironmentService.loading)
-              const Padding(
-                padding: EdgeInsets.all(12),
-                child: CircularProgressIndicator(color: DashboardColors.cyan),
-              )
-            else if (widget.areaEnvironmentService.metrics.isEmpty)
-              Text(
-                widget.areaEnvironmentService.error ??
-                    'Chưa có dữ liệu cảm biến khu — xem tab Cảm biến',
-                style: _font(size: 13, color: DashboardColors.textMuted),
-              )
-            else
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: widget.areaEnvironmentService.metrics
-                    .map(_miniEnvCard)
-                    .toList(),
-              ),
-          ],
-        ),
-      );
-
-  Widget _miniEnvCard(BoxEnvironmentMetric m) {
-    final color = _envColor(m.status);
-    return Container(
-      width: 150,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: DashboardColors.darkNavy,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: DashboardColors.cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(_envIcon(m.icon), size: 16, color: color),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  m.label,
-                  style: _font(size: 11, color: DashboardColors.textMuted),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${m.value}${m.unit.isNotEmpty ? ' ${m.unit}' : ''}',
-            style: _font(size: 20, weight: FontWeight.w700, color: color),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _overviewQuickAlerts() => GlassCard(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.notifications_active_outlined, size: 20, color: DashboardColors.monitoring),
-                const SizedBox(width: 8),
-                Text('Cảnh báo gần đây', style: _font(size: 16, weight: FontWeight.w700)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (_alertsLoading)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-              )
-            else if (_alerts.isEmpty)
-              Text(
-                'Chưa có cảnh báo cho hộp này.',
-                style: _font(size: 13, color: DashboardColors.textMuted),
-              )
-            else
-              ..._alerts.take(3).map(_alertTile),
-          ],
-        ),
-      );
-
-  Widget _alertTile(BoxAlert a) {
-    final color = _alertColor(a.severity);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(a.message, style: _font(size: 13)),
-          ),
-          Text(a.time, style: _font(size: 11, color: DashboardColors.textMuted)),
-        ],
-      ),
-    );
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  TAB 2 – Profile Cua
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  Widget _buildCrabProfileTab() {
-    if (_svc.loading) return const Center(child: CircularProgressIndicator());
-    final c = _crab;
-    if (c == null) {
-      return Center(child: Text('Chưa có cua trong hộp', style: _font(color: DashboardColors.textMuted)));
-    }
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        _profileStats(c),
-        const SizedBox(height: 16),
-        _profileMoltTable(c),
-        const SizedBox(height: 16),
-        _profileFeedingTable(c),
-        const SizedBox(height: 16),
-        _profileHealthLogTable(c),
-      ],
-    );
-  }
-
-  Widget _profileStats(CrabProfileData c) {
-    final healthColor = switch (c.healthStatus) {
-      'healthy' => DashboardColors.healthy,
-      'monitoring' => DashboardColors.monitoring,
-      'at_risk' => DashboardColors.risk,
-      _ => DashboardColors.cyan,
-    };
-    return GlassCard(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.badge_outlined, size: 20, color: DashboardColors.purple),
-              const SizedBox(width: 8),
-              Text('Thông tin cá thể', style: _font(size: 16, weight: FontWeight.w700)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _infoRow('Mã cua', c.crabCode),
-          _infoRow('Giới tính', c.genderLabel),
-          _infoRow('Cân nặng', '${c.weight?.toStringAsFixed(0) ?? '—'} g'),
-          _infoRow('Kích thước mai', '${c.shellWidth?.toStringAsFixed(1) ?? '—'} cm'),
-          _infoRow('Số lần lột xác', '${c.moltCount}'),
-          _infoRow('Ngày lột gần nhất', c.lastMoltDate ?? '—'),
-          Row(
-            children: [
-              SizedBox(
-                width: 140,
-                child: Text('Tình trạng sức khỏe', style: _font(size: 13, color: DashboardColors.textMuted)),
-              ),
-              _statusBadge(c.healthStatusLabel, healthColor),
-            ],
-          ),
-          const SizedBox(height: 4),
-          _infoRow('Giai đoạn phát triển', c.growthStageLabel),
-          _infoRow('Giá trị ước tính', c.estimatedPrice != null ? _fmtCurrency(c.estimatedPrice!) : '—'),
-          _infoRow('Chất lượng thịt', '${c.meatQuality?.toStringAsFixed(0) ?? '—'}/100'),
-          _infoRow('Chất lượng gạch', '${c.roeQuality?.toStringAsFixed(0) ?? '—'}/100'),
-          if (c.profileNote != null) ...[
-            const SizedBox(height: 8),
-            _infoRow('Ghi chú', c.profileNote!),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _profileMoltTable(CrabProfileData c) => GlassCard(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Lịch sử lột xác', style: _font(size: 15, weight: FontWeight.w700)),
-            const SizedBox(height: 12),
-            if (c.moltLogs.isEmpty)
-              Text('Chưa có dữ liệu', style: _font(size: 13, color: DashboardColors.textMuted))
-            else
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  headingRowColor: WidgetStateProperty.all(DashboardColors.darkNavy),
-                  dataRowColor: WidgetStateProperty.all(Colors.transparent),
-                  headingTextStyle: _font(size: 12, weight: FontWeight.w600, color: DashboardColors.textMuted),
-                  dataTextStyle: _font(size: 12),
-                  columnSpacing: 24,
-                  columns: const [
-                    DataColumn(label: Text('Lần')),
-                    DataColumn(label: Text('Ngày')),
-                    DataColumn(label: Text('Tình trạng')),
-                    DataColumn(label: Text('Ghi chú')),
-                  ],
-                  rows: c.moltLogs.map((m) {
-                    final condColor = switch (m.condition) {
-                      'normal' => DashboardColors.healthy,
-                      'weak' => DashboardColors.risk,
-                      _ => DashboardColors.monitoring,
-                    };
-                    return DataRow(cells: [
-                      DataCell(Text('${m.moltNumber}')),
-                      DataCell(Text(m.moltDate)),
-                      DataCell(_statusBadge(m.conditionLabel, condColor)),
-                      DataCell(Text(m.note ?? '—')),
-                    ]);
-                  }).toList(),
-                ),
-              ),
-          ],
-        ),
-      );
-
-  Widget _profileFeedingTable(CrabProfileData c) => GlassCard(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Lịch sử cho ăn', style: _font(size: 15, weight: FontWeight.w700)),
-            const SizedBox(height: 12),
-            if (c.feedingLogs.isEmpty)
-              Text('Chưa có dữ liệu', style: _font(size: 13, color: DashboardColors.textMuted))
-            else
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  headingRowColor: WidgetStateProperty.all(DashboardColors.darkNavy),
-                  dataRowColor: WidgetStateProperty.all(Colors.transparent),
-                  headingTextStyle: _font(size: 12, weight: FontWeight.w600, color: DashboardColors.textMuted),
-                  dataTextStyle: _font(size: 12),
-                  columnSpacing: 24,
-                  columns: const [
-                    DataColumn(label: Text('Thời gian')),
-                    DataColumn(label: Text('Loại thức ăn')),
-                    DataColumn(label: Text('Lượng')),
-                    DataColumn(label: Text('Ghi chú')),
-                  ],
-                  rows: c.feedingLogs.map((f) => DataRow(cells: [
-                    DataCell(Text(_fmtDateTime(f.fedAt))),
-                    DataCell(Text(f.foodType)),
-                    DataCell(Text('${f.quantity.toStringAsFixed(0)} ${f.unit}')),
-                    DataCell(Text(f.note ?? '—')),
-                  ])).toList(),
-                ),
-              ),
-          ],
-        ),
-      );
-
-  Widget _profileHealthLogTable(CrabProfileData c) => GlassCard(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Nhật ký sức khỏe', style: _font(size: 15, weight: FontWeight.w700)),
-            const SizedBox(height: 12),
-            if (c.healthRecords.isEmpty)
-              Text('Chưa có dữ liệu', style: _font(size: 13, color: DashboardColors.textMuted))
-            else
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  headingRowColor: WidgetStateProperty.all(DashboardColors.darkNavy),
-                  dataRowColor: WidgetStateProperty.all(Colors.transparent),
-                  headingTextStyle: _font(size: 12, weight: FontWeight.w600, color: DashboardColors.textMuted),
-                  dataTextStyle: _font(size: 12),
-                  columnSpacing: 24,
-                  columns: const [
-                    DataColumn(label: Text('Ngày')),
-                    DataColumn(label: Text('Cân nặng (g)')),
-                    DataColumn(label: Text('Trạng thái vỏ')),
-                    DataColumn(label: Text('Bệnh')),
-                  ],
-                  rows: c.healthRecords.map((h) => DataRow(cells: [
-                    DataCell(Text(_fmtDateTime(h.recordedAt))),
-                    DataCell(Text(h.weight?.toStringAsFixed(0) ?? '—')),
-                    DataCell(Text(h.shellStatus ?? '—')),
-                    DataCell(Text(h.diseaseStatus ?? '—')),
-                  ])).toList(),
-                ),
-              ),
-          ],
-        ),
-      );
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  TAB 3 – Cảm biến
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  Widget _buildSensorTab() => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: AreaEnvironmentPanel(
-              service: widget.areaEnvironmentService,
-              areaId: widget.areaId,
-              boxId: widget.box.id,
-              boxCode: widget.box.boxCode,
-              areaName: widget.areaName,
-              areaCode: widget.areaCode,
-              showInheritedHint: true,
-            ),
-          ),
-        ],
-      );
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  TAB 4 – Camera AI
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  Widget _buildCameraTab() {
-    final cameras = widget.cameraService.cameras;
-    if (widget.cameraService.loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (cameras.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.videocam_off_outlined, size: 64, color: DashboardColors.textMuted),
-            const SizedBox(height: 16),
-            Text('Chưa có camera gắn với hộp này', style: _font(size: 16, color: DashboardColors.textMuted)),
-          ],
-        ),
-      );
-    }
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: cameras.map(_cameraCard).toList(),
-    );
-  }
-
-  Widget _cameraCard(CameraDevice cam) {
-    final hasStream = cam.streamUrl != null && cam.streamUrl!.isNotEmpty;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: GlassCard(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.videocam, size: 20, color: cam.isOnline ? DashboardColors.healthy : DashboardColors.textMuted),
-                const SizedBox(width: 8),
-                Text(cam.name, style: _font(size: 16, weight: FontWeight.w700)),
-                const SizedBox(width: 12),
-                _statusBadge(
-                  cam.isOnline ? 'Online' : 'Offline',
-                  cam.isOnline ? DashboardColors.healthy : DashboardColors.dead,
-                ),
-                const Spacer(),
-                OutlinedButton.icon(
-                  onPressed: () => showCameraConnectTestForDevice(context, cam),
-                  icon: const Icon(Icons.lan_outlined, size: 16),
-                  label: const Text('Test kết nối'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: DashboardColors.cyan,
-                    side: const BorderSide(color: DashboardColors.cyan),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(cam.cameraCode, style: _font(size: 12, color: DashboardColors.textMuted)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _infoRow('IP Address', cam.ipAddress ?? '—'),
-            _infoRow('Stream URL', cam.streamUrl ?? '—'),
-            if (CameraStreamUrlHelper.ipMismatch(cam.streamUrl, cam.ipAddress))
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'IP và Stream URL khác nhau — app phát theo Stream URL '
-                  '(${CameraStreamUrlHelper.streamHost(streamUrl: cam.streamUrl) ?? "?"}). '
-                  'Nên sửa DB cho khớp một camera.',
-                  style: _font(size: 12, color: DashboardColors.risk),
-                ),
-              ),
-            if (hasStream && cam.isOnline) ...[
-              const SizedBox(height: 16),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  width: double.infinity,
-                  height: 360,
-                  color: Colors.black,
-                  child: _buildStreamWidget(cam),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'MJPEG Stream — ${cam.streamUrl}',
-                style: _font(size: 11, color: DashboardColors.textMuted),
-              ),
-            ],
-            if (!cam.isOnline) ...[
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                height: 200,
-                decoration: BoxDecoration(
-                  color: DashboardColors.darkNavy,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: DashboardColors.cardBorder),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.videocam_off, size: 48, color: DashboardColors.dead),
-                      const SizedBox(height: 12),
-                      Text('Camera offline', style: _font(size: 14, color: DashboardColors.dead)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStreamWidget(CameraDevice cam) {
-    final raw = cam.streamUrl!.trim();
-    final candidates = CameraStreamUrlHelper.hasMjpegEndpoint(raw)
-        ? [raw]
-        : CameraStreamUrlHelper.streamCandidates(
-            streamUrl: cam.streamUrl,
-            ipAddress: cam.ipAddress,
-          );
-    final streamUrl = candidates.first;
-    final extras = candidates.length > 1 ? candidates.sublist(1) : null;
-
-    final streamHost = CameraStreamUrlHelper.streamHost(
-      streamUrl: cam.streamUrl,
-      ipAddress: cam.ipAddress,
-    );
-
-    return CameraStreamPlayer(
-      key: ValueKey('box-stream-${cam.id}-$streamUrl'),
-      streamUrl: streamUrl,
-      ipAddress: streamHost ?? cam.ipAddress,
-      snapshotFallbackUrl: CameraStreamUrlHelper.snapshotFallback(
-        streamUrl: cam.streamUrl,
-        ipAddress: cam.ipAddress,
-      ),
-      streamUrlCandidates: extras,
-    );
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  TAB 5 – Cảnh báo
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  Widget _buildAlertTab() => ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          GlassCard(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Tất cả cảnh báo', style: _font(size: 16, weight: FontWeight.w700)),
                 const SizedBox(height: 12),
-                if (_alertsLoading)
-                  const Center(child: CircularProgressIndicator(strokeWidth: 2))
-                else if (_alerts.isEmpty)
-                  Text(
-                    'Chưa có cảnh báo cho hộp này.',
-                    style: _font(size: 13, color: DashboardColors.textMuted),
+                if (initialLoading)
+                  const BoxDetailSkeleton()
+                else if (_pageError != null)
+                  MgmtEmptyState(
+                    icon: Icons.warning_amber_rounded,
+                    title: 'Không thể tải thông tin hộp.',
+                    message: _pageError!,
+                    action: MgmtPrimaryButton(icon: Icons.refresh_rounded, label: 'Thử lại', height: 38, onTap: _reload),
                   )
-                else
-                  ..._alerts.map(_alertDetailTile),
+                else ...[
+                  BoxDetailHeader(
+                    box: _box,
+                    areaName: widget.areaName,
+                    rowName: _rowLabel,
+                    hasCrab: _box.hasCrab || _crab != null,
+                    locked: isBoxLocked(_box.status),
+                    locking: _locking,
+                    onEdit: widget.productionService == null ? null : _editBox,
+                    onLock: widget.productionService == null ? null : _toggleLock,
+                    onMore: _more,
+                  ),
+                  const SizedBox(height: 12),
+                  BoxMetaBar(
+                    box: _box,
+                    areaCode: _areaCode,
+                    rowLabel: _rowLabel,
+                    updatedAt: widget.areaEnvironmentService.lastRefreshedAt ?? _box.aiUpdatedAt,
+                  ),
+                  const SizedBox(height: 8),
+                  BoxDetailTabBar(controller: _tabs),
+                  const SizedBox(height: 14),
+                  AnimatedBuilder(
+                    animation: _tabs,
+                    builder: (_, __) => _tabBody(),
+                  ),
+                ],
               ],
             ),
-          ),
-        ],
-      );
-
-  Widget _alertDetailTile(BoxAlert a) {
-    final color = _alertColor(a.severity);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            margin: const EdgeInsets.only(top: 4),
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(a.message, style: _font(size: 13)),
-                const SizedBox(height: 2),
-                Text(a.time, style: _font(size: 11, color: DashboardColors.textMuted)),
-              ],
-            ),
-          ),
-          _statusBadge(
-            a.severity == 'critical'
-                ? 'Nghiêm trọng'
-                : a.severity == 'warning'
-                    ? 'Cảnh báo'
-                    : 'Thông tin',
-            color,
           ),
         ],
       ),
     );
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  TAB 6 – Lịch sử
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  Widget _buildHistoryTab() => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.history_outlined, size: 64, color: DashboardColors.textMuted),
-            const SizedBox(height: 16),
-            Text(
-              'Lịch sử hoạt động hộp nuôi',
-              style: _font(size: 18, weight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Các sự kiện, thay đổi, thao tác trên hộp nuôi',
-              style: _font(size: 14, color: DashboardColors.textMuted),
-            ),
+  Widget _tabBody() {
+    switch (_tabs.index) {
+      case 0:
+        return BoxOverviewTab(
+          box: _box,
+          areaName: widget.areaName,
+          rowLabel: _rowLabel,
+          crab: _crab,
+          crabLoading: _svc.loading && _crab == null,
+          token: _svc.token,
+          controllerStatus: _controllerStatus,
+          sensorStatus: _sensorStatus,
+          camera: widget.cameraService.cameras.firstOrNull,
+          cameraLoading: widget.cameraService.loading && widget.cameraService.cameras.isEmpty,
+          metrics: widget.areaEnvironmentService.metrics,
+          envLoading: widget.areaEnvironmentService.loading && widget.areaEnvironmentService.metrics.isEmpty,
+          envError: widget.areaEnvironmentService.error,
+          envUpdatedAt: widget.areaEnvironmentService.data?.lastUpdatedAt ?? widget.areaEnvironmentService.lastRefreshedAt,
+          sensorSourceCode: _sensorSource,
+          sensorSourceNote: _sensorNote,
+          alerts: _alerts,
+          alertsLoading: _alertsLoading,
+          activities: _activities,
+          activitiesLoading: _activityLoading,
+          onOpenCrab: () => _openCrab(),
+          onOpenCrabGrowth: () => _openCrab(target: BoxOpenCrabTarget.growth),
+          onAddCrab: _addCrab,
+          onManageLots: () => widget.onNavigate?.call(AppRoute.inboundLots),
+          onOpenCamera: () => _tabs.animateTo(3),
+          onOpenSensors: () => _tabs.animateTo(2),
+          onOpenAlerts: () => _tabs.animateTo(4),
+          onOpenHistory: () => _tabs.animateTo(5),
+        );
+      case 1:
+        return BoxCrabTab(
+          box: _box,
+          crab: _crab,
+          crabLoading: _svc.loading && _crab == null,
+          crabError: _svc.error,
+          profileService: _svc,
+          token: _svc.token,
+          camera: widget.cameraService.cameras.firstOrNull,
+          cameraLoading: widget.cameraService.loading && widget.cameraService.cameras.isEmpty,
+          alerts: _alerts,
+          onOpenCrab: (id, {target = BoxOpenCrabTarget.overview}) => _openCrab(target: target),
+          onTransferCrab: _transferCrab,
+          onAddCrab: _addCrab,
+          onManageLots: () => widget.onNavigate?.call(AppRoute.inboundLots),
+          onAddFeeding: _addFeeding,
+          onOpenCamera: () => _tabs.animateTo(3),
+          onOpenHistory: () => _tabs.animateTo(5),
+          onRetryCrab: _reload,
+        );
+      case 2:
+        return BoxSensorTab(
+          box: _box,
+          service: widget.areaEnvironmentService,
+          areaId: widget.areaId,
+          areaName: widget.areaName,
+          areaCode: _areaCode,
+          rowLabel: _rowLabel,
+          controllerStatus: _controllerStatus,
+          alerts: _alerts,
+          alertsLoading: _alertsLoading,
+          onOpenSource: () => widget.onNavigate?.call(AppRoute.controllers),
+          onOpenWaterAnalysis: () => widget.onNavigate?.call(AppRoute.waterAnalysis),
+          onOpenAlerts: () => _tabs.animateTo(4),
+        );
+      case 3:
+        return BoxCameraAITab(
+          box: _box,
+          cameraService: widget.cameraService,
+          profileService: _svc,
+          areaCode: _areaCode,
+          rowLabel: _rowLabel,
+          crabCode: _crab?.crabCode ?? _box.crabTag,
+          onManageCamera: () => widget.onNavigate?.call(AppRoute.controllers),
+          onOpenAlerts: () => _tabs.animateTo(4),
+          onOpenAllHistory: () => widget.onNavigate?.call(AppRoute.cameraAi),
+        );
+      case 4:
+        return BoxAlertTab(
+          box: _box,
+          profileService: _svc,
+          areaId: widget.areaId,
+          areaCode: _areaCode,
+          areaName: widget.areaName,
+          crabCode: _crab?.crabCode ?? _box.crabTag,
+          cameraCode: widget.cameraService.cameras.firstOrNull?.cameraCode,
+          sensorCodes: [
+            for (final m in widget.areaEnvironmentService.metrics)
+              if ((m.sensorCode ?? '').trim().isNotEmpty) m.sensorCode!,
           ],
-        ),
-      );
+          inheritedSensor: widget.areaEnvironmentService.data?.inheritedByBox ?? true,
+          onAlertsChanged: () {
+            _loadAlerts();
+            _loadActivity();
+          },
+          onOpenCamera: () => _tabs.animateTo(3),
+          onOpenSensors: () => _tabs.animateTo(2),
+          onOpenCrab: () => _openCrab(),
+          onOpenDevice: () => widget.onNavigate?.call(AppRoute.controllers),
+          onOpenHistory: () => _tabs.animateTo(5),
+        );
+      default:
+        return BoxHistoryTab(
+          box: _box,
+          profileService: _svc,
+          areaId: widget.areaId,
+          areaCode: _areaCode,
+          areaName: widget.areaName,
+          rowLabel: _rowLabel,
+          crabId: _crab?.id ?? _box.crabId,
+          crabCode: _crab?.crabCode ?? _box.crabTag,
+          camera: widget.cameraService.cameras.firstOrNull,
+          onOpenCrab: (id) => widget.onOpenCrab?.call(id),
+          onOpenCamera: () => _tabs.animateTo(3),
+          onOpenSensors: () => _tabs.animateTo(2),
+          onOpenAlerts: () => _tabs.animateTo(4),
+        );
+    }
+  }
+
 }

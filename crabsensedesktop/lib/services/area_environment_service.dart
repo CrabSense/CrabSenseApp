@@ -177,6 +177,46 @@ class AreaEnvironmentService extends ChangeNotifier {
     }
   }
 
+  Future<List<({DateTime at, double value})>> fetchSensorHistory(
+    String sensorId, {
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final raw = await _api.fetchSensorHistory(
+      _session.token,
+      sensorId: sensorId,
+      from: from,
+      to: to,
+    );
+    final pts = <({DateTime at, double value})>[];
+    for (final m in raw) {
+      final v = m['value'] ?? m['Value'];
+      final at = DateTime.tryParse((m['measuredAt'] ?? m['MeasuredAt'] ?? '').toString());
+      if (v is! num || at == null) continue;
+      pts.add((at: at.isUtc ? at.toLocal() : at, value: v.toDouble()));
+    }
+    pts.sort((a, b) => a.at.compareTo(b.at));
+    return pts;
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAlertHistory({String? farmingAreaId}) {
+    return _api.fetchAlertHistory(
+      _session.token,
+      farmingAreaId: farmingAreaId,
+      days: 30,
+    );
+  }
+
+  Future<void> refreshCurrent() async {
+    final boxId = _liveBoxId;
+    if (boxId != null) {
+      await loadByBox(boxId);
+      return;
+    }
+    final areaId = _liveAreaId;
+    if (areaId != null) await loadByArea(areaId);
+  }
+
   void clear() {
     _data = null;
     _error = null;
