@@ -999,17 +999,29 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                     ],
                   ),
                   if (!compact)
-                    PopupMenuButton<String>(
-                      tooltip: 'Thao tác sensor',
-                      padding: EdgeInsets.zero,
-                      onSelected: (a) => _onSensorMenu(a, s, detail.controller),
-                      itemBuilder: (_) => [
-                        const PopupMenuItem(
-                            value: 'edit', child: Text('Chỉnh sửa sensor')),
-                        const PopupMenuItem(
-                            value: 'delete', child: Text('Xóa sensor')),
-                        const PopupMenuItem(
-                            value: 'off', child: Text('Tắt sensor')),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: 'Cập nhật sensor',
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                              minWidth: 28, minHeight: 28),
+                          onPressed: () => _editSensor(s),
+                        ),
+                        PopupMenuButton<String>(
+                          tooltip: 'Thao tác sensor',
+                          padding: EdgeInsets.zero,
+                          onSelected: (a) =>
+                              _onSensorMenu(a, s, detail.controller),
+                          itemBuilder: (_) => [
+                            const PopupMenuItem(
+                                value: 'delete', child: Text('Xóa sensor')),
+                            const PopupMenuItem(
+                                value: 'off', child: Text('Tắt sensor')),
+                          ],
+                        ),
                       ],
                     ),
                 ],
