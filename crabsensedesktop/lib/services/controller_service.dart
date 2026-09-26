@@ -50,8 +50,11 @@ class ControllerService extends ChangeNotifier {
 
   int get totalCount => _items.length;
   int get onlineCount => _items.where((d) => d.isOnline).length;
-  int get offlineCount => _items.where((d) => d.isOffline && d.status.toLowerCase() != 'error').length;
-  int get errorCount => _items.where((d) => d.status.toLowerCase() == 'error').length;
+  int get offlineCount => _items
+      .where((d) => d.isOffline && d.status.toLowerCase() != 'error')
+      .length;
+  int get errorCount =>
+      _items.where((d) => d.status.toLowerCase() == 'error').length;
   int get attachedCount =>
       _items.fold<int>(0, (sum, d) => sum + d.sensorCount + d.actuatorCount);
 
@@ -248,7 +251,9 @@ class ControllerService extends ChangeNotifier {
     final ip = (_detail?.controller.ipLan ?? device.ipLan ?? '').trim();
     if (ip.isEmpty) return null;
     try {
-      return await _provisioning.pingLan(ip).timeout(const Duration(seconds: 3));
+      return await _provisioning
+          .pingLan(ip)
+          .timeout(const Duration(seconds: 3));
     } catch (_) {
       return null;
     }
@@ -268,6 +273,8 @@ class ControllerService extends ChangeNotifier {
 
   Future<bool> updateSensor({
     required String sensorId,
+    String? sensorType,
+    String? unit,
     bool? isActive,
     double? minThreshold,
     double? maxThreshold,
@@ -276,10 +283,24 @@ class ControllerService extends ChangeNotifier {
       await _api.updateSensor(
         _session.token,
         sensorId,
+        sensorType: sensorType,
+        unit: unit,
         isActive: isActive,
         minThreshold: minThreshold,
         maxThreshold: maxThreshold,
       );
+      if (_selectedId != null) await _loadDetail(_selectedId!, silent: true);
+      return true;
+    } on CloudApiException catch (e) {
+      _detailError = e.message;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> deleteSensor(String sensorId) async {
+    try {
+      await _api.deleteSensor(_session.token, sensorId);
       if (_selectedId != null) await _loadDetail(_selectedId!, silent: true);
       return true;
     } on CloudApiException catch (e) {
@@ -359,7 +380,8 @@ class ControllerService extends ChangeNotifier {
     }
   }
 
-  Future<void> _registerRealtimeSensors(String deviceId, String deviceCode) async {
+  Future<void> _registerRealtimeSensors(
+      String deviceId, String deviceCode) async {
     const specs = [
       ('-temp', 'Temperature', 'C'),
       ('-ph', 'pH', 'pH'),

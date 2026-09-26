@@ -112,7 +112,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
         if (!hay.contains(_query)) return false;
       }
       if (_areaFilter != 'all') {
-        if ((d.areaId ?? d.farmId) != _areaFilter && d.areaCode != _areaFilter) {
+        if ((d.areaId ?? d.farmId) != _areaFilter &&
+            d.areaCode != _areaFilter) {
           return false;
         }
       }
@@ -145,7 +146,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
       final name = (d.deviceName ?? '').toLowerCase();
       if (name.isNotEmpty && hay.contains(name)) return true;
       for (final s in sensors) {
-        if (s.code.isNotEmpty && hay.contains(s.code.toLowerCase())) return true;
+        if (s.code.isNotEmpty && hay.contains(s.code.toLowerCase()))
+          return true;
       }
       return false;
     }).toList();
@@ -154,10 +156,12 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
   int get _alertKpi => _svc.items.where(_hasAlert).length;
 
   List<FarmActivityLogEntry> _logsOf(IoTDevice d) {
-    final all = widget.farmLogService?.entries ?? const <FarmActivityLogEntry>[];
+    final all =
+        widget.farmLogService?.entries ?? const <FarmActivityLogEntry>[];
     return all.where((e) {
       if (e.type == FarmLogType.rasControl) return true;
-      final hay = '${e.content} ${e.area} ${e.subjectDetail} ${e.note}'.toLowerCase();
+      final hay =
+          '${e.content} ${e.area} ${e.subjectDetail} ${e.note}'.toLowerCase();
       return hay.contains(d.deviceCode.toLowerCase()) ||
           ((d.deviceName ?? '').isNotEmpty &&
               hay.contains(d.deviceName!.toLowerCase()));
@@ -215,7 +219,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
             color: DashboardColors.lightMint,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(Icons.developer_board, color: DashboardColors.brand),
+          child:
+              const Icon(Icons.developer_board, color: DashboardColors.brand),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -229,7 +234,10 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
               const SizedBox(height: 4),
               Text(
                 'Quản lý các Controller ESP32 trong hệ thống RAS. Mỗi Controller thu thập sensor và điều khiển thiết bị như bơm, drum, van, máy sục khí...',
-                style: bvText(fontSize: 13, color: DashboardColors.textMuted, height: 1.4),
+                style: bvText(
+                    fontSize: 13,
+                    color: DashboardColors.textMuted,
+                    height: 1.4),
               ),
             ],
           ),
@@ -323,7 +331,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
         icon: Icons.memory_outlined,
         title: 'Chưa có Controller',
         message: 'Thêm Controller đầu tiên để kết nối sensor và thiết bị RAS.',
-        action: MgmtPrimaryButton(label: 'Thêm Controller', icon: Icons.add, onTap: _add),
+        action: MgmtPrimaryButton(
+            label: 'Thêm Controller', icon: Icons.add, onTap: _add),
       );
     }
     return LayoutBuilder(
@@ -381,7 +390,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                       : (areas[_areaFilter] ?? 'Khu vực'),
                   items: [
                     ('all', 'Tất cả khu'),
-                    ...areas.entries.map((e) => (e.key, e.value.isEmpty ? e.key : e.value)),
+                    ...areas.entries
+                        .map((e) => (e.key, e.value.isEmpty ? e.key : e.value)),
                   ],
                   onSelected: (v) => setState(() => _areaFilter = v),
                 ),
@@ -446,7 +456,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                   )
                 : ListView.separated(
                     itemCount: _filtered.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 8),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 8),
                     itemBuilder: (_, i) {
                       final d = _filtered[i];
                       return _ControllerCard(
@@ -470,9 +481,17 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            Container(height: 88, decoration: BoxDecoration(color: DashboardColors.lightMint, borderRadius: BorderRadius.circular(12))),
+            Container(
+                height: 88,
+                decoration: BoxDecoration(
+                    color: DashboardColors.lightMint,
+                    borderRadius: BorderRadius.circular(12))),
             const SizedBox(height: 12),
-            Expanded(child: Container(decoration: BoxDecoration(color: DashboardColors.lightMint, borderRadius: BorderRadius.circular(12)))),
+            Expanded(
+                child: Container(
+                    decoration: BoxDecoration(
+                        color: DashboardColors.lightMint,
+                        borderRadius: BorderRadius.circular(12)))),
           ],
         ),
       );
@@ -482,7 +501,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
       return Container(
         alignment: Alignment.center,
         decoration: mgmtCardDeco(radius: 16),
-        child: Text('Chọn một Controller để xem chi tiết.', style: bvText(color: DashboardColors.textMuted)),
+        child: Text('Chọn một Controller để xem chi tiết.',
+            style: bvText(color: DashboardColors.textMuted)),
       );
     }
     final d = detail.controller;
@@ -514,7 +534,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
           if (_svc.detailError != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-              child: _errorBanner(_svc.detailError!, () => _svc.select(d.id, force: true)),
+              child: _errorBanner(
+                  _svc.detailError!, () => _svc.select(d.id, force: true)),
             ),
           Expanded(
             child: TabBarView(
@@ -548,7 +569,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                 color: DashboardColors.lightMint,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.memory, color: DashboardColors.brand, size: 28),
+              child: const Icon(Icons.memory,
+                  color: DashboardColors.brand, size: 28),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -560,7 +582,9 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                     runSpacing: 6,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Text(d.deviceName ?? d.deviceCode, style: bvText(fontSize: 18, fontWeight: FontWeight.w800)),
+                      Text(d.deviceName ?? d.deviceCode,
+                          style: bvText(
+                              fontSize: 18, fontWeight: FontWeight.w800)),
                       _statusBadge(d, warning: _hasAlert(d)),
                     ],
                   ),
@@ -581,22 +605,34 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                   label: _checking ? 'Đang kiểm tra...' : 'Kiểm tra kết nối',
                 ),
                 MgmtOutlineButton(
-                  onTap: !canRestart || _svc.restarting ? null : () => _restart(d),
+                  onTap:
+                      !canRestart || _svc.restarting ? null : () => _restart(d),
                   icon: Icons.restart_alt,
-                  label: _svc.restarting ? 'Đang khởi động lại...' : 'Khởi động lại',
+                  label: _svc.restarting
+                      ? 'Đang khởi động lại...'
+                      : 'Khởi động lại',
                 ),
                 PopupMenuButton<String>(
                   tooltip: 'Thao tác Controller',
                   onSelected: (a) => _onMenu(a, d, detail),
                   itemBuilder: (_) => [
-                    const PopupMenuItem(value: 'detail', child: Text('Xem chi tiết')),
-                    const PopupMenuItem(value: 'edit', child: Text('Chỉnh sửa Controller')),
-                    const PopupMenuItem(value: 'wifi', child: Text('Cấu hình WiFi')),
-                    const PopupMenuItem(value: 'sensors', child: Text('Quản lý Sensor')),
-                    const PopupMenuItem(value: 'outputs', child: Text('Quản lý Output')),
-                    const PopupMenuItem(value: 'alerts', child: Text('Xem cảnh báo')),
-                    const PopupMenuItem(value: 'history', child: Text('Xem lịch sử')),
-                    const PopupMenuItem(value: 'disable', child: Text('Vô hiệu hóa Controller')),
+                    const PopupMenuItem(
+                        value: 'detail', child: Text('Xem chi tiết')),
+                    const PopupMenuItem(
+                        value: 'edit', child: Text('Chỉnh sửa Controller')),
+                    const PopupMenuItem(
+                        value: 'wifi', child: Text('Cấu hình WiFi')),
+                    const PopupMenuItem(
+                        value: 'sensors', child: Text('Quản lý Sensor')),
+                    const PopupMenuItem(
+                        value: 'outputs', child: Text('Quản lý Output')),
+                    const PopupMenuItem(
+                        value: 'alerts', child: Text('Xem cảnh báo')),
+                    const PopupMenuItem(
+                        value: 'history', child: Text('Xem lịch sử')),
+                    const PopupMenuItem(
+                        value: 'disable',
+                        child: Text('Vô hiệu hóa Controller')),
                   ],
                 ),
               ],
@@ -609,17 +645,21 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
           runSpacing: 6,
           children: [
             _metaChip('Khu vực', _areaLabel(d)),
-            if ((d.firmwareVersion ?? '').isNotEmpty) _metaChip('FW', 'v${d.firmwareVersion}'),
-            if ((d.macAddress ?? '').isNotEmpty) _metaChip('MAC', d.macAddress!),
+            if ((d.firmwareVersion ?? '').isNotEmpty)
+              _metaChip('FW', 'v${d.firmwareVersion}'),
+            if ((d.macAddress ?? '').isNotEmpty)
+              _metaChip('MAC', d.macAddress!),
             if ((d.ipLan ?? '').isNotEmpty) _metaChip('IP', d.ipLan!),
-            _metaChip('Last seen', d.lastSeenAt == null ? '—' : fmtDateTimeVn(d.lastSeenAt)),
+            _metaChip('Last seen',
+                d.lastSeenAt == null ? '—' : fmtDateTimeVn(d.lastSeenAt)),
           ],
         ),
         if (d.isOffline) ...[
           const SizedBox(height: 8),
           Text(
             'Controller đang mất kết nối. Dữ liệu Sensor bên dưới là giá trị cuối cùng nhận được.',
-            style: bvText(fontSize: 12.5, color: _kAmber, fontWeight: FontWeight.w600),
+            style: bvText(
+                fontSize: 12.5, color: _kAmber, fontWeight: FontWeight.w600),
           ),
         ],
       ],
@@ -630,7 +670,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text('$k: ', style: bvText(fontSize: 12, color: DashboardColors.textMuted)),
+        Text('$k: ',
+            style: bvText(fontSize: 12, color: DashboardColors.textMuted)),
         Text(v, style: bvText(fontSize: 12.5, fontWeight: FontWeight.w700)),
       ],
     );
@@ -649,7 +690,10 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
               _connectionCard(d),
               _healthCard(detail),
             ];
-            if (!wide) return Column(children: [for (final w in cards) ...[w, const SizedBox(height: 10)]]);
+            if (!wide)
+              return Column(children: [
+                for (final w in cards) ...[w, const SizedBox(height: 10)]
+              ]);
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -667,7 +711,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
             final sensors = _sensorPreview(detail);
             final outputs = _outputPreview(detail);
             if (c.maxWidth < 800) {
-              return Column(children: [sensors, const SizedBox(height: 10), outputs]);
+              return Column(
+                  children: [sensors, const SizedBox(height: 10), outputs]);
             }
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -685,7 +730,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
             final alerts = _alertsPanel(d);
             final acts = _activityPanel(d);
             if (c.maxWidth < 800) {
-              return Column(children: [alerts, const SizedBox(height: 10), acts]);
+              return Column(
+                  children: [alerts, const SizedBox(height: 10), acts]);
             }
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -707,20 +753,26 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
       _kv('Tên', d.deviceName ?? d.deviceCode),
       _kv('Loại', controllerTypeLabel(d.deviceType ?? '')),
       _kv('Khu vực', _areaLabel(d)),
-      if ((d.firmwareVersion ?? '').isNotEmpty) _kv('Firmware', 'v${d.firmwareVersion}'),
+      if ((d.firmwareVersion ?? '').isNotEmpty)
+        _kv('Firmware', 'v${d.firmwareVersion}'),
       if ((d.macAddress ?? '').isNotEmpty) _kv('MAC', d.macAddress!),
     ]);
   }
 
   Widget _connectionCard(IoTDevice d) {
-    final ago = d.lastSeenAt == null ? null : DateTime.now().difference(d.lastSeenAt!.toLocal());
+    final ago = d.lastSeenAt == null
+        ? null
+        : DateTime.now().difference(d.lastSeenAt!.toLocal());
     final rows = <Widget>[
-      _kv('Trạng thái', d.isOnline ? 'Online' : 'Mất kết nối', color: d.isOnline ? DashboardColors.brand : _kRed),
+      _kv('Trạng thái', d.isOnline ? 'Online' : 'Mất kết nối',
+          color: d.isOnline ? DashboardColors.brand : _kRed),
     ];
     if ((d.ipLan ?? '').isNotEmpty) rows.add(_kv('IP', d.ipLan!));
-    if (d.rssiDbm != null && d.isOnline) rows.add(_kv('RSSI', '${d.rssiDbm!.round()} dBm'));
+    if (d.rssiDbm != null && d.isOnline)
+      rows.add(_kv('RSSI', '${d.rssiDbm!.round()} dBm'));
     if (d.lastSeenAt != null) {
-      rows.add(_kv(d.isOnline ? 'Heartbeat' : 'Heartbeat cuối', _rel(d.lastSeenAt)));
+      rows.add(
+          _kv(d.isOnline ? 'Heartbeat' : 'Heartbeat cuối', _rel(d.lastSeenAt)));
     }
     if (!d.isOnline && ago != null) {
       rows.add(_kv('Đã mất kết nối', _dur(ago)));
@@ -733,17 +785,28 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
 
   Widget _healthCard(ControllerDetail detail) {
     final d = detail.controller;
-    final liveSensors = detail.sensors.where((s) => _sensorFreshness(s, d) == _Fresh.realtime).length;
+    final liveSensors = detail.sensors
+        .where((s) => _sensorFreshness(s, d) == _Fresh.realtime)
+        .length;
     final apiOk = d.isOnline &&
         d.lastSeenAt != null &&
-        DateTime.now().difference(d.lastSeenAt!.toLocal()) <= _kHeartbeatDegraded;
+        DateTime.now().difference(d.lastSeenAt!.toLocal()) <=
+            _kHeartbeatDegraded;
     return _card('Sức khỏe thiết bị', Icons.monitor_heart_outlined, [
-      _kv('Controller', d.isOnline ? 'Online' : 'Offline', color: d.isOnline ? DashboardColors.brand : _kRed),
-      _kv('WiFi', d.isOnline ? 'Tốt' : 'Mất kết nối', color: d.isOnline ? DashboardColors.brand : _kRed),
-      _kv('API', apiOk ? 'Bình thường' : 'Không nhận heartbeat', color: apiOk ? DashboardColors.brand : _kAmber),
-      _kv('Sensors', d.isOnline ? '$liveSensors / ${detail.sensors.length} hoạt động' : '0 / ${detail.sensors.length} realtime'),
+      _kv('Controller', d.isOnline ? 'Online' : 'Offline',
+          color: d.isOnline ? DashboardColors.brand : _kRed),
+      _kv('WiFi', d.isOnline ? 'Tốt' : 'Mất kết nối',
+          color: d.isOnline ? DashboardColors.brand : _kRed),
+      _kv('API', apiOk ? 'Bình thường' : 'Không nhận heartbeat',
+          color: apiOk ? DashboardColors.brand : _kAmber),
+      _kv(
+          'Sensors',
+          d.isOnline
+              ? '$liveSensors / ${detail.sensors.length} hoạt động'
+              : '0 / ${detail.sensors.length} realtime'),
       _kv('Outputs', '${detail.actuators.length}'),
-      if ((d.firmwareVersion ?? '').isNotEmpty) _kv('Firmware', 'v${d.firmwareVersion}'),
+      if ((d.firmwareVersion ?? '').isNotEmpty)
+        _kv('Firmware', 'v${d.firmwareVersion}'),
     ]);
   }
 
@@ -753,7 +816,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
       Icons.sensors,
       [
         if (detail.sensors.isEmpty)
-          Text('Controller chưa có Sensor.', style: bvText(color: DashboardColors.textMuted))
+          Text('Controller chưa có Sensor.',
+              style: bvText(color: DashboardColors.textMuted))
         else
           _sensorTable(detail, compact: true),
       ],
@@ -839,8 +903,10 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
           if ((d.ipLan ?? '').isNotEmpty) _kv('IP', d.ipLan!),
           if ((d.macAddress ?? '').isNotEmpty) _kv('MAC', d.macAddress!),
           if (d.rssiDbm != null) _kv('RSSI', '${d.rssiDbm!.round()} dBm'),
-          if ((d.firmwareVersion ?? '').isNotEmpty) _kv('Firmware', 'v${d.firmwareVersion}'),
-          if (d.lastSeenAt != null) _kv('Heartbeat cuối', fmtDateTimeVn(d.lastSeenAt)),
+          if ((d.firmwareVersion ?? '').isNotEmpty)
+            _kv('Firmware', 'v${d.firmwareVersion}'),
+          if (d.lastSeenAt != null)
+            _kv('Heartbeat cuối', fmtDateTimeVn(d.lastSeenAt)),
           _kv('Heartbeat interval', '2 giây (cấu hình UI)'),
           _kv('API', d.isOnline ? 'Bình thường' : 'Không nhận heartbeat'),
           _kv('Trạng thái', d.isOnline ? 'Online' : 'Offline'),
@@ -856,12 +922,23 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
       children: [
         _card('Lịch sử', Icons.history, [
           if (d.lastSeenAt != null)
-            _histRow(d.lastSeenAt!, 'Controller', d.isOnline ? 'Controller online' : 'Controller offline', 'System'),
+            _histRow(
+                d.lastSeenAt!,
+                'Controller',
+                d.isOnline ? 'Controller online' : 'Controller offline',
+                'System'),
           if (logs.isEmpty && d.lastSeenAt == null)
-            Text('Chưa có lịch sử Controller.', style: bvText(color: DashboardColors.textMuted))
+            Text('Chưa có lịch sử Controller.',
+                style: bvText(color: DashboardColors.textMuted))
           else
             for (final e in logs.take(20))
-              _histRow(e.at, e.subjectDetail.isEmpty ? 'Controller' : e.subjectDetail, e.content, e.performer.isEmpty ? (e.isAuto ? 'System' : 'Thủ công') : e.performer),
+              _histRow(
+                  e.at,
+                  e.subjectDetail.isEmpty ? 'Controller' : e.subjectDetail,
+                  e.content,
+                  e.performer.isEmpty
+                      ? (e.isAuto ? 'System' : 'Thủ công')
+                      : e.performer),
         ]),
       ],
     );
@@ -872,7 +949,10 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
-        headingTextStyle: bvText(fontSize: 11.5, fontWeight: FontWeight.w800, color: DashboardColors.textMuted),
+        headingTextStyle: bvText(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w800,
+            color: DashboardColors.textMuted),
         dataTextStyle: bvText(fontSize: 12.5),
         columns: [
           const DataColumn(label: Text('TÊN SENSOR')),
@@ -893,8 +973,12 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(_sensorTitle(s), style: bvText(fontWeight: FontWeight.w700, fontSize: 12.5)),
-                  Text(s.code, style: bvText(fontSize: 11, color: DashboardColors.textMuted)),
+                  Text(_sensorTitle(s),
+                      style:
+                          bvText(fontWeight: FontWeight.w700, fontSize: 12.5)),
+                  Text(s.code,
+                      style: bvText(
+                          fontSize: 11, color: DashboardColors.textMuted)),
                 ],
               )),
               DataCell(Text(s.type ?? '—')),
@@ -907,17 +991,26 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                   if (s.minThreshold != null) 'Min ${s.minThreshold}',
                   if (s.maxThreshold != null) 'Max ${s.maxThreshold}',
                 ].join(' · ').ifEmpty('—'))),
-              DataCell(Text(s.lastUpdatedAt == null ? '—' : _hhmmss(s.lastUpdatedAt!))),
+              DataCell(Text(
+                  s.lastUpdatedAt == null ? '—' : _hhmmss(s.lastUpdatedAt!))),
               DataCell(_sensorStatus(s, d)),
               if (!compact)
                 DataCell(PopupMenuButton<String>(
                   tooltip: 'Thao tác sensor',
                   onSelected: (a) => _onSensorMenu(a, s, detail.controller),
                   itemBuilder: (_) => [
-                    const PopupMenuItem(value: 'detail', child: Text('Xem chi tiết')),
-                    const PopupMenuItem(value: 'cal', child: Text('Hiệu chuẩn')),
-                    const PopupMenuItem(value: 'off', child: Text('Tắt sensor')),
-                    const PopupMenuItem(value: 'hist', child: Text('Xem lịch sử')),
+                    const PopupMenuItem(
+                        value: 'detail', child: Text('Xem chi tiết')),
+                    const PopupMenuItem(
+                        value: 'edit', child: Text('Chỉnh sửa sensor')),
+                    const PopupMenuItem(
+                        value: 'cal', child: Text('Hiệu chuẩn')),
+                    const PopupMenuItem(
+                        value: 'delete', child: Text('Xóa sensor')),
+                    const PopupMenuItem(
+                        value: 'off', child: Text('Tắt sensor')),
+                    const PopupMenuItem(
+                        value: 'hist', child: Text('Xem lịch sử')),
                   ],
                 )),
             ]),
@@ -930,7 +1023,10 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
-        headingTextStyle: bvText(fontSize: 11.5, fontWeight: FontWeight.w800, color: DashboardColors.textMuted),
+        headingTextStyle: bvText(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w800,
+            color: DashboardColors.textMuted),
         dataTextStyle: bvText(fontSize: 12.5),
         columns: const [
           DataColumn(label: Text('TÊN THIẾT BỊ')),
@@ -944,17 +1040,27 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
         rows: [
           for (final a in detail.actuators)
             DataRow(cells: [
-              DataCell(Text(a.name.isEmpty ? a.code : a.name, style: bvText(fontWeight: FontWeight.w700))),
+              DataCell(Text(a.name.isEmpty ? a.code : a.name,
+                  style: bvText(fontWeight: FontWeight.w700))),
               DataCell(Text(a.type ?? '—')),
-              DataCell(Text((a.relayChannel ?? '').isEmpty ? '—' : a.relayChannel!)),
+              DataCell(
+                  Text((a.relayChannel ?? '').isEmpty ? '—' : a.relayChannel!)),
               const DataCell(Text('—')),
               DataCell(Text(
                 detail.controller.isOnline ? 'Online' : 'Offline',
-                style: bvText(color: detail.controller.isOnline ? DashboardColors.brand : _kSlate, fontWeight: FontWeight.w700),
+                style: bvText(
+                    color: detail.controller.isOnline
+                        ? DashboardColors.brand
+                        : _kSlate,
+                    fontWeight: FontWeight.w700),
               )),
               DataCell(Text(
                 a.isOn == null ? '—' : (a.isOn! ? 'ON' : 'OFF'),
-                style: bvText(fontWeight: FontWeight.w800, color: a.isOn == true ? DashboardColors.brand : DashboardColors.textMuted),
+                style: bvText(
+                    fontWeight: FontWeight.w800,
+                    color: a.isOn == true
+                        ? DashboardColors.brand
+                        : DashboardColors.textMuted),
               )),
               DataCell(Text(a.name.isEmpty ? a.code : a.name)),
             ]),
@@ -967,11 +1073,14 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Chưa có thiết bị đầu ra được liên kết.', style: bvText(fontWeight: FontWeight.w700)),
+        Text('Chưa có thiết bị đầu ra được liên kết.',
+            style: bvText(fontWeight: FontWeight.w700)),
         const SizedBox(height: 4),
-        Text('Controller này hiện chỉ dùng để đọc cảm biến.', style: bvText(color: DashboardColors.textMuted, fontSize: 12.5)),
+        Text('Controller này hiện chỉ dùng để đọc cảm biến.',
+            style: bvText(color: DashboardColors.textMuted, fontSize: 12.5)),
         const SizedBox(height: 8),
-        MgmtOutlineButton(onTap: _linkOutput, icon: Icons.add, label: 'Liên kết thiết bị'),
+        MgmtOutlineButton(
+            onTap: _linkOutput, icon: Icons.add, label: 'Liên kết thiết bị'),
       ],
     );
   }
@@ -983,16 +1092,27 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
       Icons.warning_amber_rounded,
       [
         if (alerts.isEmpty)
-          Text('Không có cảnh báo gắn với Controller này.', style: bvText(color: DashboardColors.brand, fontWeight: FontWeight.w600))
+          Text('Không có cảnh báo gắn với Controller này.',
+              style: bvText(
+                  color: DashboardColors.brand, fontWeight: FontWeight.w600))
         else
           for (final a in alerts.take(6))
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
-                  SizedBox(width: 72, child: Text(a.detectedAt.isEmpty ? a.time : a.time, style: bvText(fontSize: 12, color: DashboardColors.textMuted))),
-                  Expanded(child: Text(a.device.isEmpty ? 'Controller' : a.device, style: bvText(fontSize: 12.5, fontWeight: FontWeight.w700))),
-                  Expanded(flex: 2, child: Text(a.title, style: bvText(fontSize: 12.5))),
+                  SizedBox(
+                      width: 72,
+                      child: Text(a.detectedAt.isEmpty ? a.time : a.time,
+                          style: bvText(
+                              fontSize: 12, color: DashboardColors.textMuted))),
+                  Expanded(
+                      child: Text(a.device.isEmpty ? 'Controller' : a.device,
+                          style: bvText(
+                              fontSize: 12.5, fontWeight: FontWeight.w700))),
+                  Expanded(
+                      flex: 2,
+                      child: Text(a.title, style: bvText(fontSize: 12.5))),
                   MgmtStatusBadge(
                     label: a.isOpen ? 'Đang mở' : 'Đã xử lý',
                     color: a.isOpen ? _kAmber : DashboardColors.brand,
@@ -1013,12 +1133,20 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
       Icons.history,
       [
         if (d.lastSeenAt != null)
-          _histRow(d.lastSeenAt!, 'Controller', d.isOnline ? 'Nhận heartbeat' : 'Mất kết nối', 'System'),
+          _histRow(d.lastSeenAt!, 'Controller',
+              d.isOnline ? 'Nhận heartbeat' : 'Mất kết nối', 'System'),
         if (logs.isEmpty && d.lastSeenAt == null)
-          Text('Chưa có hoạt động Controller.', style: bvText(color: DashboardColors.textMuted))
+          Text('Chưa có hoạt động Controller.',
+              style: bvText(color: DashboardColors.textMuted))
         else
           for (final e in logs.take(6))
-            _histRow(e.at, 'Controller', e.content, e.performer.isEmpty ? (e.isAuto ? 'System' : 'Thủ công') : e.performer),
+            _histRow(
+                e.at,
+                'Controller',
+                e.content,
+                e.performer.isEmpty
+                    ? (e.isAuto ? 'System' : 'Thủ công')
+                    : e.performer),
       ],
       action: 'Xem tất cả →',
       onAction: () => widget.onNavigate?.call(AppRoute.farmLogs),
@@ -1030,16 +1158,24 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          SizedBox(width: 52, child: Text(_hhmm(at), style: bvText(fontSize: 12, color: DashboardColors.textMuted))),
-          Expanded(child: Text(device, style: bvText(fontSize: 12.5, fontWeight: FontWeight.w700))),
+          SizedBox(
+              width: 52,
+              child: Text(_hhmm(at),
+                  style:
+                      bvText(fontSize: 12, color: DashboardColors.textMuted))),
+          Expanded(
+              child: Text(device,
+                  style: bvText(fontSize: 12.5, fontWeight: FontWeight.w700))),
           Expanded(flex: 2, child: Text(action, style: bvText(fontSize: 12.5))),
-          Text(source, style: bvText(fontSize: 12, color: DashboardColors.textMuted)),
+          Text(source,
+              style: bvText(fontSize: 12, color: DashboardColors.textMuted)),
         ],
       ),
     );
   }
 
-  Widget _card(String title, IconData icon, List<Widget> children, {String? action, VoidCallback? onAction}) {
+  Widget _card(String title, IconData icon, List<Widget> children,
+      {String? action, VoidCallback? onAction}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -1051,11 +1187,17 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
             children: [
               Icon(icon, size: 16, color: DashboardColors.brand),
               const SizedBox(width: 6),
-              Expanded(child: Text(title, style: bvText(fontWeight: FontWeight.w800))),
+              Expanded(
+                  child:
+                      Text(title, style: bvText(fontWeight: FontWeight.w800))),
               if (action != null)
                 TextButton(
                   onPressed: onAction,
-                  child: Text(action, style: bvText(fontWeight: FontWeight.w700, color: DashboardColors.brand, fontSize: 12.5)),
+                  child: Text(action,
+                      style: bvText(
+                          fontWeight: FontWeight.w700,
+                          color: DashboardColors.brand,
+                          fontSize: 12.5)),
                 ),
             ],
           ),
@@ -1071,8 +1213,17 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         children: [
-          SizedBox(width: 130, child: Text(k, style: bvText(fontSize: 12.5, color: DashboardColors.textMuted))),
-          Expanded(child: Text(v, style: bvText(fontSize: 12.5, fontWeight: FontWeight.w700, color: color))),
+          SizedBox(
+              width: 130,
+              child: Text(k,
+                  style: bvText(
+                      fontSize: 12.5, color: DashboardColors.textMuted))),
+          Expanded(
+              child: Text(v,
+                  style: bvText(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: color))),
         ],
       ),
     );
@@ -1109,16 +1260,20 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Khởi động lại ${d.deviceName ?? d.deviceCode}?', style: bvText(fontWeight: FontWeight.w800, fontSize: 16)),
+        title: Text('Khởi động lại ${d.deviceName ?? d.deviceCode}?',
+            style: bvText(fontWeight: FontWeight.w800, fontSize: 16)),
         content: Text(
           'Controller có thể mất kết nối trong vài giây trong quá trình khởi động lại.',
           style: bvText(height: 1.45),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Hủy')),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: DashboardColors.brand),
+            style:
+                FilledButton.styleFrom(backgroundColor: DashboardColors.brand),
             child: const Text('Khởi động lại'),
           ),
         ],
@@ -1161,7 +1316,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
       sensorCount: detail.sensors.length,
       outputCount: detail.actuators.length,
     );
-    if (mounted && ok == true) _toast('Đã vô hiệu hóa ${d.deviceName ?? d.deviceCode}.');
+    if (mounted && ok == true)
+      _toast('Đã vô hiệu hóa ${d.deviceName ?? d.deviceCode}.');
   }
 
   Future<void> _edit(IoTDevice d) async {
@@ -1203,15 +1359,25 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: code, decoration: const InputDecoration(labelText: 'Mã sensor')),
-              TextField(controller: type, decoration: const InputDecoration(labelText: 'Loại')),
-              TextField(controller: unit, decoration: const InputDecoration(labelText: 'Đơn vị')),
+              TextField(
+                  controller: code,
+                  decoration: const InputDecoration(labelText: 'Mã sensor')),
+              TextField(
+                  controller: type,
+                  decoration: const InputDecoration(labelText: 'Loại')),
+              TextField(
+                  controller: unit,
+                  decoration: const InputDecoration(labelText: 'Đơn vị')),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Thêm')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Hủy')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Thêm')),
         ],
       ),
     );
@@ -1222,11 +1388,15 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
       sensorType: type.text.trim(),
       unit: unit.text.trim(),
     );
-    if (mounted) _toast(saved ? 'Đã thêm Sensor.' : (_svc.detailError ?? 'Không thêm được sensor.'));
+    if (mounted)
+      _toast(saved
+          ? 'Đã thêm Sensor.'
+          : (_svc.detailError ?? 'Không thêm được sensor.'));
   }
 
   void _linkOutput() {
-    _toast('Liên kết output thực hiện trên Điều khiển RAS — không gán RelayDeviceId trên UI này.');
+    _toast(
+        'Liên kết output thực hiện trên Điều khiển RAS — không gán RelayDeviceId trên UI này.');
     widget.onNavigate?.call(AppRoute.devices);
   }
 
@@ -1234,14 +1404,93 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
     switch (a) {
       case 'detail':
         _tabs.animateTo(1);
+      case 'edit':
+        await _editSensor(s);
       case 'cal':
         await _calibrate(s);
+      case 'delete':
+        await _deleteSensor(s);
       case 'off':
         await _svc.updateSensor(sensorId: s.id, isActive: false);
         if (mounted) _toast('Đã tắt sensor ${s.code}.');
       case 'hist':
         widget.onNavigate?.call(AppRoute.environment);
     }
+  }
+
+  Future<void> _editSensor(ControllerChild s) async {
+    final type = TextEditingController(text: s.type ?? s.name);
+    final unit = TextEditingController(text: s.unit ?? '');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Chỉnh sửa ${s.code}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: TextEditingController(text: s.code),
+              readOnly: true,
+              decoration: const InputDecoration(labelText: 'Mã sensor'),
+            ),
+            TextField(
+              controller: type,
+              decoration: const InputDecoration(labelText: 'Loại'),
+            ),
+            TextField(
+              controller: unit,
+              decoration: const InputDecoration(labelText: 'Đơn vị'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Hủy')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Lưu')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final saved = await _svc.updateSensor(
+      sensorId: s.id,
+      sensorType: type.text.trim(),
+      unit: unit.text.trim(),
+    );
+    if (mounted)
+      _toast(saved
+          ? 'Đã cập nhật ${s.code}.'
+          : (_svc.detailError ?? 'Không cập nhật được sensor.'));
+  }
+
+  Future<void> _deleteSensor(ControllerChild s) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Xóa ${s.code}?'),
+        content: const Text(
+          'Sensor đã có dữ liệu đo sẽ không thể xóa; hãy tắt sensor thay thế.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Hủy')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: _kRed),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final deleted = await _svc.deleteSensor(s.id);
+    if (mounted)
+      _toast(deleted
+          ? 'Đã xóa ${s.code}.'
+          : (_svc.detailError ?? 'Không xóa được sensor.'));
   }
 
   Future<void> _calibrate(ControllerChild s) async {
@@ -1251,21 +1500,33 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
-        title: Text('Hiệu chuẩn ${ _sensorTitle(s)}', style: bvText(fontWeight: FontWeight.w800)),
+        title: Text('Hiệu chuẩn ${_sensorTitle(s)}',
+            style: bvText(fontWeight: FontWeight.w800)),
         content: SizedBox(
           width: 400,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Ngưỡng lấy từ backend. UI không tự nhân/chia giá trị đo.', style: bvText(color: DashboardColors.textMuted)),
-              TextField(controller: min, decoration: const InputDecoration(labelText: 'Min threshold')),
-              TextField(controller: max, decoration: const InputDecoration(labelText: 'Max threshold')),
+              Text('Ngưỡng lấy từ backend. UI không tự nhân/chia giá trị đo.',
+                  style: bvText(color: DashboardColors.textMuted)),
+              TextField(
+                  controller: min,
+                  decoration:
+                      const InputDecoration(labelText: 'Min threshold')),
+              TextField(
+                  controller: max,
+                  decoration:
+                      const InputDecoration(labelText: 'Max threshold')),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Lưu')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Hủy')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Lưu')),
         ],
       ),
     );
@@ -1295,10 +1556,13 @@ class _ControllerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final live = device.isOnline &&
         device.lastSeenAt != null &&
-        DateTime.now().difference(device.lastSeenAt!.toLocal()) <= _kHeartbeatOnline;
+        DateTime.now().difference(device.lastSeenAt!.toLocal()) <=
+            _kHeartbeatOnline;
     final border = selected
         ? (warning ? _kAmber : DashboardColors.brand)
-        : (warning ? _kAmber.withValues(alpha: 0.55) : DashboardColors.cardBorder);
+        : (warning
+            ? _kAmber.withValues(alpha: 0.55)
+            : DashboardColors.cardBorder);
     return Material(
       color: selected ? DashboardColors.lightMint : Colors.white,
       borderRadius: BorderRadius.circular(12),
@@ -1316,7 +1580,8 @@ class _ControllerCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.memory, size: 18, color: DashboardColors.brand),
+                  const Icon(Icons.memory,
+                      size: 18, color: DashboardColors.brand),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -1330,7 +1595,9 @@ class _ControllerCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 6),
-              Text(_areaLabel(device), style: bvText(fontSize: 12, color: DashboardColors.textMuted)),
+              Text(_areaLabel(device),
+                  style:
+                      bvText(fontSize: 12, color: DashboardColors.textMuted)),
               const SizedBox(height: 4),
               Text(
                 '${device.sensorCount} sensors • ${device.actuatorCount} outputs',
@@ -1346,7 +1613,8 @@ class _ControllerCard extends StatelessWidget {
                 style: bvText(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
-                  color: live ? DashboardColors.brand : DashboardColors.textMuted,
+                  color:
+                      live ? DashboardColors.brand : DashboardColors.textMuted,
                 ),
               ),
             ],
@@ -1379,8 +1647,10 @@ Widget _sensorStatus(ControllerChild s, IoTDevice controller) {
     return const MgmtStatusBadge(label: 'Dữ liệu cũ', color: _kAmber);
   }
   return switch (_sensorFreshness(s, controller)) {
-    _Fresh.realtime => const MgmtStatusBadge(label: 'Realtime', color: DashboardColors.brand),
-    _Fresh.slow => const MgmtStatusBadge(label: 'Chậm cập nhật', color: _kAmber),
+    _Fresh.realtime =>
+      const MgmtStatusBadge(label: 'Realtime', color: DashboardColors.brand),
+    _Fresh.slow =>
+      const MgmtStatusBadge(label: 'Chậm cập nhật', color: _kAmber),
     _Fresh.stale => const MgmtStatusBadge(label: 'Dữ liệu cũ', color: _kAmber),
   };
 }

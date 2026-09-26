@@ -67,7 +67,8 @@ class CloudApiClient {
       throw CloudApiException('Phản hồi login thiếu accessToken');
     }
 
-    final userRaw = data['user'] ?? data['User'] ?? body['user'] ?? body['User'];
+    final userRaw =
+        data['user'] ?? data['User'] ?? body['user'] ?? body['User'];
     if (userRaw is! Map) {
       throw CloudApiException('Phản hồi login thiếu user');
     }
@@ -102,7 +103,8 @@ class CloudApiClient {
             data['Token'])
         ?.toString();
     if (token == null || token.isEmpty) {
-      throw CloudApiException('Phản hồi refresh thiếu accessToken', statusCode: 401);
+      throw CloudApiException('Phản hồi refresh thiếu accessToken',
+          statusCode: 401);
     }
     final userRaw = data['user'] ?? data['User'];
     return (
@@ -190,7 +192,8 @@ class CloudApiClient {
         'name': name,
         if (location != null && location.isNotEmpty) 'location': location,
         if (areaSquareMeters != null) 'areaSquareMeters': areaSquareMeters,
-        if (description != null && description.isNotEmpty) 'description': description,
+        if (description != null && description.isNotEmpty)
+          'description': description,
         'status': status.apiValue,
       }),
     );
@@ -251,7 +254,9 @@ class CloudApiClient {
         statusCode: 403,
       );
     }
-    if (res.statusCode < 200 || res.statusCode >= 300 || _isApiFailure(res, body)) {
+    if (res.statusCode < 200 ||
+        res.statusCode >= 300 ||
+        _isApiFailure(res, body)) {
       throw CloudApiException(
         _errorMessage(body) ?? 'Thao tác thất bại (${res.statusCode})',
         statusCode: res.statusCode,
@@ -277,7 +282,8 @@ class CloudApiClient {
     }
     if (_isApiFailure(res, body)) {
       throw CloudApiException(
-        _errorMessage(body) ?? 'Không tải được /api/auth/me (${res.statusCode})',
+        _errorMessage(body) ??
+            'Không tải được /api/auth/me (${res.statusCode})',
         statusCode: res.statusCode,
       );
     }
@@ -294,9 +300,7 @@ class CloudApiClient {
     final norm = normalizeMac(mac);
     final uri = Uri.parse('$_base/api/telemetry/realtime')
         .replace(queryParameters: {'mac': norm});
-    final res = await _client
-        .get(uri)
-        .timeout(const Duration(seconds: 12));
+    final res = await _client.get(uri).timeout(const Duration(seconds: 12));
     final body = _decode(res);
 
     if (res.statusCode == 404) {
@@ -307,8 +311,7 @@ class CloudApiClient {
     }
     if (res.statusCode < 200 || res.statusCode >= 300 || body['ok'] == false) {
       throw CloudApiException(
-        _errorMessage(body) ??
-            'Không tải realtime (${res.statusCode})',
+        _errorMessage(body) ?? 'Không tải realtime (${res.statusCode})',
         statusCode: res.statusCode,
       );
     }
@@ -377,8 +380,7 @@ class CloudApiClient {
     }
     if (res.statusCode < 200 || res.statusCode >= 300 || body['ok'] == false) {
       throw CloudApiException(
-        _errorMessage(body) ??
-            'Không tải history (${res.statusCode})',
+        _errorMessage(body) ?? 'Không tải history (${res.statusCode})',
         statusCode: res.statusCode,
       );
     }
@@ -780,7 +782,8 @@ class CloudApiClient {
     return _asMap(_dataOf(body) ?? body);
   }
 
-  Future<Map<String, dynamic>> completeSalesOrder(String token, String id) async {
+  Future<Map<String, dynamic>> completeSalesOrder(
+      String token, String id) async {
     final uri = Uri.parse('$_base/api/sales-orders/$id/complete');
     final res = await _client.post(uri, headers: authHeaders(token));
     final body = _decode(res);
@@ -832,7 +835,8 @@ class CloudApiClient {
       if (farmingAreaId != null && farmingAreaId.isNotEmpty)
         'farmId': farmingAreaId,
     };
-    final uri = Uri.parse('$_base/api/sales/summary').replace(queryParameters: q);
+    final uri =
+        Uri.parse('$_base/api/sales/summary').replace(queryParameters: q);
     final res = await _client.get(uri, headers: authHeaders(token));
     final body = _decode(res);
     if (_isApiFailure(res, body)) {
@@ -854,7 +858,8 @@ class CloudApiClient {
         farmingAreaId: farmingAreaId,
       );
 
-  Future<Map<String, dynamic>?> fetchBoxCamera(String token, String boxId) async {
+  Future<Map<String, dynamic>?> fetchBoxCamera(
+      String token, String boxId) async {
     final uri = Uri.parse('$_base/api/boxes/$boxId/camera');
     final res = await _client.get(uri, headers: authHeaders(token));
     final body = _decode(res);
@@ -862,7 +867,8 @@ class CloudApiClient {
     return _asMap(_dataOf(body) ?? body);
   }
 
-  Future<List<Map<String, dynamic>>> fetchBoxCrabs(String token, String boxId) =>
+  Future<List<Map<String, dynamic>>> fetchBoxCrabs(
+          String token, String boxId) =>
       _getDataList(token, '/api/boxes/$boxId/crabs');
 
   Future<List<Map<String, dynamic>>> fetchBoxStatusHistory(
@@ -880,7 +886,8 @@ class CloudApiClient {
         },
       );
 
-  Future<List<Map<String, dynamic>>> fetchBoxAllocations(String token, String boxId) =>
+  Future<List<Map<String, dynamic>>> fetchBoxAllocations(
+          String token, String boxId) =>
       _getDataList(token, '/api/boxes/$boxId/allocations');
 
   /// CrabSenseBE `GET /api/iot/live`
@@ -1001,7 +1008,8 @@ class CloudApiClient {
       uri,
       headers: {...authHeaders(token), 'Content-Type': 'application/json'},
       body: jsonEncode({
-        if (resolvedReason != null && resolvedReason.isNotEmpty) 'reason': resolvedReason,
+        if (resolvedReason != null && resolvedReason.isNotEmpty)
+          'reason': resolvedReason,
         if (action != null && action.trim().isNotEmpty) 'action': action.trim(),
         if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
         'deviceRecovered': recovered,
@@ -1028,7 +1036,8 @@ class CloudApiClient {
         '/api/devices',
         farmingAreaId: farmingAreaId,
         extraQuery: {
-          if (farmingRowId != null && farmingRowId.isNotEmpty) 'farmingRowId': farmingRowId,
+          if (farmingRowId != null && farmingRowId.isNotEmpty)
+            'farmingRowId': farmingRowId,
         },
       );
 
@@ -1046,7 +1055,8 @@ class CloudApiClient {
         '/api/ai/detections',
         extraQuery: {
           if (boxId != null && boxId.isNotEmpty) 'boxId': boxId,
-          if (farmingAreaId != null && farmingAreaId.isNotEmpty) 'farmingAreaId': farmingAreaId,
+          if (farmingAreaId != null && farmingAreaId.isNotEmpty)
+            'farmingAreaId': farmingAreaId,
           if (take != null && take > 0) 'take': '$take',
         },
       );
@@ -1091,16 +1101,20 @@ class CloudApiClient {
         'deviceCode': deviceCode,
         if (name != null && name.isNotEmpty) 'name': name,
         'deviceType': deviceType ?? 'esp32-s3',
-        if (macAddress != null && macAddress.isNotEmpty) 'macAddress': macAddress,
+        if (macAddress != null && macAddress.isNotEmpty)
+          'macAddress': macAddress,
         if (ipAddress != null && ipAddress.isNotEmpty) 'ipAddress': ipAddress,
         if (firmwareVersion != null && firmwareVersion.isNotEmpty)
           'firmwareVersion': firmwareVersion,
         if (farmingAreaId != null && farmingAreaId.isNotEmpty)
           'farmingAreaId': farmingAreaId,
-        if (farmingRowId != null && farmingRowId.isNotEmpty) 'farmingRowId': farmingRowId,
+        if (farmingRowId != null && farmingRowId.isNotEmpty)
+          'farmingRowId': farmingRowId,
         if (streamUrl != null && streamUrl.isNotEmpty) 'streamUrl': streamUrl,
-        if (snapshotUrl != null && snapshotUrl.isNotEmpty) 'snapshotUrl': snapshotUrl,
-        if (resolution != null && resolution.isNotEmpty) 'resolution': resolution,
+        if (snapshotUrl != null && snapshotUrl.isNotEmpty)
+          'snapshotUrl': snapshotUrl,
+        if (resolution != null && resolution.isNotEmpty)
+          'resolution': resolution,
         if (installationLocation != null && installationLocation.isNotEmpty)
           'installationLocation': installationLocation,
         if (note != null && note.isNotEmpty) 'note': note,
@@ -1182,7 +1196,8 @@ class CloudApiClient {
         if (status != null) 'status': status,
         if (firmwareVersion != null) 'firmwareVersion': firmwareVersion,
         if (macAddress != null) 'macAddress': macAddress,
-        if (installationLocation != null) 'installationLocation': installationLocation,
+        if (installationLocation != null)
+          'installationLocation': installationLocation,
         if (note != null) 'note': note,
       }),
     );
@@ -1239,13 +1254,28 @@ class CloudApiClient {
     return _asMap(_dataOf(body) ?? body);
   }
 
+  Future<void> deleteSensor(String token, String id) async {
+    final res = await _client.delete(
+      Uri.parse('$_base/api/sensors/$id'),
+      headers: authHeaders(token),
+    );
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không xóa cảm biến',
+        statusCode: res.statusCode,
+      );
+    }
+  }
+
   Future<Map<String, dynamic>> fetchWaterAnalysisDetail(
     String token,
     String areaId,
     String runId,
   ) async {
     final uri = Uri.parse('$_base/api/areas/$areaId/water-analysis/$runId');
-    final res = await _client.get(uri, headers: authHeaders(token, farmId: areaId));
+    final res =
+        await _client.get(uri, headers: authHeaders(token, farmId: areaId));
     final body = _decode(res);
     if (_isApiFailure(res, body)) {
       throw CloudApiException(
@@ -1261,7 +1291,8 @@ class CloudApiClient {
     String areaId,
   ) async {
     final uri = Uri.parse('$_base/api/areas/$areaId/water-analysis');
-    final res = await _client.get(uri, headers: authHeaders(token, farmId: areaId));
+    final res =
+        await _client.get(uri, headers: authHeaders(token, farmId: areaId));
     final body = _decode(res);
     if (_isApiFailure(res, body)) {
       throw CloudApiException(
@@ -1283,7 +1314,10 @@ class CloudApiClient {
     final uri = Uri.parse('$_base/api/areas/$areaId/water-analysis/start');
     final res = await _client.post(
       uri,
-      headers: {...authHeaders(token, farmId: areaId), 'Content-Type': 'application/json'},
+      headers: {
+        ...authHeaders(token, farmId: areaId),
+        'Content-Type': 'application/json'
+      },
       body: jsonEncode({
         if (analyte != null) 'analyte': analyte,
         if (sampleSource != null) 'sampleSource': sampleSource,
@@ -1308,7 +1342,10 @@ class CloudApiClient {
     final uri = Uri.parse('$_base/api/areas/$areaId/water-analysis/stop');
     final res = await _client.post(
       uri,
-      headers: {...authHeaders(token, farmId: areaId), 'Content-Type': 'application/json'},
+      headers: {
+        ...authHeaders(token, farmId: areaId),
+        'Content-Type': 'application/json'
+      },
       body: '{}',
     );
     final body = _decode(res);
@@ -1331,7 +1368,10 @@ class CloudApiClient {
     final uri = Uri.parse('$_base/api/areas/$areaId/water-analysis/sample');
     final res = await _client.put(
       uri,
-      headers: {...authHeaders(token, farmId: areaId), 'Content-Type': 'application/json'},
+      headers: {
+        ...authHeaders(token, farmId: areaId),
+        'Content-Type': 'application/json'
+      },
       body: jsonEncode({
         'sampleSource': sampleSource,
         if (sampleLocation != null) 'sampleLocation': sampleLocation,
@@ -1353,7 +1393,8 @@ class CloudApiClient {
     String token, {
     String? farmingAreaId,
   }) =>
-      _getDataList(token, '/api/operations/today', farmingAreaId: farmingAreaId);
+      _getDataList(token, '/api/operations/today',
+          farmingAreaId: farmingAreaId);
 
   bool _isApiFailure(http.Response res, Map<String, dynamic> body) {
     if (res.statusCode < 200 || res.statusCode >= 300) return true;
@@ -1393,10 +1434,8 @@ class CloudApiClient {
   }
 
   String? _errorMessage(Map<String, dynamic> body) {
-    final e = body['error'] ??
-        body['Error'] ??
-        body['message'] ??
-        body['Message'];
+    final e =
+        body['error'] ?? body['Error'] ?? body['message'] ?? body['Message'];
     if (e != null && e.toString().trim().isNotEmpty) return e.toString();
     final data = _dataOf(body);
     if (data is Map) {
