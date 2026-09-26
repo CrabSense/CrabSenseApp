@@ -17,6 +17,12 @@ class EspProvisionInfo {
     this.provisioned = false,
     this.staIp = '',
     this.baseUrl = ControllerProvisioningService.defaultApBase,
+    this.board = '',
+    this.wifiSsid = '',
+    this.rssi,
+    this.lastHeartbeatSeconds,
+    this.sensorCount,
+    this.outputCount,
   });
 
   final String deviceId;
@@ -28,8 +34,22 @@ class EspProvisionInfo {
   final bool provisioned;
   final String staIp;
   final String baseUrl;
+  final String board;
+  final String wifiSsid;
+  final double? rssi;
+  final int? lastHeartbeatSeconds;
+  final int? sensorCount;
+  final int? outputCount;
 
-  String get displayName => apName.isNotEmpty ? apName : deviceCode;
+  String get displayName =>
+      apName.isNotEmpty ? apName : (deviceCode.isNotEmpty ? deviceCode : deviceId);
+
+  String get hardwareId =>
+      deviceId.isNotEmpty ? deviceId : (deviceCode.isNotEmpty ? deviceCode : mac);
+
+  String get ip => staIp.isNotEmpty
+      ? staIp
+      : baseUrl.replaceFirst(RegExp(r'^https?://'), '').split('/').first;
 
   factory EspProvisionInfo.fromJson(
     Map<String, dynamic> json, {
@@ -40,6 +60,7 @@ class EspProvisionInfo {
       return v?.toString() ?? '';
     }
 
+    num? n(dynamic v) => v is num ? v : num.tryParse('$v');
     return EspProvisionInfo(
       deviceId: read('deviceId', 'DeviceId'),
       deviceCode: read('deviceCode', 'DeviceCode'),
@@ -50,6 +71,15 @@ class EspProvisionInfo {
       provisioned: json['provisioned'] == true || json['Provisioned'] == true,
       staIp: read('staIp', 'StaIp'),
       baseUrl: baseUrl,
+      board: read('board', 'Board'),
+      wifiSsid: read('wifiSsid', 'WifiSsid').isNotEmpty
+          ? read('wifiSsid', 'WifiSsid')
+          : read('ssid', 'Ssid'),
+      rssi: n(json['rssi'] ?? json['Rssi'] ?? json['rssiDbm'] ?? json['RssiDbm'])?.toDouble(),
+      lastHeartbeatSeconds:
+          n(json['lastHeartbeatSeconds'] ?? json['LastHeartbeatSeconds'])?.toInt(),
+      sensorCount: n(json['sensorCount'] ?? json['SensorCount'])?.toInt(),
+      outputCount: n(json['outputCount'] ?? json['OutputCount'])?.toInt(),
     );
   }
 }
@@ -113,8 +143,35 @@ class ControllerProvisioningService {
 
   /// AP 192.168.4.1 first, then the farm LAN (ESP may already have left AP-only mode).
   Future<EspProvisionInfo> discoverNearby() async {
+    final all = await discoverAllNearby();
+    if (all.isEmpty) {
+      throw const FormatException(
+        'Không thấy CrabSense trên 192.168.4.1 hay LAN. '
+        'Nếu ESP đã vào Wi-Fi trại, bấm Tìm khi PC cùng mạng, hoặc đăng ký thủ công.',
+      );
+    }
+    return all.first;
+  }
+
+  /// Quét toàn LAN, trả mọi board phản hồi `/api/info`.
+  Future<List<EspProvisionInfo>> discoverAllNearby() async {
+    final found = <String, EspProvisionInfo>{};
+    void keep(EspProvisionInfo? info) {
+      if (info == null) return;
+      if (info.deviceCode.isEmpty && info.deviceId.isEmpty && info.mac.isEmpty) {
+        return;
+      }
+      final key = [
+        info.mac,
+        info.deviceId,
+        info.deviceCode,
+        info.ip,
+      ].where((e) => e.isNotEmpty).join('|');
+      found[key] = info;
+    }
+
     try {
-      return await discover(baseUrl: defaultApBase);
+      keep(await discover(baseUrl: defaultApBase));
     } catch (_) {}
 
     final hosts = await _lanHosts();
@@ -132,16 +189,10 @@ class ControllerProvisioningService {
         }),
       );
       for (final info in results) {
-        if (info != null && info.deviceCode.isNotEmpty) {
-          return info;
-        }
+        keep(info);
       }
     }
-
-    throw const FormatException(
-      'Không thấy CrabSense trên 192.168.4.1 hay LAN. '
-      'Nếu ESP đã vào Wi-Fi trại, bấm Tìm khi PC cùng mạng, hoặc đăng ký thủ công CrabSense-C114.',
-    );
+    return found.values.toList();
   }
 
   Future<List<String>> _lanHosts() async {
@@ -208,5 +259,25 @@ class ControllerProvisioningService {
       provisioned: true,
       baseUrl: root,
     );
+  }
+
+  /// Ping ESP trên LAN qua `/api/info`. Không đổi trạng thái backend.
+  Future<EspProvisionInfo> pingLan(String ip) {
+    final host = ip.trim().replaceFirst(RegExp(r'^https?://'), '');
+    return discover(baseUrl: 'http://$host');
+  }
+
+  /// Gửi lệnh restart nếu firmware hỗ trợ. Trả về false nếu không có kênh.
+  Future<bool> restartLan(String ip) async {
+    final host = ip.trim().replaceFirst(RegExp(r'^https?://'), '');
+    for (final path in const ['/api/restart', '/api/reboot', '/restart', '/reboot']) {
+      try {
+        final res = await _client
+            .post(Uri.parse('http://$host$path'))
+            .timeout(const Duration(seconds: 4));
+        if (res.statusCode >= 200 && res.statusCode < 300) return true;
+      } catch (_) {}
+    }
+    return false;
   }
 }

@@ -316,8 +316,12 @@ class _MainShellScreenState extends State<MainShellScreen> {
         _crabService.load();
       case AppRoute.devices:
         _rasFlowService.startLiveRefresh(_session.selectedFarm.id);
+        _areaEnvironmentService.startLiveRefresh(_session.selectedFarm.id);
       case AppRoute.controllers:
         _controllerService.load();
+        _alertService.load();
+        _farmLogService.load();
+        _rowManagementService.load();
       case AppRoute.environment:
         _waterQualityService.refresh();
         _areaEnvironmentService.loadByArea(_session.selectedFarm.id);
@@ -407,12 +411,18 @@ class _MainShellScreenState extends State<MainShellScreen> {
     }
     if (route == AppRoute.devices) {
       _rasFlowService.startLiveRefresh(_session.selectedFarm.id);
+      _areaEnvironmentService.startLiveRefresh(_session.selectedFarm.id);
     }
     if (route == AppRoute.controllers) {
       _controllerService.load();
+      _alertService.load();
+      _farmLogService.load();
+      _rowManagementService.load();
     }
     if (route == AppRoute.environment) {
       _waterQualityService.refresh();
+      _controllerService.load();
+      _alertService.load();
     }
     if (route == AppRoute.waterAnalysis) {
       _waterAnalysisService.load();
@@ -1159,25 +1169,43 @@ class _MainShellScreenState extends State<MainShellScreen> {
         return RealtimeMonitorPage(
           service: _waterQualityService,
           alertService: _alertService,
+          controllerService: _controllerService,
+          session: _session,
+          onNavigate: _navigate,
         );
       case AppRoute.waterAnalysis:
         return WaterAnalysisPage(
           service: _waterAnalysisService,
           areaName: _session.selectedFarm.name,
+          areaCode: _session.selectedFarm.code,
+          session: _session,
+          onNavigate: _navigate,
         );
       case AppRoute.devices:
         return RasControlPage(
           service: _rasFlowService,
           areaId: _session.selectedFarm.id,
           areaName: _session.selectedFarm.name,
+          areaCode: _session.selectedFarm.code,
+          environment: _areaEnvironmentService,
+          onNavigate: _navigate,
         );
       case AppRoute.controllers:
         return ControllerManagementPage(
           service: _controllerService,
           areaName: _session.selectedFarm.name,
+          areaCode: _session.selectedFarm.code,
+          alertService: _alertService,
+          farmLogService: _farmLogService,
+          rowService: _rowManagementService,
+          onNavigate: _navigate,
         );
       case AppRoute.alerts:
-        return AlertSystemPage(service: _alertService);
+        return AlertSystemPage(
+          service: _alertService,
+          session: _session,
+          onNavigate: _navigate,
+        );
       case AppRoute.farmLogs:
         return FarmActivityLogPage(
           service: _farmLogService,
@@ -1185,7 +1213,10 @@ class _MainShellScreenState extends State<MainShellScreen> {
           crabService: _crabService,
         );
       case AppRoute.harvestSales:
-        return HarvestSalesPage(service: _harvestSalesService);
+        return HarvestSalesPage(
+          service: _harvestSalesService,
+          onNavigate: _navigate,
+        );
       case AppRoute.aiInsight:
         return AiInsightPage(service: _aiAssistantService);
     }

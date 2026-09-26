@@ -258,3 +258,21 @@ class RealtimeWaterAlert {
   final String detail;
   final WaterSensorStatus status;
 }
+
+class RealtimeTableRow {
+  const RealtimeTableRow({
+    required this.at,
+    this.temperature,
+    this.ph,
+    this.tds,
+    this.status = 'Bình thường',
+    this.outOfRange = false,
+  });
+
+  final DateTime at;
+  final double? temperature;
+  final double? ph;
+  final double? tds;
+  final String status;
+  final bool outOfRange;
+}

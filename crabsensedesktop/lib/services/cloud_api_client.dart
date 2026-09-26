@@ -594,6 +594,7 @@ class CloudApiClient {
     String? performedByName,
     List<Map<String, dynamic>>? lines,
     List<String> photoUrls = const [],
+    String? status,
   }) async {
     final uri = Uri.parse('$_base/api/harvest-vouchers');
     final res = await _client.post(
@@ -607,6 +608,7 @@ class CloudApiClient {
         if (performedByName != null && performedByName.isNotEmpty)
           'performedByName': performedByName,
         if (photoUrls.isNotEmpty) 'photoUrls': photoUrls,
+        if (status != null && status.isNotEmpty) 'status': status,
         'lines': lines ??
             [
               {
@@ -627,6 +629,39 @@ class CloudApiClient {
       );
     }
     return _asMap(_dataOf(body) ?? body);
+  }
+
+  Future<Map<String, dynamic>> updateHarvestVoucherStatus(
+    String token,
+    String id, {
+    required String status,
+  }) async {
+    final uri = Uri.parse('$_base/api/harvest-vouchers/$id/status');
+    final res = await _client.patch(
+      uri,
+      headers: {...authHeaders(token), 'Content-Type': 'application/json'},
+      body: jsonEncode({'status': status}),
+    );
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không cập nhật trạng thái phiếu thu hoạch',
+        statusCode: res.statusCode,
+      );
+    }
+    return _asMap(_dataOf(body) ?? body);
+  }
+
+  Future<void> deleteHarvestVoucher(String token, String id) async {
+    final uri = Uri.parse('$_base/api/harvest-vouchers/$id');
+    final res = await _client.delete(uri, headers: authHeaders(token));
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không xóa phiếu thu hoạch',
+        statusCode: res.statusCode,
+      );
+    }
   }
 
   Future<List<Map<String, dynamic>>> fetchSalesOrders(
@@ -662,6 +697,35 @@ class CloudApiClient {
   Future<List<Map<String, dynamic>>> fetchCustomers(String token) =>
       _getDataList(token, '/api/customers');
 
+  Future<Map<String, dynamic>> upsertCustomer(
+    String token, {
+    required String name,
+    String? phone,
+    String? address,
+    String? customerType,
+  }) async {
+    final uri = Uri.parse('$_base/api/customers');
+    final res = await _client.post(
+      uri,
+      headers: {...authHeaders(token), 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'name': name,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+        if (address != null && address.isNotEmpty) 'address': address,
+        if (customerType != null && customerType.isNotEmpty)
+          'customerType': customerType,
+      }),
+    );
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không lưu khách hàng',
+        statusCode: res.statusCode,
+      );
+    }
+    return _asMap(_dataOf(body) ?? body);
+  }
+
   Future<Map<String, dynamic>> createSalesOrder(
     String token, {
     required DateTime orderDate,
@@ -678,6 +742,7 @@ class CloudApiClient {
     int? shippingFee,
     int? paidAmount,
     String? deliveryStatus,
+    String? customerType,
     required List<Map<String, dynamic>> lines,
   }) async {
     final uri = Uri.parse('$_base/api/sales-orders');
@@ -700,6 +765,8 @@ class CloudApiClient {
         if (shippingFee != null) 'shippingFee': shippingFee,
         if (paidAmount != null) 'paidAmount': paidAmount,
         if (deliveryStatus != null) 'deliveryStatus': deliveryStatus,
+        if (customerType != null && customerType.isNotEmpty)
+          'customerType': customerType,
         'lines': lines,
       }),
     );
@@ -896,19 +963,49 @@ class CloudApiClient {
     }
   }
 
-  Future<void> resolveAlert(
+  Future<void> startAlertProcessing(
     String token,
     String alertId, {
-    String? resolutionCode,
-    String? note,
+    String? userId,
   }) async {
-    final uri = Uri.parse('$_base/api/alerts/$alertId/resolve');
+    final uri = Uri.parse('$_base/api/alerts/$alertId/process');
     final res = await _client.post(
       uri,
       headers: {...authHeaders(token), 'Content-Type': 'application/json'},
       body: jsonEncode({
-        if (resolutionCode != null && resolutionCode.isNotEmpty) 'resolutionCode': resolutionCode,
+        if (userId != null && userId.isNotEmpty) 'userId': userId,
+      }),
+    );
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không bắt đầu xử lý cảnh báo',
+        statusCode: res.statusCode,
+      );
+    }
+  }
+
+  Future<void> resolveAlert(
+    String token,
+    String alertId, {
+    String? resolutionCode,
+    String? reason,
+    String? action,
+    String? note,
+    bool recovered = false,
+    String? userId,
+  }) async {
+    final uri = Uri.parse('$_base/api/alerts/$alertId/resolve');
+    final resolvedReason = (reason ?? resolutionCode)?.trim();
+    final res = await _client.post(
+      uri,
+      headers: {...authHeaders(token), 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        if (resolvedReason != null && resolvedReason.isNotEmpty) 'reason': resolvedReason,
+        if (action != null && action.trim().isNotEmpty) 'action': action.trim(),
         if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+        'deviceRecovered': recovered,
+        if (userId != null && userId.isNotEmpty) 'userId': userId,
       }),
     );
     final body = _decode(res);
@@ -983,6 +1080,8 @@ class CloudApiClient {
     String? streamUrl,
     String? snapshotUrl,
     String? resolution,
+    String? installationLocation,
+    String? note,
   }) async {
     final uri = Uri.parse('$_base/api/devices');
     final res = await _client.post(
@@ -1002,6 +1101,9 @@ class CloudApiClient {
         if (streamUrl != null && streamUrl.isNotEmpty) 'streamUrl': streamUrl,
         if (snapshotUrl != null && snapshotUrl.isNotEmpty) 'snapshotUrl': snapshotUrl,
         if (resolution != null && resolution.isNotEmpty) 'resolution': resolution,
+        if (installationLocation != null && installationLocation.isNotEmpty)
+          'installationLocation': installationLocation,
+        if (note != null && note.isNotEmpty) 'note': note,
       }),
     );
     final body = _decode(res);
@@ -1058,6 +1160,11 @@ class CloudApiClient {
     String? streamUrl,
     String? snapshotUrl,
     String? resolution,
+    String? status,
+    String? firmwareVersion,
+    String? macAddress,
+    String? installationLocation,
+    String? note,
   }) async {
     final uri = Uri.parse('$_base/api/devices/$id');
     final res = await _client.put(
@@ -1072,12 +1179,77 @@ class CloudApiClient {
         if (streamUrl != null) 'streamUrl': streamUrl,
         if (snapshotUrl != null) 'snapshotUrl': snapshotUrl,
         if (resolution != null) 'resolution': resolution,
+        if (status != null) 'status': status,
+        if (firmwareVersion != null) 'firmwareVersion': firmwareVersion,
+        if (macAddress != null) 'macAddress': macAddress,
+        if (installationLocation != null) 'installationLocation': installationLocation,
+        if (note != null) 'note': note,
       }),
     );
     final body = _decode(res);
     if (_isApiFailure(res, body)) {
       throw CloudApiException(
         _errorMessage(body) ?? 'Không cập nhật thiết bị',
+        statusCode: res.statusCode,
+      );
+    }
+    return _asMap(_dataOf(body) ?? body);
+  }
+
+  Future<void> deleteController(String token, String id) async {
+    final uri = Uri.parse('$_base/api/devices/$id');
+    final res = await _client.delete(uri, headers: authHeaders(token));
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không xóa controller',
+        statusCode: res.statusCode,
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>> updateSensor(
+    String token,
+    String id, {
+    String? sensorType,
+    String? unit,
+    bool? isActive,
+    double? minThreshold,
+    double? maxThreshold,
+  }) async {
+    final uri = Uri.parse('$_base/api/sensors/$id');
+    final res = await _client.put(
+      uri,
+      headers: {...authHeaders(token), 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        if (sensorType != null) 'sensorType': sensorType,
+        if (unit != null) 'unit': unit,
+        if (isActive != null) 'isActive': isActive,
+        if (minThreshold != null) 'minThreshold': minThreshold,
+        if (maxThreshold != null) 'maxThreshold': maxThreshold,
+      }),
+    );
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không cập nhật cảm biến',
+        statusCode: res.statusCode,
+      );
+    }
+    return _asMap(_dataOf(body) ?? body);
+  }
+
+  Future<Map<String, dynamic>> fetchWaterAnalysisDetail(
+    String token,
+    String areaId,
+    String runId,
+  ) async {
+    final uri = Uri.parse('$_base/api/areas/$areaId/water-analysis/$runId');
+    final res = await _client.get(uri, headers: authHeaders(token, farmId: areaId));
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không tải chi tiết phân tích',
         statusCode: res.statusCode,
       );
     }
@@ -1102,9 +1274,38 @@ class CloudApiClient {
 
   Future<Map<String, dynamic>> startWaterAnalysis(
     String token,
+    String areaId, {
+    String? analyte,
+    String? sampleSource,
+    String? sampleLocation,
+    String? notes,
+  }) async {
+    final uri = Uri.parse('$_base/api/areas/$areaId/water-analysis/start');
+    final res = await _client.post(
+      uri,
+      headers: {...authHeaders(token, farmId: areaId), 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        if (analyte != null) 'analyte': analyte,
+        if (sampleSource != null) 'sampleSource': sampleSource,
+        if (sampleLocation != null) 'sampleLocation': sampleLocation,
+        if (notes != null) 'notes': notes,
+      }),
+    );
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không bắt đầu phân tích',
+        statusCode: res.statusCode,
+      );
+    }
+    return _asMap(_dataOf(body) ?? body);
+  }
+
+  Future<Map<String, dynamic>> stopWaterAnalysis(
+    String token,
     String areaId,
   ) async {
-    final uri = Uri.parse('$_base/api/areas/$areaId/water-analysis/start');
+    final uri = Uri.parse('$_base/api/areas/$areaId/water-analysis/stop');
     final res = await _client.post(
       uri,
       headers: {...authHeaders(token, farmId: areaId), 'Content-Type': 'application/json'},
@@ -1113,7 +1314,34 @@ class CloudApiClient {
     final body = _decode(res);
     if (_isApiFailure(res, body)) {
       throw CloudApiException(
-        _errorMessage(body) ?? 'Không bắt đầu phân tích',
+        _errorMessage(body) ?? 'Không dừng phân tích',
+        statusCode: res.statusCode,
+      );
+    }
+    return _asMap(_dataOf(body) ?? body);
+  }
+
+  Future<Map<String, dynamic>> updateWaterAnalysisSample(
+    String token,
+    String areaId, {
+    required String sampleSource,
+    String? sampleLocation,
+    String? notes,
+  }) async {
+    final uri = Uri.parse('$_base/api/areas/$areaId/water-analysis/sample');
+    final res = await _client.put(
+      uri,
+      headers: {...authHeaders(token, farmId: areaId), 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'sampleSource': sampleSource,
+        if (sampleLocation != null) 'sampleLocation': sampleLocation,
+        if (notes != null) 'notes': notes,
+      }),
+    );
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không cập nhật thông tin mẫu',
         statusCode: res.statusCode,
       );
     }

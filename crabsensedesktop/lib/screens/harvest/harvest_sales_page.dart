@@ -1,16 +1,27 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/harvest_sales.dart';
+import '../../navigation/app_route.dart';
 import '../../services/harvest_sales_service.dart';
 import '../../theme/dashboard_theme.dart';
-import '../../widgets/dashboard/glass_card.dart';
 import '../../widgets/harvest/harvest_sales_dialogs.dart';
+import '../../widgets/harvest/harvest_tab_widgets.dart';
+import '../../widgets/harvest/sales_tab_widgets.dart';
+import '../../widgets/shared/mgmt_ui.dart';
 
 class HarvestSalesPage extends StatefulWidget {
-  const HarvestSalesPage({super.key, required this.service});
+  const HarvestSalesPage({
+    super.key,
+    required this.service,
+    this.onNavigate,
+  });
 
   final HarvestSalesService service;
+  final void Function(AppRoute route)? onNavigate;
 
   @override
   State<HarvestSalesPage> createState() => _HarvestSalesPageState();
@@ -43,50 +54,33 @@ class _HarvestSalesPageState extends State<HarvestSalesPage>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-          child: Text(
-            'Thu hoạch & Bán hàng',
-            style: GoogleFonts.notoSans(
-              color: DashboardColors.textPrimary,
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+          child: _HarvestHeader(onNavigate: widget.onNavigate),
         ),
-        const SizedBox(height: 8),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
           child: TabBar(
             controller: _tabs,
             isScrollable: true,
             tabAlignment: TabAlignment.start,
-            indicatorColor: DashboardColors.cyan,
-            labelColor: DashboardColors.cyan,
+            indicatorColor: DashboardColors.brand,
+            indicatorWeight: 2.4,
+            labelColor: DashboardColors.brand,
             unselectedLabelColor: DashboardColors.textMuted,
-            labelStyle: GoogleFonts.notoSans(
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-            ),
+            labelStyle: bvText(fontWeight: FontWeight.w700, fontSize: 13.5),
+            unselectedLabelStyle: bvText(fontWeight: FontWeight.w600, fontSize: 13.5),
             tabs: const [
               Tab(text: 'Thu hoạch'),
               Tab(text: 'Bán hàng'),
             ],
           ),
         ),
-        if (service.error != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-            child: Text(
-              service.error!,
-              style: GoogleFonts.notoSans(color: DashboardColors.risk),
-            ),
-          ),
         Expanded(
           child: TabBarView(
             controller: _tabs,
             children: [
-              _HarvestTab(service: service),
-              _SalesTab(service: service),
+              HarvestTab(service: service),
+              SalesTab(service: service),
             ],
           ),
         ),
@@ -95,338 +89,418 @@ class _HarvestSalesPageState extends State<HarvestSalesPage>
   }
 }
 
-class _HarvestTab extends StatelessWidget {
-  const _HarvestTab({required this.service});
-
-  final HarvestSalesService service;
+class _HarvestHeader extends StatelessWidget {
+  const _HarvestHeader({this.onNavigate});
+  final void Function(AppRoute route)? onNavigate;
 
   @override
   Widget build(BuildContext context) {
-    final kpi = service.harvestKpi;
-    return ListView(
-      padding: const EdgeInsets.all(24),
+    final link = bvText(fontSize: 12.5, fontWeight: FontWeight.w600, color: DashboardColors.brand);
+    final muted = bvText(fontSize: 12.5, color: DashboardColors.textMuted);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Wrap(
-          spacing: 12,
-          runSpacing: 12,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            _KpiCard('Tổng cua có thể thu hoạch', '${kpi.harvestable}', 'con'),
-            _KpiCard(
-              'Cua lột chờ xuất',
-              '${service.softshellHarvestable.length}',
-              'con',
+            InkWell(
+              onTap: () => onNavigate?.call(AppRoute.dashboard),
+              child: Text('Trang chủ', style: link),
             ),
-            _KpiCard('Đã thu hoạch hôm nay', '${kpi.harvestedToday}', 'con'),
-            _KpiCard('Chờ bán', '${kpi.waitingSale}', 'con'),
-            _KpiCard(
-              'Tổng trọng lượng thu hoạch',
-              kpi.totalWeightKg.toStringAsFixed(2),
-              'kg',
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            FilledButton.icon(
-              onPressed: () => showCreateHarvestSlipDialog(context, service),
-              style: FilledButton.styleFrom(
-                backgroundColor: DashboardColors.cyan,
-              ),
-              icon: const Icon(Icons.add),
-              label: const Text('+ Tạo phiếu thu hoạch'),
-            ),
-            FilledButton.icon(
-              onPressed: () => showCreateHarvestSlipDialog(
-                context,
-                service,
-                softshellMode: true,
-              ),
-              style: FilledButton.styleFrom(
-                backgroundColor: DashboardColors.purple,
-              ),
-              icon: const Icon(Icons.outbox_outlined),
-              label: const Text('Xuất cua lột'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        if (service.loading)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: CircularProgressIndicator(),
-            ),
-          )
-        else if (service.harvestSlips.isEmpty)
-          GlassCard(
-            child: Text(
-              'Chưa có phiếu. Thu hoạch cứng hoặc Xuất cua lột để đưa cua vào tồn kho.',
-              style: GoogleFonts.notoSans(color: DashboardColors.textMuted),
-            ),
-          )
-        else
-          for (final slip in service.harvestSlips) ...[
-            _HarvestSlipCard(slip: slip),
-            const SizedBox(height: 10),
-          ],
-      ],
-    );
-  }
-}
-
-class _SalesTab extends StatelessWidget {
-  const _SalesTab({required this.service});
-
-  final HarvestSalesService service;
-
-  @override
-  Widget build(BuildContext context) {
-    final kpi = service.salesKpi;
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            _KpiCard(
-              'Doanh thu hôm nay',
-              formatVnd(kpi.revenueTodayVnd),
-              '',
-            ),
-            _KpiCard('Đã bán', '${kpi.soldToday}', 'cua'),
-            _KpiCard('Tồn kho', '${kpi.inventory}', 'cua'),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: FilledButton.icon(
-            onPressed: () => showCreateSalesOrderDialog(context, service),
-            style: FilledButton.styleFrom(
-              backgroundColor: DashboardColors.purple,
-            ),
-            icon: const Icon(Icons.point_of_sale_outlined),
-            label: const Text('+ Tạo đơn bán hàng'),
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (service.loading)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: CircularProgressIndicator(),
-            ),
-          )
-        else if (service.salesOrders.isEmpty)
-          GlassCard(
-            child: Text(
-              'Chưa có đơn bán. Cua sau thu hoạch vào kho — chọn cua tồn kho để tạo SALE-001.',
-              style: GoogleFonts.notoSans(color: DashboardColors.textMuted),
-            ),
-          )
-        else
-          for (final order in service.salesOrders) ...[
-            _SalesOrderCard(order: order, service: service),
-            const SizedBox(height: 10),
-          ],
-      ],
-    );
-  }
-}
-
-class _KpiCard extends StatelessWidget {
-  const _KpiCard(this.title, this.value, this.unit);
-
-  final String title;
-  final String value;
-  final String unit;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 220,
-      child: GlassCard(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+            Text('  >  ', style: muted),
             Text(
-              title,
-              style: GoogleFonts.notoSans(
-                color: DashboardColors.textMuted,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+              'Thu hoạch & Bán hàng',
+              style: muted.copyWith(
+                color: DashboardColors.textPrimary,
+                fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 8),
-            Text.rich(
-              TextSpan(
-                text: value,
-                style: GoogleFonts.notoSans(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: DashboardColors.lightMint,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: const Icon(Icons.agriculture_outlined, color: DashboardColors.brand),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (unit.isNotEmpty)
-                    TextSpan(
-                      text: ' $unit',
-                      style: GoogleFonts.notoSans(
-                        fontSize: 12,
-                        color: DashboardColors.textMuted,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                  Text(
+                    'Thu hoạch & Bán hàng',
+                    style: bvText(fontSize: 26, fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    'Quản lý quy trình thu hoạch cua và bán hàng, theo dõi sản lượng và truy xuất nguồn gốc.',
+                    style: bvText(fontSize: 13, color: DashboardColors.textMuted),
+                  ),
                 ],
               ),
             ),
           ],
         ),
-      ),
+      ],
     );
   }
 }
 
-class _HarvestSlipCard extends StatelessWidget {
-  const _HarvestSlipCard({required this.slip});
+class HarvestTab extends StatefulWidget {
+  const HarvestTab({super.key, required this.service});
 
-  final HarvestSlipDetail slip;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      onTap: () => showHarvestSlipDetailDialog(context, slip),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  slip.code,
-                  style: GoogleFonts.notoSans(fontWeight: FontWeight.w800),
-                ),
-              ),
-              Text(
-                slip.statusLabel,
-                style: GoogleFonts.notoSans(
-                  color: DashboardColors.healthy,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            slip.harvestDate,
-            style: GoogleFonts.notoSans(
-              color: DashboardColors.textMuted,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '${slip.area} · ${slip.quantity} cua · ${slip.totalWeightKg.toStringAsFixed(2)} kg'
-            ' · TB ${slip.averageWeightG.toStringAsFixed(0)}g · Đạt ${slip.passedCount}'
-            '${slip.lines.where((l) => l.isSoftshell).isEmpty ? '' : ' · Cua lột ${slip.lines.where((l) => l.isSoftshell).length}'}',
-            style: GoogleFonts.notoSans(fontSize: 13),
-          ),
-          if (slip.performedBy.isNotEmpty)
-            Text(
-              'Người thực hiện: ${slip.performedBy}',
-              style: GoogleFonts.notoSans(
-                color: DashboardColors.textMuted,
-                fontSize: 12,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SalesOrderCard extends StatelessWidget {
-  const _SalesOrderCard({required this.order, required this.service});
-
-  final SalesOrderDetail order;
   final HarvestSalesService service;
 
   @override
+  State<HarvestTab> createState() => _HarvestTabState();
+}
+
+class _HarvestTabState extends State<HarvestTab> {
+  final _search = TextEditingController();
+  final _scroll = ScrollController();
+  final _readyKey = GlobalKey();
+  final _selectedCrabs = <String>{};
+  final _selectedRows = <String>{};
+  Timer? _debounce;
+  HarvestSlipDetail? _detail;
+  var _showAllReady = false;
+
+  HarvestSalesService get service => widget.service;
+
+  @override
+  void initState() {
+    super.initState();
+    _search.text = service.search;
+    _search.addListener(_onSearchChanged);
+    if (service.pagedHarvests.isNotEmpty) {
+      _detail = service.pagedHarvests.first;
+    }
+  }
+
+  @override
+  void dispose() {
+    _search.removeListener(_onSearchChanged);
+    _search.dispose();
+    _scroll.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      service.setSearch(_search.text);
+    });
+  }
+
+  List<HarvestableCrab> get _picked =>
+      service.readyCrabs.where((c) => _selectedCrabs.contains(c.id)).toList();
+
+  void _scrollToReady() {
+    final ctx = _readyKey.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  void _onKpi(HarvestKpiFocus focus) {
+    service.applyKpi(focus);
+    if (focus == HarvestKpiFocus.harvestable ||
+        focus == HarvestKpiFocus.softshell) {
+      _scrollToReady();
+    }
+  }
+
+  Future<void> _create({List<HarvestableCrab>? crabs, bool softshell = false}) {
+    return showCreateHarvestSlipDialog(
+      context,
+      service,
+      softshellMode: softshell,
+      initialCrabs: crabs ?? _picked,
+    );
+  }
+
+  Future<void> _transfer(HarvestSlipDetail slip) {
+    return showCreateSalesOrderDialog(context, service, fromSlip: slip);
+  }
+
+  Future<void> _complete(HarvestSlipDetail slip) async {
+    final ok = await showCompleteHarvestDialog(context, slip);
+    if (ok != true || !mounted) return;
+    try {
+      await service.completeHarvest(slip.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Đã hoàn tất ${slip.code}.')),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
+  }
+
+  Future<void> _cancel(HarvestSlipDetail slip) async {
+    try {
+      await service.cancelHarvest(slip.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Đã hủy ${slip.code}.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
+  }
+
+  Future<void> _export() async {
+    final csv = service.exportCsv();
+    final path = await FilePicker.platform.saveFile(
+      dialogTitle: 'Xuất phiếu thu hoạch',
+      fileName: 'harvest-slips.csv',
+      type: FileType.custom,
+      allowedExtensions: const ['csv'],
+    );
+    if (path == null) return;
+    await File(path).writeAsString(csv);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Đã xuất ${service.filteredHarvestCount} phiếu.')),
+    );
+  }
+
+  void _toastSlip(HarvestSlipDetail slip, String action) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$action ${slip.code}')),
+    );
+  }
+
+  void _onRowAction(HarvestSlipDetail slip, HarvestRowAction action) {
+    setState(() => _detail = slip);
+    switch (action) {
+      case HarvestRowAction.detail:
+        break;
+      case HarvestRowAction.print:
+        _toastSlip(slip, 'In phiếu');
+      case HarvestRowAction.pdf:
+        _toastSlip(slip, 'Tải PDF');
+      case HarvestRowAction.edit:
+        _create();
+      case HarvestRowAction.cancel:
+        _cancel(slip);
+      case HarvestRowAction.sale:
+        _transfer(slip);
+      case HarvestRowAction.complete:
+        _complete(slip);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final statusColor = order.isCancelled
-        ? DashboardColors.risk
-        : order.isDraft
-            ? DashboardColors.monitoring
-            : DashboardColors.healthy;
-    final payColor = order.isPaid
-        ? DashboardColors.healthy
-        : order.isPartial
-            ? DashboardColors.monitoring
-            : DashboardColors.risk;
-    return GlassCard(
-      onTap: () => showSalesOrderDetailDialog(context, order, service: service),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      order.code,
-                      style: GoogleFonts.notoSans(fontWeight: FontWeight.w800),
+    final svc = service;
+    HarvestSlipDetail? detail = _detail;
+    if (detail != null) {
+      final still = svc.filteredHarvests.where((h) => h.id == detail!.id);
+      detail = still.isEmpty
+          ? (svc.pagedHarvests.isEmpty ? null : svc.pagedHarvests.first)
+          : still.first;
+    } else if (svc.pagedHarvests.isNotEmpty) {
+      detail = svc.pagedHarvests.first;
+    }
+
+    return LayoutBuilder(
+      builder: (context, box) {
+        final desktop = box.maxWidth >= 1100;
+        final tablet = box.maxWidth >= 800;
+        return ListView(
+          controller: _scroll,
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+          children: [
+            HarvestKpiRow(
+              kpi: svc.harvestKpi,
+              loading: svc.loading && svc.harvestKpi.harvestable == 0,
+              onTap: _onKpi,
+            ),
+            const SizedBox(height: 14),
+            HarvestFilterToolbar(
+              search: _search,
+              service: svc,
+              onCreate: () => _create(),
+              onClearSearch: () => service.setSearch(''),
+              onExport: _export,
+            ),
+            const SizedBox(height: 14),
+            KeyedSubtree(
+              key: _readyKey,
+              child: ReadyToHarvestSection(
+                service: svc,
+                selected: _selectedCrabs,
+                showAll: _showAllReady,
+                onToggleShowAll: () => setState(() => _showAllReady = !_showAllReady),
+                onToggle: (c, v) => setState(() {
+                  if (v) {
+                    _selectedCrabs.add(c.id);
+                  } else {
+                    _selectedCrabs.remove(c.id);
+                  }
+                }),
+                onViewCrab: (c) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '${c.code} · ${c.boxCode} · ${c.lotCode.isEmpty ? '—' : c.lotCode}',
+                      ),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      order.orderStatusLabel,
-                      style: GoogleFonts.notoSans(
-                        color: statusColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+                  );
+                },
+              ),
+            ),
+            if (_picked.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              HarvestSelectionBar(
+                crabs: _picked,
+                onCreate: () => _create(crabs: _picked),
+                onClear: () => setState(_selectedCrabs.clear),
+              ),
+            ],
+            const SizedBox(height: 14),
+            if (desktop)
+              SizedBox(
+                height: 620,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      flex: 7,
+                      child: HarvestSlipTable(
+                        service: svc,
+                        selectedId: detail?.id,
+                        onSelect: (s) => setState(() => _detail = s),
+                        onAction: _onRowAction,
+                        rowSelected: _selectedRows,
+                        onToggleRow: (s, v) => setState(() {
+                          if (v) {
+                            _selectedRows.add(s.id);
+                          } else {
+                            _selectedRows.remove(s.id);
+                          }
+                        }),
+                        onToggleAll: (v) => setState(() {
+                          if (v) {
+                            _selectedRows.addAll(svc.pagedHarvests.map((e) => e.id));
+                          } else {
+                            for (final e in svc.pagedHarvests) {
+                              _selectedRows.remove(e.id);
+                            }
+                          }
+                        }),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 3,
+                      child: HarvestDetailPanel(
+                        slip: detail,
+                        onClose: () => setState(() => _detail = null),
+                        onTransfer: () {
+                          if (detail != null) _transfer(detail);
+                        },
+                        onComplete: () {
+                          if (detail != null) _complete(detail);
+                        },
+                        onPrint: () {
+                          if (detail != null) _toastSlip(detail, 'In phiếu');
+                        },
+                        onPdf: () {
+                          if (detail != null) _toastSlip(detail, 'Tải PDF');
+                        },
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Khách: ${order.customerName}',
-                  style: GoogleFonts.notoSans(fontSize: 13),
-                ),
-                Text(
-                  '${order.crabCount} cua · ${order.totalWeightKg.toStringAsFixed(2)} kg'
-                  ' · ${formatHarvestDateTime(order.orderDate)}',
-                  style: GoogleFonts.notoSans(
-                    color: DashboardColors.textMuted,
-                    fontSize: 12,
+              )
+            else ...[
+              HarvestSlipTable(
+                service: svc,
+                selectedId: detail?.id,
+                onSelect: (s) {
+                  setState(() => _detail = s);
+                  if (!tablet) _openDetailSheet(s);
+                },
+                onAction: _onRowAction,
+                rowSelected: _selectedRows,
+                onToggleRow: (s, v) => setState(() {
+                  if (v) {
+                    _selectedRows.add(s.id);
+                  } else {
+                    _selectedRows.remove(s.id);
+                  }
+                }),
+                onToggleAll: (v) => setState(() {
+                  if (v) {
+                    _selectedRows.addAll(svc.pagedHarvests.map((e) => e.id));
+                  } else {
+                    for (final e in svc.pagedHarvests) {
+                      _selectedRows.remove(e.id);
+                    }
+                  }
+                }),
+              ),
+              if (tablet && detail != null) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 480,
+                  child: HarvestDetailPanel(
+                    slip: detail,
+                    onClose: () => setState(() => _detail = null),
+                    onTransfer: () => _transfer(detail!),
+                    onComplete: () => _complete(detail!),
+                    onPrint: () => _toastSlip(detail!, 'In phiếu'),
+                    onPdf: () => _toastSlip(detail!, 'Tải PDF'),
                   ),
                 ),
               ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                formatVnd(order.revenueVnd),
-                style: GoogleFonts.notoSans(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                order.paymentStatusLabel,
-                style: GoogleFonts.notoSans(
-                  color: payColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
             ],
-          ),
-        ],
+          ],
+        );
+      },
+    );
+  }
+
+  void _openDetailSheet(HarvestSlipDetail slip) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      builder: (ctx) => SizedBox(
+        height: MediaQuery.of(ctx).size.height * 0.88,
+        child: HarvestDetailPanel(
+          slip: slip,
+          onClose: () => Navigator.pop(ctx),
+          onTransfer: () {
+            Navigator.pop(ctx);
+            _transfer(slip);
+          },
+          onComplete: () {
+            Navigator.pop(ctx);
+            _complete(slip);
+          },
+          onPrint: () => _toastSlip(slip, 'In phiếu'),
+          onPdf: () => _toastSlip(slip, 'Tải PDF'),
+        ),
       ),
     );
   }

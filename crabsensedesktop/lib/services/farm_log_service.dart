@@ -76,6 +76,8 @@ class FarmLogService extends ChangeNotifier {
   String get batchFilter => 'Tất cả';
   bool get timelineView => true;
 
+  List<FarmActivityLogEntry> get entries => List.unmodifiable(_entries);
+
   FarmActivityLogEntry? get selectedEntry {
     if (_entries.isEmpty) return null;
     if (_selectedId == null) return _entries.first;

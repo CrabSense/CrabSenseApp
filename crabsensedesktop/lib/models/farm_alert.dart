@@ -15,13 +15,13 @@ enum AlertLevel {
 
   String get labelVi => switch (this) {
         AlertLevel.info => 'Thông tin',
-        AlertLevel.warning => 'Cần theo dõi',
-        AlertLevel.critical => 'Nguy hiểm',
+        AlertLevel.warning => 'Cảnh báo',
+        AlertLevel.critical => 'Nghiêm trọng',
       };
 
   Color get color => switch (this) {
-        AlertLevel.info => DashboardColors.blue,
-        AlertLevel.warning => DashboardColors.monitoring,
+        AlertLevel.info => const Color(0xFF2495E8),
+        AlertLevel.warning => const Color(0xFFF5B700),
         AlertLevel.critical => DashboardColors.risk,
       };
 }
@@ -35,12 +35,12 @@ enum AlertWorkflowStatus {
   falseAlarm;
 
   String get label => switch (this) {
-        AlertWorkflowStatus.newAlert => 'Chưa xử lý',
-        AlertWorkflowStatus.notified => 'Đã gửi thông báo',
+        AlertWorkflowStatus.newAlert => 'Đang mở',
+        AlertWorkflowStatus.notified => 'Đã xác nhận',
         AlertWorkflowStatus.inProgress => 'Đang xử lý',
         AlertWorkflowStatus.resolved => 'Đã xử lý',
-        AlertWorkflowStatus.ignored => 'Bỏ qua',
-        AlertWorkflowStatus.falseAlarm => 'Báo sai',
+        AlertWorkflowStatus.ignored => 'Đã hủy',
+        AlertWorkflowStatus.falseAlarm => 'Đã tự khôi phục',
       };
 
   Color get dotColor => switch (this) {
@@ -85,6 +85,26 @@ enum AlertTypeCategory {
       };
 }
 
+enum AlertKind {
+  controller,
+  camera,
+  sensor,
+  ras,
+  waterAnalysis,
+  crab,
+  system;
+
+  String get label => switch (this) {
+        AlertKind.controller => 'Controller',
+        AlertKind.camera => 'Camera',
+        AlertKind.sensor => 'Cảm biến',
+        AlertKind.ras => 'RAS',
+        AlertKind.waterAnalysis => 'Phân tích nước',
+        AlertKind.crab => 'Cua',
+        AlertKind.system => 'Hệ thống',
+      };
+}
+
 class AlertKpi {
   const AlertKpi({
     required this.active,
@@ -92,7 +112,13 @@ class AlertKpi {
     required this.warning,
     required this.info,
     required this.resolvedToday,
-    required this.avgResponseMinutes,
+    this.acknowledged = 0,
+    this.avgResponseMinutes,
+    this.activeDelta,
+    this.criticalDelta,
+    this.warningDelta,
+    this.acknowledgedDelta,
+    this.resolvedDelta,
   });
 
   final int active;
@@ -100,7 +126,13 @@ class AlertKpi {
   final int warning;
   final int info;
   final int resolvedToday;
-  final int avgResponseMinutes;
+  final int acknowledged;
+  final int? avgResponseMinutes;
+  final int? activeDelta;
+  final int? criticalDelta;
+  final int? warningDelta;
+  final int? acknowledgedDelta;
+  final int? resolvedDelta;
 }
 
 class FarmAlert {
@@ -120,6 +152,29 @@ class FarmAlert {
     required this.suggestedActions,
     this.detectedAt = '',
     this.note = '',
+    this.createdAt,
+    this.acknowledgedAt,
+    this.resolvedAt,
+    this.description = '',
+    this.sourceLabel = 'System',
+    this.kind = AlertKind.system,
+    this.areaCode = '',
+    this.areaName = '',
+    this.deviceCode = '',
+    this.deviceKindLabel = '',
+    this.unit = '',
+    this.measuredValue,
+    this.thresholdMin,
+    this.thresholdMax,
+    this.occurrenceCount = 1,
+    this.lastOccurredAt,
+    this.affected = const [],
+    this.analysisTestId,
+    this.aiConfidence,
+    this.incidentId,
+    this.ruleKey,
+    this.farmingAreaId,
+    this.aiRecommendation,
   });
 
   final String id;
@@ -137,11 +192,109 @@ class FarmAlert {
   final List<String> suggestedActions;
   final String detectedAt;
   final String note;
+  final DateTime? createdAt;
+  final DateTime? acknowledgedAt;
+  final DateTime? resolvedAt;
+  final String description;
+  final String sourceLabel;
+  final AlertKind kind;
+  final String areaCode;
+  final String areaName;
+  final String deviceCode;
+  final String deviceKindLabel;
+  final String unit;
+  final double? measuredValue;
+  final double? thresholdMin;
+  final double? thresholdMax;
+  final int occurrenceCount;
+  final DateTime? lastOccurredAt;
+  final List<String> affected;
+  final String? analysisTestId;
+  final double? aiConfidence;
+  final String? incidentId;
+  final String? ruleKey;
+  final String? farmingAreaId;
+  final String? aiRecommendation;
 
   bool get isOpen =>
       status == AlertWorkflowStatus.newAlert ||
       status == AlertWorkflowStatus.notified ||
       status == AlertWorkflowStatus.inProgress;
+
+  String get displayCode {
+    final raw = id.replaceAll('-', '');
+    if (raw.length >= 4) return 'ALERT-${raw.substring(0, 4).toUpperCase()}';
+    return id;
+  }
+
+  String get areaLabel {
+    if (areaCode.isNotEmpty && areaName.isNotEmpty) return '$areaCode — $areaName';
+    if (areaName.isNotEmpty) return areaName;
+    if (location.isNotEmpty) return location;
+    return 'Không xác định';
+  }
+
+  Duration? get openDuration {
+    final start = createdAt;
+    if (start == null) return null;
+    final end = resolvedAt ?? DateTime.now();
+    return end.difference(start);
+  }
+
+  double? get overThreshold {
+    if (measuredValue == null || thresholdMax == null) return null;
+    if (measuredValue! <= thresholdMax!) return null;
+    return measuredValue! - thresholdMax!;
+  }
+
+  FarmAlert copyWith({
+    AlertWorkflowStatus? status,
+    DateTime? acknowledgedAt,
+    DateTime? resolvedAt,
+    List<String>? affected,
+    int? occurrenceCount,
+  }) {
+    return FarmAlert(
+      id: id,
+      time: time,
+      level: level,
+      type: type,
+      title: title,
+      location: location,
+      device: device,
+      status: status ?? this.status,
+      handler: handler,
+      currentValue: currentValue,
+      threshold: threshold,
+      recommendations: recommendations,
+      suggestedActions: suggestedActions,
+      detectedAt: detectedAt,
+      note: note,
+      createdAt: createdAt,
+      acknowledgedAt: acknowledgedAt ?? this.acknowledgedAt,
+      resolvedAt: resolvedAt ?? this.resolvedAt,
+      description: description,
+      sourceLabel: sourceLabel,
+      kind: kind,
+      areaCode: areaCode,
+      areaName: areaName,
+      deviceCode: deviceCode,
+      deviceKindLabel: deviceKindLabel,
+      unit: unit,
+      measuredValue: measuredValue,
+      thresholdMin: thresholdMin,
+      thresholdMax: thresholdMax,
+      occurrenceCount: occurrenceCount ?? this.occurrenceCount,
+      lastOccurredAt: lastOccurredAt,
+      affected: affected ?? this.affected,
+      analysisTestId: analysisTestId,
+      aiConfidence: aiConfidence,
+      incidentId: incidentId,
+      ruleKey: ruleKey,
+      farmingAreaId: farmingAreaId,
+      aiRecommendation: aiRecommendation,
+    );
+  }
 }
 
 class AlertHistoryRow {

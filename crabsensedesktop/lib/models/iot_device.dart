@@ -331,6 +331,13 @@ class IoTDevice {
     this.sensorCount = 0,
     this.actuatorCount = 0,
     this.deviceType,
+    this.rssiDbm,
+    this.batteryLevel,
+    this.rowId,
+    this.rowName,
+    this.rowCode,
+    this.installationLocation,
+    this.note,
   });
 
   final String id;
@@ -351,6 +358,13 @@ class IoTDevice {
   final int sensorCount;
   final int actuatorCount;
   final String? deviceType;
+  final double? rssiDbm;
+  final double? batteryLevel;
+  final String? rowId;
+  final String? rowName;
+  final String? rowCode;
+  final String? installationLocation;
+  final String? note;
 
   factory IoTDevice.fromJson(Map<String, dynamic> json) {
     DateTime? parseDt(dynamic v) {
@@ -394,6 +408,14 @@ class IoTDevice {
       actuatorCount:
           (json['actuatorCount'] ?? json['ActuatorCount'] as num?)?.toInt() ?? 0,
       deviceType: (json['deviceType'] ?? json['DeviceType'])?.toString(),
+      rssiDbm: (json['rssiDbm'] ?? json['RssiDbm'] as num?)?.toDouble(),
+      batteryLevel:
+          (json['batteryLevel'] ?? json['BatteryLevel'] as num?)?.toDouble(),
+      rowId: (json['farmingRowId'] ?? json['FarmingRowId'] ?? json['rowId'] ?? json['RowId'])?.toString(),
+      rowName: (json['rowName'] ?? json['RowName'])?.toString(),
+      rowCode: (json['rowCode'] ?? json['RowCode'])?.toString(),
+      installationLocation: (json['installationLocation'] ?? json['InstallationLocation'])?.toString(),
+      note: (json['note'] ?? json['Note'] ?? json['notes'] ?? json['Notes'])?.toString(),
     );
   }
 
@@ -453,6 +475,13 @@ class IoTDevice {
       sensorCount: sensorCount,
       actuatorCount: actuatorCount,
       deviceType: deviceType,
+      rssiDbm: rssiDbm,
+      batteryLevel: batteryLevel,
+      rowId: rowId,
+      rowName: rowName,
+      rowCode: rowCode,
+      installationLocation: installationLocation,
+      note: note,
     );
   }
 

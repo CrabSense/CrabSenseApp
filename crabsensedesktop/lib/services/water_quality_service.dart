@@ -32,14 +32,20 @@ class WaterQualityService extends ChangeNotifier {
   static const _pollInterval = Duration(seconds: 3);
   static const _staleAfter = Duration(minutes: 2);
 
-  static const chartRangeLabels = ['1H', '6H', '24H', '7 Ngày'];
-  static const chartRangeMinutes = [60, 6 * 60, 24 * 60, 7 * 24 * 60];
+  static const chartRangeLabels = ['1H', '6H', '24H', '7 Ngày', '30 Ngày'];
+  static const chartRangeMinutes = [60, 6 * 60, 24 * 60, 7 * 24 * 60, 30 * 24 * 60];
 
   List<WaterSensorReading> _readings = [];
   List<RealtimeChartPoint> _chartSeries = [];
+  List<RealtimeTableRow> _recentRows = [];
   List<RealtimeDeviceLink> _devices = [];
   WaterSensorType? _chartMetric;
   int _chartRangeIndex = 0;
+  String? _areaFilterId;
+  String? _deviceFilter;
+  String _sensorGroup = 'all';
+  bool _showThreshold = true;
+  DateTime? _lastCloudOkAt;
 
   bool _loading = false;
   bool _chartLoading = false;
@@ -53,9 +59,16 @@ class WaterQualityService extends ChangeNotifier {
   bool _realtimeBusy = false;
   bool _trendBusy = false;
 
-  List<WaterSensorReading> get readings => List.unmodifiable(_readings);
+  List<WaterSensorReading> get readings => List.unmodifiable(_scoped(_readings));
+  List<WaterSensorReading> get allReadings => List.unmodifiable(_readings);
   List<RealtimeChartPoint> get chartSeries => List.unmodifiable(_chartSeries);
+  List<RealtimeTableRow> get recentRows => List.unmodifiable(_recentRows);
   List<RealtimeDeviceLink> get devices => List.unmodifiable(_devices);
+  String? get areaFilterId => _areaFilterId ?? _session.selectedFarm.id;
+  String? get deviceFilter => _deviceFilter;
+  String get sensorGroup => _sensorGroup;
+  bool get showThreshold => _showThreshold;
+  DateTime? get lastCloudOkAt => _lastCloudOkAt;
   List<WaterSensorType> get availableMetrics =>
       {for (final r in _readings) r.type}.toList()
         ..sort(
@@ -181,13 +194,17 @@ class WaterQualityService extends ChangeNotifier {
     try {
       final live = await _api.fetchIotLive(
         _session.token,
-        farmingAreaId: _session.selectedFarm.id,
+        farmingAreaId: areaFilterId,
       );
       _cloudLive = true;
       _cloudError = null;
+      _lastCloudOkAt = DateTime.now();
       _readings = _readingsFromLive(live);
       _devices = _devicesFromLive(live);
       _deviceCode = _devices.isEmpty ? null : _devices.first.code;
+      if (_deviceFilter == null && _deviceCode != null) {
+        _deviceFilter = _deviceCode;
+      }
 
       DateTime? latest;
       for (final r in _readings) {
@@ -198,6 +215,7 @@ class WaterQualityService extends ChangeNotifier {
 
       _ensureChartMetric();
       _appendLiveTick();
+      if (full) unawaited(refreshRecent());
       notifyListeners();
     } on CloudApiException catch (e) {
       _cloudLive = false;
@@ -367,7 +385,7 @@ class WaterQualityService extends ChangeNotifier {
   WaterSensorReading? get _selectedReading {
     final metric = _chartMetric;
     if (metric == null) return null;
-    for (final r in _readings) {
+    for (final r in readings) {
       if (r.type == metric) return r;
     }
     return null;
@@ -473,6 +491,195 @@ class WaterQualityService extends ChangeNotifier {
   void setDevice(String v) {}
   void setTimeRange(String v) => refresh(full: true);
   void setStatusFilter(String v) {}
+
+  List<WaterSensorReading> _scoped(List<WaterSensorReading> src) {
+    var list = src;
+    final device = _deviceFilter;
+    if (device != null && device.isNotEmpty) {
+      list = list.where((r) => (r.deviceCode ?? '') == device).toList();
+    }
+    switch (_sensorGroup) {
+      case 'water':
+        list = list
+            .where((r) =>
+                r.type == WaterSensorType.ph ||
+                r.type == WaterSensorType.tds ||
+                r.type == WaterSensorType.salinity ||
+                r.type == WaterSensorType.dissolvedOxygen)
+            .toList();
+      case 'temp':
+        list = list.where((r) => r.type == WaterSensorType.temperature).toList();
+      case 'other':
+        list = list
+            .where((r) =>
+                r.type != WaterSensorType.temperature &&
+                r.type != WaterSensorType.ph &&
+                r.type != WaterSensorType.tds)
+            .toList();
+    }
+    return list;
+  }
+
+  WaterSensorReading? readingOf(WaterSensorType type) {
+    for (final r in readings) {
+      if (r.type == type) return r;
+    }
+    return null;
+  }
+
+  void setAreaId(String? id) {
+    final next = (id == null || id.isEmpty) ? _session.selectedFarm.id : id;
+    if (next == areaFilterId) return;
+    _areaFilterId = next;
+    _deviceFilter = null;
+    unawaited(_liveCycle(full: true));
+  }
+
+  void setDeviceCode(String? code) {
+    final next = (code == null || code.isEmpty) ? null : code;
+    if (next == _deviceFilter) return;
+    _deviceFilter = next;
+    _chartSeries = [];
+    notifyListeners();
+    unawaited(refreshTrend(quiet: false));
+    unawaited(refreshRecent());
+  }
+
+  void setSensorGroup(String group) {
+    if (_sensorGroup == group) return;
+    _sensorGroup = group;
+    notifyListeners();
+  }
+
+  void setShowThreshold(bool v) {
+    if (_showThreshold == v) return;
+    _showThreshold = v;
+    notifyListeners();
+  }
+
+  List<List<RealtimeChartPoint>> get chartSegments {
+    if (_chartSeries.isEmpty) return const [];
+    final gap = _gapThreshold;
+    final segs = <List<RealtimeChartPoint>>[];
+    var cur = <RealtimeChartPoint>[_chartSeries.first];
+    for (var i = 1; i < _chartSeries.length; i++) {
+      final dt = _chartSeries[i].timestamp.difference(_chartSeries[i - 1].timestamp);
+      if (dt > gap) {
+        segs.add(cur);
+        cur = [_chartSeries[i]];
+      } else {
+        cur.add(_chartSeries[i]);
+      }
+    }
+    segs.add(cur);
+    return segs;
+  }
+
+  Duration get _gapThreshold {
+    final m = chartRangeMinutesValue;
+    if (m <= 60) return const Duration(seconds: 90);
+    if (m <= 360) return const Duration(minutes: 8);
+    if (m <= 1440) return const Duration(minutes: 20);
+    return const Duration(hours: 3);
+  }
+
+  Future<void> refreshRecent() async {
+    final temp = readingOf(WaterSensorType.temperature);
+    final ph = readingOf(WaterSensorType.ph);
+    final tds = readingOf(WaterSensorType.tds);
+    final ids = [temp?.sensorId, ph?.sensorId, tds?.sensorId]
+        .whereType<String>()
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (ids.isEmpty) {
+      _recentRows = [];
+      notifyListeners();
+      return;
+    }
+    try {
+      final now = DateTime.now();
+      final from = now.subtract(const Duration(hours: 1));
+      final buckets = <int, RealtimeTableRow>{};
+      void put(int key, DateTime at, {double? temperature, double? ph, double? tds}) {
+        final prev = buckets[key];
+        buckets[key] = RealtimeTableRow(
+          at: at,
+          temperature: temperature ?? prev?.temperature,
+          ph: ph ?? prev?.ph,
+          tds: tds ?? prev?.tds,
+        );
+      }
+
+      Future<void> ingest(String? sensorId, void Function(int key, DateTime at, double v) apply) async {
+        if (sensorId == null) return;
+        final rows = await _api.fetchSensorHistory(
+          _session.token,
+          sensorId: sensorId,
+          from: from,
+          to: now,
+          pageSize: 80,
+        );
+        for (final row in rows) {
+          final val = row['value'] ?? row['Value'];
+          final rawAt = row['measuredAt'] ?? row['MeasuredAt'];
+          if (val is! num || rawAt == null) continue;
+          final at = DateTime.tryParse(rawAt.toString())?.toLocal();
+          if (at == null) continue;
+          apply(at.millisecondsSinceEpoch ~/ 5000, at, val.toDouble());
+        }
+      }
+
+      await ingest(temp?.sensorId, (key, at, v) => put(key, at, temperature: v));
+      await ingest(ph?.sensorId, (key, at, v) => put(key, at, ph: v));
+      await ingest(tds?.sensorId, (key, at, v) => put(key, at, tds: v));
+
+      final list = buckets.values.toList()
+        ..sort((a, b) => b.at.compareTo(a.at));
+      _recentRows = list.take(20).map((r) {
+        final tMin = temp?.threshold.min;
+        final tMax = temp?.threshold.max;
+        final pMin = ph?.threshold.min;
+        final pMax = ph?.threshold.max;
+        final dMin = tds?.threshold.min;
+        final dMax = tds?.threshold.max;
+        var out = false;
+        if (r.temperature != null && tMin != null && tMax != null) {
+          out = out || r.temperature! < tMin || r.temperature! > tMax;
+        }
+        if (r.ph != null && pMin != null && pMax != null) {
+          out = out || r.ph! < pMin || r.ph! > pMax;
+        }
+        if (r.tds != null && dMin != null && dMax != null) {
+          out = out || r.tds! < dMin || r.tds! > dMax;
+        }
+        return RealtimeTableRow(
+          at: r.at,
+          temperature: r.temperature,
+          ph: r.ph,
+          tds: r.tds,
+          status: out ? 'Vượt ngưỡng' : 'Bình thường',
+          outOfRange: out,
+        );
+      }).toList();
+    } catch (_) {
+      // giữ bảng cũ
+    }
+    notifyListeners();
+  }
+
+  String exportRecentCsv() {
+    final buf = StringBuffer('Thoi gian,Nhiet do,pH,TDS,Trang thai\n');
+    for (final r in _recentRows) {
+      buf.writeln(
+        '${r.at.toIso8601String()},'
+        '${r.temperature?.toString() ?? ''},'
+        '${r.ph?.toString() ?? ''},'
+        '${r.tds?.toString() ?? ''},'
+        '${r.status}',
+      );
+    }
+    return buf.toString();
+  }
 
   void setChartMetric(WaterSensorType type) {
     if (_chartMetric == type) return;

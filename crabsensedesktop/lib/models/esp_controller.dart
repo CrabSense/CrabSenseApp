@@ -10,6 +10,13 @@ class ControllerChild {
     this.unit,
     this.isOn,
     this.latestValue,
+    this.lastUpdatedAt,
+    this.isActive = true,
+    this.minThreshold,
+    this.maxThreshold,
+    this.relayChannel,
+    this.controlMode,
+    this.componentStatus,
   });
 
   final String id;
@@ -20,9 +27,18 @@ class ControllerChild {
   final String? unit;
   final bool? isOn;
   final double? latestValue;
+  final DateTime? lastUpdatedAt;
+  final bool isActive;
+  final double? minThreshold;
+  final double? maxThreshold;
+  final String? relayChannel;
+  final String? controlMode;
+  final String? componentStatus;
 
   factory ControllerChild.sensor(Map<String, dynamic> json) {
     final raw = json['latestValue'] ?? json['LatestValue'];
+    DateTime? dt(dynamic v) =>
+        v == null ? null : DateTime.tryParse(v.toString());
     return ControllerChild(
       id: (json['id'] ?? json['Id'] ?? '').toString(),
       code: (json['sensorCode'] ?? json['SensorCode'] ?? '').toString(),
@@ -31,6 +47,10 @@ class ControllerChild {
       type: (json['sensorType'] ?? json['SensorType'])?.toString(),
       unit: (json['unit'] ?? json['Unit'])?.toString(),
       latestValue: raw is num ? raw.toDouble() : double.tryParse('$raw'),
+      lastUpdatedAt: dt(json['latestMeasuredAt'] ?? json['LatestMeasuredAt'] ?? json['lastSeenAt'] ?? json['LastSeenAt']),
+      isActive: json['isActive'] ?? json['IsActive'] ?? true,
+      minThreshold: (json['minThreshold'] ?? json['MinThreshold'] as num?)?.toDouble(),
+      maxThreshold: (json['maxThreshold'] ?? json['MaxThreshold'] as num?)?.toDouble(),
     );
   }
 
@@ -42,6 +62,9 @@ class ControllerChild {
       kind: 'actuator',
       type: (json['type'] ?? json['Type'])?.toString(),
       isOn: json['isOn'] ?? json['IsOn'] as bool?,
+      relayChannel: (json['relayChannel'] ?? json['RelayChannel'])?.toString(),
+      controlMode: (json['controlMode'] ?? json['ControlMode'])?.toString(),
+      componentStatus: (json['status'] ?? json['Status'])?.toString(),
     );
   }
 }
