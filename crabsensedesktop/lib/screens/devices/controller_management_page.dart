@@ -964,21 +964,41 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
           if (!compact) const DataColumn(label: Text('HIỆU CHUẨN')),
           const DataColumn(label: Text('CẬP NHẬT')),
           const DataColumn(label: Text('TRẠNG THÁI')),
-          if (!compact) const DataColumn(label: Text('')),
         ],
         rows: [
           for (final s in detail.sensors)
             DataRow(cells: [
-              DataCell(Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
+              DataCell(Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(_sensorTitle(s),
-                      style:
-                          bvText(fontWeight: FontWeight.w700, fontSize: 12.5)),
-                  Text(s.code,
-                      style: bvText(
-                          fontSize: 11, color: DashboardColors.textMuted)),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(_sensorTitle(s),
+                          style: bvText(
+                              fontWeight: FontWeight.w700, fontSize: 12.5)),
+                      Text(s.code,
+                          style: bvText(
+                              fontSize: 11, color: DashboardColors.textMuted)),
+                    ],
+                  ),
+                  if (!compact)
+                    PopupMenuButton<String>(
+                      tooltip: 'Thao tác sensor',
+                      padding: EdgeInsets.zero,
+                      onSelected: (a) => _onSensorMenu(a, s, detail.controller),
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(
+                            value: 'edit', child: Text('Chỉnh sửa sensor')),
+                        const PopupMenuItem(
+                            value: 'cal', child: Text('Hiệu chuẩn')),
+                        const PopupMenuItem(
+                            value: 'delete', child: Text('Xóa sensor')),
+                        const PopupMenuItem(
+                            value: 'off', child: Text('Tắt sensor')),
+                      ],
+                    ),
                 ],
               )),
               DataCell(Text(s.type ?? '—')),
@@ -1001,25 +1021,6 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
               DataCell(Text(
                   s.lastUpdatedAt == null ? '—' : _hhmmss(s.lastUpdatedAt!))),
               DataCell(_sensorStatus(s, d)),
-              if (!compact)
-                DataCell(PopupMenuButton<String>(
-                  tooltip: 'Thao tác sensor',
-                  onSelected: (a) => _onSensorMenu(a, s, detail.controller),
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                        value: 'detail', child: Text('Xem chi tiết')),
-                    const PopupMenuItem(
-                        value: 'edit', child: Text('Chỉnh sửa sensor')),
-                    const PopupMenuItem(
-                        value: 'cal', child: Text('Hiệu chuẩn')),
-                    const PopupMenuItem(
-                        value: 'delete', child: Text('Xóa sensor')),
-                    const PopupMenuItem(
-                        value: 'off', child: Text('Tắt sensor')),
-                    const PopupMenuItem(
-                        value: 'hist', child: Text('Xem lịch sử')),
-                  ],
-                )),
             ]),
         ],
       ),
