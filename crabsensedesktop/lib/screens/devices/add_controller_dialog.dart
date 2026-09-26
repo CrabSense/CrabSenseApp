@@ -70,7 +70,10 @@ String controllerTypeFilterKey(String type) {
 
 String _typeFromFirmware(String raw) {
   final t = raw.trim().toLowerCase();
-  if (t.contains('ras') || t.contains('actuator') || t == 'esp32' || t == 'esp32-s3') {
+  if (t.contains('ras') ||
+      t.contains('actuator') ||
+      t == 'esp32' ||
+      t == 'esp32-s3') {
     return t.contains('sensor') ? controllerTypeMixed : controllerTypeRas;
   }
   if (t.contains('camera') || t.contains('ai')) return controllerTypeCamera;
@@ -138,6 +141,7 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
   final _location = TextEditingController();
   final _ssid = TextEditingController();
   final _password = TextEditingController();
+  final _kioskUrl = TextEditingController(text: AppEnv.kioskUrl);
   final _staticIp = TextEditingController();
   final _subnet = TextEditingController();
   final _gateway = TextEditingController();
@@ -192,6 +196,7 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
     _location.dispose();
     _ssid.dispose();
     _password.dispose();
+    _kioskUrl.dispose();
     _staticIp.dispose();
     _subnet.dispose();
     _gateway.dispose();
@@ -280,12 +285,16 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
         _selected = live;
         _chkBoard = _Check.ok;
         _chkBoardDetail = 'Đã nhận heartbeat từ thiết bị';
-        _chkWifi = live.staIp.isNotEmpty || live.wifiSsid.isNotEmpty || live.provisioned
+        _chkWifi = live.staIp.isNotEmpty ||
+                live.wifiSsid.isNotEmpty ||
+                live.provisioned
             ? _Check.ok
             : _Check.fail;
         _chkWifiDetail = live.wifiSsid.isNotEmpty
             ? 'Đang kết nối với ${live.wifiSsid}'
-            : (live.staIp.isNotEmpty ? 'Đã có IP LAN ${live.staIp}' : 'Chưa thấy Wi-Fi trại');
+            : (live.staIp.isNotEmpty
+                ? 'Đã có IP LAN ${live.staIp}'
+                : 'Chưa thấy Wi-Fi trại');
         _chkFw = live.firmware.isNotEmpty ? _Check.ok : _Check.fail;
         _chkId = live.hardwareId.isNotEmpty ? _Check.ok : _Check.fail;
       });
@@ -340,7 +349,8 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
       firmwareVersion: sel.firmware,
       farmingAreaId: _area.id,
       farmingRowId: _rowId,
-      installationLocation: _location.text.trim().isEmpty ? null : _location.text.trim(),
+      installationLocation:
+          _location.text.trim().isEmpty ? null : _location.text.trim(),
       note: _note.text.trim().isEmpty ? null : _note.text.trim(),
       registerRealtimeSensors: false,
     );
@@ -353,10 +363,11 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
       setState(() {
         _registering = false;
         if (isDup) {
-          _duplicate = _findDuplicate(sel) ?? widget.service.items.cast<IoTDevice?>().firstWhere(
-                (d) => d != null && d.deviceCode == sel.deviceCode,
-                orElse: () => null,
-              );
+          _duplicate = _findDuplicate(sel) ??
+              widget.service.items.cast<IoTDevice?>().firstWhere(
+                    (d) => d != null && d.deviceCode == sel.deviceCode,
+                    orElse: () => null,
+                  );
         } else {
           _error = '⚠ Không thể đăng ký Controller. $err';
         }
@@ -385,9 +396,7 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
       await _provisioning.provision(
         ssid: _ssid.text,
         password: _password.text,
-        backendUrl: await ControllerProvisioningService.backendUrlForEsp(
-          AppEnv.cloudApiUrl,
-        ),
+        kioskUrl: _kioskUrl.text,
       );
       if (!mounted) return;
       setState(() => _wifiPhase = 'ESP32 đang khởi động lại');
@@ -414,7 +423,8 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
   String _wifiReason(String raw) {
     final t = raw.toLowerCase();
     if (t.contains('auth')) return 'Sai mật khẩu Wi-Fi';
-    if (t.contains('ssid') || t.contains('not found')) return 'Không tìm thấy Wi-Fi';
+    if (t.contains('ssid') || t.contains('not found'))
+      return 'Không tìm thấy Wi-Fi';
     if (t.contains('timeout')) return 'Kết nối quá thời gian';
     if (t.contains('unreachable') || t.contains('network')) {
       return 'Không thể truy cập mạng';
@@ -438,7 +448,9 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: width, maxHeight: MediaQuery.sizeOf(context).height * 0.9),
+          constraints: BoxConstraints(
+              maxWidth: width,
+              maxHeight: MediaQuery.sizeOf(context).height * 0.9),
           child: Column(
             children: [
               _header(),
@@ -479,7 +491,8 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Thêm Controller', style: bvText(fontSize: 20, fontWeight: FontWeight.w800)),
+                Text('Thêm Controller',
+                    style: bvText(fontSize: 20, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 4),
                 Text(
                   'Kết nối Controller ESP32 với CrabSense. Có thể tìm thiết bị trong mạng LAN hoặc cấu hình Wi-Fi nếu thiết bị chưa kết nối.',
@@ -511,7 +524,9 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
               height: 26,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: done || active ? DashboardColors.brand : DashboardColors.lightMint,
+                color: done || active
+                    ? DashboardColors.brand
+                    : DashboardColors.lightMint,
                 shape: BoxShape.circle,
               ),
               child: done
@@ -555,7 +570,10 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
   }
 
   Widget _line() => Expanded(
-        child: Container(height: 2, margin: const EdgeInsets.symmetric(horizontal: 8), color: DashboardColors.cardBorder),
+        child: Container(
+            height: 2,
+            margin: const EdgeInsets.symmetric(horizontal: 8),
+            color: DashboardColors.cardBorder),
       );
 
   Widget _discoverBody() {
@@ -587,11 +605,14 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
           decoration: BoxDecoration(
             color: on ? DashboardColors.brand : Colors.white,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: on ? DashboardColors.brand : DashboardColors.cardBorder),
+            border: Border.all(
+                color: on ? DashboardColors.brand : DashboardColors.cardBorder),
           ),
           child: Text(
             label,
-            style: bvText(fontWeight: FontWeight.w700, color: on ? Colors.white : DashboardColors.textPrimary),
+            style: bvText(
+                fontWeight: FontWeight.w700,
+                color: on ? Colors.white : DashboardColors.textPrimary),
           ),
         ),
       ),
@@ -602,7 +623,8 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Tìm Controller trong mạng LAN', style: bvText(fontSize: 15, fontWeight: FontWeight.w800)),
+        Text('Tìm Controller trong mạng LAN',
+            style: bvText(fontSize: 15, fontWeight: FontWeight.w800)),
         const SizedBox(height: 4),
         Text(
           'Tìm Controller ESP32 đang kết nối cùng mạng với máy tính hiện tại.',
@@ -639,7 +661,8 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
         ],
         if (!_scanning && _found.isNotEmpty) ...[
           const SizedBox(height: 16),
-          Text('Thiết bị tìm thấy (${_found.length})', style: bvText(fontWeight: FontWeight.w800, fontSize: 15)),
+          Text('Thiết bị tìm thấy (${_found.length})',
+              style: bvText(fontWeight: FontWeight.w800, fontSize: 15)),
           const SizedBox(height: 8),
           for (final d in _found) _deviceCard(d),
         ],
@@ -654,18 +677,28 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
         const SizedBox(height: 12),
         Row(
           children: [
-            MgmtOutlineButton(onTap: _scanning ? null : _scan, icon: Icons.refresh, label: 'Quét lại'),
+            MgmtOutlineButton(
+                onTap: _scanning ? null : _scan,
+                icon: Icons.refresh,
+                label: 'Quét lại'),
             const SizedBox(width: 10),
             TextButton(
               onPressed: () => setState(() => _findTab = _FindTab.wifi),
-              child: Text('Không tìm thấy thiết bị? Cấu hình Wi-Fi →', style: bvText(color: DashboardColors.brand, fontWeight: FontWeight.w700)),
+              child: Text('Không tìm thấy thiết bị? Cấu hình Wi-Fi →',
+                  style: bvText(
+                      color: DashboardColors.brand,
+                      fontWeight: FontWeight.w700)),
             ),
           ],
         ),
         const SizedBox(height: 8),
         TextButton(
           onPressed: () => setState(() => _manual = !_manual),
-          child: Text(_manual ? 'Ẩn nhập Device ID thủ công' : 'Nhập Device ID thủ công', style: bvText(color: DashboardColors.textMuted)),
+          child: Text(
+              _manual
+                  ? 'Ẩn nhập Device ID thủ công'
+                  : 'Nhập Device ID thủ công',
+              style: bvText(color: DashboardColors.textMuted)),
         ),
         if (_manual) _manualBox(),
       ],
@@ -678,9 +711,11 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
       decoration: mgmtCardDeco(radius: 14),
       child: Column(
         children: [
-          const Icon(Icons.wifi_tethering, size: 36, color: DashboardColors.brand),
+          const Icon(Icons.wifi_tethering,
+              size: 36, color: DashboardColors.brand),
           const SizedBox(height: 8),
-          Text('Không tìm thấy Controller', style: bvText(fontWeight: FontWeight.w800)),
+          Text('Không tìm thấy Controller',
+              style: bvText(fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
           Text(
             '• Controller chưa bật\n• Controller chưa kết nối Wi-Fi\n• Controller đang ở chế độ cấu hình AP\n• Controller đang ở mạng khác',
@@ -691,7 +726,8 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
           Wrap(
             spacing: 8,
             children: [
-              MgmtOutlineButton(onTap: _scan, icon: Icons.refresh, label: 'Quét lại'),
+              MgmtOutlineButton(
+                  onTap: _scan, icon: Icons.refresh, label: 'Quét lại'),
               MgmtPrimaryButton(
                 label: 'Cấu hình Wi-Fi',
                 icon: Icons.wifi,
@@ -727,8 +763,11 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
               children: [
                 Row(
                   children: [
-                    Expanded(child: Text(d.displayName, style: bvText(fontWeight: FontWeight.w800))),
-                    const MgmtStatusBadge(label: 'Online', color: DashboardColors.brand),
+                    Expanded(
+                        child: Text(d.displayName,
+                            style: bvText(fontWeight: FontWeight.w800))),
+                    const MgmtStatusBadge(
+                        label: 'Online', color: DashboardColors.brand),
                   ],
                 ),
                 Text(
@@ -736,7 +775,8 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
                     if (d.board.isNotEmpty) d.board else 'ESP32',
                     if (d.firmware.isNotEmpty) 'v${d.firmware}',
                   ].join(' • '),
-                  style: bvText(color: DashboardColors.textMuted, fontSize: 12.5),
+                  style:
+                      bvText(color: DashboardColors.textMuted, fontSize: 12.5),
                 ),
                 const SizedBox(height: 4),
                 Wrap(
@@ -745,11 +785,13 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
                   children: [
                     if (d.ip.isNotEmpty) _mini('IP', d.ip),
                     if (d.mac.isNotEmpty) _mini('MAC', d.mac),
-                    if (d.hardwareId.isNotEmpty) _mini('Device ID', d.hardwareId),
+                    if (d.hardwareId.isNotEmpty)
+                      _mini('Device ID', d.hardwareId),
                     if (d.wifiSsid.isNotEmpty) _mini('Wi-Fi', d.wifiSsid),
                     if (d.rssi != null) _mini('RSSI', '${d.rssi!.round()} dBm'),
                     if (d.lastHeartbeatSeconds != null)
-                      _mini('Heartbeat', '${d.lastHeartbeatSeconds} giây trước'),
+                      _mini(
+                          'Heartbeat', '${d.lastHeartbeatSeconds} giây trước'),
                   ],
                 ),
               ],
@@ -764,8 +806,11 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
 
   Widget _mini(String k, String v) {
     return Text.rich(TextSpan(children: [
-      TextSpan(text: '$k: ', style: bvText(fontSize: 12, color: DashboardColors.textMuted)),
-      TextSpan(text: v, style: bvText(fontSize: 12, fontWeight: FontWeight.w700)),
+      TextSpan(
+          text: '$k: ',
+          style: bvText(fontSize: 12, color: DashboardColors.textMuted)),
+      TextSpan(
+          text: v, style: bvText(fontSize: 12, fontWeight: FontWeight.w700)),
     ]));
   }
 
@@ -794,14 +839,24 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
             suffixIcon: IconButton(
               tooltip: _obscure ? 'Hiện mật khẩu' : 'Ẩn mật khẩu',
               onPressed: () => setState(() => _obscure = !_obscure),
-              icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+              icon: Icon(_obscure
+                  ? Icons.visibility_outlined
+                  : Icons.visibility_off_outlined),
             ),
           ),
         ),
         const SizedBox(height: 8),
+        TextField(
+          controller: _kioskUrl,
+          keyboardType: TextInputType.url,
+          decoration: _input('Kiosk URL (PC trong LAN)'),
+        ),
+        const SizedBox(height: 8),
         TextButton(
           onPressed: () => setState(() => _advanced = !_advanced),
-          child: Text(_advanced ? 'Ẩn tùy chọn nâng cao' : 'Tùy chọn nâng cao', style: bvText(color: DashboardColors.brand, fontWeight: FontWeight.w700)),
+          child: Text(_advanced ? 'Ẩn tùy chọn nâng cao' : 'Tùy chọn nâng cao',
+              style: bvText(
+                  color: DashboardColors.brand, fontWeight: FontWeight.w700)),
         ),
         if (_advanced) ...[
           SwitchListTile(
@@ -827,7 +882,10 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
           style: bvText(color: DashboardColors.textMuted, height: 1.45),
         ),
         const SizedBox(height: 12),
-        if (_wifiPhase != null) Text(_wifiPhase!, style: bvText(fontWeight: FontWeight.w700, color: DashboardColors.brand)),
+        if (_wifiPhase != null)
+          Text(_wifiPhase!,
+              style: bvText(
+                  fontWeight: FontWeight.w700, color: DashboardColors.brand)),
         if (_wifiError != null) _banner(_wifiError!, _kAmber),
         const SizedBox(height: 8),
         MgmtPrimaryButton(
@@ -855,7 +913,9 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Chỉ dùng khi discovery không hoạt động. Device ID vẫn phải khớp firmware nếu kiểm tra được.', style: bvText(color: DashboardColors.textMuted)),
+          Text(
+              'Chỉ dùng khi discovery không hoạt động. Device ID vẫn phải khớp firmware nếu kiểm tra được.',
+              style: bvText(color: DashboardColors.textMuted)),
           _field(_manualId, 'Device ID *'),
           _field(_manualName, 'Tên Controller *'),
           const SizedBox(height: 8),
@@ -866,7 +926,9 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
               _pick(EspProvisionInfo(
                 deviceId: id,
                 deviceCode: id,
-                apName: _manualName.text.trim().isEmpty ? id : _manualName.text.trim(),
+                apName: _manualName.text.trim().isEmpty
+                    ? id
+                    : _manualName.text.trim(),
                 controllerType: controllerTypeRealtime,
                 firmware: '',
                 mac: '',
@@ -886,7 +948,8 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Thiết bị đã chọn', style: bvText(fontWeight: FontWeight.w800, fontSize: 15)),
+        Text('Thiết bị đã chọn',
+            style: bvText(fontWeight: FontWeight.w800, fontSize: 15)),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(14),
@@ -896,7 +959,9 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
               Container(
                 width: 52,
                 height: 52,
-                decoration: BoxDecoration(color: DashboardColors.lightMint, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+                    color: DashboardColors.lightMint,
+                    borderRadius: BorderRadius.circular(12)),
                 child: const Icon(Icons.memory, color: DashboardColors.brand),
               ),
               const SizedBox(width: 12),
@@ -904,10 +969,12 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(sel.displayName, style: bvText(fontWeight: FontWeight.w800)),
+                    Text(sel.displayName,
+                        style: bvText(fontWeight: FontWeight.w800)),
                     Text(
                       '${sel.board.isEmpty ? 'ESP32' : sel.board} • ${sel.firmware.isEmpty ? '—' : 'v${sel.firmware}'}',
-                      style: bvText(color: DashboardColors.textMuted, fontSize: 12.5),
+                      style: bvText(
+                          color: DashboardColors.textMuted, fontSize: 12.5),
                     ),
                     Wrap(spacing: 12, children: [
                       if (sel.ip.isNotEmpty) _mini('IP', sel.ip),
@@ -925,7 +992,8 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
           ),
         ),
         const SizedBox(height: 16),
-        Text('Thông tin đăng ký', style: bvText(fontWeight: FontWeight.w800, fontSize: 15)),
+        Text('Thông tin đăng ký',
+            style: bvText(fontWeight: FontWeight.w800, fontSize: 15)),
         const SizedBox(height: 8),
         _field(_name, 'Tên Controller *'),
         const SizedBox(height: 10),
@@ -933,7 +1001,9 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
           decoration: _input('Device ID'),
           child: Row(
             children: [
-              Expanded(child: Text(sel.hardwareId, style: bvText(fontWeight: FontWeight.w700))),
+              Expanded(
+                  child: Text(sel.hardwareId,
+                      style: bvText(fontWeight: FontWeight.w700))),
               const Icon(Icons.lock_outline, size: 16, color: _kSlate),
             ],
           ),
@@ -946,11 +1016,19 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
               value: _type,
               isExpanded: true,
               items: const [
-                DropdownMenuItem(value: controllerTypeRealtime, child: Text('Realtime Sensor Controller')),
-                DropdownMenuItem(value: controllerTypeRas, child: Text('RAS Controller')),
-                DropdownMenuItem(value: controllerTypeMixed, child: Text('Sensor + Actuator Controller')),
-                DropdownMenuItem(value: controllerTypeCamera, child: Text('Camera / AI Controller')),
-                DropdownMenuItem(value: controllerTypeOther, child: Text('Khác')),
+                DropdownMenuItem(
+                    value: controllerTypeRealtime,
+                    child: Text('Realtime Sensor Controller')),
+                DropdownMenuItem(
+                    value: controllerTypeRas, child: Text('RAS Controller')),
+                DropdownMenuItem(
+                    value: controllerTypeMixed,
+                    child: Text('Sensor + Actuator Controller')),
+                DropdownMenuItem(
+                    value: controllerTypeCamera,
+                    child: Text('Camera / AI Controller')),
+                DropdownMenuItem(
+                    value: controllerTypeOther, child: Text('Khác')),
               ],
               onChanged: (v) => setState(() => _type = v ?? _type),
             ),
@@ -961,16 +1039,22 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
           decoration: _input('Khu vực *'),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              value: farms.any((f) => f.id == _area.id) ? _area.id : (farms.isEmpty ? null : farms.first.id),
+              value: farms.any((f) => f.id == _area.id)
+                  ? _area.id
+                  : (farms.isEmpty ? null : farms.first.id),
               isExpanded: true,
               items: [
                 for (final f in farms)
-                  DropdownMenuItem(value: f.id, child: Text('${f.code.isEmpty ? f.name : f.code} — ${f.name}')),
+                  DropdownMenuItem(
+                      value: f.id,
+                      child: Text(
+                          '${f.code.isEmpty ? f.name : f.code} — ${f.name}')),
               ],
               onChanged: (id) {
                 if (id == null) return;
                 setState(() {
-                  _area = farms.firstWhere((f) => f.id == id, orElse: () => _area);
+                  _area =
+                      farms.firstWhere((f) => f.id == id, orElse: () => _area);
                   _rowId = null;
                 });
                 widget.rowService?.setAreaFilter(id);
@@ -985,11 +1069,17 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
             child: DropdownButton<String>(
               value: _rowId,
               isExpanded: true,
-              hint: Text('Không gán dãy', style: bvText(color: DashboardColors.textMuted)),
+              hint: Text('Không gán dãy',
+                  style: bvText(color: DashboardColors.textMuted)),
               items: [
-                const DropdownMenuItem<String>(value: null, child: Text('Không gán dãy')),
+                const DropdownMenuItem<String>(
+                    value: null, child: Text('Không gán dãy')),
                 for (final r in _rows)
-                  DropdownMenuItem(value: r.rowId, child: Text(r.rowName.isEmpty ? r.rowCode : '${r.rowCode} — ${r.rowName}')),
+                  DropdownMenuItem(
+                      value: r.rowId,
+                      child: Text(r.rowName.isEmpty
+                          ? r.rowCode
+                          : '${r.rowCode} — ${r.rowName}')),
               ],
               onChanged: (v) => setState(() => _rowId = v),
             ),
@@ -1002,7 +1092,8 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
           controller: _note,
           maxLength: 400,
           maxLines: 3,
-          decoration: _input('Ghi chú').copyWith(hintText: 'Nhập mô tả vị trí hoặc mục đích Controller...'),
+          decoration: _input('Ghi chú').copyWith(
+              hintText: 'Nhập mô tả vị trí hoặc mục đích Controller...'),
         ),
       ],
     );
@@ -1014,14 +1105,17 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Kiểm tra kết nối', style: bvText(fontSize: 15, fontWeight: FontWeight.w800)),
+        Text('Kiểm tra kết nối',
+            style: bvText(fontSize: 15, fontWeight: FontWeight.w800)),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(12),
           decoration: mgmtCardDeco(radius: 14),
           child: Row(
             children: [
-              Expanded(child: Text(sel.displayName, style: bvText(fontWeight: FontWeight.w800))),
+              Expanded(
+                  child: Text(sel.displayName,
+                      style: bvText(fontWeight: FontWeight.w800))),
               MgmtStatusBadge(
                 label: _canRegister ? 'Sẵn sàng' : 'Đang kiểm tra',
                 color: _canRegister ? DashboardColors.brand : _kAmber,
@@ -1033,7 +1127,12 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
         _checkRow('Controller phản hồi', _chkBoard, _chkBoardDetail ?? ''),
         _checkRow('Kết nối Wi-Fi', _chkWifi, _chkWifiDetail ?? ''),
         _checkRow('Truy cập API', _chkApi, _chkApiDetail ?? ''),
-        _checkRow('Phiên bản firmware', _chkFw, sel.firmware.isEmpty ? 'Chưa đọc được firmware' : 'v${sel.firmware}'),
+        _checkRow(
+            'Phiên bản firmware',
+            _chkFw,
+            sel.firmware.isEmpty
+                ? 'Chưa đọc được firmware'
+                : 'v${sel.firmware}'),
         _checkRow('Device ID hợp lệ', _chkId, sel.hardwareId),
         if (_chkBoard == _Check.fail) ...[
           const SizedBox(height: 8),
@@ -1051,9 +1150,19 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
         _card('Thông tin đăng ký', [
           _kv('Tên Controller', _name.text.trim()),
           _kv('Loại', controllerTypeLabel(_type)),
-          _kv('Khu vực', '${_area.name}${_area.code.isEmpty ? '' : ' (${_area.code})'}'),
-          _kv('Dãy', _rowId == null ? '—' : (_rows.where((r) => r.rowId == _rowId).map((r) => r.rowCode).firstOrNull ?? '—')),
-          _kv('Vị trí', _location.text.trim().isEmpty ? '—' : _location.text.trim()),
+          _kv('Khu vực',
+              '${_area.name}${_area.code.isEmpty ? '' : ' (${_area.code})'}'),
+          _kv(
+              'Dãy',
+              _rowId == null
+                  ? '—'
+                  : (_rows
+                          .where((r) => r.rowId == _rowId)
+                          .map((r) => r.rowCode)
+                          .firstOrNull ??
+                      '—')),
+          _kv('Vị trí',
+              _location.text.trim().isEmpty ? '—' : _location.text.trim()),
         ]),
       ],
     );
@@ -1062,14 +1171,23 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
   Widget _successBody() {
     final sel = _selected!;
     final id = (_created?['id'] ?? _created?['Id'] ?? '').toString();
-    final code = (_created?['deviceCode'] ?? _created?['DeviceCode'] ?? sel.deviceCode).toString();
-    final sensors = (_created?['sensorCount'] ?? _created?['SensorCount'] ?? sel.sensorCount ?? 0) as num;
-    final outputs = (_created?['actuatorCount'] ?? _created?['ActuatorCount'] ?? sel.outputCount ?? 0) as num;
+    final code =
+        (_created?['deviceCode'] ?? _created?['DeviceCode'] ?? sel.deviceCode)
+            .toString();
+    final sensors = (_created?['sensorCount'] ??
+        _created?['SensorCount'] ??
+        sel.sensorCount ??
+        0) as num;
+    final outputs = (_created?['actuatorCount'] ??
+        _created?['ActuatorCount'] ??
+        sel.outputCount ??
+        0) as num;
     return Column(
       children: [
         const Icon(Icons.check_circle, size: 56, color: DashboardColors.brand),
         const SizedBox(height: 8),
-        Text('Đã thêm Controller thành công!', style: bvText(fontSize: 18, fontWeight: FontWeight.w800)),
+        Text('Đã thêm Controller thành công!',
+            style: bvText(fontSize: 18, fontWeight: FontWeight.w800)),
         Text(
           '${_name.text.trim()} đã được đăng ký vào hệ thống CrabSense.',
           textAlign: TextAlign.center,
@@ -1085,8 +1203,12 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
             children: [
               Row(
                 children: [
-                  Expanded(child: Text(_name.text.trim(), style: bvText(fontWeight: FontWeight.w800, fontSize: 16))),
-                  const MgmtStatusBadge(label: 'Online', color: DashboardColors.brand),
+                  Expanded(
+                      child: Text(_name.text.trim(),
+                          style: bvText(
+                              fontWeight: FontWeight.w800, fontSize: 16))),
+                  const MgmtStatusBadge(
+                      label: 'Online', color: DashboardColors.brand),
                 ],
               ),
               _kv('Controller ID', code.isEmpty ? id : code),
@@ -1094,16 +1216,19 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
               if (sel.firmware.isNotEmpty) _kv('Firmware', 'v${sel.firmware}'),
               if (sel.ip.isNotEmpty) _kv('IP', sel.ip),
               if (sel.mac.isNotEmpty) _kv('MAC', sel.mac),
-              _kv('Khu', '${_area.name}${_area.code.isEmpty ? '' : ' (${_area.code})'}'),
+              _kv('Khu',
+                  '${_area.name}${_area.code.isEmpty ? '' : ' (${_area.code})'}'),
             ],
           ),
         ),
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _stat('${sensors.toInt()}', 'Sensor được phát hiện')),
+            Expanded(
+                child: _stat('${sensors.toInt()}', 'Sensor được phát hiện')),
             const SizedBox(width: 10),
-            Expanded(child: _stat('${outputs.toInt()}', 'Output được phát hiện')),
+            Expanded(
+                child: _stat('${outputs.toInt()}', 'Output được phát hiện')),
           ],
         ),
         const SizedBox(height: 10),
@@ -1120,12 +1245,15 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
           children: [
             MgmtOutlineButton(onTap: () => _close(), label: 'Đóng'),
             MgmtOutlineButton(
-              onTap: () => _close(result: AddControllerWizardResult(deviceId: id, openSensors: true)),
+              onTap: () => _close(
+                  result: AddControllerWizardResult(
+                      deviceId: id, openSensors: true)),
               label: 'Cấu hình Sensor',
             ),
             MgmtPrimaryButton(
               label: 'Xem Controller →',
-              onTap: () => _close(result: AddControllerWizardResult(deviceId: id)),
+              onTap: () =>
+                  _close(result: AddControllerWizardResult(deviceId: id)),
             ),
           ],
         ),
@@ -1139,7 +1267,11 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
       decoration: mgmtCardDeco(radius: 14),
       child: Column(
         children: [
-          Text(n, style: bvText(fontSize: 22, fontWeight: FontWeight.w800, color: DashboardColors.brand)),
+          Text(n,
+              style: bvText(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: DashboardColors.brand)),
           Text(l, style: bvText(color: DashboardColors.textMuted)),
         ],
       ),
@@ -1156,7 +1288,9 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
               onTap: _registering
                   ? null
                   : () => setState(() {
-                        _step = _step == _Step.verify ? _Step.config : _Step.discover;
+                        _step = _step == _Step.verify
+                            ? _Step.config
+                            : _Step.discover;
                       }),
               label: 'Quay lại',
             ),
@@ -1203,12 +1337,18 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('⚠ Controller này đã được đăng ký.', style: bvText(fontWeight: FontWeight.w800, color: _kAmber)),
-          Text('${d.deviceName ?? d.deviceCode}  •  ${d.deviceCode}', style: bvText()),
-          Text('Khu vực: ${d.areaName ?? d.areaCode ?? '—'}', style: bvText(color: DashboardColors.textMuted)),
+          Text('⚠ Controller này đã được đăng ký.',
+              style: bvText(fontWeight: FontWeight.w800, color: _kAmber)),
+          Text('${d.deviceName ?? d.deviceCode}  •  ${d.deviceCode}',
+              style: bvText()),
+          Text('Khu vực: ${d.areaName ?? d.areaCode ?? '—'}',
+              style: bvText(color: DashboardColors.textMuted)),
           TextButton(
-            onPressed: () => _close(result: AddControllerWizardResult(deviceId: d.id)),
-            child: Text('Xem Controller', style: bvText(color: DashboardColors.brand, fontWeight: FontWeight.w800)),
+            onPressed: () =>
+                _close(result: AddControllerWizardResult(deviceId: d.id)),
+            child: Text('Xem Controller',
+                style: bvText(
+                    color: DashboardColors.brand, fontWeight: FontWeight.w800)),
           ),
         ],
       ),
@@ -1217,8 +1357,12 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
 
   Widget _checkRow(String title, _Check state, String detail) {
     final icon = switch (state) {
-      _Check.pending => const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-      _Check.ok => const Icon(Icons.check_circle, size: 18, color: DashboardColors.brand),
+      _Check.pending => const SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2)),
+      _Check.ok =>
+        const Icon(Icons.check_circle, size: 18, color: DashboardColors.brand),
       _Check.fail => const Icon(Icons.cancel, size: 18, color: _kRed),
     };
     return Padding(
@@ -1233,7 +1377,9 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: bvText(fontWeight: FontWeight.w700)),
-                Text(detail, style: bvText(fontSize: 12.5, color: DashboardColors.textMuted)),
+                Text(detail,
+                    style: bvText(
+                        fontSize: 12.5, color: DashboardColors.textMuted)),
               ],
             ),
           ),
@@ -1263,7 +1409,9 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
-          SizedBox(width: 140, child: Text(k, style: bvText(color: DashboardColors.textMuted))),
+          SizedBox(
+              width: 140,
+              child: Text(k, style: bvText(color: DashboardColors.textMuted))),
           Expanded(child: Text(v, style: bvText(fontWeight: FontWeight.w700))),
         ],
       ),
@@ -1277,7 +1425,8 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Text(msg, style: bvText(color: color, fontWeight: FontWeight.w600)),
+      child:
+          Text(msg, style: bvText(color: color, fontWeight: FontWeight.w600)),
     );
   }
 
@@ -1288,13 +1437,16 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
           Container(
             height: 88,
             margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(color: DashboardColors.lightMint, borderRadius: BorderRadius.circular(14)),
+            decoration: BoxDecoration(
+                color: DashboardColors.lightMint,
+                borderRadius: BorderRadius.circular(14)),
           ),
       ],
     );
   }
 
-  Widget _field(TextEditingController c, String label, {List<String> suggestions = const []}) {
+  Widget _field(TextEditingController c, String label,
+      {List<String> suggestions = const []}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1322,11 +1474,16 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
         labelStyle: bvText(color: DashboardColors.textMuted),
         filled: true,
         fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: DashboardColors.cardBorder)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: DashboardColors.cardBorder)),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: DashboardColors.cardBorder)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: DashboardColors.cardBorder)),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: DashboardColors.brand, width: 1.4),
+          borderSide:
+              const BorderSide(color: DashboardColors.brand, width: 1.4),
         ),
       );
 }

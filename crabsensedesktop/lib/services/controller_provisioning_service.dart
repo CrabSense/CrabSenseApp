@@ -41,11 +41,13 @@ class EspProvisionInfo {
   final int? sensorCount;
   final int? outputCount;
 
-  String get displayName =>
-      apName.isNotEmpty ? apName : (deviceCode.isNotEmpty ? deviceCode : deviceId);
+  String get displayName => apName.isNotEmpty
+      ? apName
+      : (deviceCode.isNotEmpty ? deviceCode : deviceId);
 
-  String get hardwareId =>
-      deviceId.isNotEmpty ? deviceId : (deviceCode.isNotEmpty ? deviceCode : mac);
+  String get hardwareId => deviceId.isNotEmpty
+      ? deviceId
+      : (deviceCode.isNotEmpty ? deviceCode : mac);
 
   String get ip => staIp.isNotEmpty
       ? staIp
@@ -75,9 +77,12 @@ class EspProvisionInfo {
       wifiSsid: read('wifiSsid', 'WifiSsid').isNotEmpty
           ? read('wifiSsid', 'WifiSsid')
           : read('ssid', 'Ssid'),
-      rssi: n(json['rssi'] ?? json['Rssi'] ?? json['rssiDbm'] ?? json['RssiDbm'])?.toDouble(),
+      rssi:
+          n(json['rssi'] ?? json['Rssi'] ?? json['rssiDbm'] ?? json['RssiDbm'])
+              ?.toDouble(),
       lastHeartbeatSeconds:
-          n(json['lastHeartbeatSeconds'] ?? json['LastHeartbeatSeconds'])?.toInt(),
+          n(json['lastHeartbeatSeconds'] ?? json['LastHeartbeatSeconds'])
+              ?.toInt(),
       sensorCount: n(json['sensorCount'] ?? json['SensorCount'])?.toInt(),
       outputCount: n(json['outputCount'] ?? json['OutputCount'])?.toInt(),
     );
@@ -127,7 +132,8 @@ class ControllerProvisioningService {
 
   Future<EspProvisionInfo> discover({String baseUrl = defaultApBase}) async {
     final uri = Uri.parse('$baseUrl/api/info');
-    final res = await _client.get(uri).timeout(const Duration(milliseconds: 700));
+    final res =
+        await _client.get(uri).timeout(const Duration(milliseconds: 700));
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw const FormatException('Controller không trả /api/info');
     }
@@ -158,7 +164,9 @@ class ControllerProvisioningService {
     final found = <String, EspProvisionInfo>{};
     void keep(EspProvisionInfo? info) {
       if (info == null) return;
-      if (info.deviceCode.isEmpty && info.deviceId.isEmpty && info.mac.isEmpty) {
+      if (info.deviceCode.isEmpty &&
+          info.deviceId.isEmpty &&
+          info.mac.isEmpty) {
         return;
       }
       final key = [
@@ -220,7 +228,7 @@ class ControllerProvisioningService {
   Future<EspProvisionInfo> provision({
     required String ssid,
     required String password,
-    String? backendUrl,
+    String? kioskUrl,
     String? baseUrl,
   }) async {
     final root = baseUrl ?? defaultApBase;
@@ -232,8 +240,8 @@ class ControllerProvisioningService {
           body: jsonEncode({
             'ssid': ssid.trim(),
             'password': password,
-            if (backendUrl != null && backendUrl.trim().isNotEmpty)
-              'backendUrl': backendUrl.trim(),
+            if (kioskUrl != null && kioskUrl.trim().isNotEmpty)
+              'kioskUrl': kioskUrl.trim(),
           }),
         )
         .timeout(const Duration(seconds: 8));
@@ -243,7 +251,9 @@ class ControllerProvisioningService {
       throw const FormatException('Phản hồi provision không hợp lệ');
     }
     final map = Map<String, dynamic>.from(decoded);
-    if (res.statusCode < 200 || res.statusCode >= 300 || map['success'] == false) {
+    if (res.statusCode < 200 ||
+        res.statusCode >= 300 ||
+        map['success'] == false) {
       throw FormatException(
         (map['message'] ?? 'Không gửi được Wi-Fi tới ESP32').toString(),
       );
@@ -270,7 +280,12 @@ class ControllerProvisioningService {
   /// Gửi lệnh restart nếu firmware hỗ trợ. Trả về false nếu không có kênh.
   Future<bool> restartLan(String ip) async {
     final host = ip.trim().replaceFirst(RegExp(r'^https?://'), '');
-    for (final path in const ['/api/restart', '/api/reboot', '/restart', '/reboot']) {
+    for (final path in const [
+      '/api/restart',
+      '/api/reboot',
+      '/restart',
+      '/reboot'
+    ]) {
       try {
         final res = await _client
             .post(Uri.parse('http://$host$path'))
