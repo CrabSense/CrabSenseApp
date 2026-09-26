@@ -386,6 +386,14 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
       setState(() => _wifiError = '⚠ Nhập SSID và mật khẩu Wi-Fi mới.');
       return;
     }
+    final kiosk = Uri.tryParse(_kioskUrl.text.trim());
+    if (kiosk == null ||
+        !{'http', 'https'}.contains(kiosk.scheme) ||
+        kiosk.host.isEmpty) {
+      setState(() => _wifiError =
+          '⚠ Kiosk URL không hợp lệ. Ví dụ: http://192.168.1.50:8090');
+      return;
+    }
     setState(() {
       _wifiSending = true;
       _wifiError = null;
@@ -849,7 +857,10 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
         TextField(
           controller: _kioskUrl,
           keyboardType: TextInputType.url,
-          decoration: _input('Kiosk URL (PC trong LAN)'),
+          decoration: _input('Kiosk URL (PC trong LAN)').copyWith(
+            helperText:
+                'ESP gửi telemetry về Kiosk; không nhập URL BE Cloud ở đây.',
+          ),
         ),
         const SizedBox(height: 8),
         TextButton(
