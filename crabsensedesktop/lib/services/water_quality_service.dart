@@ -359,7 +359,7 @@ class WaterQualityService extends ChangeNotifier {
   String _defaultUnit(WaterSensorType type) => switch (type) {
         WaterSensorType.ph => '',
         WaterSensorType.temperature => '°C',
-        WaterSensorType.tds => 'ppm',
+        WaterSensorType.tds => 'ppt',
         WaterSensorType.flow => 'L/min',
         WaterSensorType.waterLevel => '%',
         WaterSensorType.dissolvedOxygen => 'mg/L',

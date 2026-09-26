@@ -1308,12 +1308,14 @@ class _NetworkDialogState extends State<_NetworkDialog> {
       device: widget.device,
       ssid: _ssid.text,
       password: _password.text,
+      liveIp: widget.live?.staIp ?? widget.live?.ip,
     );
     if (!mounted) return;
     setState(() {
       _sending = false;
       if (ok) {
-        _phase = '✓ Đã gửi SSID/password. Controller sẽ khởi động lại và kết nối mạng mới.';
+        _phase =
+            '✓ Đã gửi cấu hình. Controller đang khởi động lại.\nMáy tính phải cùng Wi-Fi mới. Nếu mất máy, nối hotspot CrabSense-XXXX.';
         _password.clear();
       } else {
         _error = '⚠ ${widget.service.detailError ?? 'Không gửi được cấu hình Wi-Fi.'}';

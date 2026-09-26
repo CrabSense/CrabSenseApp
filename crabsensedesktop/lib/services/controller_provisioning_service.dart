@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -23,6 +24,9 @@ class EspProvisionInfo {
     this.lastHeartbeatSeconds,
     this.sensorCount,
     this.outputCount,
+    this.lastError = '',
+    this.cloudBackendUrl = '',
+    this.sensors = const [],
   });
 
   final String deviceId;
@@ -40,6 +44,9 @@ class EspProvisionInfo {
   final int? lastHeartbeatSeconds;
   final int? sensorCount;
   final int? outputCount;
+  final String lastError;
+  final String cloudBackendUrl;
+  final List<EspSensorPin> sensors;
 
   String get displayName =>
       apName.isNotEmpty ? apName : (deviceCode.isNotEmpty ? deviceCode : deviceId);
@@ -61,6 +68,7 @@ class EspProvisionInfo {
     }
 
     num? n(dynamic v) => v is num ? v : num.tryParse('$v');
+    final pins = _parseSensors(json['sensors'] ?? json['Sensors']);
     return EspProvisionInfo(
       deviceId: read('deviceId', 'DeviceId'),
       deviceCode: read('deviceCode', 'DeviceCode'),
@@ -78,10 +86,53 @@ class EspProvisionInfo {
       rssi: n(json['rssi'] ?? json['Rssi'] ?? json['rssiDbm'] ?? json['RssiDbm'])?.toDouble(),
       lastHeartbeatSeconds:
           n(json['lastHeartbeatSeconds'] ?? json['LastHeartbeatSeconds'])?.toInt(),
-      sensorCount: n(json['sensorCount'] ?? json['SensorCount'])?.toInt(),
+      sensorCount: n(json['sensorCount'] ?? json['SensorCount'])?.toInt() ??
+          (pins.isEmpty ? null : pins.length),
       outputCount: n(json['outputCount'] ?? json['OutputCount'])?.toInt(),
+      lastError: read('lastError', 'LastError'),
+      cloudBackendUrl: read('backendUrl', 'BackendUrl'),
+      sensors: pins,
     );
   }
+}
+
+class EspSensorPin {
+  const EspSensorPin({
+    required this.suffix,
+    required this.sensorCode,
+    required this.sensorType,
+    required this.unit,
+    required this.interface,
+    required this.gpio,
+    required this.channel,
+  });
+
+  final String suffix;
+  final String sensorCode;
+  final String sensorType;
+  final String unit;
+  final String interface;
+  final int gpio;
+  final String channel;
+}
+
+List<EspSensorPin> _parseSensors(dynamic raw) {
+  if (raw is! List) return const [];
+  return raw.whereType<Map>().map((e) {
+    final m = Map<String, dynamic>.from(e);
+    String s(String a, [String? b]) =>
+        (m[a] ?? (b == null ? null : m[b]))?.toString() ?? '';
+    final gpio = m['gpio'] ?? m['Gpio'] ?? m['pin'] ?? m['Pin'];
+    return EspSensorPin(
+      suffix: s('suffix', 'Suffix'),
+      sensorCode: s('sensorCode', 'SensorCode'),
+      sensorType: s('sensorType', 'SensorType'),
+      unit: s('unit', 'Unit'),
+      interface: s('interface', 'Interface'),
+      gpio: gpio is num ? gpio.toInt() : int.tryParse('$gpio') ?? 0,
+      channel: s('channel', 'Channel'),
+    );
+  }).toList();
 }
 
 class ControllerProvisioningService {
@@ -225,40 +276,108 @@ class ControllerProvisioningService {
   }) async {
     final root = baseUrl ?? defaultApBase;
     final uri = Uri.parse('$root/api/provision');
+    final payload = jsonEncode({
+      'ssid': ssid.trim(),
+      'password': password,
+      if (backendUrl != null && backendUrl.trim().isNotEmpty)
+        'backendUrl': backendUrl.trim(),
+    });
+
+    try {
+      final res = await _postProvision(uri, payload);
+      final decoded = jsonDecode(res.body);
+      if (decoded is! Map) {
+        throw const FormatException('Phản hồi provision không hợp lệ');
+      }
+      final map = Map<String, dynamic>.from(decoded);
+      if (res.statusCode < 200 ||
+          res.statusCode >= 300 ||
+          map['success'] == false) {
+        throw FormatException(
+          (map['message'] ?? 'Không gửi được Wi-Fi tới ESP32').toString(),
+        );
+      }
+      return EspProvisionInfo(
+        deviceId: (map['deviceId'] ?? '').toString(),
+        deviceCode: (map['deviceCode'] ?? '').toString(),
+        apName: (map['deviceCode'] ?? '').toString(),
+        controllerType: '',
+        firmware: '',
+        mac: (map['mac'] ?? '').toString(),
+        provisioned: true,
+        baseUrl: root,
+      );
+    } on TimeoutException {
+      // ESP đóng TCP khi restart — lệnh thường đã lưu.
+      return EspProvisionInfo(
+        deviceId: '',
+        deviceCode: '',
+        apName: '',
+        controllerType: '',
+        firmware: '',
+        mac: '',
+        provisioned: true,
+        baseUrl: root,
+      );
+    } on SocketException {
+      return EspProvisionInfo(
+        deviceId: '',
+        deviceCode: '',
+        apName: '',
+        controllerType: '',
+        firmware: '',
+        mac: '',
+        provisioned: true,
+        baseUrl: root,
+      );
+    } on http.ClientException {
+      return EspProvisionInfo(
+        deviceId: '',
+        deviceCode: '',
+        apName: '',
+        controllerType: '',
+        firmware: '',
+        mac: '',
+        provisioned: true,
+        baseUrl: root,
+      );
+    }
+  }
+
+  Future<http.Response> _postProvision(Uri uri, String payload) {
+    return _client
+        .post(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Connection': 'close',
+            'Expect': '',
+          },
+          body: payload,
+        )
+        .timeout(const Duration(seconds: 6));
+  }
+
+  /// Chỉ gửi URL BE cho ESP. Không đổi Wi-Fi, không restart.
+  Future<void> pushBackendUrl({
+    required String baseUrl,
+    required String backendUrl,
+  }) async {
+    final root = baseUrl.startsWith('http') ? baseUrl : 'http://$baseUrl';
+    final uri = Uri.parse('$root/api/provision');
     final res = await _client
         .post(
           uri,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'ssid': ssid.trim(),
-            'password': password,
-            if (backendUrl != null && backendUrl.trim().isNotEmpty)
-              'backendUrl': backendUrl.trim(),
-          }),
+          headers: {
+            'Content-Type': 'application/json',
+            'Connection': 'close',
+          },
+          body: jsonEncode({'backendUrl': backendUrl.trim()}),
         )
-        .timeout(const Duration(seconds: 8));
-
-    final decoded = jsonDecode(res.body);
-    if (decoded is! Map) {
-      throw const FormatException('Phản hồi provision không hợp lệ');
+        .timeout(const Duration(seconds: 4));
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw const FormatException('Không gửi được URL backend tới Controller');
     }
-    final map = Map<String, dynamic>.from(decoded);
-    if (res.statusCode < 200 || res.statusCode >= 300 || map['success'] == false) {
-      throw FormatException(
-        (map['message'] ?? 'Không gửi được Wi-Fi tới ESP32').toString(),
-      );
-    }
-
-    return EspProvisionInfo(
-      deviceId: (map['deviceId'] ?? '').toString(),
-      deviceCode: (map['deviceCode'] ?? '').toString(),
-      apName: (map['deviceCode'] ?? '').toString(),
-      controllerType: '',
-      firmware: '',
-      mac: (map['mac'] ?? '').toString(),
-      provisioned: true,
-      baseUrl: root,
-    );
   }
 
   /// Ping ESP trên LAN qua `/api/info`. Không đổi trạng thái backend.
@@ -270,14 +389,20 @@ class ControllerProvisioningService {
   /// Gửi lệnh restart nếu firmware hỗ trợ. Trả về false nếu không có kênh.
   Future<bool> restartLan(String ip) async {
     final host = ip.trim().replaceFirst(RegExp(r'^https?://'), '');
-    for (final path in const ['/api/restart', '/api/reboot', '/restart', '/reboot']) {
-      try {
-        final res = await _client
-            .post(Uri.parse('http://$host$path'))
-            .timeout(const Duration(seconds: 4));
-        if (res.statusCode >= 200 && res.statusCode < 300) return true;
-      } catch (_) {}
+    try {
+      final res = await _client
+          .post(
+            Uri.parse('http://$host/api/restart'),
+            headers: {'Connection': 'close'},
+          )
+          .timeout(const Duration(seconds: 4));
+      return res.statusCode >= 200 && res.statusCode < 300;
+    } on TimeoutException {
+      return true;
+    } on SocketException {
+      return true;
+    } on http.ClientException {
+      return true;
     }
-    return false;
   }
 }

@@ -342,7 +342,9 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
       farmingRowId: _rowId,
       installationLocation: _location.text.trim().isEmpty ? null : _location.text.trim(),
       note: _note.text.trim().isEmpty ? null : _note.text.trim(),
-      registerRealtimeSensors: false,
+      registerRealtimeSensors: _type == controllerTypeRealtime ||
+          _type == controllerTypeMixed,
+      firmwareSensors: sel.sensors,
     );
     if (!mounted) return;
     if (created == null) {
@@ -750,6 +752,14 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
                     if (d.rssi != null) _mini('RSSI', '${d.rssi!.round()} dBm'),
                     if (d.lastHeartbeatSeconds != null)
                       _mini('Heartbeat', '${d.lastHeartbeatSeconds} giây trước'),
+                    if (d.sensors.isNotEmpty)
+                      _mini(
+                        'Sensor',
+                        d.sensors
+                            .map((s) =>
+                                '${s.sensorType} ${s.channel.isNotEmpty ? s.channel : 'GPIO${s.gpio}'}')
+                            .join(' · '),
+                      ),
                   ],
                 ),
               ],

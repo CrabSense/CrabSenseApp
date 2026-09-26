@@ -898,8 +898,15 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                 ],
               )),
               DataCell(Text(s.type ?? '—')),
-              if (!compact) const DataCell(Text('—')),
-              const DataCell(Text('—')),
+              if (!compact)
+                DataCell(Text(
+                  (s.interface != null && s.interface!.isNotEmpty) ? s.interface! : '—',
+                )),
+              DataCell(Text(
+                s.channel != null && s.channel!.isNotEmpty
+                    ? s.channel!
+                    : (s.gpio != null ? 'GPIO${s.gpio}' : '—'),
+              )),
               DataCell(Text(_fmtValue(s))),
               DataCell(Text(s.unit ?? '—')),
               if (!compact)

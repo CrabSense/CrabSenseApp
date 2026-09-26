@@ -492,7 +492,7 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
                         unit: metric == WaterSensorType.temperature
                             ? '°C'
                             : metric == WaterSensorType.tds
-                                ? 'ppm'
+                                ? 'ppt'
                                 : '',
                       ),
           ),
@@ -577,7 +577,7 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
                   DataColumn(label: Text('THỜI GIAN')),
                   DataColumn(label: Text('NHIỆT ĐỘ (°C)')),
                   DataColumn(label: Text('pH')),
-                  DataColumn(label: Text('TDS (ppm)')),
+                  DataColumn(label: Text('TDS (ppt)')),
                   DataColumn(label: Text('TRẠNG THÁI')),
                 ],
                 rows: [
@@ -891,7 +891,7 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
     if (v == null || t == null) return '—';
     if (t == WaterSensorType.temperature) return '${v.toStringAsFixed(1)}°C';
     if (t == WaterSensorType.ph) return v.toStringAsFixed(2);
-    if (t == WaterSensorType.tds) return '${v.round()} ppm';
+    if (t == WaterSensorType.tds) return '${v.toStringAsFixed(2)} ppt';
     return v.toStringAsFixed(1);
   }
 
@@ -996,7 +996,7 @@ class _SensorCard extends StatelessWidget {
 
   String _range(WaterSensorType t, double min, double max) {
     if (t == WaterSensorType.temperature) return '${min.toStringAsFixed(0)} – ${max.toStringAsFixed(0)}°C';
-    if (t == WaterSensorType.tds) return '${min.round()} – ${max.round()} ppm';
+    if (t == WaterSensorType.tds) return '${min.toStringAsFixed(1)} – ${max.toStringAsFixed(1)} ppt';
     return '${min.toStringAsFixed(1)} – ${max.toStringAsFixed(1)}';
   }
 

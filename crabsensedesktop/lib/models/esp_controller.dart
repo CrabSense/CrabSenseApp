@@ -17,6 +17,9 @@ class ControllerChild {
     this.relayChannel,
     this.controlMode,
     this.componentStatus,
+    this.gpio,
+    this.interface,
+    this.channel,
   });
 
   final String id;
@@ -34,11 +37,15 @@ class ControllerChild {
   final String? relayChannel;
   final String? controlMode;
   final String? componentStatus;
+  final int? gpio;
+  final String? interface;
+  final String? channel;
 
   factory ControllerChild.sensor(Map<String, dynamic> json) {
     final raw = json['latestValue'] ?? json['LatestValue'];
     DateTime? dt(dynamic v) =>
         v == null ? null : DateTime.tryParse(v.toString());
+    final gpioRaw = json['gpio'] ?? json['Gpio'] ?? json['pin'] ?? json['Pin'];
     return ControllerChild(
       id: (json['id'] ?? json['Id'] ?? '').toString(),
       code: (json['sensorCode'] ?? json['SensorCode'] ?? '').toString(),
@@ -51,6 +58,9 @@ class ControllerChild {
       isActive: json['isActive'] ?? json['IsActive'] ?? true,
       minThreshold: (json['minThreshold'] ?? json['MinThreshold'] as num?)?.toDouble(),
       maxThreshold: (json['maxThreshold'] ?? json['MaxThreshold'] as num?)?.toDouble(),
+      gpio: gpioRaw is num ? gpioRaw.toInt() : int.tryParse('$gpioRaw'),
+      interface: (json['interface'] ?? json['Interface'])?.toString(),
+      channel: (json['channel'] ?? json['Channel'])?.toString(),
     );
   }
 
@@ -65,6 +75,33 @@ class ControllerChild {
       relayChannel: (json['relayChannel'] ?? json['RelayChannel'])?.toString(),
       controlMode: (json['controlMode'] ?? json['ControlMode'])?.toString(),
       componentStatus: (json['status'] ?? json['Status'])?.toString(),
+    );
+  }
+
+  ControllerChild copyWith({
+    int? gpio,
+    String? interface,
+    String? channel,
+  }) {
+    return ControllerChild(
+      id: id,
+      code: code,
+      name: name,
+      kind: kind,
+      type: type,
+      unit: unit,
+      isOn: isOn,
+      latestValue: latestValue,
+      lastUpdatedAt: lastUpdatedAt,
+      isActive: isActive,
+      minThreshold: minThreshold,
+      maxThreshold: maxThreshold,
+      relayChannel: relayChannel,
+      controlMode: controlMode,
+      componentStatus: componentStatus,
+      gpio: gpio ?? this.gpio,
+      interface: interface ?? this.interface,
+      channel: channel ?? this.channel,
     );
   }
 }
