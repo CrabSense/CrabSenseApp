@@ -191,19 +191,34 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
     final loading = _svc.loading && _svc.items.isEmpty;
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _header(),
-          const SizedBox(height: 14),
-          if (loading) _kpiSkeleton() else _kpis(),
-          if (_svc.error != null && _svc.items.isEmpty) ...[
-            const SizedBox(height: 12),
-            _errorBanner(_svc.error!, () => _svc.load()),
-          ],
-          const SizedBox(height: 14),
-          Expanded(child: _body(loading)),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compactHeight = constraints.maxHeight < 700;
+          final content = <Widget>[
+            _header(),
+            const SizedBox(height: 14),
+            if (loading) _kpiSkeleton() else _kpis(),
+            if (_svc.error != null && _svc.items.isEmpty) ...[
+              const SizedBox(height: 12),
+              _errorBanner(_svc.error!, () => _svc.load()),
+            ],
+            const SizedBox(height: 14),
+          ];
+          if (compactHeight) {
+            content.add(SizedBox(height: 560, child: _body(loading)));
+            return SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: content,
+              ),
+            );
+          }
+          content.add(Expanded(child: _body(loading)));
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: content,
+          );
+        },
       ),
     );
   }
@@ -1004,7 +1019,9 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
               DataCell(Text(s.type ?? '—')),
               if (!compact)
                 DataCell(Text(
-                  (s.interface != null && s.interface!.isNotEmpty) ? s.interface! : '—',
+                  (s.interface != null && s.interface!.isNotEmpty)
+                      ? s.interface!
+                      : '—',
                 )),
               DataCell(Text(
                 s.channel != null && s.channel!.isNotEmpty
