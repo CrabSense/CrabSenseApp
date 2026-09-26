@@ -403,7 +403,7 @@ class CloudApiClient {
       final res = await _client
           .get(Uri.parse('$_base/health'))
           .timeout(const Duration(seconds: 8));
-      return res.statusCode == 200;
+      return res.statusCode >= 200 && res.statusCode < 300;
     } catch (_) {
       return false;
     }

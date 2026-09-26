@@ -28,6 +28,11 @@ abstract final class AppEnv {
     return v == null || v.isEmpty ? null : v;
   }
 
+  static String get kioskUrl {
+    final value = dotenv.env['KIOSK_URL']?.trim();
+    return value == null || value.isEmpty ? 'http://192.168.1.50:8090' : value;
+  }
+
   static String get defaultGatewayId {
     final v = dotenv.env['DEFAULT_GATEWAY_ID']?.trim();
     return v == null || v.isEmpty ? '11111111-1111-1111-1111-111111111111' : v;
@@ -45,7 +50,9 @@ abstract final class AppEnv {
     final explicit = dotenv.env['CAMERA_1_STREAM_URL']?.trim();
     if (explicit != null && explicit.isNotEmpty) return explicit;
     final ip = camera1Ip;
-    if (ip.startsWith('http://') || ip.startsWith('https://') || ip.startsWith('rtsp://')) {
+    if (ip.startsWith('http://') ||
+        ip.startsWith('https://') ||
+        ip.startsWith('rtsp://')) {
       return ip;
     }
     return 'http://$ip/stream';
@@ -74,7 +81,9 @@ abstract final class AppEnv {
     final explicit = dotenv.env['CAMERA_2_STREAM_URL']?.trim();
     if (explicit != null && explicit.isNotEmpty) return explicit;
     final ip = camera2Ip;
-    if (ip.startsWith('http://') || ip.startsWith('https://') || ip.startsWith('rtsp://')) {
+    if (ip.startsWith('http://') ||
+        ip.startsWith('https://') ||
+        ip.startsWith('rtsp://')) {
       return ip;
     }
     return 'http://$ip/stream';
