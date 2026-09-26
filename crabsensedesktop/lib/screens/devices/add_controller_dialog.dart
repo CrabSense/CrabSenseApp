@@ -1308,13 +1308,17 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
           const Spacer(),
           if (_step == _Step.discover)
             MgmtPrimaryButton(
-              label: 'Tiếp tục →',
-              onTap: _selected == null
-                  ? null
-                  : () {
-                      if (_duplicate != null) return;
-                      setState(() => _step = _Step.config);
-                    },
+              label: _findTab == _FindTab.wifi
+                  ? (_wifiSending ? 'Đang gửi...' : 'Gửi cấu hình Wi-Fi →')
+                  : 'Tiếp tục →',
+              onTap: _findTab == _FindTab.wifi
+                  ? (_wifiSending ? null : _sendWifi)
+                  : (_selected == null
+                      ? null
+                      : () {
+                          if (_duplicate != null) return;
+                          setState(() => _step = _Step.config);
+                        }),
             ),
           if (_step == _Step.config)
             MgmtPrimaryButton(
