@@ -1007,8 +1007,6 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                         const PopupMenuItem(
                             value: 'edit', child: Text('Chỉnh sửa sensor')),
                         const PopupMenuItem(
-                            value: 'cal', child: Text('Hiệu chuẩn')),
-                        const PopupMenuItem(
                             value: 'delete', child: Text('Xóa sensor')),
                         const PopupMenuItem(
                             value: 'off', child: Text('Tắt sensor')),
@@ -1431,8 +1429,6 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
         _tabs.animateTo(1);
       case 'edit':
         await _editSensor(s);
-      case 'cal':
-        await _calibrate(s);
       case 'delete':
         await _deleteSensor(s);
       case 'off':
