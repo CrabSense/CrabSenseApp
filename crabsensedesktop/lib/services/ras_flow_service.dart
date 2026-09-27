@@ -125,12 +125,13 @@ class RasFlowService extends ChangeNotifier {
     );
   }
 
-  Future<bool> addNode({
+    Future<bool> addNode({
     required String areaId,
     required String nodeCode,
     required String displayLabel,
     required int sortOrder,
     String? relayChannel,
+    String? relayDeviceId,
     String? paramDefaults,
   }) async {
     return _mutate(
@@ -144,6 +145,8 @@ class RasFlowService extends ChangeNotifier {
           'nodeType': 'equipment',
           if (relayChannel != null && relayChannel.isNotEmpty)
             'relayChannel': relayChannel,
+          if (relayDeviceId != null && relayDeviceId.isNotEmpty)
+            'relayDeviceId': relayDeviceId,
           if (paramDefaults != null && paramDefaults.isNotEmpty)
             'paramDefaults': _parseParamDefaults(paramDefaults),
         }),
