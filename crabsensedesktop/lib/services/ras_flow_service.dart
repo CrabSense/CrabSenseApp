@@ -161,6 +161,7 @@ class RasFlowService extends ChangeNotifier {
     String? relayDeviceId,
     String? relayDeviceCode,
     String? relayChannel,
+    String? paramDefaultsJson,
   }) async {
     return _mutate(
       () => http.put(
