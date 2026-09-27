@@ -953,21 +953,38 @@ class _RasControlPageState extends State<RasControlPage> {
   }
 
   void _openAutoConfig({RasFlowNodeLive? focus}) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.white,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (_) => _RuleSheet(
-        title: 'Cấu hình AUTO RAS',
-        devices: _devices,
-        focusId: focus?.id,
-        nameOf: _deviceTitle,
-        describe: _autoRuleLabel,
-      ),
-    );
+    if (focus == null) {
+      showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: Colors.white,
+        isScrollControlled: true,
+        builder: (_) => _RuleSheet(title: 'C?u h?nh AUTO RAS', devices: _devices, focusId: null, nameOf: _deviceTitle, describe: _autoRuleLabel),
+      );
+      return;
+    }
+    final current = _params(focus) ?? const <String, dynamic>{};
+    final onSensor = TextEditingController(text: '${current['onSensor'] ?? 'float_1'}');
+    final onValue = TextEditingController(text: '${current['onValue'] ?? 1}');
+    final offSensor = TextEditingController(text: '${current['offSensor'] ?? 'float_2'}');
+    final offValue = TextEditingController(text: '${current['offValue'] ?? 1}');
+    showDialog<void>(context: context, builder: (ctx) => AlertDialog(
+      title: Text('C?u h?nh AUTO ${_deviceTitle(focus)}'),
+      content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: onSensor, decoration: const InputDecoration(labelText: 'Sensor b?t')),
+        TextField(controller: onValue, decoration: const InputDecoration(labelText: 'Gi? tr? b?t')),
+        TextField(controller: offSensor, decoration: const InputDecoration(labelText: 'Sensor t?t')),
+        TextField(controller: offValue, decoration: const InputDecoration(labelText: 'Gi? tr? t?t')),
+      ])),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('H?y')),
+        FilledButton(onPressed: () async {
+          final rule = jsonEncode({'onSensor': onSensor.text.trim(), 'onValue': double.tryParse(onValue.text) ?? 1, 'offSensor': offSensor.text.trim(), 'offValue': double.tryParse(offValue.text) ?? 1});
+          final ok = await _svc.updateNodeRelay(areaId: widget.areaId, nodeId: focus.id, relayDeviceCode: 'CrabSense-C115', relayChannel: focus.relayChannel ?? '1', paramDefaultsJson: rule);
+          if (ctx.mounted) Navigator.pop(ctx);
+          if (mounted) _toast(ok ? '?? l?u logic AUTO.' : (_svc.error ?? 'Kh?ng l?u ???c logic AUTO.'));
+        }, child: const Text('L?u')),
+      ],
+    ));
   }
 
   void _openSchedule({RasFlowNodeLive? focus}) {
@@ -1286,7 +1303,8 @@ class _DeviceCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          _meta('Controller', _controllerCode(node)),
+          _meta('Controller', node.relayDeviceId == null ? 'Chưa gán' : 'C115'),
+          _meta('Output', _controllerCode(node)),
           _meta('Kết nối', offline ? 'Mất kết nối' : 'Online', color: offline ? _kRed : DashboardColors.brand),
           if (offline)
             _meta('Lần thấy', node.lastCommandAt == null ? '—' : fmtDateTimeVn(node.lastCommandAt)),

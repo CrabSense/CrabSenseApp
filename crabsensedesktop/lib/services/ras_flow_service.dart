@@ -159,6 +159,7 @@ class RasFlowService extends ChangeNotifier {
     required String areaId,
     required String nodeId,
     String? relayDeviceId,
+    String? relayDeviceCode,
     String? relayChannel,
   }) async {
     return _mutate(
@@ -169,6 +170,8 @@ class RasFlowService extends ChangeNotifier {
         headers: _headers(),
         body: jsonEncode({
           'relayDeviceId': relayDeviceId,
+          'relayDeviceCode': relayDeviceCode,
+          'paramDefaultsJson': paramDefaultsJson,
           'relayChannel': relayChannel,
         }),
       ),
