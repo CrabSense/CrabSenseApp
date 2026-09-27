@@ -647,6 +647,8 @@ class _RasControlPageState extends State<RasControlPage> {
         _openActivityDetail(_lastEvent(n), n);
       case 'controller':
         widget.onNavigate?.call(AppRoute.controllers);
+      case 'relay':
+        _assignRelay(n);
       case 'auto':
         _openAutoConfig(focus: n);
       case 'schedule':
@@ -655,6 +657,68 @@ class _RasControlPageState extends State<RasControlPage> {
         _sendOn(n);
       case 'off':
         _cmd(n, 'off');
+    }
+  }
+
+  Future<void> _assignRelay(RasFlowNodeLive node) async {
+    final controller = TextEditingController(text: 'CrabSense-C115');
+    var channel = (node.relayChannel == '2') ? '2' : '1';
+    final result = await showDialog<(String, String)?>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text('Gán SSR cho ${_deviceTitle(node)}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: 'Mã Controller',
+                  hintText: 'Ví dụ: CrabSense-C115',
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: channel,
+                decoration: const InputDecoration(labelText: 'Kênh SSR'),
+                items: const [
+                  DropdownMenuItem(value: '1', child: Text('SSR 1')),
+                  DropdownMenuItem(value: '2', child: Text('SSR 2')),
+                ],
+                onChanged: (value) =>
+                    setDialogState(() => channel = value ?? '1'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(
+                ctx,
+                (controller.text.trim(), channel),
+              ),
+              child: const Text('Lưu'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (result == null || result.$1.isEmpty) return;
+    final ok = await _svc.updateNodeRelay(
+      areaId: widget.areaId,
+      nodeId: node.id,
+      relayDeviceCode: result.$1,
+      relayChannel: result.$2,
+    );
+    if (mounted) {
+      _toast(ok
+          ? 'Đã gán ${result.$1} / SSR ${result.$2}.'
+          : (_svc.error ?? 'Không gán được SSR.'));
     }
   }
 
@@ -1210,6 +1274,7 @@ class _DeviceCard extends StatelessWidget {
                 itemBuilder: (_) => [
                   const PopupMenuItem(value: 'history', child: Text('Xem lịch sử')),
                   const PopupMenuItem(value: 'controller', child: Text('Xem Controller')),
+                  const PopupMenuItem(value: 'relay', child: Text('Gán Controller / SSR')),
                   const PopupMenuItem(value: 'auto', child: Text('Cấu hình AUTO')),
                   const PopupMenuItem(value: 'schedule', child: Text('Lịch chạy')),
                   if (!node.isAuto && !offline) ...[
@@ -1398,7 +1463,7 @@ class _RasAlert {
 
 String _controllerCode(RasFlowNodeLive n) {
   final ch = (n.relayChannel ?? '').trim();
-  if (ch.isNotEmpty && ch.toLowerCase() != 'online') return ch;
+  if (ch.isNotEmpty && ch.toLowerCase() != 'online') return 'SSR $ch';
   final id = (n.relayDeviceId ?? '').trim();
   if (id.length >= 8) return 'CTRL-${id.substring(0, 8).toUpperCase()}';
   return n.connectionLabel.isEmpty ? '—' : n.connectionLabel;

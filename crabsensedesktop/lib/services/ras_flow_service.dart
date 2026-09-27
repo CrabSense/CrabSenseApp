@@ -155,6 +155,27 @@ class RasFlowService extends ChangeNotifier {
     );
   }
 
+  Future<bool> updateNodeRelay({
+    required String areaId,
+    required String nodeId,
+    String? relayDeviceId,
+    String? relayChannel,
+  }) async {
+    return _mutate(
+      () => http.put(
+        Uri.parse(
+          '${AppEnv.cloudApiUrl}/api/areas/$areaId/ras-flow/nodes/$nodeId/relay',
+        ),
+        headers: _headers(),
+        body: jsonEncode({
+          'relayDeviceId': relayDeviceId,
+          'relayChannel': relayChannel,
+        }),
+      ),
+      areaId,
+    );
+  }
+
   Future<bool> deleteNode({
     required String areaId,
     required String nodeId,
