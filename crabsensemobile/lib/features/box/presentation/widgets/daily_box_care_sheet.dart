@@ -17,6 +17,7 @@ import 'crab_avatar.dart';
 
 /// Phiếu hộp (1 hộp · 1 cua).
 /// [embedded] = true: hiện luôn trên màn hộp (không sheet).
+/// [mode]: `full` | `monitor` (tình trạng + video) | `feed` (ảnh thức ăn + loại + gam).
 class DailyBoxCareSheet extends StatefulWidget {
   const DailyBoxCareSheet({
     super.key,
@@ -24,6 +25,7 @@ class DailyBoxCareSheet extends StatefulWidget {
     required this.boxCode,
     required this.crab,
     this.embedded = false,
+    this.mode = 'full',
     this.onResult,
   });
 
@@ -31,6 +33,7 @@ class DailyBoxCareSheet extends StatefulWidget {
   final String boxCode;
   final CrabModel crab;
   final bool embedded;
+  final String mode;
   final ValueChanged<String>? onResult;
 
   @override
@@ -394,10 +397,9 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
     required String tag,
     required String extraNotes,
   }) async {
-    if (_pelletPhoto == null || _boxPhoto == null) {
-      throw Exception(
-        'Two photos are required: food pellet and feeding box (for AI training).',
-      );
+    final needPhotos = widget.mode != 'monitor';
+    if (needPhotos && (_pelletPhoto == null || _boxPhoto == null)) {
+      throw Exception('Cần 2 ảnh: thức ăn và hộp khi cho ăn.');
     }
 
     String? videoUrl;
@@ -405,9 +407,13 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
     String? boxUrl;
     try {
       setState(() => _uploading = true);
-      pelletUrl = await _uploadFeedPhoto(_pelletPhoto!, 'feed_pellet');
-      boxUrl = await _uploadFeedPhoto(_boxPhoto!, 'feed_box');
-      videoUrl = await _uploadVideoIfAny();
+      if (needPhotos) {
+        pelletUrl = await _uploadFeedPhoto(_pelletPhoto!, 'feed_pellet');
+        boxUrl = await _uploadFeedPhoto(_boxPhoto!, 'feed_box');
+      }
+      if (widget.mode != 'feed') {
+        videoUrl = await _uploadVideoIfAny();
+      }
     } catch (e) {
       if (!mounted) rethrow;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -421,10 +427,11 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
       if (mounted) setState(() => _uploading = false);
     }
 
-    if (pelletUrl == null ||
-        pelletUrl.isEmpty ||
-        boxUrl == null ||
-        boxUrl.isEmpty) {
+    if (needPhotos &&
+        (pelletUrl == null ||
+            pelletUrl.isEmpty ||
+            boxUrl == null ||
+            boxUrl.isEmpty)) {
       throw Exception('Chưa tải được đủ 2 ảnh cho ăn. Thử lại.');
     }
 
@@ -570,32 +577,49 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
           ),
           const SizedBox(height: 16),
         ] else ...[
-          const Text(
-            'Phiếu hôm nay',
-            style: TextStyle(
+          Text(
+            widget.mode == 'feed'
+                ? 'Cho ăn'
+                : widget.mode == 'monitor'
+                ? 'Theo dõi'
+                : 'Phiếu hôm nay',
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,
               color: kHomePrimaryDark,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Tick nhanh — lưu xong sẽ quay về danh sách hộp',
-            style: TextStyle(fontSize: 12, color: kHomeTextSub),
+          Text(
+            widget.mode == 'feed'
+                ? 'Ảnh thức ăn trước khi ăn, loại thức ăn và cân nặng.'
+                : widget.mode == 'monitor'
+                ? 'Tình trạng cua và video sau 2–3 giờ khi ăn.'
+                : 'Tick nhanh — lưu xong sẽ quay về danh sách hộp',
+            style: const TextStyle(fontSize: 12, color: kHomeTextSub),
           ),
           const SizedBox(height: 12),
         ],
-        _section('Kết thúc hộp (chọn 1 thì không điền phần dưới)'),
-        _pills(
-          value: _endCase ?? '',
-          options: const {
-            '': 'Đang nuôi',
-            'dead': 'Cua chết',
-            'escaped': 'Cua xổng',
-          },
-          onChanged: (v) => setState(() => _endCase = v.isEmpty ? null : v),
-        ),
-        if (_isEnding) ...[
+        if (widget.mode != 'feed') ...[
+          _section('Kết thúc hộp'),
+          _pills(
+            value: _endCase ?? '',
+            options: const {
+              '': 'Đang nuôi',
+              'dead': 'Cua chết',
+              'escaped': 'Cua xổng',
+              'molting': 'Cua lột',
+            },
+            onChanged: (v) {
+              if (v == 'molting') {
+                context.push(RoutePaths.harvestForBox(widget.boxId));
+                return;
+              }
+              setState(() => _endCase = v.isEmpty ? null : v);
+            },
+          ),
+        ],
+        if (_isEnding && widget.mode != 'feed') ...[
           const SizedBox(height: 14),
           const Text(
             'Không cần ghi ăn / tình trạng / video.',
@@ -604,136 +628,128 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
           const SizedBox(height: 12),
           _field(_notesCtrl, 'Ghi chú (không bắt buộc)', lines: 2),
         ] else ...[
-          const SizedBox(height: 16),
-          _section('Ăn'),
-          _pills(
-            value: _eat,
-            options: const {
-              'many': 'Ăn nhiều',
-              'little': 'Ít',
-              'none': 'Không ăn',
-            },
-            onChanged: (v) => setState(() => _eat = v),
-          ),
-          const SizedBox(height: 14),
-          _section('Cho ăn gì'),
-          _field(_feedTypeCtrl, 'Loại thức ăn'),
-          const SizedBox(height: 10),
-          _field(_feedGramCtrl, 'Bao nhiêu gam'),
-          const SizedBox(height: 14),
-          _section('AI training photos (required)'),
-          const Text(
-            'Take two photos: the food pellet, then the box while feeding, '
-            'so AI can learn whether the crab eats a lot or a little.',
-            style: TextStyle(fontSize: 12, color: kHomeTextSub),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _photoSlot(
-                  title: 'Food pellet',
-                  file: _pelletPhoto,
-                  onTap: () async {
-                    final shot = await _pickPhoto();
-                    if (shot != null && mounted) {
-                      setState(() => _pelletPhoto = shot);
-                    }
-                  },
+          if (widget.mode == 'monitor') ...[
+            const SizedBox(height: 16),
+            _section('Đánh giá lượng ăn'),
+            _pills(
+              value: _eat,
+              options: const {
+                'many': 'Ăn nhiều',
+                'little': 'Ít',
+                'none': 'Không ăn',
+              },
+              onChanged: (v) => setState(() => _eat = v),
+            ),
+          ],
+          if (widget.mode == 'feed') ...[
+            const SizedBox(height: 16),
+            _section('Thông tin thức ăn'),
+            _field(_feedTypeCtrl, 'Loại thức ăn'),
+            const SizedBox(height: 10),
+            _field(_feedGramCtrl, 'Bao nhiêu gam'),
+            const SizedBox(height: 14),
+            _section('Ảnh thức ăn'),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _photoSlot(
+                    title: 'Thức ăn',
+                    file: _pelletPhoto,
+                    onTap: () async {
+                      final shot = await _pickPhoto();
+                      if (shot != null && mounted) {
+                        setState(() => _pelletPhoto = shot);
+                      }
+                    },
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _photoSlot(
-                  title: 'Feeding box',
-                  file: _boxPhoto,
-                  onTap: () async {
-                    final shot = await _pickPhoto();
-                    if (shot != null && mounted) {
-                      setState(() => _boxPhoto = shot);
-                    }
-                  },
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _photoSlot(
+                    title: 'Hộp khi cho ăn',
+                    file: _boxPhoto,
+                    onTap: () async {
+                      final shot = await _pickPhoto();
+                      if (shot != null && mounted) {
+                        setState(() => _boxPhoto = shot);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (widget.mode != 'feed') ...[
+            const SizedBox(height: 14),
+            _section('Đánh dấu tình trạng'),
+            _pillsWrap(
+              value: _condition,
+              options: const {
+                'normal': 'Bình thường',
+                'weak': 'Cần theo dõi',
+                'molting': 'Lột',
+              },
+              colorOf: (key) => CrabCondition.tryParse(key)?.displayStatus.color,
+              onChanged: (v) => setState(() => _condition = v),
+            ),
+            if (_condition == 'molting') ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () =>
+                      context.push(RoutePaths.harvestForBox(widget.boxId)),
+                  icon: const Icon(Icons.inventory_2_outlined, size: 18),
+                  label: const Text('Mở phiếu lột / thu hoạch'),
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 14),
-          _section('Đánh dấu tình trạng'),
-          _pillsWrap(
-            value: _condition,
-            options: const {
-              'normal': 'Bình thường',
-              'weak': 'Cần theo dõi',
-              'molting': 'Lột',
-            },
-            colorOf: (key) => CrabCondition.tryParse(key)?.displayStatus.color,
-            onChanged: (v) => setState(() => _condition = v),
-          ),
-          if (_condition == 'molting') ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 14),
+            _section('Hoạt động'),
+            _pillsWrap(
+              value: _activity,
+              options: const {
+                'active': 'Di chuyển nhiều',
+                'still': 'Không di chuyển',
+                'no_response': 'Không phản ứng khi tiếp xúc',
+                'corner': 'Chui sâu vào góc hộp',
+              },
+              onChanged: (v) => setState(() => _activity = v),
+            ),
+            const SizedBox(height: 14),
+            _section('Video 10–20 giây'),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () =>
-                    context.push(RoutePaths.harvestForBox(widget.boxId)),
-                icon: const Icon(Icons.inventory_2_outlined, size: 18),
-                label: const Text('Mở phiếu lột / thu hoạch'),
-              ),
-            ),
-          ],
-          const SizedBox(height: 6),
-          const Text(
-            'Cập nhật luôn tình trạng của con cua',
-            style: TextStyle(fontSize: 11, color: kHomeTextSub),
-          ),
-          const SizedBox(height: 14),
-          _section('Hoạt động'),
-          _pillsWrap(
-            value: _activity,
-            options: const {
-              'active': 'Di chuyển nhiều',
-              'still': 'Không di chuyển',
-              'no_response': 'Không phản ứng khi tiếp xúc',
-              'corner': 'Chui sâu vào góc hộp',
-            },
-            onChanged: (v) => setState(() => _activity = v),
-          ),
-          const SizedBox(height: 14),
-          _section('Video 10–20 giây'),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: _uploading ? null : _recordVideo,
-              style: FilledButton.styleFrom(
-                backgroundColor: CrabSenseColors.primary,
-                foregroundColor: CrabSenseColors.textOnPrimary,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+              child: FilledButton.icon(
+                onPressed: _uploading ? null : _recordVideo,
+                style: FilledButton.styleFrom(
+                  backgroundColor: CrabSenseColors.primary,
+                  foregroundColor: CrabSenseColors.textOnPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                icon: Icon(
+                  _videoConfirmed
+                      ? Icons.check_circle_rounded
+                      : Icons.videocam_rounded,
+                ),
+                label: Text(
+                  _videoConfirmed ? 'Đã có video' : 'Quay video sau khi ăn',
                 ),
               ),
-              icon: Icon(
-                _videoConfirmed
-                    ? Icons.check_circle_rounded
-                    : Icons.videocam_rounded,
-              ),
-              label: Text(
-                _videoConfirmed
-                    ? 'Đã xác nhận: ${_video!.name}'
-                    : 'Quay video trên điện thoại',
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
             ),
-          ),
-          if (_videoConfirmed)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: TextButton(
-                onPressed: _uploading ? null : _recordVideo,
-                child: const Text('Quay video khác'),
+            if (_videoConfirmed)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: TextButton(
+                  onPressed: _uploading ? null : _recordVideo,
+                  child: const Text('Quay video khác'),
+                ),
               ),
-            ),
+          ],
           const SizedBox(height: 14),
           _section('Ghi chú'),
           _field(_notesCtrl, 'Nếu có…', lines: 2),

@@ -81,6 +81,9 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
             data['timeline'];
         if (items is List) return items;
       }
+      final items =
+          body['items'] ?? body['results'] ?? body['events'] ?? body['timeline'];
+      if (items is List) return items;
     }
     return body is List ? body : const [];
   }
@@ -88,7 +91,10 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
   static _FeedingRecord? _parseFeeding(dynamic raw) {
     if (raw is! Map) return null;
     final type = (raw['type'] ?? raw['Type'] ?? '').toString().toLowerCase();
-    if (type.isNotEmpty && !type.contains('feed') && type != 'operation') {
+    if (type.isNotEmpty &&
+        !type.contains('feed') &&
+        type != 'operation' &&
+        type != 'inspection') {
       return null;
     }
     final at = DateTime.tryParse(
@@ -108,7 +114,9 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
           : double.tryParse(quantity?.toString() ?? '') ??
                 _number(_line(notes, 'Lượng:')),
       appetite: _appetite(
-        _value(raw, 'appetite', 'Appetite') ?? _line(notes, 'Mức ăn:'),
+        _value(raw, 'appetite', 'Appetite') ??
+            _line(notes, 'Mức ăn:') ??
+            _line(notes, 'Ăn:'),
       ),
       activity: _activity(
         _value(raw, 'activity', 'Activity') ?? _line(notes, 'Hoạt động:'),
@@ -270,7 +278,7 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
                     const SizedBox(height: 14),
                     _FeedingChart(records: _feeding),
                     const SizedBox(height: 14),
-                    _FeedingTable(records: _feeding),
+                    _ActivityChart(records: _feeding),
                   ],
                 ),
         ),
@@ -503,6 +511,127 @@ class _FeedingChart extends StatelessWidget {
                   belowBarData: BarAreaData(
                     show: true,
                     color: kHomePrimary.withOpacity(0.12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ActivityChart extends StatelessWidget {
+  const _ActivityChart({required this.records});
+  final List<_FeedingRecord> records;
+
+  static double _score(String? activity) {
+    final text = (activity ?? '').toLowerCase();
+    if (text.contains('nhiều') || text.contains('active')) return 3;
+    if (text.contains('góc') || text.contains('corner')) return 1;
+    if (text.contains('không') || text.contains('still')) return 0;
+    if (text.isEmpty) return -1;
+    return 2;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dated = records.where((r) => _score(r.activity) >= 0).toList()
+      ..sort((a, b) => a.at.compareTo(b.at));
+    if (dated.isEmpty) {
+      return const _EmptyHistory('Chưa có dữ liệu hoạt động để vẽ biểu đồ.');
+    }
+    final points = <FlSpot>[
+      for (var i = 0; i < dated.length; i++)
+        FlSpot(i.toDouble(), _score(dated[i].activity)),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Hoạt động theo lần ghi nhận',
+          style: TextStyle(
+            color: kHomeTextMain,
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 150,
+          child: LineChart(
+            LineChartData(
+              minY: 0,
+              maxY: 3.2,
+              borderData: FlBorderData(show: false),
+              gridData: FlGridData(
+                drawVerticalLine: false,
+                getDrawingHorizontalLine: (_) =>
+                    FlLine(color: kHomeBorder, strokeWidth: 1),
+              ),
+              titlesData: FlTitlesData(
+                topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 56,
+                    interval: 1,
+                    getTitlesWidget: (value, _) {
+                      final label = switch (value.round()) {
+                        0 => 'Không',
+                        1 => 'Ít',
+                        2 => 'Vừa',
+                        3 => 'Nhiều',
+                        _ => '',
+                      };
+                      return Text(
+                        label,
+                        style: const TextStyle(fontSize: 9, color: kHomeTextSub),
+                      );
+                    },
+                  ),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    interval: points.length > 6
+                        ? (points.length / 4).ceilToDouble()
+                        : 1,
+                    getTitlesWidget: (value, _) {
+                      final index = value.toInt();
+                      if (index < 0 || index >= dated.length) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          DateFormat('dd/MM').format(dated[index].at),
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: kHomeTextSub,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: points,
+                  isCurved: true,
+                  color: const Color(0xFF168BE5),
+                  barWidth: 3,
+                  dotData: const FlDotData(show: true),
+                  belowBarData: BarAreaData(
+                    show: true,
+                    color: const Color(0xFF168BE5).withOpacity(0.12),
                   ),
                 ),
               ],

@@ -25,7 +25,10 @@ class CrabModel extends Crab {
     required super.addedAt,
     required super.addedBy,
     super.condition,
+    this.lotCode,
   });
+
+  final String? lotCode;
 
   // ──────────────────────────────────────────────────────────────────────────
   // Factory constructors
@@ -70,6 +73,7 @@ class CrabModel extends Crab {
       }(),
       // Trường chuẩn để hiện tình trạng cua (nhãn + màu giống app desktop).
       condition: (json['condition'] ?? json['Condition'])?.toString(),
+      lotCode: asStr(json['lotCode'] ?? json['LotCode']),
     );
   }
 

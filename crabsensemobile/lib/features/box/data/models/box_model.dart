@@ -66,7 +66,16 @@ class BoxModel extends Box {
         final s = asStr(raw);
         return s.isEmpty ? null : s;
       }(),
-      location: _resolveLocation(json['location']),
+      location: _resolveLocation(
+        json['location'],
+        fallbackLabel: asStr(
+          json['areaName'] ??
+              json['AreaName'] ??
+              json['rowName'] ??
+              json['RowName'] ??
+              json['code'],
+        ),
+      ),
       currentCrabCount:
           (json['currentCrabCount'] as num?)?.toInt() ??
           (json['current_crab_count'] as num?)?.toInt() ??
@@ -224,14 +233,20 @@ class BoxModel extends Box {
   // ──────────────────────────────────────────────────────────────────────────
 
   /// Resolves a raw API location value (Map or JSON string) to a [Location].
-  static Location _resolveLocation(Object? locationRaw) {
+  static Location _resolveLocation(Object? locationRaw, {String fallbackLabel = ''}) {
+    Location loc;
     if (locationRaw is Map<String, dynamic>) {
-      return _locationFromJson(locationRaw);
+      loc = _locationFromJson(locationRaw);
+    } else if (locationRaw is String && locationRaw.isNotEmpty) {
+      loc = _locationFromJson(jsonDecode(locationRaw) as Map<String, dynamic>);
+    } else {
+      loc = const Location(latitude: 0, longitude: 0);
     }
-    if (locationRaw is String && locationRaw.isNotEmpty) {
-      return _locationFromJson(jsonDecode(locationRaw) as Map<String, dynamic>);
+    if ((loc.label == null || loc.label!.trim().isEmpty) &&
+        fallbackLabel.trim().isNotEmpty) {
+      return loc.copyWith(label: fallbackLabel.trim());
     }
-    return const Location(latitude: 0, longitude: 0);
+    return loc;
   }
 
   /// Resolves a nullable JSON string (from Drift column) to a [Location].

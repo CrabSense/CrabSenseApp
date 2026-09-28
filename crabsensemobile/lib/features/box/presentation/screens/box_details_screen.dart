@@ -8,6 +8,8 @@ import '../../../../app/theme.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
+import '../../../../core/constants/api_constants.dart';
+import '../../../../core/network/api_client.dart';
 import '../../data/datasources/box_remote_data_source.dart';
 import '../../data/models/crab_model.dart';
 import '../widgets/box_history_sections.dart';
@@ -179,27 +181,98 @@ class _BoxContent extends StatelessWidget {
   }
 }
 
-class _SummaryMetrics extends StatelessWidget {
+class _SummaryMetrics extends StatefulWidget {
   const _SummaryMetrics({required this.box});
   final Box box;
 
   @override
+  State<_SummaryMetrics> createState() => _SummaryMetricsState();
+}
+
+class _SummaryMetricsState extends State<_SummaryMetrics> {
+  int _molts = 0;
+  int _moves = 0;
+  double? _crabWeight;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCounts();
+  }
+
+  Future<void> _loadCounts() async {
+    try {
+      final api = sl<ApiClient>();
+      final crabs = await sl<BoxRemoteDataSource>().getCrabsByBox(widget.box.id);
+      final crabId = crabs.isEmpty ? null : crabs.first.id;
+      var molts = 0;
+      var moves = 0;
+      double? crabWeight;
+      if (crabs.isNotEmpty) {
+        crabWeight = crabs.first.weight;
+      }
+      if (crabId != null && crabId.isNotEmpty) {
+        try {
+          final moltRes = await api.get<dynamic>(
+            ApiConstants.crabMoltings(crabId),
+          );
+          molts = _count(moltRes.data);
+        } catch (_) {}
+        try {
+          final moveRes = await api.get<dynamic>(
+            ApiConstants.crabAllocations(crabId),
+          );
+          moves = _count(moveRes.data);
+        } catch (_) {}
+      }
+      if (!mounted) return;
+      setState(() {
+        _molts = molts;
+        _moves = moves;
+        _crabWeight = crabWeight;
+      });
+    } catch (_) {}
+  }
+
+  static int _count(dynamic raw) {
+    if (raw is List) return raw.length;
+    if (raw is Map) {
+      final data = raw['data'] ?? raw['items'] ?? raw['results'];
+      if (data is List) return data.length;
+      if (data is Map) {
+        final items = data['items'] ?? data['results'] ?? data['data'];
+        if (items is List) return items.length;
+        final n = data['total'] ?? data['count'];
+        if (n is num) return n.toInt();
+      }
+      final n = raw['total'] ?? raw['count'];
+      if (n is num) return n.toInt();
+    }
+    return 0;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final box = widget.box;
     final items = [
       ('Ngày nuôi', '${_daysRaised(box)} ngày', Icons.calendar_today_rounded),
       (
         'Khối lượng',
-        '${box.averageWeight.toStringAsFixed(1)} g',
+        _crabWeight != null && _crabWeight! > 0
+            ? '${_crabWeight!.toStringAsFixed(1)} g'
+            : (box.averageWeight > 0
+                  ? '${box.averageWeight.toStringAsFixed(1)} g'
+                  : '—'),
         Icons.monitor_weight_outlined,
       ),
-      ('Số lần lột xác', '—', Icons.autorenew_rounded),
-      ('Số lần chuyển hộp', '—', Icons.swap_horiz_rounded),
+      ('Số lần lột xác', '$_molts', Icons.autorenew_rounded),
+      ('Số lần chuyển hộp', '$_moves', Icons.swap_horiz_rounded),
     ];
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 2.1,
+      childAspectRatio: 1.85,
       mainAxisSpacing: 8,
       crossAxisSpacing: 8,
       children: [
@@ -397,13 +470,48 @@ class _BoxInfoCard extends StatelessWidget {
           ),
           _DetailRow(
             label: 'Khu nuôi',
-            value: box.location.label ?? 'Chưa cập nhật',
+            value: (box.location.label == null ||
+                    box.location.label!.trim().isEmpty)
+                ? 'Chưa cập nhật'
+                : box.location.label!,
           ),
+          _LotRow(boxId: box.id),
           _DetailRow(label: 'Giống cua', value: box.species.displayName),
         ],
       ),
     );
   }
+}
+
+class _LotRow extends StatefulWidget {
+  const _LotRow({required this.boxId});
+  final String boxId;
+
+  @override
+  State<_LotRow> createState() => _LotRowState();
+}
+
+class _LotRowState extends State<_LotRow> {
+  String _lot = '—';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final crabs = await sl<BoxRemoteDataSource>().getCrabsByBox(widget.boxId);
+      if (!mounted || crabs.isEmpty) return;
+      final lot = crabs.first.lotCode;
+      setState(() => _lot = (lot == null || lot.trim().isEmpty) ? '—' : lot);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      _DetailRow(label: 'Lô cua', value: _lot);
 }
 
 class _DetailRow extends StatelessWidget {
@@ -694,7 +802,7 @@ class _TabSection extends StatelessWidget {
               indicatorWeight: 2,
               dividerColor: Colors.transparent,
               tabs: [
-                Tab(text: 'Tổng quan'),
+                Tab(text: 'Theo dõi'),
                 Tab(text: 'Cho ăn'),
                 Tab(text: 'Lịch sử'),
               ],
@@ -791,6 +899,7 @@ class _OverviewTabState extends State<_OverviewTab> {
                 : widget.box.id,
             crab: _crab!,
             embedded: true,
+            mode: 'monitor',
             onResult: (_) => _loadCrab(),
           ),
         const SizedBox(height: 12),
@@ -815,51 +924,63 @@ class _OverviewTabState extends State<_OverviewTab> {
   }
 }
 
-class _FeedingTab extends StatelessWidget {
+class _FeedingTab extends StatefulWidget {
   const _FeedingTab({required this.box});
   final Box box;
+
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text(
-        'Phiếu chăm sóc',
-        style: TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w800,
-          color: kHomeTextMain,
-        ),
-      ),
-      const SizedBox(height: 8),
-      Text(
-        'Ghi nhận lượng ăn và tình trạng thực tế của hộp.',
-        style: TextStyle(color: kHomeTextSub),
-      ),
-      const SizedBox(height: 14),
-      TextField(
-        decoration: const InputDecoration(
-          labelText: 'Loại thức ăn',
-          hintText: 'Chọn loại thức ăn',
-          prefixIcon: Icon(Icons.restaurant_outlined),
-        ),
-      ),
-      const SizedBox(height: 10),
-      TextField(
-        keyboardType: TextInputType.number,
-        decoration: const InputDecoration(
-          labelText: 'Khối lượng (g)',
-          hintText: 'Nhập khối lượng',
-          suffixText: 'g',
-        ),
-      ),
-      const SizedBox(height: 12),
-      FilledButton.icon(
-        onPressed: () => context.push(RoutePaths.operationsForBox(box.id)),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Thêm vào lịch sử'),
-      ),
-    ],
-  );
+  State<_FeedingTab> createState() => _FeedingTabState();
+}
+
+class _FeedingTabState extends State<_FeedingTab> {
+  CrabModel? _crab;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCrab();
+  }
+
+  Future<void> _loadCrab() async {
+    try {
+      final crabs = await sl<BoxRemoteDataSource>().getCrabsByBox(
+        widget.box.id,
+      );
+      if (mounted) setState(() => _crab = crabs.isEmpty ? null : crabs.first);
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const LinearProgressIndicator(
+        minHeight: 3,
+        color: kHomePrimary,
+        backgroundColor: kHomePrimaryBg,
+      );
+    }
+    if (_crab == null) {
+      return const Text(
+        'Hộp chưa có cua để ghi cho ăn.',
+        style: TextStyle(color: kHomeTextSub, fontSize: 13),
+      );
+    }
+    return DailyBoxCareSheet(
+      key: ValueKey('feed-${_crab!.id}'),
+      boxId: widget.box.id,
+      boxCode: widget.box.qrCode.isNotEmpty
+          ? widget.box.qrCode
+          : widget.box.id,
+      crab: _crab!,
+      embedded: true,
+      mode: 'feed',
+      onResult: (_) => _loadCrab(),
+    );
+  }
 }
 
 class _ActionButton extends StatelessWidget {

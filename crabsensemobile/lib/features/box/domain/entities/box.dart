@@ -107,7 +107,7 @@ class Box {
   /// Requirement 4.10.
   bool get isDataStale {
     final threshold = DateTime.now().subtract(const Duration(minutes: 30));
-    return createdAt.isBefore(threshold);
+    return lastVideoAt?.toLocal().isBefore(threshold) ?? false;
   }
 
   /// Returns true if the box has remaining capacity for more crabs.

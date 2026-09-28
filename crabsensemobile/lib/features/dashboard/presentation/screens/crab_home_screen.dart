@@ -1226,7 +1226,7 @@ class _OverviewTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: 62,
+    width: 60,
     height: 64,
     child: DecoratedBox(
       decoration: BoxDecoration(
