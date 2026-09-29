@@ -131,7 +131,11 @@ class HomeRepositoryImpl implements HomeRepository {
         waterMetrics: waterMetrics ?? const [],
           todayTasks: [...?todayTasks, ...scheduledTasks],
         feedingHistory: feedingHistory ?? const [],
-        boxStatusHistory: boxStatusHistory ?? const [],
+        boxStatusHistory: _statusFromFeeding(
+          feedingHistory,
+          boxInfo?['total'] ?? 0,
+          boxStatusHistory,
+        ),
         boxStatusCounts: boxInfo ?? const {},
         deviceSummary:
             deviceSummary ??
@@ -302,27 +306,23 @@ class HomeRepositoryImpl implements HomeRepository {
           for (final item in items) {
             final map = _asStringKeyedMap(item);
             if (map == null) continue;
-            final st = [
-              map['status'],
-              map['condition'],
-              map['crabCondition'],
-            ].whereType<Object>().join(' ').toLowerCase();
-            final key = st.contains('empty') || st.contains('available')
+            final occupied = map['isOccupied'] == true ||
+                ((map['crabCount'] as num?)?.toInt() ?? 0) > 0;
+            final cc = (map['crabCondition'] ?? map['CrabCondition'] ?? '')
+                .toString()
+                .toLowerCase();
+            // Đếm theo tình trạng CUA, không theo Box.Status (Molting) hay
+            // "soft" trên mã hộp — nếu không 2 hộp lột mềm thành Lột xác dù
+            // phiếu 19h đã ghi ăn / không ăn.
+            final key = !occupied || cc.contains('empty')
                 ? 'empty'
-                : st.contains('molt') || st.contains('soft')
-                ? 'molting'
-                : st.contains('alert') ||
-                      st.contains('problem') ||
-                      st.contains('dead') ||
-                      st.contains('escape') ||
-                      st.contains('harvest')
-                ? 'alert'
-                : st.contains('watch') ||
-                      st.contains('premolt') ||
-                      st.contains('pre-molt') ||
-                      st.contains('weak')
-                ? 'watch'
-                : 'normal';
+                : (cc.contains('problem') ||
+                      cc.contains('attention') ||
+                      cc.contains('alert'))
+                    ? 'alert'
+                    : cc.contains('weak')
+                    ? 'watch'
+                    : 'normal';
             counts[key] = counts[key]! + 1;
           }
           final active =
@@ -811,6 +811,27 @@ class HomeRepositoryImpl implements HomeRepository {
         })
         .whereType<RecentActivityItem>()
         .toList();
+  }
+
+  /// Cùng quy tắc phiếu ăn: nhiều=khỏe, ít=theo dõi, không=cảnh báo.
+  /// Trống = tổng hộp khu − hộp đã có phiếu hôm đó.
+  List<BoxStatusHistoryDay> _statusFromFeeding(
+    List<FeedingHistoryDay>? feeding,
+    int totalBoxes,
+    List<BoxStatusHistoryDay>? fallback,
+  ) {
+    if (feeding == null || feeding.isEmpty) return fallback ?? const [];
+    return [
+      for (final d in feeding)
+        BoxStatusHistoryDay(
+          date: d.date,
+          normal: d.many,
+          watch: d.little,
+          molting: 0,
+          alert: d.none,
+          empty: (totalBoxes - d.many - d.little - d.none).clamp(0, totalBoxes),
+        ),
+    ];
   }
 
   HomeStateData _emptyDataState() {
