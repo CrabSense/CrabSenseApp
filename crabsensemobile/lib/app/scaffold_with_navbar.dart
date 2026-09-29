@@ -37,11 +37,16 @@ class ScaffoldWithNavBar extends ConsumerWidget {
     final idx = _selectedIndex(context);
     final badgeCount = ref.watch(alertsBadgeCountProvider);
 
-    return Scaffold(
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaler: MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.2),
+      ),
+      child: Scaffold(
       backgroundColor: CrabSenseColors.background,
       body: child,
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+        padding: EdgeInsets.fromLTRB(12, 0, 12, 8 + bottom),
         child: Container(
         decoration: BoxDecoration(
           color: CrabSenseColors.navBackground,
@@ -54,10 +59,8 @@ class ScaffoldWithNavBar extends ConsumerWidget {
             ),
           ],
         ),
-        child: SafeArea(
-          child: SizedBox(
-            height: 70,
-            child: Row(
+        height: 64,
+        child: Row(
               children: [
                 _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Trang chủ', index: 0, selectedIndex: idx, onTap: (i) => _onTap(i, context)),
                 _NavItem(icon: Icons.grid_view_outlined, activeIcon: Icons.grid_view_rounded, label: 'Hộp nuôi', index: 1, selectedIndex: idx, onTap: (i) => _onTap(i, context)),
@@ -66,9 +69,8 @@ class ScaffoldWithNavBar extends ConsumerWidget {
                 _NavItem(icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded, label: 'Thêm', index: 4, selectedIndex: idx, onTap: (i) => _onTap(i, context)),
               ],
             ),
-          ),
         ),
-        ),
+      ),
       ),
     );
   }

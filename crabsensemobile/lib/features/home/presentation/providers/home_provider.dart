@@ -25,13 +25,27 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
       if (next.id == null || next.id!.isEmpty) return;
       if (!state.hasValue) return;
       if (state.value!.selectedFarmId == next.id) return;
-      switchFarm(next.id!);
+      _reloadQuiet(next.id!);
     });
     loadData();
   }
 
   final HomeRepository _repository;
   final Ref _ref;
+
+  /// Refetch khi tab khác đổi khu — không ghi selectedFarmProvider.
+  Future<void> _reloadQuiet(String farmId) async {
+    if (!state.hasValue) return;
+    try {
+      final data = await _repository.getHomeSummary(
+        forceRefresh: true,
+        farmingAreaId: farmId,
+      );
+      if (data.selectedFarmId == farmId) {
+        state = AsyncValue.data(data);
+      }
+    } catch (_) {}
+  }
 
   /// Nạp dữ liệu — ưu tiên trại đang điều hành global.
   Future<void> loadData({bool forceRefresh = false}) async {
@@ -51,9 +65,10 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
         forceRefresh: forceRefresh,
         farmingAreaId: farmingAreaId,
       );
+      final keepId = farmingAreaId ?? data.selectedFarmId;
       state = AsyncValue.data(data);
-      await _ref.read(selectedFarmProvider.notifier).select(
-            data.selectedFarmId,
+      await _ref.read(selectedFarmProvider.notifier).syncFromLoaded(
+            id: keepId,
             name: data.selectedFarmName,
           );
     } catch (error, stackTrace) {
@@ -74,8 +89,8 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
         farmingAreaId: farmingAreaId,
       );
       state = AsyncValue.data(data);
-      await _ref.read(selectedFarmProvider.notifier).select(
-            data.selectedFarmId,
+      await _ref.read(selectedFarmProvider.notifier).syncFromLoaded(
+            id: farmingAreaId ?? data.selectedFarmId,
             name: data.selectedFarmName,
           );
     } catch (error, stackTrace) {
@@ -143,13 +158,15 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
 
     try {
       final updated = await _repository.switchFarm(farmId);
-      state = AsyncValue.data(updated);
+      if (updated.selectedFarmId == farmId) {
+        state = AsyncValue.data(updated);
+      }
       await _ref.read(selectedFarmProvider.notifier).select(
-            updated.selectedFarmId,
-            name: updated.selectedFarmName,
+            farmId,
+            name: farmName ?? updated.selectedFarmName,
           );
     } catch (_) {
-      state = AsyncValue.data(current);
+      // Giữ khu vừa chọn — không kéo về khu trước.
     }
   }
 

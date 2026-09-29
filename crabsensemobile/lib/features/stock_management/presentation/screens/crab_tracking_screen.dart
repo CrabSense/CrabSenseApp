@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../app/routes.dart';
+import '../../../../core/utils/app_back.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
 
@@ -260,7 +261,7 @@ class _CrabTrackingScreenState extends State<CrabTrackingScreen> {
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-            onPressed: () => Navigator.maybePop(context),
+            onPressed: () => appBack(context),
           ),
           title: const Text(
             'Theo dõi cua',

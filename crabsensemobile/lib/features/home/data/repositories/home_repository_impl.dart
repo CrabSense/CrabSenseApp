@@ -57,7 +57,7 @@ class HomeRepositoryImpl implements HomeRepository {
           _fetchFeedingHistory(),
           _fetchBoxStatusHistory(),
         ].map((p) => p.catchError((_) => null)),
-      ).timeout(const Duration(seconds: 12));
+      );
 
       final boxInfo = results[0] as Map<String, int>?;
       final alertsData = results[1] as Map<String, dynamic>?;
@@ -191,19 +191,16 @@ class HomeRepositoryImpl implements HomeRepository {
     List<FarmOption> farms,
     String? preferredId,
   ) {
-    if (farms.isEmpty) return null;
     if (preferredId != null && preferredId.isNotEmpty) {
       for (final farm in farms) {
-        if (farm.id == preferredId &&
-            (farm.boxCount > 0 || farms.every((item) => item.boxCount == 0))) {
+        if (farm.id.toLowerCase() == preferredId.toLowerCase()) {
           return farm;
         }
       }
+      return FarmOption(id: preferredId, name: 'Khu nuôi');
     }
-    return farms.firstWhere(
-      (farm) => farm.boxCount > 0,
-      orElse: () => farms.first,
-    );
+    if (farms.isEmpty) return null;
+    return farms.first;
   }
 
   Map<String, dynamic>? _asStringKeyedMap(dynamic value) {
@@ -267,16 +264,20 @@ class HomeRepositoryImpl implements HomeRepository {
       return const [];
     }
 
-    final hasOwner = ownerId != null && ownerId.isNotEmpty;
-    final ownerLooksLikeGuid =
-        hasOwner && RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(ownerId);
+    try {
+      final hasOwner = ownerId != null && ownerId.isNotEmpty;
+      final ownerLooksLikeGuid =
+          hasOwner && RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(ownerId);
 
-    if (ownerLooksLikeGuid) {
-      final scoped = await request({'ownerId': ownerId});
-      if (scoped.isNotEmpty) return scoped;
+      if (ownerLooksLikeGuid) {
+        final scoped = await request({'ownerId': ownerId});
+        if (scoped.isNotEmpty) return scoped;
+      }
+
+      return request(null);
+    } catch (_) {
+      return const [];
     }
-
-    return request(null);
   }
 
   Future<Map<String, int>?> _fetchBoxes(String? farmingAreaId) async {

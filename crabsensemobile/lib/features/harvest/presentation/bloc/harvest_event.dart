@@ -17,13 +17,36 @@ abstract class HarvestEvent extends Equatable {
 ///
 /// Pre-fills [boxId] or [farmId] if provided (e.g. opened from box details context).
 class LoadHarvestForm extends HarvestEvent {
-  const LoadHarvestForm({this.boxId, this.farmId});
+  const LoadHarvestForm({
+    this.boxId,
+    this.farmId,
+    this.crabId,
+    this.boxGuid,
+    this.weightBefore,
+    this.lengthBefore,
+    this.widthBefore,
+  });
 
   final String? boxId;
   final String? farmId;
+  final String? crabId;
+  final String? boxGuid;
+  final double? weightBefore;
+  final double? lengthBefore;
+  final double? widthBefore;
 
   @override
-  List<Object?> get props => [boxId, farmId];
+  List<Object?> get props =>
+      [boxId, farmId, crabId, boxGuid, weightBefore, lengthBefore, widthBefore];
+}
+
+class HarvestKeepRaisingChanged extends HarvestEvent {
+  const HarvestKeepRaisingChanged({required this.keepRaising});
+
+  final bool keepRaising;
+
+  @override
+  List<Object?> get props => [keepRaising];
 }
 
 /// Fired when the box ID input changes.
@@ -87,6 +110,20 @@ class HarvestDateChanged extends HarvestEvent {
 }
 
 /// Fired when notes text changes.
+class HarvestLengthChanged extends HarvestEvent {
+  const HarvestLengthChanged({required this.lengthText});
+  final String lengthText;
+  @override
+  List<Object?> get props => [lengthText];
+}
+
+class HarvestWidthChanged extends HarvestEvent {
+  const HarvestWidthChanged({required this.widthText});
+  final String widthText;
+  @override
+  List<Object?> get props => [widthText];
+}
+
 class HarvestNotesChanged extends HarvestEvent {
   const HarvestNotesChanged({required this.notes});
 

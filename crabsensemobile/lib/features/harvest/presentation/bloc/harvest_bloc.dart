@@ -1,7 +1,9 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/errors/failures.dart';
+import '../../../../core/network/api_client.dart';
 import '../../domain/entities/harvest.dart';
 import '../../domain/usecases/record_harvest_usecase.dart';
 import 'harvest_event.dart';
@@ -29,15 +31,20 @@ import 'harvest_state.dart';
 class HarvestBloc extends Bloc<HarvestEvent, HarvestState> {
   HarvestBloc({
     required RecordHarvestUseCase recordHarvest,
+    ApiClient? api,
   })  : _recordHarvest = recordHarvest,
+        _api = api,
         super(const HarvestInitial()) {
     on<LoadHarvestForm>(_onLoadForm);
+    on<HarvestKeepRaisingChanged>(_onKeepRaisingChanged);
     on<HarvestBoxIdChanged>(_onBoxIdChanged);
     on<HarvestFarmIdChanged>(_onFarmIdChanged);
     on<HarvestWeightChanged>(_onWeightChanged);
     on<HarvestCrabCountChanged>(_onCrabCountChanged);
     on<HarvestQualityGradeChanged>(_onQualityGradeChanged);
     on<HarvestDateChanged>(_onDateChanged);
+    on<HarvestLengthChanged>(_onLengthChanged);
+    on<HarvestWidthChanged>(_onWidthChanged);
     on<HarvestNotesChanged>(_onNotesChanged);
     on<AddHarvestPhoto>(_onAddPhoto);
     on<RemoveHarvestPhoto>(_onRemovePhoto);
@@ -46,6 +53,7 @@ class HarvestBloc extends Bloc<HarvestEvent, HarvestState> {
   }
 
   final RecordHarvestUseCase _recordHarvest;
+  final ApiClient? _api;
   static const _uuid = Uuid();
 
   // ── Load Form ─────────────────────────────────────────────────────────────
@@ -55,8 +63,13 @@ class HarvestBloc extends Bloc<HarvestEvent, HarvestState> {
       HarvestFormState(
         boxId: event.boxId ?? '',
         farmId: event.farmId ?? '',
+        crabId: event.crabId,
+        boxGuid: event.boxGuid,
+        weightBefore: event.weightBefore,
+        lengthBefore: event.lengthBefore,
+        widthBefore: event.widthBefore,
         totalWeightText: '',
-        crabCountText: '',
+        crabCountText: '1',
         qualityGrade: QualityGrade.gradeA,
         harvestDate: DateTime.now(),
         notes: '',
@@ -66,6 +79,15 @@ class HarvestBloc extends Bloc<HarvestEvent, HarvestState> {
   }
 
   // ── Field updates ─────────────────────────────────────────────────────────
+
+  void _onKeepRaisingChanged(
+    HarvestKeepRaisingChanged event,
+    Emitter<HarvestState> emit,
+  ) {
+    final s = _formState;
+    if (s == null) return;
+    emit(s.copyWith(keepRaising: event.keepRaising));
+  }
 
   void _onBoxIdChanged(HarvestBoxIdChanged event, Emitter<HarvestState> emit) {
     final s = _formState;
@@ -101,6 +123,18 @@ class HarvestBloc extends Bloc<HarvestEvent, HarvestState> {
     final s = _formState;
     if (s == null) return;
     emit(s.copyWith(harvestDate: event.harvestDate, clearDateError: true));
+  }
+
+  void _onLengthChanged(HarvestLengthChanged event, Emitter<HarvestState> emit) {
+    final s = _formState;
+    if (s == null) return;
+    emit(s.copyWith(lengthText: event.lengthText));
+  }
+
+  void _onWidthChanged(HarvestWidthChanged event, Emitter<HarvestState> emit) {
+    final s = _formState;
+    if (s == null) return;
+    emit(s.copyWith(widthText: event.widthText));
   }
 
   void _onNotesChanged(HarvestNotesChanged event, Emitter<HarvestState> emit) {
@@ -144,16 +178,16 @@ class HarvestBloc extends Bloc<HarvestEvent, HarvestState> {
     }
 
     // Validate total weight > 0 (Requirement 11.3)
-    final weight = s.parsedTotalWeight;
-    if (weight == null || weight <= 0) {
-      weightErr = 'Total weight must be a positive number';
+    final grams = s.parsedTotalWeight;
+    if (grams == null || grams <= 0) {
+      weightErr = 'Cân nặng sau lột phải lớn hơn 0';
       hasError = true;
     }
+    final weightKg = grams == null ? null : grams / 1000;
 
-    // Validate crab count > 0 (Requirement 11.2)
-    final count = s.parsedCrabCount;
-    if (count == null || count <= 0) {
-      crabCountErr = 'Crab count must be at least 1';
+    final count = s.parsedCrabCount ?? 1;
+    if (count <= 0) {
+      crabCountErr = 'Mỗi hộp một con';
       hasError = true;
     }
 
@@ -175,12 +209,17 @@ class HarvestBloc extends Bloc<HarvestEvent, HarvestState> {
       return;
     }
 
+    if (s.keepRaising) {
+      await _submitKeepRaising(s, grams!, emit);
+      return;
+    }
+
     final harvest = Harvest(
       id: 'harvest-${_uuid.v4()}',
       boxId: s.boxId.trim(),
       farmId: s.farmId.trim().isEmpty ? 'default-farm' : s.farmId.trim(),
-      totalWeight: weight!,
-      crabCount: count!,
+      totalWeight: weightKg!,
+      crabCount: count,
       qualityGrade: s.qualityGrade,
       harvestDate: s.harvestDate,
       operatorId: event.operatorId,
@@ -232,6 +271,48 @@ class HarvestBloc extends Bloc<HarvestEvent, HarvestState> {
     );
   }
 
+  Future<void> _submitKeepRaising(
+    HarvestFormState s,
+    double grams,
+    Emitter<HarvestState> emit,
+  ) async {
+    final crabId = s.crabId?.trim() ?? '';
+    if (crabId.isEmpty) {
+      emit(s.copyWith(submissionError: 'Thiếu cua của hộp để ghi lột.'));
+      return;
+    }
+    if (_api == null) {
+      emit(s.copyWith(submissionError: 'Không gọi được máy chủ để ghi nuôi tiếp.'));
+      return;
+    }
+    emit(s.copyWith(isSubmitting: true, clearSubmissionError: true));
+    final notes = s.notes?.trim();
+    final lengthMm = double.tryParse(s.lengthText.trim());
+    final widthMm = double.tryParse(s.widthText.trim());
+    final result = await _api.safePost<dynamic>(
+      ApiConstants.crabMoltings(crabId),
+      data: {
+        'crabId': crabId,
+        if (s.boxGuid != null && s.boxGuid!.isNotEmpty) 'boxId': s.boxGuid,
+        'moltTime': s.harvestDate.toUtc().toIso8601String(),
+        'weightAfterGram': grams,
+        if (s.weightBefore != null) 'weightBeforeGram': s.weightBefore,
+        if (s.lengthBefore != null) 'shellLengthBeforeMm': s.lengthBefore,
+        if (s.widthBefore != null) 'shellWidthBeforeMm': s.widthBefore,
+        if (lengthMm != null) 'shellLengthAfterMm': lengthMm,
+        if (widthMm != null) 'shellWidthAfterMm': widthMm,
+        'result': 'success',
+        'source': 'manual',
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+      },
+    );
+    if (result.failure != null) {
+      emit(s.copyWith(isSubmitting: false, submissionError: result.failure!.message));
+      return;
+    }
+    emit(s.copyWith(isSubmitting: false, isSubmitted: true));
+  }
+
   // ── Reset ─────────────────────────────────────────────────────────────────
 
   void _onResetForm(ResetHarvestForm event, Emitter<HarvestState> emit) {
@@ -240,7 +321,7 @@ class HarvestBloc extends Bloc<HarvestEvent, HarvestState> {
         boxId: '',
         farmId: '',
         totalWeightText: '',
-        crabCountText: '',
+        crabCountText: '1',
         qualityGrade: QualityGrade.gradeA,
         harvestDate: DateTime.now(),
         notes: '',

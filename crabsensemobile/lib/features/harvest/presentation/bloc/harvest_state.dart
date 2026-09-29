@@ -28,6 +28,14 @@ class HarvestFormState extends HarvestState {
     required this.harvestDate,
     this.notes,
     this.photoPaths = const [],
+    this.keepRaising = false,
+    this.crabId,
+    this.boxGuid,
+    this.lengthText = '',
+    this.widthText = '',
+    this.weightBefore,
+    this.lengthBefore,
+    this.widthBefore,
     this.boxIdError,
     this.weightError,
     this.crabCountError,
@@ -47,6 +55,14 @@ class HarvestFormState extends HarvestState {
   final DateTime harvestDate;
   final String? notes;
   final List<String> photoPaths;
+  final bool keepRaising;
+  final String? crabId;
+  final String? boxGuid;
+  final String lengthText;
+  final String widthText;
+  final double? weightBefore;
+  final double? lengthBefore;
+  final double? widthBefore;
 
   final String? boxIdError;
   final String? weightError;
@@ -91,6 +107,14 @@ class HarvestFormState extends HarvestState {
     DateTime? harvestDate,
     String? notes,
     List<String>? photoPaths,
+    bool? keepRaising,
+    String? crabId,
+    String? boxGuid,
+    String? lengthText,
+    String? widthText,
+    double? weightBefore,
+    double? lengthBefore,
+    double? widthBefore,
     String? boxIdError,
     String? weightError,
     String? crabCountError,
@@ -115,6 +139,14 @@ class HarvestFormState extends HarvestState {
       harvestDate: harvestDate ?? this.harvestDate,
       notes: notes ?? this.notes,
       photoPaths: photoPaths ?? this.photoPaths,
+      keepRaising: keepRaising ?? this.keepRaising,
+      crabId: crabId ?? this.crabId,
+      boxGuid: boxGuid ?? this.boxGuid,
+      lengthText: lengthText ?? this.lengthText,
+      widthText: widthText ?? this.widthText,
+      weightBefore: weightBefore ?? this.weightBefore,
+      lengthBefore: lengthBefore ?? this.lengthBefore,
+      widthBefore: widthBefore ?? this.widthBefore,
       boxIdError: clearBoxIdError ? null : (boxIdError ?? this.boxIdError),
       weightError: clearWeightError ? null : (weightError ?? this.weightError),
       crabCountError: clearCrabCountError ? null : (crabCountError ?? this.crabCountError),
@@ -137,6 +169,14 @@ class HarvestFormState extends HarvestState {
         harvestDate,
         notes,
         photoPaths,
+        keepRaising,
+        crabId,
+        boxGuid,
+        lengthText,
+        widthText,
+        weightBefore,
+        lengthBefore,
+        widthBefore,
         boxIdError,
         weightError,
         crabCountError,

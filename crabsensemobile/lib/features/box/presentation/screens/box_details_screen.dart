@@ -1,9 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../app/routes.dart';
+import '../../../../core/utils/app_back.dart';
 import '../../../../app/theme.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -13,7 +16,9 @@ import '../../../../core/network/api_client.dart';
 import '../../data/datasources/box_remote_data_source.dart';
 import '../../data/models/crab_model.dart';
 import '../widgets/box_history_sections.dart';
+import '../widgets/crab_avatar.dart';
 import '../widgets/daily_box_care_sheet.dart';
+import 'crab_list_screen.dart';
 import '../../../../shared/widgets/errors/error_state_widget.dart';
 import '../../domain/entities/box.dart';
 import '../../domain/entities/box_enums.dart';
@@ -50,25 +55,30 @@ class _BoxDetailsView extends StatelessWidget {
       backgroundColor: kHomeBg,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(56),
-        child: Container(
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/images/background_chao_user.png'),
-              fit: BoxFit.cover,
-              alignment: Alignment.centerRight,
+        child: Material(
+          color: Colors.transparent,
+          child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/images/background_chao_user.png'),
+                  fit: BoxFit.cover,
+                  alignment: Alignment.centerRight,
+                ),
+              ),
             ),
-          ),
-          child: SafeArea(
+            SafeArea(
             child: Row(
               children: [
                 IconButton(
                   icon: const Icon(
                     Icons.arrow_back_rounded,
-                    color: Colors.white,
+                    color: Colors.black,
                   ),
-                  onPressed: () {
-                    if (context.canPop()) context.pop();
-                  },
+                  onPressed: () =>
+                      appBack(context, fallback: RoutePaths.boxes),
                 ),
                 Expanded(
                   child: Column(
@@ -78,14 +88,18 @@ class _BoxDetailsView extends StatelessWidget {
                       Text(
                         'Chi tiết hộp nuôi',
                         style: const TextStyle(
-                          color: kHomeTextMain,
+                          color: Colors.black,
                           fontSize: 17,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                       const Text(
                         'Chi tiết & chăm sóc',
-                        style: TextStyle(color: Colors.white70, fontSize: 11),
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
@@ -93,7 +107,7 @@ class _BoxDetailsView extends StatelessWidget {
                 IconButton(
                   icon: const Icon(
                     Icons.more_vert_rounded,
-                    color: Colors.white,
+                    color: Colors.black,
                   ),
                   onPressed: () => showModalBottomSheet<void>(
                     context: context,
@@ -110,7 +124,10 @@ class _BoxDetailsView extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                  icon: const Icon(
+                    Icons.refresh_rounded,
+                    color: Colors.black,
+                  ),
                   onPressed: () => context.read<BoxBloc>().add(
                     BoxDetailsRefreshRequested(boxId),
                   ),
@@ -118,6 +135,8 @@ class _BoxDetailsView extends StatelessWidget {
               ],
             ),
           ),
+          ],
+        ),
         ),
       ),
       body: BlocBuilder<BoxBloc, BoxState>(
@@ -197,6 +216,12 @@ class _SummaryMetricsState extends State<_SummaryMetrics> {
   @override
   void initState() {
     super.initState();
+    _loadCounts();
+  }
+
+  @override
+  void didUpdateWidget(covariant _SummaryMetrics oldWidget) {
+    super.didUpdateWidget(oldWidget);
     _loadCounts();
   }
 
@@ -476,7 +501,6 @@ class _BoxInfoCard extends StatelessWidget {
                 : box.location.label!,
           ),
           _LotRow(boxId: box.id),
-          _DetailRow(label: 'Giống cua', value: box.species.displayName),
         ],
       ),
     );
@@ -493,6 +517,9 @@ class _LotRow extends StatefulWidget {
 
 class _LotRowState extends State<_LotRow> {
   String _lot = '—';
+  String _species = '—';
+  String _length = '—';
+  String _width = '—';
 
   @override
   void initState() {
@@ -500,18 +527,63 @@ class _LotRowState extends State<_LotRow> {
     _load();
   }
 
+  @override
+  void didUpdateWidget(covariant _LotRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _load();
+  }
+
   Future<void> _load() async {
     try {
       final crabs = await sl<BoxRemoteDataSource>().getCrabsByBox(widget.boxId);
       if (!mounted || crabs.isEmpty) return;
-      final lot = crabs.first.lotCode;
-      setState(() => _lot = (lot == null || lot.trim().isEmpty) ? '—' : lot);
+      final crab = crabs.first;
+      final code = crab.lotCode?.trim();
+      var lot = crab.lotName?.trim();
+      if (lot == null || lot.isEmpty || lot == code) {
+        lot = await _lotNameForCode(code) ?? lot;
+      }
+      setState(() {
+        _lot = (lot == null || lot.isEmpty) ? (code ?? '—') : lot;
+        final type = crab.crabType?.trim();
+        _species = (type == null || type.isEmpty) ? '' : type;
+        _length = crab.carapaceLengthMm == null || crab.carapaceLengthMm! <= 0
+            ? '—'
+            : '${crab.carapaceLengthMm!.toStringAsFixed(1)} mm';
+        _width = crab.carapaceWidthMm == null || crab.carapaceWidthMm! <= 0
+            ? '—'
+            : '${crab.carapaceWidthMm!.toStringAsFixed(1)} mm';
+      });
     } catch (_) {}
   }
 
+  Future<String?> _lotNameForCode(String? code) async {
+    if (code == null || code.isEmpty) return null;
+    final res = await sl<ApiClient>().get<dynamic>(ApiConstants.crabLots);
+    final decoded = jsonDecode(jsonEncode(res.data));
+    dynamic raw = decoded;
+    if (decoded is Map) raw = decoded['data'] ?? decoded['Data'] ?? decoded;
+    if (raw is! List) return null;
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final lotCode =
+          (item['lotCode'] ?? item['LotCode'] ?? item['code'])?.toString();
+      if (lotCode != code) continue;
+      final name = (item['name'] ?? item['Name'])?.toString().trim();
+      if (name != null && name.isNotEmpty) return name;
+    }
+    return null;
+  }
+
   @override
-  Widget build(BuildContext context) =>
-      _DetailRow(label: 'Lô cua', value: _lot);
+  Widget build(BuildContext context) => Column(
+    children: [
+      _DetailRow(label: 'Lô cua', value: _lot),
+      if (_species.isNotEmpty) _DetailRow(label: 'Loại cua', value: _species),
+      _DetailRow(label: 'Dài mai', value: _length),
+      _DetailRow(label: 'Rộng mai', value: _width),
+    ],
+  );
 }
 
 class _DetailRow extends StatelessWidget {
@@ -817,7 +889,10 @@ class _TabSection extends StatelessWidget {
                 child: switch (index) {
                   0 => _OverviewTab(box: box),
                   1 => _FeedingTab(box: box),
-                  _ => BoxHistorySections(boxId: box.id),
+                  _ => BoxHistorySections(
+                    key: ValueKey('${box.id}-${box.averageWeight}'),
+                    boxId: box.id,
+                  ),
                 },
               );
             },
@@ -897,18 +972,55 @@ class _OverviewTabState extends State<_OverviewTab> {
             boxCode: widget.box.qrCode.isNotEmpty
                 ? widget.box.qrCode
                 : widget.box.id,
+            farmId: widget.box.farmId,
             crab: _crab!,
             embedded: true,
             mode: 'monitor',
-            onResult: (_) => _loadCrab(),
+            onResult: (_) {
+              _loadCrab();
+              context.read<BoxBloc>().add(
+                BoxDetailsRefreshRequested(widget.box.id),
+              );
+            },
           ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
-          onPressed: () => context.push(
-            RoutePaths.boxCrabs(widget.box.id, boxCode: widget.box.qrCode),
-          ),
+          onPressed: () {
+            final crab = _crab;
+            if (crab == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Hộp chưa có cua để chuyển.'),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+              return;
+            }
+            showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => MoveCrabSheet(
+                crab: crab,
+                currentBoxId: widget.box.id,
+                onSuccess: (code) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Đã chuyển cua sang hộp $code'),
+                      backgroundColor: kHomePrimary,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                  _loadCrab();
+                  context.read<BoxBloc>().add(
+                    BoxDetailsRefreshRequested(widget.box.id),
+                  );
+                },
+              ),
+            );
+          },
           icon: const Icon(Icons.swap_horiz_rounded, size: 18),
-          label: const Text('Chuyển cua / quản lý hộp'),
+          label: const Text('Chuyển cua'),
           style: OutlinedButton.styleFrom(
             foregroundColor: kHomePrimaryDark,
             side: const BorderSide(color: kHomePrimary),
@@ -975,10 +1087,16 @@ class _FeedingTabState extends State<_FeedingTab> {
       boxCode: widget.box.qrCode.isNotEmpty
           ? widget.box.qrCode
           : widget.box.id,
+      farmId: widget.box.farmId,
       crab: _crab!,
       embedded: true,
       mode: 'feed',
-      onResult: (_) => _loadCrab(),
+      onResult: (_) {
+        _loadCrab();
+        context.read<BoxBloc>().add(
+          BoxDetailsRefreshRequested(widget.box.id),
+        );
+      },
     );
   }
 }

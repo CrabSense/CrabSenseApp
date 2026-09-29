@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/utils/app_back.dart';
 import '../../../../core/di/injection.dart';
 import '../../../home/presentation/widgets/crab_hologram_painter.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
@@ -35,7 +36,7 @@ class NotificationSettingsScreen extends StatelessWidget {
                   child: Row(
                     children: [
                       IconButton(
-                        onPressed: () => context.pop(),
+                        onPressed: () => appBack(context),
                         icon: const Icon(
                           Icons.arrow_back_rounded,
                           color: kHomeBlueLight,

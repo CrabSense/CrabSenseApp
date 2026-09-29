@@ -52,12 +52,11 @@ class CrabSenseColors {
   //
   // Nguồn duy nhất: `shared/models/crab_condition.dart` + `BoxStatus` trong
   // `features/box_management/domain/models/boxes_models.dart`.
-  static const Color statusNormal    = Color(0xFF22C55E); // desktop healthy
-  static const Color statusWatch     = Color(0xFFEAB308); // desktop monitoring
-  static const Color statusRisk      = Color(0xFFEF4444); // desktop risk
-  static const Color statusIdle      = Color(0xFF64748B); // desktop textMuted
+  static const Color statusNormal    = Color(0xFF22C55E);
+  static const Color statusWatch     = Color(0xFFEAB308);
+  static const Color statusRisk      = Color(0xFFEF4444);
+  static const Color statusIdle      = Color(0xFF64748B);
 
-  // Nền nhạt cùng tông để chữ trên thẻ hộp không chọi màu.
   static const Color statusNormalBg  = Color(0xFFDCFCE7);
   static const Color statusWatchBg   = Color(0xFFFEF3C7);
   static const Color statusRiskBg    = Color(0xFFFEE2E2);

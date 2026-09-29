@@ -53,6 +53,7 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
   final Ref _ref;
   Timer? _searchDebounce;
   BoxesPermissionFlags _permissions = BoxesPermissionFlags.viewer;
+  var _loadGen = 0;
 
   void updatePermissions(BoxesPermissionFlags flags) {
     _permissions = flags;
@@ -69,6 +70,7 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
 
   Future<void> loadData({bool forceRefresh = false}) async {
     await _ref.read(selectedFarmProvider.notifier).ready;
+    final gen = ++_loadGen;
     final current = state.hasValue ? state.value : null;
     final sharedId = _ref.read(selectedFarmProvider).id;
 
@@ -90,9 +92,23 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
         canEditBox: _permissions.canEditBox,
         canPerformActions: _permissions.canPerformActions,
       );
-      state = AsyncValue.data(data.copyWith(isRefreshing: false));
-      await _ref.read(selectedFarmProvider.notifier).select(
-            data.selectedFarmId,
+      if (gen != _loadGen) return;
+      final lockId = sharedId ?? current?.selectedFarmId;
+      state = AsyncValue.data(
+        data.copyWith(
+          isRefreshing: false,
+          selectedFarmId: (lockId != null && lockId.isNotEmpty)
+              ? lockId
+              : data.selectedFarmId,
+          selectedFarmName: (lockId != null &&
+                  lockId.isNotEmpty &&
+                  lockId != data.selectedFarmId)
+              ? (current?.selectedFarmName ?? data.selectedFarmName)
+              : data.selectedFarmName,
+        ),
+      );
+      await _ref.read(selectedFarmProvider.notifier).syncFromLoaded(
+            id: lockId ?? data.selectedFarmId,
             name: data.selectedFarmName,
           );
     } catch (error, stackTrace) {
@@ -117,13 +133,13 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
     if (!state.hasValue) return;
     final current = state.value!;
     if (farmId == current.selectedFarmId) return;
+    final gen = ++_loadGen;
 
     final farmName = current.availableFarms
         .where((f) => f.id == farmId)
         .map((f) => f.name)
         .firstOrNull;
 
-    // Local trước, global sau — tránh listen gọi lại switchFarm.
     state = AsyncValue.data(
       current.copyWith(
         selectedFarmId: farmId,
@@ -139,8 +155,11 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
 
     try {
       final updated = await _repository.switchFarm(farmId);
+      if (gen != _loadGen) return;
       state = AsyncValue.data(
         updated.copyWith(
+          selectedFarmId: farmId,
+          selectedFarmName: farmName ?? updated.selectedFarmName,
           canCreateBox: _permissions.canCreateBox,
           canEditBox: _permissions.canEditBox,
           canPerformActions: _permissions.canPerformActions,
@@ -148,11 +167,19 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
         ),
       );
       await _ref.read(selectedFarmProvider.notifier).select(
-            updated.selectedFarmId,
-            name: updated.selectedFarmName,
+            farmId,
+            name: farmName ?? updated.selectedFarmName,
           );
-    } catch (_) {
-      state = AsyncValue.data(current.copyWith(isRefreshing: false));
+    } catch (error) {
+      if (gen != _loadGen) return;
+      state = AsyncValue.data(
+        current.copyWith(
+          selectedFarmId: farmId,
+          selectedFarmName: farmName ?? current.selectedFarmName,
+          isRefreshing: false,
+          sectionError: error.toString(),
+        ),
+      );
     }
   }
 

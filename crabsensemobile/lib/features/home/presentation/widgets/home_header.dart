@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routes.dart';
+import '../../../../core/providers/selected_farm_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../notifications/presentation/providers/unread_notifications_provider.dart';
 import '../../domain/models/home_models.dart';
@@ -64,7 +65,8 @@ class HomeHeader extends ConsumerWidget {
     return (parts.first[0] + parts.last[0]).toUpperCase();
   }
 
-  void _showFarmSelector(BuildContext context) {
+  void _showFarmSelector(BuildContext context, WidgetRef ref) {
+    final pinnedId = ref.read(selectedFarmProvider).id;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -160,7 +162,9 @@ class HomeHeader extends ConsumerWidget {
                           child: Column(
                             children: data.availableFarms.map((farm) {
                               final isSelected =
-                                  farm.id == data.selectedFarmId ||
+                                  farm.id == pinnedId ||
+                                  (pinnedId == null &&
+                                      farm.id == data.selectedFarmId) ||
                                   (data.selectedFarmId == null &&
                                       farm.name == data.selectedFarmName);
                               return _FarmOptionTile(
@@ -188,6 +192,9 @@ class HomeHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final pinned = ref.watch(selectedFarmProvider);
+    final farmName =
+        pinned.name.isNotEmpty ? pinned.name : data.selectedFarmName;
     final apiUnread = ref.watch(unreadNotificationsCountProvider).valueOrNull;
     final unread = apiUnread ?? data.unreadNotificationsCount;
 
@@ -225,8 +232,8 @@ class HomeHeader extends ConsumerWidget {
                   _buildTopRow(context, unreadCount: unread),
                   const Spacer(),
                   _FarmSelectorBar(
-                    farmName: data.selectedFarmName,
-                    onTap: () => _showFarmSelector(context),
+                    farmName: farmName,
+                    onTap: () => _showFarmSelector(context, ref),
                   ),
                 ],
               ),

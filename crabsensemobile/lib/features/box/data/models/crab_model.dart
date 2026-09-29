@@ -26,9 +26,17 @@ class CrabModel extends Crab {
     required super.addedBy,
     super.condition,
     this.lotCode,
+    this.lotName,
+    this.carapaceLengthMm,
+    this.carapaceWidthMm,
+    this.crabType,
   });
 
   final String? lotCode;
+  final String? lotName;
+  final double? carapaceLengthMm;
+  final double? carapaceWidthMm;
+  final String? crabType;
 
   // ──────────────────────────────────────────────────────────────────────────
   // Factory constructors
@@ -42,7 +50,7 @@ class CrabModel extends Crab {
       id: asStr(json['id'] ?? json['Id']),
       boxId: asStr(json['boxId'] ?? json['box_id'] ?? json['BoxId']),
       species: _speciesFromString(
-        asStr(json['species']).isEmpty ? 'mudCrab' : asStr(json['species']),
+        asStr(json['species'] ?? json['crabType'] ?? json['CrabType']),
       ),
       weight: _asDouble(json['weight'] ?? json['weightGram'] ?? json['weight_gram']),
       moltingStatus: _moltingStatusFromString(
@@ -74,6 +82,21 @@ class CrabModel extends Crab {
       // Trường chuẩn để hiện tình trạng cua (nhãn + màu giống app desktop).
       condition: (json['condition'] ?? json['Condition'])?.toString(),
       lotCode: asStr(json['lotCode'] ?? json['LotCode']),
+      lotName: asStr(json['lotName'] ?? json['LotName']),
+      carapaceLengthMm: _asDoubleOrNull(
+        json['carapaceLengthMm'] ?? json['CarapaceLengthMm'],
+      ),
+      carapaceWidthMm: _asDoubleOrNull(
+        json['carapaceWidthMm'] ?? json['CarapaceWidthMm'],
+      ),
+      crabType: () {
+        final t = asStr(
+          json['crabType'] ?? json['CrabType'] ?? json['species'],
+        );
+        if (t.isEmpty) return null;
+        if (t.toLowerCase() == 'mudcrab' || t == 'Mud Crab') return null;
+        return t;
+      }(),
     );
   }
 
@@ -182,6 +205,11 @@ class CrabModel extends Crab {
     addedAt: addedAt ?? this.addedAt,
     addedBy: addedBy ?? this.addedBy,
     condition: condition ?? this.condition,
+    lotCode: this.lotCode,
+    lotName: this.lotName,
+    carapaceLengthMm: this.carapaceLengthMm,
+    carapaceWidthMm: this.carapaceWidthMm,
+    crabType: this.crabType,
   );
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -276,6 +304,13 @@ class CrabModel extends Crab {
 
   static CrabSource _sourceFromString(String value) =>
       crabSourceFromString(value) ?? CrabSource.farm;
+
+  static double? _asDoubleOrNull(Object? value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
 
   static double _asDouble(Object? value) {
     if (value is num) return value.toDouble();

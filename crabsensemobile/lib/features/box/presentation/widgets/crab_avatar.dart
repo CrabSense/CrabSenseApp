@@ -47,7 +47,7 @@ String crabDisplayTag(Crab crab) {
 
 String crabSpeciesVi(CrabSpecies value) => switch (value) {
       CrabSpecies.blueCrab => 'Cua xanh',
-      CrabSpecies.mudCrab => 'Cua lột',
+      CrabSpecies.mudCrab => 'Cua đất',
       CrabSpecies.softShell => 'Cua vỏ mềm',
     };
 

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/routes.dart';
+import '../../../../core/utils/app_back.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection.dart';
@@ -95,7 +97,7 @@ class _BoxCameraScreenState extends State<BoxCameraScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => appBack(context, fallback: RoutePaths.boxes),
         ),
       ),
       body: _loading

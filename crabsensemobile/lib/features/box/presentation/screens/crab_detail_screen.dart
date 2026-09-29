@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
 
+import '../../../../core/utils/app_back.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
@@ -444,7 +445,7 @@ class _CrabDetailScreenState extends State<CrabDetailScreen>
           Row(
             children: [
               GestureDetector(
-                onTap: () => context.pop(),
+                onTap: () => appBack(context),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

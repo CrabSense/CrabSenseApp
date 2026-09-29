@@ -696,6 +696,7 @@ Future<void> init() async {
   sl.registerFactory(
     () => HarvestBloc(
       recordHarvest: sl(),
+      api: sl(),
     ),
   );
   sl.registerFactory(

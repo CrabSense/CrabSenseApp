@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routes.dart';
+import '../../../../core/utils/app_back.dart';
+import '../../../../core/providers/selected_farm_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../authentication/domain/entities/user.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
@@ -20,7 +22,7 @@ import '../widgets/box_grid.dart';
 import '../widgets/farm_structure_manage_sheet.dart';
 
 /// Số cột của lưới hộp — dùng chung cho cả lưới và hàm sắp thứ tự đánh số.
-const int _boxGridColumns = 5;
+const int _boxGridColumns = 4;
 
 /// Boxes tab — Farm map view, light theme.
 class BoxesScreen extends ConsumerStatefulWidget {
@@ -567,9 +569,12 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
             sliver: SliverToBoxAdapter(
               child: _FarmHeaderCard(
                 farms: data.availableFarms,
-                selectedFarm: data.availableFarms
-                    .where((f) => f.id == data.selectedFarmId)
-                    .firstOrNull,
+                selectedFarm: () {
+                  final id = ref.read(selectedFarmProvider).id ?? data.selectedFarmId;
+                  return data.availableFarms
+                      .where((f) => f.id == id)
+                      .firstOrNull;
+                }(),
                 totalBoxes: data.overview.total,
                 activeBoxes: occupied,
                 emptyBoxes: data.allBoxes.length - occupied,
@@ -682,10 +687,18 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
   }
 
   Widget _buildContent(BoxesStateData data) {
-    final farms = data.availableFarms;
+    final selectedId = ref.watch(selectedFarmProvider).id ??
+        _selectedFarmId ??
+        data.selectedFarmId ??
+        '';
+    final farms = [
+      if (selectedId.isNotEmpty &&
+          !data.availableFarms.any((f) => f.id == selectedId))
+        FarmAreaOption(id: selectedId, name: data.selectedFarmName),
+      ...data.availableFarms,
+    ];
     final selectedFarm =
-        farms.where((farm) => farm.id == data.selectedFarmId).firstOrNull ??
-        (farms.isNotEmpty ? farms.first : null);
+        farms.where((farm) => farm.id == selectedId).firstOrNull;
     final rowNames =
         data.allBoxes
             .map((box) => box.location.rowName)
@@ -726,13 +739,13 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
             _FarmHeroBanner(
               farms: farms,
               selectedFarm: selectedFarm,
-              onFarmChanged: (id) {
-                _selectedFarmId = id;
-                ref.read(boxesStateProvider.notifier).switchFarm(id);
-              },
+            onFarmChanged: (id) {
+              setState(() => _selectedFarmId = id);
+              ref.read(boxesStateProvider.notifier).switchFarm(id);
+            },
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
               child: _OverviewCard(
                 totalBoxes: allBoxes.length,
                 activeBoxes: occupiedCount,
@@ -744,7 +757,7 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
               child: _OccupancyFilterRow(
                 active: activeFilters,
                 onToggle: (f) =>
@@ -752,7 +765,9 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
               ),
             ),
             const SizedBox(height: 10),
-            Container(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Container(
               height: 38,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
@@ -782,10 +797,11 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
                 ),
               ),
             ),
+            ),
             const SizedBox(height: 10),
 
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Row(
                 children: [
                   Expanded(
@@ -833,14 +849,17 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
                 onCreate: _showStructureActions,
               )
             else if (data.viewMode == BoxesViewMode.list)
-              BoxList(
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: BoxList(
                 boxes: boxes,
                 onBoxTap: _handleBoxTap,
                 onSwipeAction: (box, _) => _handleBoxManage(box),
+              ),
               )
             else
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: _BoxFarmGrid(
                   boxes: applyBoxLayoutOrder(
                     boxes,
@@ -854,7 +873,9 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
 
             const SizedBox(height: 12),
 
-            SizedBox(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: () => context.push(RoutePaths.reports),
@@ -873,6 +894,7 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
                   style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
                 ),
               ),
+            ),
             ),
             const SizedBox(height: 16),
           ],
@@ -1178,23 +1200,7 @@ class _FarmHeroBanner extends StatelessWidget {
               ),
             ),
           ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.white.withValues(alpha: .72),
-                    Colors.transparent,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-            ),
-          ),
-          SafeArea(
-            bottom: false,
-            child: Padding(
+          Padding(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1202,11 +1208,10 @@ class _FarmHeroBanner extends StatelessWidget {
                   Row(
                     children: [
                       IconButton(
-                        onPressed: () => Navigator.maybePop(context),
+                        onPressed: () => appBack(context),
                         icon: const Icon(Icons.arrow_back_rounded),
                         color: kHomePrimaryDark,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
+                        tooltip: 'Quay lại',
                       ),
                       const SizedBox(width: 10),
                       const Expanded(
@@ -1248,7 +1253,6 @@ class _FarmHeroBanner extends StatelessWidget {
                 ],
               ),
             ),
-          ),
         ],
       ),
     );
@@ -1286,7 +1290,7 @@ class _FarmHeaderCard extends StatelessWidget {
   );
 }
 
-class _FarmSelectorDropdown extends StatelessWidget {
+class _FarmSelectorDropdown extends ConsumerWidget {
   const _FarmSelectorDropdown({
     required this.farms,
     required this.selectedFarm,
@@ -1298,7 +1302,43 @@ class _FarmSelectorDropdown extends StatelessWidget {
   final ValueChanged<String> onFarmChanged;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pinned = ref.watch(selectedFarmProvider);
+    final items = <DropdownMenuItem<String>>[];
+    final seen = <String>{};
+    for (final farm in farms) {
+      final id = (farm as dynamic).id as String?;
+      if (id == null || id.isEmpty || !seen.add(id)) continue;
+      final raw = (farm as dynamic).name as String? ?? '';
+      final label = raw.trim().isEmpty ? 'Khu nuôi' : raw.trim();
+      items.add(DropdownMenuItem<String>(
+        value: id,
+        child: Text(label, overflow: TextOverflow.ellipsis),
+      ));
+    }
+    final selectedId = (pinned.id != null && pinned.id!.isNotEmpty)
+        ? pinned.id
+        : selectedFarm?.id as String?;
+    if (selectedId != null &&
+        selectedId.isNotEmpty &&
+        !seen.contains(selectedId)) {
+      final raw = (pinned.name.isNotEmpty
+              ? pinned.name
+              : selectedFarm?.name as String?) ??
+          '';
+      final label = raw.trim().isEmpty ? 'Khu nuôi' : raw.trim();
+      items.insert(
+        0,
+        DropdownMenuItem<String>(
+          value: selectedId,
+          child: Text(label, overflow: TextOverflow.ellipsis),
+        ),
+      );
+      seen.add(selectedId);
+    }
+    final value =
+        selectedId != null && seen.contains(selectedId) ? selectedId : null;
+
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1309,19 +1349,12 @@ class _FarmSelectorDropdown extends StatelessWidget {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
+          key: ValueKey(value),
           isExpanded: true,
-          value: selectedFarm?.id as String?,
+          value: value,
           icon: const Icon(Icons.expand_more_rounded),
           hint: const Text('Chọn khu nuôi'),
-          items: farms.map<DropdownMenuItem<String>>((farm) {
-            return DropdownMenuItem<String>(
-              value: (farm as dynamic).id as String,
-              child: Text(
-                (farm as dynamic).name as String,
-                overflow: TextOverflow.ellipsis,
-              ),
-            );
-          }).toList(),
+          items: items,
           onChanged: (id) {
             if (id != null) onFarmChanged(id);
           },
@@ -1354,15 +1387,15 @@ class _OverviewCard extends StatelessWidget {
         'Tổng',
         totalBoxes,
         kHomePrimaryDark,
-        kHomePrimaryBg,
+        kHomePrimary.withValues(alpha: 0.18),
         BoxQuickFilter.all,
       ),
       (
         Icons.check_circle_rounded,
         BoxStatus.normal.label,
         activeBoxes,
-        kHomePrimaryDark,
-        const Color(0xFFD5F5E3),
+        BoxStatus.normal.color,
+        BoxStatus.normal.color.withValues(alpha: 0.18),
         BoxQuickFilter.occupied,
       ),
       (
@@ -1370,7 +1403,7 @@ class _OverviewCard extends StatelessWidget {
         BoxStatus.watch.label,
         watchBoxes,
         BoxStatus.watch.color,
-        BoxStatus.watch.background,
+        BoxStatus.watch.color.withValues(alpha: 0.18),
         BoxQuickFilter.watch,
       ),
       (
@@ -1378,7 +1411,7 @@ class _OverviewCard extends StatelessWidget {
         BoxStatus.empty.label,
         emptyBoxes,
         BoxStatus.empty.color,
-        BoxStatus.empty.background,
+        BoxStatus.empty.color.withValues(alpha: 0.18),
         BoxQuickFilter.empty,
       ),
     ];
@@ -1425,35 +1458,51 @@ class _StatItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 7),
-      decoration: BoxDecoration(
-        color: tint,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kHomeBorder.withValues(alpha: 0.7)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: color,
-            ),
+    return LayoutBuilder(
+      builder: (context, c) {
+        final u = c.maxWidth;
+        return Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: u * 0.06,
+            vertical: u * 0.08,
           ),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              color: kHomeTextSub,
-              fontWeight: FontWeight.w600,
-            ),
+          decoration: BoxDecoration(
+            color: tint,
+            borderRadius: BorderRadius.circular(u * 0.14),
+            border: Border.all(color: color, width: 1.2),
           ),
-        ],
-      ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: u * 0.22),
+              SizedBox(height: u * 0.02),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: u * 0.2,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                  ),
+                ),
+              ),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: u * 0.11,
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -1470,22 +1519,6 @@ class _BoxFarmGrid extends StatelessWidget {
   final List<BoxSummary> boxes;
   final void Function(BoxSummary) onBoxTap;
   final void Function(BoxSummary)? onBoxLongPress;
-
-  /// Màu ô hộp — lấy thẳng từ [BoxStatus].
-  ///
-  /// `BoxStatus` đã là tình trạng XẤU NHẤT của cua trong hộp (xem
-  /// `boxStatusFromCrabCondition`), nên lưới, chú giải, huy hiệu trạng thái và
-  /// app desktop dùng chung một nguồn màu. Trước đây ô lưới tự parse
-  /// `crabCondition` còn huy hiệu lại đọc `healthStatus` nên hai chỗ lệch nhau.
-  Color _bgColor(BoxSummary box) {
-    if (box.alerts.hasAlerts) return kHomeDangerBg;
-    return box.status.background;
-  }
-
-  Color _borderColor(BoxSummary box) {
-    if (box.alerts.hasAlerts) return kHomeDanger;
-    return box.status.color;
-  }
 
   Color _accentColor(BoxSummary box) {
     if (box.alerts.hasAlerts) return kHomeDanger;
@@ -1504,95 +1537,76 @@ class _BoxFarmGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: _boxGridColumns,
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        childAspectRatio: 1.08,
-      ),
-      itemCount: boxes.length,
-      itemBuilder: (context, i) {
-        final box = boxes[i];
-        final bg = _bgColor(box);
-        final border = _borderColor(box);
-        final accent = _accentColor(box);
-        final occupied = box.crabCount > 0;
-        final label = _boxLabel(box);
-
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => onBoxTap(box),
-            onLongPress: onBoxLongPress == null
-                ? null
-                : () => onBoxLongPress!(box),
-            borderRadius: BorderRadius.circular(16),
-            child: Ink(
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: border, width: 1.2),
-                boxShadow: const [
-                  BoxShadow(
-                    color: kHomeShadow,
-                    blurRadius: 8,
-                    offset: Offset(0, 3),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final gap = w * 0.028;
+        const cols = _boxGridColumns;
+        final cell = (w - gap * (cols - 1)) / cols;
+        final icon = cell * 0.4;
+        final font = cell * 0.15;
+        final radius = cell * 0.18;
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: cols,
+            mainAxisSpacing: gap,
+            crossAxisSpacing: gap,
+            childAspectRatio: 1,
+          ),
+          itemCount: boxes.length,
+          itemBuilder: (context, i) {
+            final box = boxes[i];
+            final color = _accentColor(box);
+            final occupied = box.crabCount > 0;
+            final label = _boxLabel(box);
+            return Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => onBoxTap(box),
+                onLongPress: onBoxLongPress == null
+                    ? null
+                    : () => onBoxLongPress!(box),
+                borderRadius: BorderRadius.circular(radius),
+                child: Ink(
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(radius),
+                    border: Border.all(color: color, width: 1.2),
                   ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (occupied)
-                      Image.asset(
-                        'assets/images/iocn-crab-normal.png',
-                        width: 26,
-                        height: 26,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) =>
-                            Icon(Icons.pets_rounded, size: 26, color: accent),
-                      )
-                    else
-                      Image.asset(
-                        'assets/images/icon-box-empty.png',
-                        width: 26,
-                        height: 26,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => Icon(
-                          Icons.crop_square_rounded,
-                          size: 28,
-                          color: accent,
+                  child: Padding(
+                    padding: EdgeInsets.all(cell * 0.06),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _StatusGlyph(
+                          occupied: occupied,
+                          color: color,
+                          size: icon,
                         ),
-                      ),
-                    const SizedBox(height: 4),
-                    // Mã hộp dài nhất 12 ký tự ("BOX-0001" … "BOX-abcdef12") mà ô
-                    // chỉ rộng ~72px, nên ellipsis cũ cắt mất đúng phần số phân
-                    // biệt hộp: cả lưới hiện "BOX-00…" giống hệt nhau. Thu nhỏ
-                    // vừa ô thay vì cắt, để luôn đọc được hộp nào là hộp nào.
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        softWrap: false,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: accent,
+                        SizedBox(height: cell * 0.05),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            softWrap: false,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: font,
+                              fontWeight: FontWeight.w800,
+                              color: color,
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -1600,6 +1614,40 @@ class _BoxFarmGrid extends StatelessWidget {
 }
 
 // ─── Compact status legend (inline) ───────────────────────────────────────────
+
+class _StatusGlyph extends StatelessWidget {
+  const _StatusGlyph({
+    required this.occupied,
+    required this.color,
+    required this.size,
+  });
+
+  final bool occupied;
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!occupied) {
+      return Icon(Icons.inventory_2_rounded, size: size * 0.9, color: color);
+    }
+    // Web HTML không giữ alpha PNG vàng/tím — dùng cua xanh làm mask.
+    return Image.asset(
+      'assets/images/iocn-crab-normal.png',
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
+      color: color,
+      colorBlendMode: BlendMode.srcIn,
+      filterQuality: FilterQuality.medium,
+      errorBuilder: (_, __, ___) => Icon(
+        Icons.pets_rounded,
+        size: size,
+        color: color,
+      ),
+    );
+  }
+}
 
 class _OccupancyFilterRow extends StatelessWidget {
   const _OccupancyFilterRow({required this.active, required this.onToggle});
@@ -1617,42 +1665,47 @@ class _OccupancyFilterRow extends StatelessWidget {
       BoxQuickFilter.molting,
       BoxQuickFilter.alert,
     ];
-    return Wrap(
-      alignment: WrapAlignment.start,
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final f in filters)
-          FilterChip(
-            selected:
-                active.contains(f) ||
-                (f == BoxQuickFilter.all &&
-                    active.length == 1 &&
-                    active.contains(BoxQuickFilter.all)),
-            label: Text(f.label),
-            onSelected: (_) => onToggle(f),
-            selectedColor: _filterColor(f).withValues(alpha: 0.16),
-            checkmarkColor: _filterColor(f),
-            labelStyle: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-              color:
-                  active.contains(f) ||
-                      (f == BoxQuickFilter.all &&
-                          active.contains(BoxQuickFilter.all))
-                  ? _filterColor(f)
-                  : kHomeTextSub,
-            ),
-            side: BorderSide(
-              color: active.contains(f) ? _filterColor(f) : kHomeBorder,
-            ),
-            backgroundColor: _filterColor(f).withValues(alpha: 0.06),
-            shape: RoundedRectangleBorder(
+    Widget cell(BoxQuickFilter f) {
+      final selected =
+          active.contains(f) ||
+          (f == BoxQuickFilter.all &&
+              active.length == 1 &&
+              active.contains(BoxQuickFilter.all));
+      final fg = _filterColor(f);
+      return Padding(
+        padding: const EdgeInsets.all(4),
+        child: GestureDetector(
+          onTap: () => onToggle(f),
+          child: Container(
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: fg.withValues(alpha: selected ? 0.22 : 0.12),
               borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: fg, width: 1.2),
             ),
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            child: Text(
+              f.label,
+              maxLines: 1,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+                height: 1,
+                color: fg,
+              ),
+            ),
           ),
+        ),
+      );
+    }
+
+    return Table(
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      children: [
+        TableRow(children: [for (final f in filters.take(3)) cell(f)]),
+        TableRow(children: [for (final f in filters.skip(3)) cell(f)]),
       ],
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:crabsensemobile/core/platform/io_export.dart';
 
 import 'package:flutter/material.dart';
@@ -9,6 +11,8 @@ import 'package:intl/intl.dart';
 import '../../../../shared/widgets/local_file_image.dart';
 import '../../../../app/theme.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/constants/api_constants.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../authentication/domain/entities/user.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
@@ -29,6 +33,11 @@ class HarvestScreen extends StatelessWidget {
   const HarvestScreen({
     this.initialBoxId,
     this.initialFarmId,
+    this.initialCrabId,
+    this.initialBoxGuid,
+    this.initialWeightBefore,
+    this.initialLengthBefore,
+    this.initialWidthBefore,
     this.operatorId,
     this.operatorName,
     this.userRole,
@@ -40,6 +49,12 @@ class HarvestScreen extends StatelessWidget {
 
   /// Optional farm ID to pre-fill.
   final String? initialFarmId;
+
+  final String? initialCrabId;
+  final String? initialBoxGuid;
+  final double? initialWeightBefore;
+  final double? initialLengthBefore;
+  final double? initialWidthBefore;
 
   /// Operator ID (if null, resolved from AuthBloc).
   final String? operatorId;
@@ -68,8 +83,20 @@ class HarvestScreen extends StatelessWidget {
     }
 
     return BlocProvider<HarvestBloc>(
-      create: (_) => sl<HarvestBloc>()
-        ..add(LoadHarvestForm(boxId: initialBoxId, farmId: initialFarmId)),
+      create: (_) {
+        final bloc = sl<HarvestBloc>()
+          ..add(LoadHarvestForm(
+            boxId: initialBoxId,
+            farmId: initialFarmId,
+            crabId: initialCrabId,
+            boxGuid: initialBoxGuid,
+            weightBefore: initialWeightBefore,
+            lengthBefore: initialLengthBefore,
+            widthBefore: initialWidthBefore,
+          ));
+        _resolveFarmCode(bloc, initialFarmId, initialBoxId);
+        return bloc;
+      },
       child: _HarvestView(
         operatorId: resolvedOpId,
         operatorName: resolvedOpName,
@@ -77,6 +104,58 @@ class HarvestScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _resolveFarmCode(
+  HarvestBloc bloc,
+  String? farmId,
+  String? boxId,
+) async {
+  try {
+    final api = sl<ApiClient>();
+    var farm = (farmId ?? '').trim();
+    final uuid = RegExp(
+      r'^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$',
+    );
+    final emptyGuid = farm.replaceAll('0', '').replaceAll('-', '').isEmpty;
+    if ((farm.isEmpty || emptyGuid) &&
+        boxId != null &&
+        uuid.hasMatch(boxId)) {
+      final res = await api.get<dynamic>(ApiConstants.boxDetails(boxId));
+      final decoded = jsonDecode(jsonEncode(res.data));
+      dynamic raw = decoded;
+      if (decoded is Map) {
+        raw = decoded['data'] ?? decoded['Data'] ?? decoded;
+      }
+      if (raw is Map) {
+        farm = (raw['farmId'] ??
+                raw['FarmId'] ??
+                raw['farmingAreaId'] ??
+                raw['FarmingAreaId'] ??
+                '')
+            .toString()
+            .trim();
+      }
+    }
+    if (!uuid.hasMatch(farm) || farm.replaceAll('0', '').replaceAll('-', '').isEmpty) {
+      if (farm.isNotEmpty) {
+        bloc.add(HarvestFarmIdChanged(farmId: farm));
+      }
+      return;
+    }
+    final res = await api.get<dynamic>(ApiConstants.farmDetails(farm));
+    final decoded = jsonDecode(jsonEncode(res.data));
+    dynamic raw = decoded;
+    if (decoded is Map) raw = decoded['data'] ?? decoded['Data'] ?? decoded;
+    if (raw is Map) {
+      final code = (raw['code'] ?? raw['Code'])?.toString().trim();
+      final name = (raw['name'] ?? raw['Name'])?.toString().trim();
+      farm = (code != null && code.isNotEmpty) ? code : (name ?? farm);
+    }
+    if (farm.isNotEmpty) {
+      bloc.add(HarvestFarmIdChanged(farmId: farm));
+    }
+  } catch (_) {}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -165,7 +244,7 @@ class _HarvestView extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             const Text(
-              'GHI NHẬN THU HOẠCH',
+              'GHI NHẬN LỘT / THU HOẠCH',
               style: TextStyle(
                 color: kHomePrimaryDark,
                 fontWeight: FontWeight.w800,
@@ -181,9 +260,13 @@ class _HarvestView extends StatelessWidget {
         listener: (context, state) {
           if (state is HarvestFormState) {
             if (state.isSubmitted) {
-              final message = state.isOffline
-                  ? 'Đã lưu thu hoạch ngoại tuyến, sẽ đồng bộ khi có mạng.'
-                  : 'Đã ghi nhận thu hoạch thành công!';
+              final message = state.keepRaising
+                  ? (state.isOffline
+                      ? 'Đã lưu nuôi tiếp ngoại tuyến.'
+                      : 'Đã ghi nhận lột — cua ở lại hộp nuôi tiếp.')
+                  : (state.isOffline
+                      ? 'Đã lưu thu hoạch ngoại tuyến, sẽ đồng bộ khi có mạng.'
+                      : 'Đã ghi nhận thu hoạch thành công!');
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(message),
@@ -231,13 +314,21 @@ class _HarvestView extends StatelessWidget {
                     _buildSectionHeader('HỘP & VỊ TRÍ'),
                     const SizedBox(height: 8),
                     _buildBoxAndFarmInputs(context, state),
+                    if (_beforeLabel(state) != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        _beforeLabel(state)!,
+                        style: const TextStyle(
+                          color: CrabSenseColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 20),
 
-                    _buildSectionHeader('CHỈ SỐ THU HOẠCH'),
+                    _buildSectionHeader('CHỈ SỐ SAU LỘT (1 CON)'),
                     const SizedBox(height: 8),
                     _buildMetricsInputs(context, state),
-                    const SizedBox(height: 12),
-                    _buildAverageWeightCard(state),
                     const SizedBox(height: 20),
 
                     _buildSectionHeader('ĐÁNH GIÁ CHẤT LƯỢNG'),
@@ -258,7 +349,12 @@ class _HarvestView extends StatelessWidget {
                     _buildSectionHeader('GHI CHÚ & QUAN SÁT'),
                     const SizedBox(height: 8),
                     _buildNotesInput(context, state),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 20),
+
+                    _buildSectionHeader('SAU LỘT'),
+                    const SizedBox(height: 8),
+                    _buildOutcomeSelector(context, state),
+                    const SizedBox(height: 16),
 
                     _SubmitButton(
                       state: state,
@@ -275,6 +371,19 @@ class _HarvestView extends StatelessWidget {
         },
       ),
     );
+  }
+
+  String? _beforeLabel(HarvestFormState state) {
+    final parts = <String>[
+      if (state.weightBefore != null && state.weightBefore! > 0)
+        '${state.weightBefore!.toStringAsFixed(1)} g',
+      if (state.lengthBefore != null && state.lengthBefore! > 0)
+        'dài ${state.lengthBefore!.toStringAsFixed(1)} mm',
+      if (state.widthBefore != null && state.widthBefore! > 0)
+        'rộng ${state.widthBefore!.toStringAsFixed(1)} mm',
+    ];
+    if (parts.isEmpty) return null;
+    return 'Trước lột: ${parts.join(' · ')}';
   }
 
   Widget _buildSectionHeader(String title) {
@@ -306,60 +415,151 @@ class _HarvestView extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         TextFormField(
+          key: ValueKey('farm-${state.farmId}'),
           initialValue: state.farmId,
+          readOnly: true,
           style: const TextStyle(color: CrabSenseColors.textPrimary),
           decoration: _fieldDecoration(
             label: 'Mã trang trại',
-            hint: 'VD: FARM-01',
+            hint: state.farmId.isEmpty ? 'Đang lấy từ hộp…' : null,
             prefixIcon: const Icon(Icons.agriculture_rounded, color: kHomeBlueLight),
           ),
-          onChanged: (val) =>
-              context.read<HarvestBloc>().add(HarvestFarmIdChanged(farmId: val)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOutcomeSelector(BuildContext context, HarvestFormState state) {
+    Widget chip({
+      required bool selected,
+      required String title,
+      required String subtitle,
+      required VoidCallback onTap,
+    }) {
+      return Expanded(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+            decoration: BoxDecoration(
+              color: selected
+                  ? kHomeBlue.withValues(alpha: 0.18)
+                  : kHomeBg.withValues(alpha: 0.75),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selected
+                    ? kHomeBlue.withValues(alpha: 0.9)
+                    : kHomeBorderBlue.withValues(alpha: 0.4),
+                width: selected ? 1.5 : 1,
+              ),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: kHomePrimaryDark,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: CrabSenseColors.textSecondary,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        chip(
+          selected: state.keepRaising,
+          title: 'Nuôi tiếp',
+          subtitle: 'Cua ở lại hộp',
+          onTap: () => context.read<HarvestBloc>().add(
+            const HarvestKeepRaisingChanged(keepRaising: true),
+          ),
+        ),
+        const SizedBox(width: 8),
+        chip(
+          selected: !state.keepRaising,
+          title: 'Thu hoạch',
+          subtitle: 'Xuất khỏi hộp',
+          onTap: () => context.read<HarvestBloc>().add(
+            const HarvestKeepRaisingChanged(keepRaising: false),
+          ),
         ),
       ],
     );
   }
 
   Widget _buildMetricsInputs(BuildContext context, HarvestFormState state) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
       children: [
-        Expanded(
-          child: TextFormField(
-            initialValue: state.totalWeightText,
-            style: const TextStyle(color: CrabSenseColors.textPrimary),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-            ],
-            decoration: _fieldDecoration(
-              label: 'Tổng khối lượng *',
-              hint: '0.00',
-              suffixText: 'kg',
-              errorText: state.weightError,
-              prefixIcon: const Icon(Icons.scale_rounded, color: kHomeBlueLight),
-            ),
-            onChanged: (val) =>
-                context.read<HarvestBloc>().add(HarvestWeightChanged(weightText: val)),
+        TextFormField(
+          initialValue: state.totalWeightText,
+          style: const TextStyle(color: CrabSenseColors.textPrimary),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+          ],
+          decoration: _fieldDecoration(
+            label: 'Cân nặng sau lột *',
+            hint: 'VD: 220',
+            suffixText: 'g',
+            errorText: state.weightError,
+            prefixIcon: const Icon(Icons.scale_rounded, color: kHomeBlueLight),
           ),
+          onChanged: (val) {
+            context.read<HarvestBloc>().add(HarvestWeightChanged(weightText: val));
+            context.read<HarvestBloc>().add(
+              const HarvestCrabCountChanged(crabCountText: '1'),
+            );
+          },
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: TextFormField(
-            initialValue: state.crabCountText,
-            style: const TextStyle(color: CrabSenseColors.textPrimary),
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: _fieldDecoration(
-              label: 'Số cua *',
-              hint: '0',
-              suffixText: 'con',
-              errorText: state.crabCountError,
-              prefixIcon: const Icon(Icons.format_list_numbered_rounded, color: kHomeBlueLight),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                decoration: _fieldDecoration(
+                  label: 'Dài mai sau lột',
+                  hint: 'mm',
+                  suffixText: 'mm',
+                  prefixIcon: const Icon(Icons.straighten_rounded, color: kHomeBlueLight),
+                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (val) => context.read<HarvestBloc>().add(
+                  HarvestLengthChanged(lengthText: val),
+                ),
+              ),
             ),
-            onChanged: (val) =>
-                context.read<HarvestBloc>().add(HarvestCrabCountChanged(crabCountText: val)),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextFormField(
+                decoration: _fieldDecoration(
+                  label: 'Rộng mai sau lột',
+                  hint: 'mm',
+                  suffixText: 'mm',
+                  prefixIcon: const Icon(Icons.swap_horiz_rounded, color: kHomeBlueLight),
+                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (val) => context.read<HarvestBloc>().add(
+                  HarvestWidthChanged(widthText: val),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -846,8 +1046,8 @@ class _SubmitButton extends StatelessWidget {
                   strokeWidth: 2.5,
                 ),
               )
-            : const Text(
-                'Ghi nhận thu hoạch',
+            : Text(
+                state.keepRaising ? 'Ghi nhận nuôi tiếp' : 'Ghi nhận thu hoạch',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,

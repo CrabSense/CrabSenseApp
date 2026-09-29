@@ -140,9 +140,22 @@ class AlertsNotifier extends StateNotifier<AsyncValue<AlertsStateData>> {
         canViewFullHistory: _permissions.canViewFullHistory,
         canMarkAllRead: _permissions.canMarkAllRead,
       );
-      state = AsyncValue.data(data.copyWith(isRefreshing: false));
-      await _ref.read(selectedFarmProvider.notifier).select(
-            data.selectedFarmId,
+      final lockId = sharedId ?? current?.selectedFarmId;
+      state = AsyncValue.data(
+        data.copyWith(
+          isRefreshing: false,
+          selectedFarmId: (lockId != null && lockId.isNotEmpty)
+              ? lockId
+              : data.selectedFarmId,
+          selectedFarmName: (lockId != null &&
+                  lockId.isNotEmpty &&
+                  lockId != data.selectedFarmId)
+              ? (current?.selectedFarmName ?? data.selectedFarmName)
+              : data.selectedFarmName,
+        ),
+      );
+      await _ref.read(selectedFarmProvider.notifier).syncFromLoaded(
+            id: lockId ?? data.selectedFarmId,
             name: data.selectedFarmName,
           );
     } catch (error, stackTrace) {
@@ -191,6 +204,8 @@ class AlertsNotifier extends StateNotifier<AsyncValue<AlertsStateData>> {
       final updated = await _repository.switchFarm(farmId);
       state = AsyncValue.data(
         updated.copyWith(
+          selectedFarmId: farmId,
+          selectedFarmName: farmName ?? updated.selectedFarmName,
           canAcknowledge: _permissions.canAcknowledge,
           canResolve: _permissions.canResolve,
           canAssign: _permissions.canAssign,
@@ -201,11 +216,17 @@ class AlertsNotifier extends StateNotifier<AsyncValue<AlertsStateData>> {
         ),
       );
       await _ref.read(selectedFarmProvider.notifier).select(
-            updated.selectedFarmId,
-            name: updated.selectedFarmName,
+            farmId,
+            name: farmName ?? updated.selectedFarmName,
           );
     } catch (_) {
-      state = AsyncValue.data(current.copyWith(isRefreshing: false));
+      state = AsyncValue.data(
+        current.copyWith(
+          selectedFarmId: farmId,
+          selectedFarmName: farmName ?? current.selectedFarmName,
+          isRefreshing: false,
+        ),
+      );
     }
   }
 

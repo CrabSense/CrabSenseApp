@@ -282,11 +282,14 @@ class BoxesRepositoryImpl implements BoxesRepository {
 
     try {
       await _loadLayoutOrder();
-      final farms = await _fetchFarms();
+      var farms = await _fetchFarms();
       final selected = _resolveFarm(
         farms,
         farmingAreaId ?? _cached?.selectedFarmId,
       );
+      if (selected != null && !farms.any((f) => f.id == selected.id)) {
+        farms = [selected, ...farms];
+      }
       final areaId = selected?.id;
 
       final overview = await _fetchOverview(areaId);
@@ -294,10 +297,17 @@ class BoxesRepositoryImpl implements BoxesRepository {
       final areas =
           boxes.map((b) => b.location.areaName).toSet().toList()..sort();
 
+      final lockedId = (farmingAreaId != null && farmingAreaId.isNotEmpty)
+          ? farmingAreaId
+          : selected?.id;
+      final lockedName = selected?.name ??
+          overview.farmName ??
+          _cached?.selectedFarmName ??
+          'Chưa có trang trại';
+
       final base = BoxesStateData(
-        selectedFarmId: selected?.id ?? overview.farmingAreaId,
-        selectedFarmName:
-            selected?.name ?? overview.farmName ?? 'Chưa có trang trại',
+        selectedFarmId: lockedId ?? overview.farmingAreaId,
+        selectedFarmName: lockedName,
         availableFarms: farms,
         availableAreas: areas,
         allBoxes: boxes,
@@ -328,6 +338,13 @@ class BoxesRepositoryImpl implements BoxesRepository {
       _cached = filtered;
       return filtered;
     } catch (e) {
+      // Đổi khu: đừng trả cache khu cũ — UI sẽ nhảy về khu trước và tưởng dropdown hỏng.
+      if (forceRefresh &&
+          farmingAreaId != null &&
+          farmingAreaId.isNotEmpty &&
+          farmingAreaId != _cached?.selectedFarmId) {
+        rethrow;
+      }
       if (_cached != null) {
         final offline = _cached!.copyWith(
           isOnline: false,
@@ -537,12 +554,23 @@ class BoxesRepositoryImpl implements BoxesRepository {
   }
 
   FarmAreaOption? _resolveFarm(List<FarmAreaOption> farms, String? preferredId) {
-    if (farms.isEmpty) return null;
-    if (preferredId != null) {
+    if (preferredId != null && preferredId.isNotEmpty) {
       for (final f in farms) {
-        if (f.id == preferredId) return f;
+        if (f.id.toLowerCase() == preferredId.toLowerCase()) return f;
       }
+      final knownName = _cached?.availableFarms
+              .where((f) => f.id == preferredId)
+              .map((f) => f.name)
+              .firstOrNull ??
+          (_cached?.selectedFarmId == preferredId
+              ? _cached!.selectedFarmName
+              : null);
+      return FarmAreaOption(
+        id: preferredId,
+        name: (knownName != null && knownName.isNotEmpty) ? knownName : 'Khu nuôi',
+      );
     }
+    if (farms.isEmpty) return null;
     return farms.first;
   }
 
@@ -555,13 +583,19 @@ class BoxesRepositoryImpl implements BoxesRepository {
       final list = _extractList(res.data);
       if (list != null) {
         final farms = <FarmAreaOption>[];
+        final seen = <String>{};
         for (final item in list) {
           final map = _asMap(item);
           if (map == null) continue;
-          final id = map['id']?.toString();
-          final name = map['name']?.toString() ?? map['code']?.toString();
-          if (id == null || name == null) continue;
-          farms.add(FarmAreaOption(id: id, name: name));
+          final id = map['id']?.toString().trim() ?? '';
+          if (id.isEmpty || !seen.add(id)) continue;
+          final name = (map['name'] ?? map['code'] ?? map['areaName'])
+              ?.toString()
+              .trim();
+          farms.add(FarmAreaOption(
+            id: id,
+            name: (name == null || name.isEmpty) ? 'Khu nuôi' : name,
+          ));
         }
         return farms;
       }

@@ -33,8 +33,8 @@ void main() {
     });
   });
 
-  group('màu — khớp app desktop', () {
-    test('mã màu đúng DashboardColors của desktop', () {
+  group('màu — 5 trạng thái tách rõ trên lưới', () {
+    test('mã màu đậm hơn pastel cũ', () {
       expect(BoxStatus.normal.color, const Color(0xFF22C55E));
       expect(BoxStatus.watch.color, const Color(0xFFEAB308));
       expect(BoxStatus.molting.color, const Color(0xFFA78BFA));

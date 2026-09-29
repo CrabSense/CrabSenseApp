@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../../core/utils/app_back.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
 
@@ -381,7 +382,7 @@ class _AddCrabScreenState extends State<AddCrabScreen> {
               if (_step > 0) {
                 setState(() => _step--);
               } else {
-                Navigator.maybePop(context);
+                appBack(context);
               }
             },
           ),

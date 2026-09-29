@@ -8,6 +8,7 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
+import '../../data/datasources/box_remote_data_source.dart';
 
 /// Real-data history shown inside the box details history tab.
 class BoxHistorySections extends StatefulWidget {
@@ -24,6 +25,8 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
   String? _error;
   List<_FeedingRecord> _feeding = const [];
   List<_HistoryEvent> _events = const [];
+  List<_GrowthMolt> _growth = const [];
+  List<_GrowthPoint> _weights = const [];
 
   @override
   void initState() {
@@ -50,10 +53,34 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
               responses[1].data,
             ).map(_parseEvent).whereType<_HistoryEvent>().toList()
             ..sort((a, b) => b.at.compareTo(a.at));
+      var growth = <_GrowthMolt>[];
+      var weights = <_GrowthPoint>[];
+      try {
+        final crabs = await sl<BoxRemoteDataSource>().getCrabsByBox(widget.boxId);
+        if (crabs.isNotEmpty) {
+          final crabId = crabs.first.id;
+          final extra = await Future.wait<dynamic>([
+            api.get<dynamic>(ApiConstants.crabMoltings(crabId)),
+            api.get<dynamic>(ApiConstants.crabWeights(crabId)),
+          ]);
+          growth = _asList(extra[0].data)
+              .map(_parseGrowth)
+              .whereType<_GrowthMolt>()
+              .toList()
+            ..sort((a, b) => b.at.compareTo(a.at));
+          weights = _asList(extra[1].data)
+              .map(_parseWeight)
+              .whereType<_GrowthPoint>()
+              .toList()
+            ..sort((a, b) => a.at.compareTo(b.at));
+        }
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
         _feeding = feeding;
         _events = events;
+        _growth = growth;
+        _weights = weights;
         _loading = false;
       });
     } catch (error) {
@@ -63,6 +90,34 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
         _loading = false;
       });
     }
+  }
+
+  static DateTime get _windowStart {
+    final n = DateTime.now();
+    return DateTime(n.year, n.month, n.day).subtract(const Duration(days: 6));
+  }
+
+  static List<_FeedingRecord> _last7(List<_FeedingRecord> all) =>
+      all.where((r) => !r.at.isBefore(_windowStart)).toList();
+
+  /// Một điểm / ngày trong 7 ngày — trục ngang đọc được, không chồng 29/09.
+  static List<_FeedingRecord> _onePerDayLast7(List<_FeedingRecord> all) {
+    final now = DateTime.now();
+    final out = <_FeedingRecord>[];
+    for (var i = 6; i >= 0; i--) {
+      final d = DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
+      final ofDay = all
+          .where(
+            (e) =>
+                e.at.year == d.year &&
+                e.at.month == d.month &&
+                e.at.day == d.day,
+          )
+          .toList()
+        ..sort((a, b) => a.at.compareTo(b.at));
+      if (ofDay.isNotEmpty) out.add(ofDay.last);
+    }
+    return out;
   }
 
   static List<dynamic> _asList(dynamic raw) {
@@ -104,15 +159,18 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
     if (at == null) return null;
     final notes = (raw['notes'] ?? raw['Notes'] ?? '').toString();
     final quantity = raw['quantity'] ?? raw['Quantity'];
+    final grams = quantity is num
+        ? quantity.toDouble()
+        : double.tryParse(quantity?.toString() ?? '') ??
+              _number(_line(notes, 'Lượng:')) ??
+              _number(_line(notes, 'Bao nhiêu gam')) ??
+              _gramsFromNotes(notes);
     return _FeedingRecord(
       at: at,
       foodType: _foodType(
         _value(raw, 'foodType', 'FoodType') ?? _line(notes, 'Thức ăn:'),
       ),
-      grams: quantity is num
-          ? quantity.toDouble()
-          : double.tryParse(quantity?.toString() ?? '') ??
-                _number(_line(notes, 'Lượng:')),
+      grams: grams != null && grams > 0 ? grams : null,
       appetite: _appetite(
         _value(raw, 'appetite', 'Appetite') ??
             _line(notes, 'Mức ăn:') ??
@@ -145,6 +203,46 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
     );
   }
 
+  static _GrowthMolt? _parseGrowth(dynamic raw) {
+    if (raw is! Map) return null;
+    final at = DateTime.tryParse(
+      (raw['moltTime'] ?? raw['MoltTime'] ?? raw['createdAt'] ?? '').toString(),
+    )?.toLocal();
+    if (at == null) return null;
+    return _GrowthMolt(
+      at: at,
+      weightBefore: _asNum(raw['weightBeforeGram'] ?? raw['WeightBeforeGram']),
+      weightAfter: _asNum(raw['weightAfterGram'] ?? raw['WeightAfterGram']),
+      lengthBefore:
+          _asNum(raw['shellLengthBeforeMm'] ?? raw['ShellLengthBeforeMm']),
+      lengthAfter:
+          _asNum(raw['shellLengthAfterMm'] ?? raw['ShellLengthAfterMm']),
+      widthBefore:
+          _asNum(raw['shellWidthBeforeMm'] ?? raw['ShellWidthBeforeMm']),
+      widthAfter: _asNum(raw['shellWidthAfterMm'] ?? raw['ShellWidthAfterMm']),
+    );
+  }
+
+  static _GrowthPoint? _parseWeight(dynamic raw) {
+    if (raw is! Map) return null;
+    final at = DateTime.tryParse(
+      (raw['measuredAt'] ?? raw['MeasuredAt'] ?? '').toString(),
+    )?.toLocal();
+    final grams = _asNum(raw['weightGram'] ?? raw['WeightGram']);
+    if (at == null || grams == null) return null;
+    return _GrowthPoint(
+      at: at,
+      grams: grams,
+      length: _asNum(raw['carapaceLengthMm'] ?? raw['CarapaceLengthMm']),
+      width: _asNum(raw['carapaceWidthMm'] ?? raw['CarapaceWidthMm']),
+    );
+  }
+
+  static double? _asNum(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '');
+  }
+
   static String? _eventTitle(String kind, Map raw) {
     final value = kind.toLowerCase();
     if (value.contains('stock') ||
@@ -172,6 +270,15 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
     final value = raw[first] ?? raw[second];
     final text = value?.toString().trim();
     return text == null || text.isEmpty ? null : text;
+  }
+
+  static double? _gramsFromNotes(String notes) {
+    final match = RegExp(
+      r'(\d+(?:[.,]\d+)?)\s*g\b',
+      caseSensitive: false,
+    ).firstMatch(notes);
+    if (match == null) return null;
+    return double.tryParse(match.group(1)!.replaceAll(',', '.'));
   }
 
   static String? _line(String notes, String prefix) {
@@ -274,13 +381,26 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _FeedingSummary(records: _feeding),
+                    _FeedingSummary(records: _last7(_feeding)),
                     const SizedBox(height: 14),
-                    _FeedingChart(records: _feeding),
+                    _FeedingChart(records: _onePerDayLast7(_feeding)),
                     const SizedBox(height: 14),
-                    _ActivityChart(records: _feeding),
+                    _ActivityChart(records: _onePerDayLast7(_feeding)),
                   ],
                 ),
+        ),
+        const SizedBox(height: 12),
+        _HistoryCard(
+          title: 'Tăng trưởng',
+          icon: Icons.show_chart_rounded,
+          child: _loading
+              ? const _HistoryLoading()
+              : _growth.isEmpty && _weights.isEmpty
+              ? const _EmptyHistory(
+                  'Đây là cân nặng và kích thước cua (sau lột hoặc cân tay). '
+                  'Hộp này chưa ghi lần cân / phiếu lột nên chưa có số.',
+                )
+              : _GrowthSection(molts: _growth, weights: _weights),
         ),
         const SizedBox(height: 12),
         _HistoryCard(
@@ -302,6 +422,162 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
           ),
       ],
     );
+  }
+}
+
+class _GrowthMolt {
+  const _GrowthMolt({
+    required this.at,
+    this.weightBefore,
+    this.weightAfter,
+    this.lengthBefore,
+    this.lengthAfter,
+    this.widthBefore,
+    this.widthAfter,
+  });
+  final DateTime at;
+  final double? weightBefore;
+  final double? weightAfter;
+  final double? lengthBefore;
+  final double? lengthAfter;
+  final double? widthBefore;
+  final double? widthAfter;
+}
+
+class _GrowthPoint {
+  const _GrowthPoint({
+    required this.at,
+    required this.grams,
+    this.length,
+    this.width,
+  });
+  final DateTime at;
+  final double grams;
+  final double? length;
+  final double? width;
+}
+
+class _GrowthSection extends StatelessWidget {
+  const _GrowthSection({required this.molts, required this.weights});
+  final List<_GrowthMolt> molts;
+  final List<_GrowthPoint> weights;
+
+  @override
+  Widget build(BuildContext context) {
+    final points = weights.isNotEmpty
+        ? weights
+        : [
+            for (final molt in [...molts]..sort((a, b) => a.at.compareTo(b.at)))
+              if (molt.weightAfter != null)
+                _GrowthPoint(
+                  at: molt.at,
+                  grams: molt.weightAfter!,
+                  length: molt.lengthAfter,
+                  width: molt.widthAfter,
+                ),
+          ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (points.length >= 2) ...[
+          const Text(
+            'Khối lượng theo lần đo',
+            style: TextStyle(
+              color: kHomeTextMain,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 140,
+            child: LineChart(
+              LineChartData(
+                minY: 0,
+                borderData: FlBorderData(show: false),
+                gridData: FlGridData(
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (_) =>
+                      FlLine(color: kHomeBorder, strokeWidth: 1),
+                ),
+                titlesData: FlTitlesData(
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: true, reservedSize: 36),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: points.length > 6
+                          ? (points.length / 4).ceilToDouble()
+                          : 1,
+                      getTitlesWidget: (value, _) {
+                        final i = value.toInt();
+                        if (i < 0 || i >= points.length) {
+                          return const SizedBox.shrink();
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            DateFormat('dd/MM').format(points[i].at),
+                            style: const TextStyle(
+                              fontSize: 9,
+                              color: kHomeTextSub,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: [
+                      for (var i = 0; i < points.length; i++)
+                        FlSpot(i.toDouble(), points[i].grams),
+                    ],
+                    isCurved: true,
+                    color: kHomePrimary,
+                    barWidth: 3,
+                    dotData: const FlDotData(show: true),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        for (final molt in molts)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              '${DateFormat('dd/MM HH:mm').format(molt.at)}  '
+              '${_pair(molt.weightBefore, molt.weightAfter, 'g')}  '
+              '${_pair(molt.lengthBefore, molt.lengthAfter, 'mm dài')}  '
+              '${_pair(molt.widthBefore, molt.widthAfter, 'mm rộng')}',
+              style: const TextStyle(
+                color: kHomeTextMain,
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  static String _pair(double? before, double? after, String unit) {
+    if (before == null && after == null) return '';
+    final a = after == null ? '—' : after.toStringAsFixed(after % 1 == 0 ? 0 : 1);
+    if (before == null) return '$a $unit';
+    final b = before.toStringAsFixed(before % 1 == 0 ? 0 : 1);
+    final delta = after == null ? '' : ' (${after - before >= 0 ? '+' : ''}${(after - before).toStringAsFixed(1)})';
+    return '$b → $a $unit$delta';
   }
 }
 
@@ -401,7 +677,7 @@ class _FeedingSummary extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Tổng lượng thức ăn',
+              'Tổng lượng thức ăn (7 ngày)',
               style: const TextStyle(
                 color: kHomeTextSub,
                 fontSize: 12,
@@ -427,27 +703,54 @@ class _FeedingChart extends StatelessWidget {
   const _FeedingChart({required this.records});
   final List<_FeedingRecord> records;
 
+  static double? _appetiteScore(String? appetite) {
+    final text = (appetite ?? '').toLowerCase();
+    if (text.contains('không')) return 0;
+    if (text.contains('ít') || text.contains('little')) return 1;
+    if (text.contains('nhiều') || text.contains('many')) return 3;
+    if (text.isEmpty) return null;
+    return 2;
+  }
+
+  static String _appetiteLabel(double score) => switch (score.round()) {
+        0 => 'Không ăn',
+        1 => 'Ít',
+        2 => 'Vừa',
+        3 => 'Nhiều',
+        _ => '',
+      };
+
   @override
   Widget build(BuildContext context) {
-    final dated = records.where((record) => record.grams != null).toList()
-      ..sort((a, b) => a.at.compareTo(b.at));
+    final byTime = [...records]..sort((a, b) => a.at.compareTo(b.at));
+    final gramDated = byTime.where((r) => r.grams != null).toList();
+    final appetiteDated =
+        byTime.where((r) => _appetiteScore(r.appetite) != null).toList();
+    final useGrams = gramDated.isNotEmpty && appetiteDated.isEmpty;
+    final dated = useGrams ? gramDated : appetiteDated;
     if (dated.isEmpty) {
-      return const _EmptyHistory('Chưa có khối lượng thức ăn để vẽ biểu đồ.');
+      return const _EmptyHistory('Chưa có lần cho ăn để vẽ biểu đồ.');
     }
     final points = <FlSpot>[
       for (var i = 0; i < dated.length; i++)
-        FlSpot(i.toDouble(), dated[i].grams!),
+        FlSpot(
+          i.toDouble(),
+          useGrams
+              ? dated[i].grams!
+              : _appetiteScore(dated[i].appetite)!,
+        ),
     ];
-    final maxY = points.fold<double>(
-      0,
-      (max, point) => point.y > max ? point.y : max,
-    );
+    final maxY = useGrams
+        ? points.fold<double>(0, (max, p) => p.y > max ? p.y : max)
+        : 3.2;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Lượng thức ăn theo lần ghi nhận',
-          style: TextStyle(
+        Text(
+          useGrams
+              ? 'Lượng thức ăn (7 ngày gần nhất)'
+              : 'Mức ăn (7 ngày gần nhất)',
+          style: const TextStyle(
             color: kHomeTextMain,
             fontSize: 13,
             fontWeight: FontWeight.w800,
@@ -459,7 +762,7 @@ class _FeedingChart extends StatelessWidget {
           child: LineChart(
             LineChartData(
               minY: 0,
-              maxY: maxY <= 0 ? 1 : maxY * 1.2,
+              maxY: useGrams ? (maxY <= 0 ? 1 : maxY * 1.2) : 3,
               borderData: FlBorderData(show: false),
               gridData: FlGridData(
                 drawVerticalLine: false,
@@ -473,8 +776,32 @@ class _FeedingChart extends StatelessWidget {
                 rightTitles: const AxisTitles(
                   sideTitles: SideTitles(showTitles: false),
                 ),
-                leftTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: true, reservedSize: 28),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: useGrams ? 28 : 56,
+                    interval: useGrams ? null : 1,
+                    getTitlesWidget: (value, _) {
+                      if (useGrams) {
+                        return Text(
+                          value.toInt().toString(),
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: kHomeTextSub,
+                          ),
+                        );
+                      }
+                      final label = _appetiteLabel(value);
+                      if (label.isEmpty) return const SizedBox.shrink();
+                      return Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 9,
+                          color: kHomeTextSub,
+                        ),
+                      );
+                    },
+                  ),
                 ),
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
@@ -499,6 +826,22 @@ class _FeedingChart extends StatelessWidget {
                       );
                     },
                   ),
+                ),
+              ),
+              lineTouchData: LineTouchData(
+                touchTooltipData: LineTouchTooltipData(
+                  getTooltipItems: (touched) => [
+                    for (final t in touched)
+                      LineTooltipItem(
+                        useGrams
+                            ? '${t.y.toStringAsFixed(t.y == t.y.roundToDouble() ? 0 : 1)} g'
+                            : _appetiteLabel(t.y),
+                        const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                  ],
                 ),
               ),
               lineBarsData: [
@@ -550,7 +893,7 @@ class _ActivityChart extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'Hoạt động theo lần ghi nhận',
+          'Hoạt động (7 ngày gần nhất)',
           style: TextStyle(
             color: kHomeTextMain,
             fontSize: 13,

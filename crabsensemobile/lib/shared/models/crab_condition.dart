@@ -80,7 +80,7 @@ extension BoxStatusX on BoxStatus {
         BoxStatus.empty => CrabSenseColors.statusIdle,
       };
 
-  /// Nền nhạt cùng tông để chữ trên thẻ không chọi màu.
+  /// Nền cùng tông, đủ đậm để lưới hộp không bị nhạt giống nhau.
   Color get background => switch (this) {
         BoxStatus.normal => CrabSenseColors.statusNormalBg,
         BoxStatus.watch => CrabSenseColors.statusWatchBg,
@@ -88,6 +88,16 @@ extension BoxStatusX on BoxStatus {
         BoxStatus.alert => CrabSenseColors.statusRiskBg,
         BoxStatus.deceased => CrabSenseColors.statusIdleBg,
         BoxStatus.empty => CrabSenseColors.statusIdleBg,
+      };
+
+  /// Icon desktop đã có trong `assets/images/` (web đang chạy không load `assets/icons/`).
+  String get iconAsset => switch (this) {
+        BoxStatus.empty || BoxStatus.deceased =>
+          'assets/images/icon-box-empty.png',
+        BoxStatus.watch || BoxStatus.alert =>
+          'assets/images/icon-carb-warning.png',
+        BoxStatus.molting => 'assets/images/icon-crab-lt.png',
+        BoxStatus.normal => 'assets/images/iocn-crab-normal.png',
       };
 }
 

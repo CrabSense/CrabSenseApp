@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../app/routes.dart';
+import '../../../../core/utils/app_back.dart';
 import '../../data/models/crab_management_models.dart';
 import '../providers/crab_management_provider.dart';
 import '../widgets/crab_action_modals.dart';
@@ -655,7 +656,7 @@ class _PageHeader extends StatelessWidget {
           Row(
             children: [
               GestureDetector(
-                onTap: () => Navigator.maybePop(context),
+                onTap: () => appBack(context),
                 child: Text(
                   'Dashboard',
                   style: GoogleFonts.nunito(

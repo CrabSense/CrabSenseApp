@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter/cupertino.dart';
 
 import '../../../../app/routes.dart';
+import '../../../../core/providers/selected_farm_provider.dart';
 import '../../../../widgets/branded_loading_screen.dart';
 import '../../../home/domain/models/home_models.dart';
 import '../../../home/presentation/providers/home_provider.dart';
@@ -56,12 +57,32 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
           });
         }
         return Scaffold(
+          backgroundColor: page,
           body: Center(
-            child: Text(
-              unauthorized
-                  ? 'Phiên đăng nhập đã hết hạn. Đang chuyển về Login...'
-                  : 'Không tải được dữ liệu Home. Vui lòng thử lại.',
-              textAlign: TextAlign.center,
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    unauthorized
+                        ? 'Phiên đăng nhập đã hết hạn. Đang chuyển về Login...'
+                        : 'Không tải được dữ liệu Home. Vui lòng thử lại.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Color(0xFF5A6B7A)),
+                  ),
+                  if (!unauthorized) ...[
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: () =>
+                          ref.read(homeStateProvider.notifier).loadData(
+                            forceRefresh: true,
+                          ),
+                      child: const Text('Thử lại'),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         );
@@ -102,7 +123,11 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
     );
   }
 
-  Widget _header(HomeStateData data) => SizedBox(
+  Widget _header(HomeStateData data) {
+    final pin = ref.watch(selectedFarmProvider);
+    final farmLabel =
+        pin.name.isNotEmpty ? pin.name : data.selectedFarmName;
+    return SizedBox(
     height: 245,
     child: Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
@@ -163,8 +188,9 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
               Expanded(
                 child: _headerPill(
                   icon: Icons.location_on_rounded,
-                  text: data.selectedFarmName,
+                  text: farmLabel,
                   trailing: Icons.chevron_right_rounded,
+                  onTap: () => _pickFarm(data),
                 ),
               ),
               const SizedBox(width: 8),
@@ -263,14 +289,17 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
         ],
       ),
     ),
-  );
+    );
+  }
 
   Widget _headerPill({
     required IconData icon,
     required String text,
     String? subtitle,
     IconData? trailing,
-  }) => Container(
+    VoidCallback? onTap,
+  }) {
+    final child = Container(
     height: 42,
     padding: const EdgeInsets.symmetric(horizontal: 10),
     decoration: BoxDecoration(
@@ -319,196 +348,251 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
           ),
       ],
     ),
-  );
+    );
+    if (onTap == null) return child;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: child,
+      ),
+    );
+  }
 
-  Widget _overview(HomeStateData data) => _card(
-    title: 'Tổng quan trại nuôi',
-    action: 'Xem chi tiết',
-    onAction: () => context.push(RoutePaths.boxes),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(
-          flex: 3,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 98,
-                height: 98,
-                child: CustomPaint(
-                  painter: _DonutPainter(
-                    normal: data.boxStatusCounts['normal'] ?? 0,
-                    watch: data.boxStatusCounts['watch'] ?? 0,
-                    molting: data.boxStatusCounts['molting'] ?? 0,
-                    alert: data.boxStatusCounts['alert'] ?? 0,
-                    empty:
-                        data.boxStatusCounts['empty'] ??
-                        (data.farmSummary.totalBoxes -
-                            data.farmSummary.activeBoxes),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${data.farmSummary.totalCrabs}',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: navy,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Tổng số cua',
-                style: TextStyle(fontSize: 9, color: navy),
-              ),
-              const SizedBox(height: 3),
-              _Legend(
-                'Bình thường',
-                _legendValue(
-                  data.boxStatusCounts['normal'] ?? 0,
-                  data.farmSummary.totalBoxes,
-                ),
-                const Color(0xFF16A66A),
-              ),
-              _Legend(
-                'Cần theo dõi',
-                _legendValue(
-                  data.boxStatusCounts['watch'] ?? 0,
-                  data.farmSummary.totalBoxes,
-                ),
-                const Color(0xFFF09A27),
-              ),
-              _Legend(
-                'Lột xác',
-                _legendValue(
-                  data.boxStatusCounts['molting'] ?? 0,
-                  data.farmSummary.totalBoxes,
-                ),
-                const Color(0xFF8B5CF6),
-              ),
-              _Legend(
-                'Cảnh báo',
-                _legendValue(
-                  data.boxStatusCounts['alert'] ?? 0,
-                  data.farmSummary.totalBoxes,
-                ),
-                const Color(0xFFE34850),
-              ),
-              _Legend(
-                'Hộp trống',
-                _legendValue(
-                  data.boxStatusCounts['empty'] ??
-                      (data.farmSummary.totalBoxes -
-                          data.farmSummary.activeBoxes),
-                  data.farmSummary.totalBoxes,
-                ),
-                const Color(0xFF9AA7B2),
-              ),
-            ],
-          ),
+  void _pickFarm(HomeStateData data) {
+    final farms = data.availableFarms;
+    if (farms.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Chưa có khu vực để chuyển.'),
+          behavior: SnackBarBehavior.floating,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          flex: 2,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  _OverviewTile(
-                    'Tổng số hộp',
-                    '${data.farmSummary.totalBoxes}',
-                    'tab_crab_management.png',
-                    blue,
-                  ),
-                  const SizedBox(width: 5),
-                  _OverviewTile(
-                    'Tổng số cua',
-                    '${data.farmSummary.totalCrabs}',
-                    'iocn-crab-normal.png',
-                    const Color(0xFF168BE5),
-                  ),
-                ],
+      );
+      return;
+    }
+    final selectedId =
+        ref.read(selectedFarmProvider).id ?? data.selectedFarmId;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                'Chọn khu vực',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                  color: navy,
+                ),
               ),
-              const SizedBox(height: 5),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  _OverviewTile(
-                    'Cần theo dõi',
-                    '${data.boxStatusCounts['watch'] ?? 0}',
-                    'icon-carb-warning.png',
-                    const Color(0xFFF09A27),
-                  ),
-                  const SizedBox(width: 5),
-                  _OverviewTile(
-                    'Lột xác',
-                    '${data.boxStatusCounts['molting'] ?? 0}',
-                    'icon-crab-lt.png',
-                    const Color(0xFFF3EAFE),
-                  ),
-                ],
+            ),
+            for (final farm in farms)
+              ListTile(
+                title: Text(farm.name),
+                trailing: farm.id == selectedId
+                    ? const Icon(Icons.check_rounded, color: Color(0xFF17B77A))
+                    : null,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ref.read(homeStateProvider.notifier).switchFarm(farm.id);
+                },
               ),
-              const SizedBox(height: 5),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  _OverviewTile(
-                    'Bình thường',
-                    '${data.boxStatusCounts['normal'] ?? 0}',
-                    'iocn-crab-normal.png',
-                    const Color(0xFF16A66A),
-                  ),
-                  const SizedBox(width: 5),
-                  _OverviewTile(
-                    'Hộp trống',
-                    '${data.farmSummary.totalBoxes - data.farmSummary.activeBoxes}',
-                    'icon-box-empty.png',
-                    const Color(0xFF9AA7B2),
-                  ),
-                ],
-              ),
-            ],
-          ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _overview(HomeStateData data) {
+    final tiles = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            _OverviewTile(
+              'Tổng số hộp',
+              '${data.farmSummary.totalBoxes}',
+              'tab_crab_management.png',
+              blue,
+            ),
+            const SizedBox(width: 5),
+            _OverviewTile(
+              'Tổng số cua',
+              '${data.farmSummary.totalCrabs}',
+              'iocn-crab-normal.png',
+              const Color(0xFF168BE5),
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        Row(
+          children: [
+            _OverviewTile(
+              'Cần theo dõi',
+              '${data.boxStatusCounts['watch'] ?? 0}',
+              'icon-carb-warning.png',
+              const Color(0xFFF09A27),
+            ),
+            const SizedBox(width: 5),
+            _OverviewTile(
+              'Lột xác',
+              '${data.boxStatusCounts['molting'] ?? 0}',
+              'icon-crab-lt.png',
+              const Color(0xFFF3EAFE),
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        Row(
+          children: [
+            _OverviewTile(
+              'Bình thường',
+              '${data.boxStatusCounts['normal'] ?? 0}',
+              'iocn-crab-normal.png',
+              const Color(0xFF16A66A),
+            ),
+            const SizedBox(width: 5),
+            _OverviewTile(
+              'Hộp trống',
+              '${data.farmSummary.totalBoxes - data.farmSummary.activeBoxes}',
+              'icon-box-empty.png',
+              const Color(0xFF9AA7B2),
+            ),
+          ],
         ),
       ],
-    ),
-  );
+    );
+    final donut = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 98,
+          height: 98,
+          child: CustomPaint(
+            painter: _DonutPainter(
+              normal: data.boxStatusCounts['normal'] ?? 0,
+              watch: data.boxStatusCounts['watch'] ?? 0,
+              molting: data.boxStatusCounts['molting'] ?? 0,
+              alert: data.boxStatusCounts['alert'] ?? 0,
+              empty:
+                  data.boxStatusCounts['empty'] ??
+                  (data.farmSummary.totalBoxes -
+                      data.farmSummary.activeBoxes),
+            ),
+            child: Center(
+              child: Text(
+                '${data.farmSummary.totalCrabs}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: navy,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Tổng số cua',
+          style: TextStyle(fontSize: 9, color: navy),
+        ),
+        const SizedBox(height: 3),
+        _Legend(
+          'Bình thường',
+          _legendValue(
+            data.boxStatusCounts['normal'] ?? 0,
+            data.farmSummary.totalBoxes,
+          ),
+          const Color(0xFF16A66A),
+        ),
+        _Legend(
+          'Cần theo dõi',
+          _legendValue(
+            data.boxStatusCounts['watch'] ?? 0,
+            data.farmSummary.totalBoxes,
+          ),
+          const Color(0xFFF09A27),
+        ),
+        _Legend(
+          'Lột xác',
+          _legendValue(
+            data.boxStatusCounts['molting'] ?? 0,
+            data.farmSummary.totalBoxes,
+          ),
+          const Color(0xFF8B5CF6),
+        ),
+        _Legend(
+          'Cảnh báo',
+          _legendValue(
+            data.boxStatusCounts['alert'] ?? 0,
+            data.farmSummary.totalBoxes,
+          ),
+          const Color(0xFFE34850),
+        ),
+        _Legend(
+          'Hộp trống',
+          _legendValue(
+            data.boxStatusCounts['empty'] ??
+                (data.farmSummary.totalBoxes -
+                    data.farmSummary.activeBoxes),
+            data.farmSummary.totalBoxes,
+          ),
+          const Color(0xFF9AA7B2),
+        ),
+      ],
+    );
+    return _card(
+      title: 'Tổng quan trại nuôi',
+      action: 'Xem chi tiết',
+      onAction: () => context.push(RoutePaths.boxes),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(flex: 3, child: donut),
+          const SizedBox(width: 8),
+          Expanded(flex: 2, child: tiles),
+        ],
+      ),
+    );
+  }
 
-  Widget _waterAndChart(HomeStateData data) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _waterAndChart(HomeStateData data) => Column(
     children: [
-      Expanded(child: _waterCard(data)),
-      const SizedBox(width: 10),
-      Expanded(child: _chartCard(data)),
+      _waterCard(data),
+      const SizedBox(height: 10),
+      _chartCard(data),
     ],
   );
 
   Widget _chartAndWater(HomeStateData data) => Column(
     children: [
-      _chartCard(data),
+      _waterAndChart(data),
       const SizedBox(height: 10),
       _boxStatusHistoryCard(data),
-      const SizedBox(height: 10),
-      _waterCard(data),
     ],
   );
 
-  Widget _tasksAndQuick(HomeStateData data) => IntrinsicHeight(
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(child: _tasksCard(data)),
-        const SizedBox(width: 10),
-        Expanded(child: _quickActions()),
-      ],
-    ),
-  );
+  Widget _tasksAndQuick(HomeStateData data) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: _tasksCard(data)),
+          const SizedBox(width: 10),
+          Expanded(child: _quickActions()),
+        ],
+      ),
+    );
+  }
 
   Widget _recentActivityCard(HomeStateData data) => _card(
     title: 'Nhật ký hoạt động gần đây',
@@ -1225,38 +1309,55 @@ class _OverviewTile extends StatelessWidget {
   final Color color;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 60,
-    height: 64,
+  Widget build(BuildContext context) => Expanded(
     child: DecoratedBox(
       decoration: BoxDecoration(
         color: color.withValues(alpha: .08),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Image.asset(
-            'assets/images/desktop/$asset',
-            width: 20,
-            height: 20,
-            fit: BoxFit.contain,
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Color(0xFF123968),
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/images/desktop/$asset',
+              width: 18,
+              height: 18,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Icon(
+                Icons.inventory_2_outlined,
+                size: 16,
+                color: color,
+              ),
             ),
-          ),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 7, color: Color(0xFF50657A)),
-          ),
-        ],
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                maxLines: 1,
+                style: const TextStyle(
+                  color: Color(0xFF123968),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  height: 1.1,
+                ),
+              ),
+            ),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                maxLines: 1,
+                style: const TextStyle(
+                  fontSize: 7,
+                  color: Color(0xFF50657A),
+                  height: 1.1,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     ),
   );

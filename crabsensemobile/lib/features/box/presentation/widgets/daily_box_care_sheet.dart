@@ -9,6 +9,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../app/routes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/utils/app_back.dart';
+import '../../../authentication/data/datasources/auth_local_data_source.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/crab_condition.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
@@ -26,6 +28,7 @@ class DailyBoxCareSheet extends StatefulWidget {
     required this.crab,
     this.embedded = false,
     this.mode = 'full',
+    this.farmId,
     this.onResult,
   });
 
@@ -34,6 +37,7 @@ class DailyBoxCareSheet extends StatefulWidget {
   final CrabModel crab;
   final bool embedded;
   final String mode;
+  final String? farmId;
   final ValueChanged<String>? onResult;
 
   @override
@@ -66,6 +70,22 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
   }
 
   bool get _isEnding => _endCase != null;
+
+  Future<void> _openMoltForm() async {
+    await context.push(
+      RoutePaths.harvestForBox(
+        widget.boxCode,
+        farmId: widget.farmId,
+        crabId: widget.crab.id,
+        boxGuid: widget.boxId,
+        weightBefore: widget.crab.weight,
+        lengthBefore: widget.crab.carapaceLengthMm,
+        widthBefore: widget.crab.carapaceWidthMm,
+      ),
+    );
+    if (!mounted) return;
+    widget.onResult?.call('molt');
+  }
 
   Future<void> _recordVideo() async {
     final picker = ImagePicker();
@@ -295,22 +315,25 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
 
       if (!mounted) return;
       final result = _isEnding ? 'ended' : 'saved';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result == 'ended'
+                ? 'Đã kết thúc hộp'
+                : 'Đã lưu phiếu hôm nay',
+          ),
+          backgroundColor: CrabSenseColors.primary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      widget.onResult?.call(result);
       if (widget.embedded) {
-        widget.onResult?.call(result);
-        if (result == 'saved') {
-          setState(() {
-            _feedTypeCtrl.clear();
-            _feedGramCtrl.clear();
-            _notesCtrl.clear();
-            _video = null;
-            _videoConfirmed = false;
-            _pelletPhoto = null;
-            _boxPhoto = null;
-            _eat = 'many';
-            _condition = 'normal';
-            _activity = 'active';
-            _endCase = null;
-          });
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+        if (!mounted) return;
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        } else {
+          appBack(context, fallback: RoutePaths.boxes);
         }
       } else {
         Navigator.pop(context, result);
@@ -319,7 +342,7 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Không lưu được: $error'),
+          content: Text('Không lưu được: ${_errText(error)}'),
           backgroundColor: kHomeDanger,
           behavior: SnackBarBehavior.floating,
         ),
@@ -348,11 +371,11 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
 
     await _api.post<dynamic>(
       '/operations',
-      data: {
-        'type': 'inspection',
-        'boxIds': [widget.boxId],
-        'notes': notes,
-      },
+      data: await _opBody(
+        type: 'inspection',
+        notes: notes,
+        includeCare: false,
+      ),
     );
 
     final crabId = widget.crab.id;
@@ -397,18 +420,15 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
     required String tag,
     required String extraNotes,
   }) async {
-    final needPhotos = widget.mode != 'monitor';
-    if (needPhotos && (_pelletPhoto == null || _boxPhoto == null)) {
-      throw Exception('Cần 2 ảnh: thức ăn và hộp khi cho ăn.');
-    }
-
     String? videoUrl;
     String? pelletUrl;
     String? boxUrl;
     try {
       setState(() => _uploading = true);
-      if (needPhotos) {
+      if (_pelletPhoto != null) {
         pelletUrl = await _uploadFeedPhoto(_pelletPhoto!, 'feed_pellet');
+      }
+      if (_boxPhoto != null) {
         boxUrl = await _uploadFeedPhoto(_boxPhoto!, 'feed_box');
       }
       if (widget.mode != 'feed') {
@@ -427,14 +447,6 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
       if (mounted) setState(() => _uploading = false);
     }
 
-    if (needPhotos &&
-        (pelletUrl == null ||
-            pelletUrl.isEmpty ||
-            boxUrl == null ||
-            boxUrl.isEmpty)) {
-      throw Exception('Chưa tải được đủ 2 ảnh cho ăn. Thử lại.');
-    }
-
     final feedType = _feedTypeCtrl.text.trim();
     final grams = _feedGramCtrl.text.trim();
     final notes = [
@@ -445,33 +457,28 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
       if (feedType.isNotEmpty) 'Thức ăn: $feedType',
       if (grams.isNotEmpty) 'Lượng: ${grams}g',
       'Hoạt động: ${_activityLabel(_activity)}',
-      'Ảnh viên thức ăn: $pelletUrl',
-      'Ảnh hộp cho ăn: $boxUrl',
+      if (pelletUrl != null && pelletUrl.isNotEmpty) 'Ảnh viên thức ăn: $pelletUrl',
+      if (boxUrl != null && boxUrl.isNotEmpty) 'Ảnh hộp cho ăn: $boxUrl',
       if (videoUrl != null && videoUrl.isNotEmpty) 'Video: $videoUrl',
       if (extraNotes.isNotEmpty) 'Ghi chú: $extraNotes',
     ].join('\n');
 
     final qty = double.tryParse(grams);
-    final crabId = widget.crab.id;
     final photoUrls = [
-      pelletUrl,
-      boxUrl,
+      if (pelletUrl != null && pelletUrl.isNotEmpty) pelletUrl,
+      if (boxUrl != null && boxUrl.isNotEmpty) boxUrl,
       if (videoUrl != null && videoUrl.isNotEmpty) videoUrl,
     ];
     await _api.post<dynamic>(
       '/operations',
-      data: {
-        'type': 'feeding',
-        'boxIds': [widget.boxId],
-        if (crabId.isNotEmpty) 'crabIds': [crabId],
-        'appetite': _eat,
-        'condition': _condition,
-        if (feedType.isNotEmpty) 'foodType': feedType,
-        'notes': notes,
-        if (qty != null) 'quantity': qty,
-        if (qty != null) 'unit': 'g',
-        'photoUrls': photoUrls,
-      },
+      data: await _opBody(
+        type: 'feeding',
+        notes: notes,
+        includeCare: true,
+        photoUrls: photoUrls,
+        foodType: feedType,
+        quantity: qty,
+      ),
     );
   }
 
@@ -592,10 +599,10 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
           const SizedBox(height: 4),
           Text(
             widget.mode == 'feed'
-                ? 'Ảnh thức ăn trước khi ăn, loại thức ăn và cân nặng.'
+                ? 'Ảnh, loại thức ăn và gam — có thì ghi, không có thì vẫn lưu.'
                 : widget.mode == 'monitor'
-                ? 'Tình trạng cua và video sau 2–3 giờ khi ăn.'
-                : 'Tick nhanh — lưu xong sẽ quay về danh sách hộp',
+                ? 'Tình trạng / video nếu có. Hôm nào không rảnh chụp vẫn lưu được.'
+                : 'Có gì ghi nấy — không bắt ảnh hay video.',
             style: const TextStyle(fontSize: 12, color: kHomeTextSub),
           ),
           const SizedBox(height: 12),
@@ -612,7 +619,7 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
             },
             onChanged: (v) {
               if (v == 'molting') {
-                context.push(RoutePaths.harvestForBox(widget.boxId));
+                _openMoltForm();
                 return;
               }
               setState(() => _endCase = v.isEmpty ? null : v);
@@ -683,14 +690,12 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
           if (widget.mode != 'feed') ...[
             const SizedBox(height: 14),
             _section('Đánh dấu tình trạng'),
-            _pillsWrap(
+            _pillsGrid(
               value: _condition,
-              options: const {
-                'normal': 'Bình thường',
-                'weak': 'Cần theo dõi',
-                'molting': 'Lột',
+              options: {
+                for (final c in CrabCondition.selectable)
+                  c.apiKey: c.displayStatus.label,
               },
-              colorOf: (key) => CrabCondition.tryParse(key)?.displayStatus.color,
               onChanged: (v) => setState(() => _condition = v),
             ),
             if (_condition == 'molting') ...[
@@ -698,8 +703,7 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () =>
-                      context.push(RoutePaths.harvestForBox(widget.boxId)),
+                  onPressed: () => _openMoltForm(),
                   icon: const Icon(Icons.inventory_2_outlined, size: 18),
                   label: const Text('Mở phiếu lột / thu hoạch'),
                 ),
@@ -707,7 +711,7 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
             ],
             const SizedBox(height: 14),
             _section('Hoạt động'),
-            _pillsWrap(
+            _pillsGrid(
               value: _activity,
               options: const {
                 'active': 'Di chuyển nhiều',
@@ -953,59 +957,130 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
     );
   }
 
-  /// [colorOf] cho phép chip đang chọn tô đúng màu trạng thái (lột = tím,
-  /// nguy cơ = đỏ…) thay vì màu primary, để phiếu chăm sóc khớp màu thẻ hộp.
-  Widget _pillsWrap({
+  /// 2 cột, cùng kiểu tick với [Kết thúc hộp] / [Đánh giá lượng ăn]:
+  /// chọn = nền primary + chữ trắng, chưa chọn = trắng + viền.
+  Widget _pillsGrid({
     required String value,
     required Map<String, String> options,
     required ValueChanged<String> onChanged,
-    Color? Function(String key)? colorOf,
   }) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    final entries = options.entries.toList();
+    return Column(
       children: [
-        for (final e in options.entries)
-          InkWell(
-            onTap: () => onChanged(e.key),
-            borderRadius: BorderRadius.circular(12),
-            child: Builder(
-              builder: (context) {
-                final selected = value == e.key;
-                final accent = colorOf?.call(e.key) ?? CrabSenseColors.primary;
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: selected ? accent : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: selected ? accent : kHomeBorder,
-                      width: selected ? 1.5 : 1,
-                    ),
-                  ),
-                  child: Text(
-                    e.value,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      // Chữ đậm trên nền lime, nhưng phải là chữ trắng khi nền là
-                      // màu trạng thái đậm (xanh lá / tím / đỏ).
-                      color: !selected
-                          ? kHomeTextMain
-                          : (colorOf == null
-                                ? CrabSenseColors.textOnPrimary
-                                : Colors.white),
-                    ),
-                  ),
-                );
-              },
-            ),
+        for (var i = 0; i < entries.length; i += 2) ...[
+          if (i > 0) const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _pillCell(entries[i], value, onChanged),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: i + 1 < entries.length
+                    ? _pillCell(entries[i + 1], value, onChanged)
+                    : const SizedBox.shrink(),
+              ),
+            ],
           ),
+        ],
       ],
     );
+  }
+
+  Widget _pillCell(
+    MapEntry<String, String> e,
+    String value,
+    ValueChanged<String> onChanged,
+  ) {
+    final selected = value == e.key;
+    return InkWell(
+      onTap: () => onChanged(e.key),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 40),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? CrabSenseColors.primary : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? CrabSenseColors.primary : kHomeBorder,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Text(
+          e.value,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: selected ? CrabSenseColors.textOnPrimary : kHomeTextMain,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> _opBody({
+    required String type,
+    required String notes,
+    required bool includeCare,
+    List<String> photoUrls = const [],
+    String foodType = '',
+    double? quantity,
+  }) async {
+    final crabId = widget.crab.id;
+    final ts = DateTime.now().toUtc().toIso8601String();
+    final body = <String, dynamic>{
+      'type': type,
+      'boxIds': [widget.boxId],
+      'notes': notes,
+      'timestamp': ts.endsWith('Z') ? ts : '${ts}Z',
+      'source': 'manual',
+    };
+    if (crabId.isNotEmpty) body['crabIds'] = [crabId];
+    if (photoUrls.isNotEmpty) body['photoUrls'] = photoUrls;
+    if (includeCare) {
+      body['appetite'] = _eat;
+      body['condition'] = switch (_condition) {
+        'molting' => 'premolt',
+        'problem' => 'attention',
+        _ => _condition,
+      };
+      body['activityAfter'] = switch (_activity) {
+        'still' || 'no_response' => 0,
+        'corner' => 50,
+        _ => 100,
+      };
+      if (foodType.isNotEmpty) body['foodType'] = foodType;
+      if (quantity != null) {
+        body['quantity'] = quantity;
+        body['unit'] = 'g';
+      }
+    }
+    try {
+      final u = await sl<AuthLocalDataSource>().getCachedUser();
+      if (u.id.isNotEmpty) body['operatorId'] = u.id;
+      if (u.name.isNotEmpty) body['operatorName'] = u.name;
+    } catch (_) {}
+    return body;
+  }
+
+  String _errText(Object error) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map) {
+        final msg = data['message'] ?? data['title'] ?? data['error'];
+        if (msg != null && msg.toString().trim().isNotEmpty) {
+          return msg.toString();
+        }
+      }
+      if (error.response?.statusCode != null) {
+        return 'máy chủ ${error.response!.statusCode}';
+      }
+    }
+    return error.toString();
   }
 
   String _eatLabel(String v) => switch (v) {

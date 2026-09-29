@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/utils/app_back.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 import '../widgets/profile_hub_scaffold.dart';
 
@@ -79,7 +80,7 @@ class LegalDocumentScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           TextButton(
-            onPressed: () => context.pop(),
+            onPressed: () => appBack(context),
             child: const Text('Đóng', style: TextStyle(color: kHomeCyan)),
           ),
         ],

@@ -542,15 +542,33 @@ GoRouter createRouter(AuthBloc authBloc) {
           String? initialFarmId =
               state.uri.queryParameters['farmId'] ??
               state.uri.queryParameters['farmingAreaId'];
+          String? initialCrabId = state.uri.queryParameters['crabId'];
+          String? initialBoxGuid = state.uri.queryParameters['boxGuid'];
+          final weightBefore = double.tryParse(
+            state.uri.queryParameters['weightBefore'] ?? '',
+          );
+          final lengthBefore = double.tryParse(
+            state.uri.queryParameters['lengthBefore'] ?? '',
+          );
+          final widthBefore = double.tryParse(
+            state.uri.queryParameters['widthBefore'] ?? '',
+          );
           if (extra is Map<String, dynamic>) {
             initialBoxId ??= extra['boxId'] as String?;
             initialFarmId ??= extra['farmId'] as String?;
+            initialCrabId ??= extra['crabId'] as String?;
+            initialBoxGuid ??= extra['boxGuid'] as String?;
           } else if (extra is String) {
             initialBoxId ??= extra;
           }
           return HarvestScreen(
             initialBoxId: initialBoxId,
             initialFarmId: initialFarmId,
+            initialCrabId: initialCrabId,
+            initialBoxGuid: initialBoxGuid,
+            initialWeightBefore: weightBefore,
+            initialLengthBefore: lengthBefore,
+            initialWidthBefore: widthBefore,
             operatorId: user?.id,
             operatorName: user?.fullName,
             userRole: user?.role,

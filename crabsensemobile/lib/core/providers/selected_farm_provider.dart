@@ -30,6 +30,7 @@ class SelectedFarmNotifier extends StateNotifier<SelectedFarm> {
 
   final FlutterSecureStorage _storage;
   final Completer<void> _ready = Completer<void>();
+  var _pinned = false;
 
   /// Hoàn tất đọc trại đã lưu (gọi trước loadData các tab).
   Future<void> get ready => _ready.future;
@@ -39,6 +40,7 @@ class SelectedFarmNotifier extends StateNotifier<SelectedFarm> {
       final id = await _storage.read(key: _kId);
       final name = await _storage.read(key: _kName);
       if (id != null && id.isNotEmpty) {
+        _pinned = true;
         state = SelectedFarm(id: id, name: name ?? '');
       }
     } catch (_) {
@@ -51,6 +53,7 @@ class SelectedFarmNotifier extends StateNotifier<SelectedFarm> {
   /// Cập nhật trại đang chọn (no-op nếu cùng id).
   Future<void> select(String? id, {String? name}) async {
     if (id == null || id.isEmpty) return;
+    _pinned = true;
     if (state.id == id) {
       if (name != null &&
           name.isNotEmpty &&
@@ -71,11 +74,17 @@ class SelectedFarmNotifier extends StateNotifier<SelectedFarm> {
     bool force = false,
   }) async {
     if (id == null || id.isEmpty) return;
-    if (!force && state.hasSelection && state.id != id) {
-      // Giữ selection global; tab sẽ refetch theo id đó.
+    if (_pinned) return;
+    if (!force && state.hasSelection && state.id != id) return;
+    if (state.id == id) {
+      if (name != null && name.isNotEmpty && name != state.name) {
+        state = SelectedFarm(id: id, name: name);
+        await _persist();
+      }
       return;
     }
-    await select(id, name: name);
+    state = SelectedFarm(id: id, name: name ?? '');
+    await _persist();
   }
 
   Future<void> _persist() async {

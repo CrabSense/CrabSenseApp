@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/utils/app_back.dart';
 import '../../../home/presentation/widgets/crab_hologram_painter.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 import '../../data/models/ai_center_models.dart';
@@ -50,7 +51,7 @@ class AiCenterScreen extends ConsumerWidget {
                   child: Row(
                     children: [
                       IconButton(
-                        onPressed: () => context.pop(),
+                        onPressed: () => appBack(context),
                         icon: const Icon(
                           Icons.arrow_back_rounded,
                           color: kHomeBlueLight,

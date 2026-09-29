@@ -294,9 +294,28 @@ class RoutePaths {
       '/operations?boxId=${Uri.encodeQueryComponent(boxId)}';
 
   /// Harvest form prefilled with a box id.
-  static String harvestForBox(String boxId, {String? farmId}) {
+  static String harvestForBox(
+    String boxId, {
+    String? farmId,
+    String? crabId,
+    String? boxGuid,
+    double? weightBefore,
+    double? lengthBefore,
+    double? widthBefore,
+  }) {
     final q = <String, String>{'boxId': boxId};
     if (farmId != null && farmId.isNotEmpty) q['farmId'] = farmId;
+    if (crabId != null && crabId.isNotEmpty) q['crabId'] = crabId;
+    if (boxGuid != null && boxGuid.isNotEmpty) q['boxGuid'] = boxGuid;
+    if (weightBefore != null && weightBefore > 0) {
+      q['weightBefore'] = weightBefore.toString();
+    }
+    if (lengthBefore != null && lengthBefore > 0) {
+      q['lengthBefore'] = lengthBefore.toString();
+    }
+    if (widthBefore != null && widthBefore > 0) {
+      q['widthBefore'] = widthBefore.toString();
+    }
     final query = q.entries
         .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}')
         .join('&');

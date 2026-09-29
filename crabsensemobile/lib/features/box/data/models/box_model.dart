@@ -81,7 +81,7 @@ class BoxModel extends Box {
           (json['current_crab_count'] as num?)?.toInt() ??
           0,
       capacity: (json['capacity'] as num?)?.toInt() ?? 0,
-      species: _speciesFromString(json['species'] as String? ?? 'mudCrab'),
+      species: _speciesFromString(json['species'] as String? ?? ''),
       averageWeight:
           (json['averageWeight'] as num?)?.toDouble() ??
           (json['average_weight'] as num?)?.toDouble() ??

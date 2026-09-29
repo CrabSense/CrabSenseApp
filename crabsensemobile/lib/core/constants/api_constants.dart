@@ -150,6 +150,7 @@ class ApiConstants {
   static const String allocations = '/allocations';
   static String crabAllocations(String crabId) => '/crabs/$crabId/allocations';
   static String crabMoltings(String crabId) => '/crabs/$crabId/moltings';
+  static String boxMoltings(String boxId) => '/boxes/$boxId/moltings';
   static String crabProfile(String crabId) => '/crabs/$crabId/profile';
   static String crabWeights(String crabId) => '/crabs/$crabId/weights';
   static String crabStatusHistory(String crabId) =>

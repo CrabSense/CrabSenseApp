@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../app/routes.dart';
+import '../../../../core/utils/app_back.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
@@ -157,7 +158,7 @@ class _CrabListScreenState extends State<CrabListScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _MoveCrabSheet(
+      builder: (_) => MoveCrabSheet(
         crab: crab,
         currentBoxId: widget.boxId,
         onSuccess: (targetBoxCode) {
@@ -168,26 +169,7 @@ class _CrabListScreenState extends State<CrabListScreen> {
     );
   }
 
-  Future<void> _onCareResult(String result) async {
-    if (!mounted) return;
-    final msg = result == 'ended'
-        ? 'Đã kết thúc hộp — hộp trống'
-        : 'Đã lưu phiếu hôm nay';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: _primary,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
-
-    // Lưu xong là quay về danh sách hộp — đúng dòng gợi ý trong phiếu ("lưu xong sẽ
-    // quay về danh sách hộp") để nông dân đi tiếp hộp khác. Danh sách hộp tự làm mới
-    // khi nhận lại quyền điều hướng (xem `_handleBoxTap` trong boxes_screen), nên
-    // không cần `_refresh()` ở đây nữa.
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    if (!mounted) return;
-    if (context.canPop()) context.pop();
-  }
+  Future<void> _onCareResult(String result) async {}
 
   // ── Build ──────────────────────────────────────────────────────────────────
   @override
@@ -283,7 +265,7 @@ class _CrabListScreenState extends State<CrabListScreen> {
                     color: _primaryDk,
                     size: 18,
                   ),
-                  onPressed: () => context.pop(),
+                  onPressed: () => appBack(context),
                 ),
                 Container(
                   padding: const EdgeInsets.all(8),
@@ -1165,11 +1147,37 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
                 runSpacing: 8,
                 children: [
                   for (final entry in _conditionOptions.entries)
-                    ChoiceChip(
-                      label: Text(entry.value),
-                      selected: _condition == entry.key,
-                      onSelected: (_) =>
-                          setState(() => _condition = entry.key),
+                    Builder(
+                      builder: (context) {
+                        final status =
+                            CrabCondition.tryParse(entry.key)?.displayStatus;
+                        final fg = status?.color ?? _primaryDk;
+                        final bg = status?.background ?? _primaryBg;
+                        final selected = _condition == entry.key;
+                        return GestureDetector(
+                          onTap: () =>
+                              setState(() => _condition = entry.key),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: fg.withValues(alpha: selected ? 0.22 : 0.14),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: fg, width: 1.2),
+                            ),
+                            child: Text(
+                              entry.value,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12,
+                                color: fg,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                 ],
               ),
@@ -1386,8 +1394,9 @@ class _OptionPills extends StatelessWidget {
 }
 
 // ── Bottom sheet: Di chuyển cua ───────────────────────────────────────────────
-class _MoveCrabSheet extends StatefulWidget {
-  const _MoveCrabSheet({
+class MoveCrabSheet extends StatefulWidget {
+  const MoveCrabSheet({
+    super.key,
     required this.crab,
     required this.currentBoxId,
     required this.onSuccess,
@@ -1397,10 +1406,10 @@ class _MoveCrabSheet extends StatefulWidget {
   final void Function(String targetBoxCode) onSuccess;
 
   @override
-  State<_MoveCrabSheet> createState() => _MoveCrabSheetState();
+  State<MoveCrabSheet> createState() => _MoveCrabSheetState();
 }
 
-class _MoveCrabSheetState extends State<_MoveCrabSheet> {
+class _MoveCrabSheetState extends State<MoveCrabSheet> {
   final _api = sl<ApiClient>();
   List<Map<String, dynamic>> _boxes = [];
   Map<String, dynamic>? _selectedBox;
