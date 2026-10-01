@@ -8,7 +8,17 @@ import '../../domain/entities/water_quality_thresholds.dart';
 import '../../domain/repositories/water_quality_repository.dart';
 
 /// Tham số chất lượng nước dùng cho biểu đồ lịch sử.
-enum WaterQualityParameter { temperature, ph, dissolvedOxygen, salinity }
+enum WaterQualityParameter {
+  temperature,
+  salinity,
+  ph,
+  dissolvedOxygen,
+  ammonia,
+  nitrite,
+  kh,
+  calcium,
+  magnesium,
+}
 
 /// Biểu đồ lịch sử chất lượng nước (phong cách hologram).
 class HistoricalChart extends StatefulWidget {
@@ -19,6 +29,8 @@ class HistoricalChart extends StatefulWidget {
     required this.onPeriodChanged,
     super.key,
     this.isLoading = false,
+    this.showPeriodSelector = true,
+    this.decorate = true,
   });
 
   final List<WaterQuality> readings;
@@ -26,55 +38,47 @@ class HistoricalChart extends StatefulWidget {
   final HistoricalPeriod selectedPeriod;
   final void Function(HistoricalPeriod) onPeriodChanged;
   final bool isLoading;
+  final bool showPeriodSelector;
+  final bool decorate;
 
   @override
   State<HistoricalChart> createState() => _HistoricalChartState();
 }
 
 class _HistoricalChartState extends State<HistoricalChart> {
-  WaterQualityParameter _selectedParameter = WaterQualityParameter.temperature;
+  WaterQualityParameter _selectedParameter = WaterQualityParameter.ph;
 
   @override
-  Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [kHomeSurface, kHomeBg, kHomeBg],
+  Widget build(BuildContext context) {
+    final column = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (widget.showPeriodSelector) ...[
+          _PeriodSelector(
+            selected: widget.selectedPeriod,
+            onChanged: widget.onPeriodChanged,
           ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
-          boxShadow: [
-            BoxShadow(
-              color: kHomeBlue.withValues(alpha: 0.16),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          Divider(height: 1, color: kHomeBorder.withValues(alpha: 0.6)),
+        ],
+        _ParameterSelector(
+          selected: _selectedParameter,
+          onChanged: (p) => setState(() => _selectedParameter = p),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _PeriodSelector(
-              selected: widget.selectedPeriod,
-              onChanged: widget.onPeriodChanged,
-            ),
-            Divider(height: 1, color: kHomeBorderBlue.withValues(alpha: 0.3)),
-            _ParameterSelector(
-              selected: _selectedParameter,
-              onChanged: (p) => setState(() => _selectedParameter = p),
-            ),
-            Divider(height: 1, color: kHomeBorderBlue.withValues(alpha: 0.3)),
-            _ChartBody(
-              readings: widget.readings,
-              thresholds: widget.thresholds,
-              parameter: _selectedParameter,
-              period: widget.selectedPeriod,
-              isLoading: widget.isLoading,
-            ),
-          ],
+        _ChartBody(
+          readings: widget.readings,
+          thresholds: widget.thresholds,
+          parameter: _selectedParameter,
+          period: widget.selectedPeriod,
+          isLoading: widget.isLoading,
         ),
-      );
+      ],
+    );
+    if (!widget.decorate) return column;
+    return Container(
+      decoration: homeCardDecoration(radius: 20),
+      child: column,
+    );
+  }
 }
 
 class _PeriodSelector extends StatelessWidget {
@@ -117,31 +121,100 @@ class _ParameterSelector extends StatelessWidget {
   final void Function(WaterQualityParameter) onChanged;
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: Row(
-          children: WaterQualityParameter.values
-              .map(
-                (param) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: _GlowChip(
-                    label: _labelFor(param),
-                    isSelected: selected == param,
-                    onTap: () => onChanged(param),
-                  ),
-                ),
-              )
-              .toList(),
-        ),
-      );
+  Widget build(BuildContext context) {
+    const params = WaterQualityParameter.values;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          for (final param in params)
+            _ParamChip(
+              icon: _iconFor(param),
+              label: _labelFor(param),
+              isSelected: selected == param,
+              onTap: () => onChanged(param),
+            ),
+        ],
+      ),
+    );
+  }
 
   String _labelFor(WaterQualityParameter param) => switch (param) {
         WaterQualityParameter.temperature => 'Nhiệt độ',
+        WaterQualityParameter.salinity => 'Độ mặn / TDS',
         WaterQualityParameter.ph => 'pH',
-        WaterQualityParameter.dissolvedOxygen => 'Oxy hòa tan',
-        WaterQualityParameter.salinity => 'Độ mặn',
+        WaterQualityParameter.dissolvedOxygen => 'O₂',
+        WaterQualityParameter.ammonia => 'NH₃',
+        WaterQualityParameter.nitrite => 'NO₂',
+        WaterQualityParameter.kh => 'KH',
+        WaterQualityParameter.calcium => 'Ca',
+        WaterQualityParameter.magnesium => 'Mg',
       };
+
+  IconData _iconFor(WaterQualityParameter param) => switch (param) {
+        WaterQualityParameter.temperature => Icons.thermostat_outlined,
+        WaterQualityParameter.salinity => Icons.waves_rounded,
+        WaterQualityParameter.ph => Icons.water_drop_outlined,
+        WaterQualityParameter.dissolvedOxygen => Icons.air_rounded,
+        WaterQualityParameter.ammonia => Icons.science_outlined,
+        WaterQualityParameter.nitrite => Icons.science_outlined,
+        WaterQualityParameter.kh => Icons.water_outlined,
+        WaterQualityParameter.calcium => Icons.grain_outlined,
+        WaterQualityParameter.magnesium => Icons.grain_outlined,
+      };
+}
+
+class _ParamChip extends StatelessWidget {
+  const _ParamChip({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFD8F3E3) : Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF8ED4A8) : kHomeBorder,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 13,
+              color: isSelected ? kHomePrimaryDark : kHomeTextSub,
+            ),
+            const SizedBox(width: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: isSelected ? kHomePrimaryDark : kHomeTextSub,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _GlowChip extends StatelessWidget {
@@ -162,14 +235,10 @@ class _GlowChip extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: isSelected
-                ? kHomeBlue.withValues(alpha: 0.2)
-                : kHomeBg.withValues(alpha: 0.65),
+            color: isSelected ? kHomePrimary : Colors.white,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isSelected
-                  ? kHomeBlue.withValues(alpha: 0.85)
-                  : kHomeBorderBlue.withValues(alpha: 0.4),
+              color: isSelected ? kHomePrimary : kHomeBorder,
             ),
             boxShadow: isSelected
                 ? [
@@ -185,9 +254,7 @@ class _GlowChip extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected
-                  ? kHomeBlueLight
-                  : const Color(0xFF5A7184),
+              color: isSelected ? Colors.white : kHomeTextSub,
             ),
           ),
         ),
@@ -212,14 +279,27 @@ class _ChartBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isLoading) return const _ChartLoading();
-    if (readings.isEmpty) return const _ChartEmpty();
+    final forParam = readings.where(_hasValue).toList();
+    if (forParam.isEmpty) return const _ChartEmpty();
     return _ChartContent(
-      readings: readings,
+      readings: forParam,
       thresholds: thresholds,
       parameter: parameter,
       period: period,
     );
   }
+
+  bool _hasValue(WaterQuality r) => switch (parameter) {
+        WaterQualityParameter.temperature => r.temperature != 0,
+        WaterQualityParameter.ph => r.ph != 0,
+        WaterQualityParameter.dissolvedOxygen => r.dissolvedOxygen != 0,
+        WaterQualityParameter.salinity => r.salinity != 0,
+        WaterQualityParameter.ammonia => r.ammonia != 0,
+        WaterQualityParameter.nitrite => r.nitrite != 0,
+        WaterQualityParameter.kh => r.kh != 0,
+        WaterQualityParameter.calcium => r.calcium != 0,
+        WaterQualityParameter.magnesium => r.magnesium != 0,
+      };
 }
 
 class _ChartLoading extends StatelessWidget {
@@ -265,6 +345,12 @@ class _ChartEmpty extends StatelessWidget {
                   color: const Color(0xFF5A7184),
                   fontWeight: FontWeight.w600,
                 ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Dữ liệu sẽ xuất hiện sau khi cảm biến ghi nhận.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: kHomeTextHint, fontSize: 12),
               ),
             ],
           ),
@@ -396,10 +482,10 @@ class _ChartContent extends StatelessWidget {
             ),
           ),
         ),
-        extraLinesData: ExtraLinesData(horizontalLines: _buildThresholdLines()),
+        extraLinesData: const ExtraLinesData(horizontalLines: []),
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
-            tooltipBgColor: kHomeBg.withValues(alpha: 0.95),
+            tooltipBgColor: const Color(0xFF0D7A5F),
             tooltipRoundedRadius: 10,
             getTooltipItems: (touchedSpots) => touchedSpots.map((spot) {
               final idx = sorted.indexWhere(
@@ -409,7 +495,7 @@ class _ChartContent extends StatelessWidget {
               final tsLabel =
                   ts != null ? DateFormat('dd/MM HH:mm').format(ts) : '';
               return LineTooltipItem(
-                '${spot.y.toStringAsFixed(2)} ${_unit()}\n$tsLabel',
+                '${spot.y.toStringAsFixed(1)}\n$tsLabel',
                 const TextStyle(
                   color: Colors.white,
                   fontSize: 11,
@@ -425,25 +511,24 @@ class _ChartContent extends StatelessWidget {
             spots: spots,
             isCurved: true,
             curveSmoothness: 0.3,
-            color: kHomeCyan,
+            color: const Color(0xFF1B8A5A),
             barWidth: 2.5,
             isStrokeCapRound: true,
             dotData: FlDotData(
               getDotPainter: (spot, percent, bar, index) {
-                final reading = index < sorted.length ? sorted[index] : null;
-                final isAlert = reading?.isAlertTriggered ?? false;
-                if (isAlert) {
+                final last = index == spots.length - 1;
+                if (!last) {
                   return FlDotCirclePainter(
-                    radius: 5,
-                    color: Colors.redAccent,
-                    strokeWidth: 1.5,
-                    strokeColor: Colors.redAccent.withValues(alpha: 0.6),
+                    radius: 0,
+                    color: Colors.transparent,
+                    strokeColor: Colors.transparent,
                   );
                 }
                 return FlDotCirclePainter(
-                  radius: 0,
-                  color: Colors.transparent,
-                  strokeColor: Colors.transparent,
+                  radius: 5,
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                  strokeColor: const Color(0xFF1B8A5A),
                 );
               },
             ),
@@ -453,8 +538,8 @@ class _ChartContent extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  kHomeCyan.withValues(alpha: 0.28),
-                  kHomeCyan.withValues(alpha: 0),
+                  const Color(0xFF2BB673).withValues(alpha: 0.28),
+                  const Color(0xFF2BB673).withValues(alpha: 0),
                 ],
               ),
             ),
@@ -495,55 +580,16 @@ class _ChartContent extends StatelessWidget {
         ),
       );
 
-  List<HorizontalLine> _buildThresholdLines() {
-    final lines = <HorizontalLine>[];
-    final minVal = _thresholdMin();
-    final maxVal = _thresholdMax();
-
-    if (minVal != null) {
-      lines.add(
-        HorizontalLine(
-          y: minVal,
-          color: kHomeOrange.withValues(alpha: 0.85),
-          strokeWidth: 1.5,
-          dashArray: [6, 4],
-          label: HorizontalLineLabel(
-            show: true,
-            alignment: Alignment.topRight,
-            padding: const EdgeInsets.only(right: 4, bottom: 2),
-            style: const TextStyle(color: kHomeOrange, fontSize: 9),
-            labelResolver: (line) => 'min ${line.y.toStringAsFixed(1)}',
-          ),
-        ),
-      );
-    }
-
-    if (maxVal != null) {
-      lines.add(
-        HorizontalLine(
-          y: maxVal,
-          color: kHomeOrange.withValues(alpha: 0.85),
-          strokeWidth: 1.5,
-          dashArray: [6, 4],
-          label: HorizontalLineLabel(
-            show: true,
-            alignment: Alignment.topRight,
-            padding: const EdgeInsets.only(right: 4, bottom: 2),
-            style: const TextStyle(color: kHomeOrange, fontSize: 9),
-            labelResolver: (line) => 'max ${line.y.toStringAsFixed(1)}',
-          ),
-        ),
-      );
-    }
-
-    return lines;
-  }
-
   double _getValue(WaterQuality reading) => switch (parameter) {
         WaterQualityParameter.temperature => reading.temperature,
         WaterQualityParameter.ph => reading.ph,
         WaterQualityParameter.dissolvedOxygen => reading.dissolvedOxygen,
         WaterQualityParameter.salinity => reading.salinity,
+        WaterQualityParameter.ammonia => reading.ammonia,
+        WaterQualityParameter.nitrite => reading.nitrite,
+        WaterQualityParameter.kh => reading.kh,
+        WaterQualityParameter.calcium => reading.calcium,
+        WaterQualityParameter.magnesium => reading.magnesium,
       };
 
   double? _thresholdMin() => switch (parameter) {
@@ -551,6 +597,11 @@ class _ChartContent extends StatelessWidget {
         WaterQualityParameter.ph => thresholds.minPh,
         WaterQualityParameter.dissolvedOxygen => thresholds.minDissolvedOxygen,
         WaterQualityParameter.salinity => thresholds.minSalinity,
+        WaterQualityParameter.ammonia => null,
+        WaterQualityParameter.nitrite => null,
+        WaterQualityParameter.kh => 7,
+        WaterQualityParameter.calcium => 380,
+        WaterQualityParameter.magnesium => 1200,
       };
 
   double? _thresholdMax() => switch (parameter) {
@@ -558,13 +609,11 @@ class _ChartContent extends StatelessWidget {
         WaterQualityParameter.ph => thresholds.maxPh,
         WaterQualityParameter.dissolvedOxygen => null,
         WaterQualityParameter.salinity => thresholds.maxSalinity,
-      };
-
-  String _unit() => switch (parameter) {
-        WaterQualityParameter.temperature => '°C',
-        WaterQualityParameter.ph => 'pH',
-        WaterQualityParameter.dissolvedOxygen => 'mg/L',
-        WaterQualityParameter.salinity => 'ppt',
+        WaterQualityParameter.ammonia => 0.1,
+        WaterQualityParameter.nitrite => 0.2,
+        WaterQualityParameter.kh => 10,
+        WaterQualityParameter.calcium => 460,
+        WaterQualityParameter.magnesium => 1400,
       };
 
   double _yPadding() => switch (parameter) {
@@ -572,6 +621,11 @@ class _ChartContent extends StatelessWidget {
         WaterQualityParameter.ph => 0.5,
         WaterQualityParameter.dissolvedOxygen => 0.5,
         WaterQualityParameter.salinity => 2,
+        WaterQualityParameter.ammonia => 0.02,
+        WaterQualityParameter.nitrite => 0.02,
+        WaterQualityParameter.kh => 0.5,
+        WaterQualityParameter.calcium => 20,
+        WaterQualityParameter.magnesium => 40,
       };
 
   double _gridInterval(double minY, double maxY) {

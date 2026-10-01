@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../home/presentation/widgets/home_palette.dart';
 
-/// Card hiển thị một chỉ số cảm biến chất lượng nước.
+enum WaterMetricTone { good, low, warn, empty }
+
+/// Thẻ một chỉ số — pH / oxy / nhiệt / mặn.
 class SensorReadingCard extends StatelessWidget {
   const SensorReadingCard({
     required this.label,
@@ -13,6 +15,9 @@ class SensorReadingCard extends StatelessWidget {
     required this.rangeLabel,
     super.key,
     this.timestamp,
+    this.tone,
+    this.statusLabel,
+    this.iconColor,
   });
 
   final String label;
@@ -22,158 +27,137 @@ class SensorReadingCard extends StatelessWidget {
   final bool isNormal;
   final String rangeLabel;
   final String? timestamp;
+  final WaterMetricTone? tone;
+  final String? statusLabel;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
-    final accent = isNormal ? kHomeCyan : kHomeOrange;
-    final valueColor = isNormal ? Colors.white : kHomeOrange;
+    final resolved = tone ??
+        (isNormal ? WaterMetricTone.good : WaterMetricTone.warn);
+    final (bg, accent, badge) = switch (resolved) {
+      WaterMetricTone.good => (
+          const Color(0xFFEAF8F1),
+          const Color(0xFF1B8A5A),
+          statusLabel ?? 'Tốt',
+        ),
+      WaterMetricTone.low => (
+          const Color(0xFFFFF7EA),
+          const Color(0xFFE09A2A),
+          statusLabel ?? 'Thấp',
+        ),
+      WaterMetricTone.warn => (
+          const Color(0xFFFFF1F0),
+          kHomeDanger,
+          statusLabel ?? 'Cảnh báo',
+        ),
+      WaterMetricTone.empty => (
+          const Color(0xFFF4F7F6),
+          kHomeTextHint,
+          statusLabel ?? 'Chưa có dữ liệu',
+        ),
+    };
+    final glyph = iconColor ?? accent;
 
     return Container(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [kHomeSurface, kHomeBg, kHomeBg],
-        ),
+        color: bg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: accent.withValues(alpha: isNormal ? 0.4 : 0.75),
-          width: isNormal ? 1 : 1.4,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: accent.withValues(alpha: isNormal ? 0.12 : 0.28),
-            blurRadius: 14,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(9),
-                        border: Border.all(
-                          color: accent.withValues(alpha: 0.45),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: accent.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                          ),
-                        ],
-                      ),
-                      child: Icon(icon, size: 16, color: accent),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        label,
-                        style: TextStyle(
-                          color: const Color(0xFF5A7184),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        value,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: valueColor,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          height: 1.05,
-                          letterSpacing: -0.4,
-                          shadows: [
-                            Shadow(
-                              color: accent.withValues(alpha: 0.45),
-                              blurRadius: 12,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 3),
-                      child: Text(
-                        unit,
-                        style: TextStyle(
-                          color: valueColor.withValues(alpha: 0.7),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Text(
-                  rangeLabel,
-                  style: TextStyle(
-                    color: const Color(0xFF5A7184),
-                    fontSize: 11,
-                  ),
-                ),
-                if (timestamp != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    timestamp!,
-                    style: TextStyle(
-                      color: const Color(0xFF5A7184),
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ],
-            ),
+          Row(
+            children: [
+              Icon(icon, size: 16, color: glyph),
+              const Spacer(),
+              Icon(
+                resolved == WaterMetricTone.good
+                    ? Icons.check_circle
+                    : resolved == WaterMetricTone.empty
+                        ? Icons.remove_circle_outline
+                        : Icons.warning_amber_rounded,
+                size: 14,
+                color: resolved == WaterMetricTone.good
+                    ? const Color(0xFF2BB673)
+                    : accent,
+              ),
+            ],
           ),
-          if (!isNormal)
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: kHomeOrange.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: kHomeOrange.withValues(alpha: 0.55),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: kHomeOrange.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.warning_amber_rounded,
-                  size: 14,
-                  color: kHomeOrange,
+          const SizedBox(height: 4),
+          SizedBox(
+            height: 28,
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.visible,
+                style: TextStyle(
+                  color: glyph,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  height: 1.15,
                 ),
               ),
             ),
+          ),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text.rich(
+              TextSpan(
+                text: value,
+                style: TextStyle(
+                  color: resolved == WaterMetricTone.good
+                      ? kHomeTextMain
+                      : accent,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  height: 1.05,
+                ),
+                children: [
+                  if (unit.isNotEmpty)
+                    TextSpan(
+                      text: ' $unit',
+                      style: const TextStyle(
+                        color: kHomeTextSub,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                ],
+              ),
+              maxLines: 1,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            rangeLabel,
+            maxLines: 2,
+            style: const TextStyle(
+              color: kHomeTextSub,
+              fontSize: 9,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: accent,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              badge,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ],
       ),
     );

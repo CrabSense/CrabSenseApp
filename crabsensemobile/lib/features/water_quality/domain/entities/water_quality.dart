@@ -24,6 +24,11 @@ class WaterQuality extends Equatable {
     required this.timestamp,
     required this.isAlertTriggered,
     this.pondId,
+    this.ammonia = 0,
+    this.nitrite = 0,
+    this.kh = 0,
+    this.calcium = 0,
+    this.magnesium = 0,
   });
 
   /// Unique identifier for this water quality reading
@@ -57,6 +62,11 @@ class WaterQuality extends Equatable {
   ///
   /// Normal range for mud crabs: 15.0 - 25.0 ppt
   final double salinity;
+  final double ammonia;
+  final double nitrite;
+  final double kh;
+  final double calcium;
+  final double magnesium;
 
   /// Timestamp when these readings were captured by the sensor
   final DateTime timestamp;
@@ -98,6 +108,11 @@ class WaterQuality extends Equatable {
     double? ph,
     double? dissolvedOxygen,
     double? salinity,
+    double? ammonia,
+    double? nitrite,
+    double? kh,
+    double? calcium,
+    double? magnesium,
     DateTime? timestamp,
     bool? isAlertTriggered,
   }) => WaterQuality(
@@ -109,6 +124,11 @@ class WaterQuality extends Equatable {
     ph: ph ?? this.ph,
     dissolvedOxygen: dissolvedOxygen ?? this.dissolvedOxygen,
     salinity: salinity ?? this.salinity,
+    ammonia: ammonia ?? this.ammonia,
+    nitrite: nitrite ?? this.nitrite,
+    kh: kh ?? this.kh,
+    calcium: calcium ?? this.calcium,
+    magnesium: magnesium ?? this.magnesium,
     timestamp: timestamp ?? this.timestamp,
     isAlertTriggered: isAlertTriggered ?? this.isAlertTriggered,
   );
@@ -123,6 +143,11 @@ class WaterQuality extends Equatable {
     ph,
     dissolvedOxygen,
     salinity,
+    ammonia,
+    nitrite,
+    kh,
+    calcium,
+    magnesium,
     timestamp,
     isAlertTriggered,
   ];

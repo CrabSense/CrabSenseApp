@@ -182,6 +182,7 @@ class ApiConstants {
 
   static const String waterQuality = '/sensors';
   static const String waterQualityLatest = '/iot/live';
+  static String waterAnalysis(String areaId) => '/areas/$areaId/water-analysis';
   static const String waterQualityHistorical = '/iot/history';
   static String waterQualityForFarm(String farmId) => '/sensors';
   static String waterQualityForPond(String pondId) => '/sensors';

@@ -432,15 +432,20 @@ class HomeRepositoryImpl implements HomeRepository {
               map['code']?.toString() ??
               map['type']?.toString() ??
               '';
+          final tl = type.toLowerCase();
+          if (tl.contains('float') || tl.contains('relay') || tl.contains('pump')) {
+            continue;
+          }
           final rawVal =
               map['latestValue'] ??
               map['value'] ??
               map['currentValue'] ??
-              map['reading'] ??
-              0.0;
+              map['reading'];
+          if (rawVal == null) continue;
           final val = rawVal is num
               ? rawVal.toDouble()
               : double.tryParse('$rawVal') ?? 0.0;
+          if (tl.contains('temp') && (val < 5 || val > 40)) continue;
           final alarm = map['alarm']?.toString().toLowerCase() ?? '';
           final min = (map['minThreshold'] as num?)?.toDouble();
           final max = (map['maxThreshold'] as num?)?.toDouble();
@@ -468,13 +473,63 @@ class HomeRepositoryImpl implements HomeRepository {
               status: status,
               trend: MetricTrend.stable,
               lastUpdated: updated,
+              minThreshold: min,
+              maxThreshold: max,
             ),
           );
         }
+        await _mergeWaterLab(farmingAreaId, items);
         return items;
       }
     }
     return null;
+  }
+
+  Future<void> _mergeWaterLab(
+    String? farmingAreaId,
+    List<WaterMetricItem> items,
+  ) async {
+    if (farmingAreaId == null || farmingAreaId.isEmpty) return;
+    try {
+      final res = await _api.get(ApiConstants.waterAnalysis(farmingAreaId));
+      if (res.statusCode != 200 || res.data == null) return;
+      final root = _asStringKeyedMap(res.data);
+      final data = _asStringKeyedMap(root?['data']) ?? root;
+      if (data == null) return;
+      final latest =
+          _asStringKeyedMap(data['latest']) ?? _asStringKeyedMap(data['Latest']);
+      final raw = latest?['metrics'] ??
+          latest?['Metrics'] ??
+          data['metrics'] ??
+          data['Metrics'];
+      if (raw is! List) return;
+      final now = DateTime.now();
+      for (final row in raw) {
+        final map = _asStringKeyedMap(row);
+        if (map == null) continue;
+        final code = (map['code'] ?? map['Code'] ?? '').toString();
+        final val = map['value'] ?? map['Value'];
+        if (code.isEmpty || val == null) continue;
+        final n = val is num ? val.toDouble() : double.tryParse('$val');
+        if (n == null) continue;
+        final t = code.toLowerCase();
+        if (items.any((m) =>
+            m.code.contains(t) || m.name.toLowerCase().contains(t))) {
+          continue;
+        }
+        items.add(
+          WaterMetricItem(
+            code: t,
+            name: _waterMetricLabel(code),
+            currentValue: n,
+            unit: map['unit']?.toString() ?? _waterMetricUnit(code),
+            status: MetricStatus.optimal,
+            trend: MetricTrend.stable,
+            lastUpdated: now,
+          ),
+        );
+      }
+    } catch (_) {}
   }
 
   String _waterMetricLabel(String type) {
@@ -484,7 +539,12 @@ class HomeRepositoryImpl implements HomeRepository {
     if (t.contains('do') || t.contains('oxygen') || t.contains('oxy'))
       return 'Oxy hòa tan';
     if (t.contains('salin') || t.contains('salt')) return 'Độ mặn';
-    if (t.contains('nh3') || t.contains('ammon')) return 'Amoniac';
+    if (t.contains('tds')) return 'TDS';
+    if (t.contains('nh3') || t.contains('ammon')) return 'NH₃/NH₄';
+    if (t.contains('no2') || t.contains('nitrit')) return 'NO₂';
+    if (t.contains('alkal') || t == 'kh') return 'KH';
+    if (t.contains('calci') || t == 'ca') return 'Ca';
+    if (t.contains('magnes') || t == 'mg') return 'Mg';
     if (type.trim().isEmpty) return 'Thông số nước';
     return type;
   }
@@ -495,6 +555,7 @@ class HomeRepositoryImpl implements HomeRepository {
     if (t.contains('ph')) return '';
     if (t.contains('do') || t.contains('oxygen')) return 'mg/L';
     if (t.contains('salin') || t.contains('salt')) return 'ppt';
+    if (t.contains('tds')) return 'ppm';
     return '';
   }
 

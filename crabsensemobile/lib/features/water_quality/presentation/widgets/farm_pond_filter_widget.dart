@@ -12,12 +12,14 @@ class FarmPondFilterWidget extends StatefulWidget {
     super.key,
     this.selectedPondId,
     this.isLoading = false,
+    this.embedded = false,
   });
 
   final List<FarmOption> farms;
   final String selectedFarmId;
   final String? selectedPondId;
   final bool isLoading;
+  final bool embedded;
   final void Function(String farmId, String? pondId) onSelectionChanged;
 
   @override
@@ -40,55 +42,44 @@ class _FarmPondFilterWidgetState extends State<FarmPondFilterWidget> {
   }
 
   @override
-  Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [kHomeSurface, kHomeBg, kHomeBg],
+  Widget build(BuildContext context) {
+    final row = Row(
+      children: [
+        Expanded(
+          child: _FilterDropdown<String>(
+            label: 'Khu nuôi',
+            icon: Icons.location_on_rounded,
+            value: widget.selectedFarmId,
+            items: widget.farms
+                .map((f) => _DropdownEntry(f.id, f.name))
+                .toList(),
+            isLoading: widget.isLoading,
+            onChanged: _onFarmChanged,
           ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.45)),
-          boxShadow: [
-            BoxShadow(
-              color: kHomeBlue.withValues(alpha: 0.14),
-              blurRadius: 14,
-              offset: const Offset(0, 3),
-            ),
-          ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            children: [
-              Expanded(
-                child: _FilterDropdown<String>(
-                  label: 'Khu nuôi',
-                  value: widget.selectedFarmId,
-                  items: widget.farms
-                      .map((f) => _DropdownEntry(f.id, f.name))
-                      .toList(),
-                  isLoading: widget.isLoading,
-                  onChanged: _onFarmChanged,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _FilterDropdown<String?>(
-                  label: 'Dãy / ao',
-                  value: widget.selectedPondId,
-                  items: [
-                    const _DropdownEntry(null, 'Tất cả'),
-                    ..._currentPonds.map((p) => _DropdownEntry(p.id, p.name)),
-                  ],
-                  isLoading: widget.isLoading,
-                  onChanged: _onPondChanged,
-                ),
-              ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _FilterDropdown<String?>(
+            label: 'Dãy / ao',
+            icon: Icons.layers_rounded,
+            value: widget.selectedPondId,
+            items: [
+              const _DropdownEntry(null, 'Tất cả'),
+              ..._currentPonds.map((p) => _DropdownEntry(p.id, p.name)),
             ],
+            isLoading: widget.isLoading,
+            onChanged: _onPondChanged,
           ),
         ),
-      );
+      ],
+    );
+    if (widget.embedded) return row;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: homeCardDecoration(radius: 22),
+      child: row,
+    );
+  }
 }
 
 class _DropdownEntry<T> {
@@ -101,6 +92,7 @@ class _DropdownEntry<T> {
 class _FilterDropdown<T> extends StatelessWidget {
   const _FilterDropdown({
     required this.label,
+    required this.icon,
     required this.value,
     required this.items,
     required this.isLoading,
@@ -108,6 +100,7 @@ class _FilterDropdown<T> extends StatelessWidget {
   });
 
   final String label;
+  final IconData icon;
   final T value;
   final List<_DropdownEntry<T>> items;
   final bool isLoading;
@@ -120,11 +113,11 @@ class _FilterDropdown<T> extends StatelessWidget {
         children: [
           Text(
             label.toUpperCase(),
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w700,
-              color: kHomeBlueLight.withValues(alpha: 0.85),
-              letterSpacing: 0.6,
+              color: Color(0xFF8AA396),
+              letterSpacing: 0.7,
             ),
           ),
           const SizedBox(height: 6),
@@ -132,41 +125,49 @@ class _FilterDropdown<T> extends StatelessWidget {
             opacity: isLoading ? 0.5 : 1.0,
             duration: const Duration(milliseconds: 200),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+              height: 42,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
-                color: kHomeBg.withValues(alpha: 0.75),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: kHomeBorderBlue.withValues(alpha: 0.4),
-                ),
+                color: const Color(0xFFEAF6EE),
+                borderRadius: BorderRadius.circular(14),
               ),
-              child: DropdownButton<T>(
-                value: value,
-                isExpanded: true,
-                underline: const SizedBox.shrink(),
-                icon: const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  size: 18,
-                  color: kHomeBlueLight,
-                ),
-                dropdownColor: kHomeBg,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: kHomeTextMain,
-                ),
-                onChanged: isLoading ? null : onChanged,
-                items: items
-                    .map(
-                      (e) => DropdownMenuItem<T>(
-                        value: e.value,
-                        child: Text(
-                          e.label,
-                          overflow: TextOverflow.ellipsis,
+              child: Row(
+                children: [
+                  Icon(icon, size: 16, color: const Color(0xFF2F8A4E)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<T>(
+                        value: value,
+                        isExpanded: true,
+                        isDense: true,
+                        icon: const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 18,
+                          color: Color(0xFF2F8A4E),
                         ),
+                        dropdownColor: kHomeSurface,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF163A2C),
+                        ),
+                        onChanged: isLoading ? null : onChanged,
+                        items: items
+                            .map(
+                              (e) => DropdownMenuItem<T>(
+                                value: e.value,
+                                child: Text(
+                                  e.label,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            )
+                            .toList(),
                       ),
-                    )
-                    .toList(),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

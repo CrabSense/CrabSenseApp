@@ -159,6 +159,8 @@ class WaterMetricItem {
   final MetricStatus status;
   final MetricTrend trend;
   final DateTime lastUpdated;
+  final double? minThreshold;
+  final double? maxThreshold;
 
   const WaterMetricItem({
     required this.code,
@@ -168,6 +170,8 @@ class WaterMetricItem {
     required this.status,
     required this.trend,
     required this.lastUpdated,
+    this.minThreshold,
+    this.maxThreshold,
   });
 }
 

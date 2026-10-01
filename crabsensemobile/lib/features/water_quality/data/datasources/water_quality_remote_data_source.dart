@@ -151,15 +151,20 @@ class WaterQualityRemoteDataSourceImpl implements WaterQualityRemoteDataSource {
           map['SensorId']?.toString() ??
           sensorId;
 
+      if (type.contains('float') || type.contains('relay')) continue;
+
       if (type.contains('temp')) {
-        temperature = value.toDouble();
+        final t = value.toDouble();
+        if (t >= 5 && t <= 40) temperature = t;
       } else if (type.contains('ph') || type == 'pH'.toLowerCase()) {
         ph = value.toDouble();
-      } else if (type.contains('do') ||
+      } else if (type == 'do' ||
           type.contains('oxygen') ||
           type.contains('oxy')) {
         dissolvedOxygen = value.toDouble();
-      } else if (type.contains('salin') || type.contains('salt')) {
+      } else if (type.contains('salin') ||
+          type.contains('salt') ||
+          type.contains('tds')) {
         salinity = value.toDouble();
       }
     }
@@ -188,30 +193,22 @@ class WaterQualityRemoteDataSourceImpl implements WaterQualityRemoteDataSource {
       'farmId=$farmId period=${period.name} pondId=$pondId',
     );
 
-    final now = DateTime.now().toUtc();
+    final now = DateTime.now();
     final from = now.subtract(_periodDuration(period));
-    final queryParams = <String, dynamic>{
-      'from': from.toIso8601String(),
-      'to': now.toIso8601String(),
-    };
+    final liveQuery = <String, dynamic>{};
     if (farmId.isNotEmpty && farmId != 'default') {
       final looksLikeGuid = RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(farmId);
       if (looksLikeGuid) {
-        queryParams['farmingAreaId'] = farmId;
+        liveQuery['farmingAreaId'] = farmId;
       } else {
-        queryParams['farmId'] = farmId;
+        liveQuery['farmId'] = farmId;
       }
     }
-    if (pondId != null) {
-      queryParams['pondId'] = pondId;
-    }
+    if (pondId != null) liveQuery['pondId'] = pondId;
 
-    // BE does not expose the old /iot/history route. The desktop client
-    // reads each sensor through /iot/sensor-data/{sensorId}; keep mobile on
-    // the same contract instead of inventing a cloud endpoint.
     final live = await _apiClient.safeGet<Map<String, dynamic>>(
       ApiConstants.iotLive,
-      queryParameters: queryParams.isEmpty ? null : queryParams,
+      queryParameters: liveQuery.isEmpty ? null : liveQuery,
     );
     _checkFailure(live.failure, 'water quality sensor list');
 
@@ -219,31 +216,31 @@ class WaterQualityRemoteDataSourceImpl implements WaterQualityRemoteDataSource {
     final sensorTypes = <String, String>{};
     for (final raw in liveItems) {
       final row = _asStringKeyedMap(raw);
-      final id = (row['sensorId'] ?? row['SensorId'])?.toString();
+      final id =
+          (row['sensorId'] ?? row['SensorId'] ?? row['id'] ?? row['Id'])
+              ?.toString();
       final type = (row['sensorType'] ?? row['SensorType'])?.toString();
-      if (id != null && id.isNotEmpty && type != null && type.isNotEmpty) {
-        sensorTypes[id] = type;
-      }
+      if (id == null || id.isEmpty || type == null || type.isEmpty) continue;
+      final t = type.toLowerCase();
+      if (t.contains('float') || t.contains('relay')) continue;
+      sensorTypes[id] = type;
     }
 
     final history = <WaterQualityModel>[];
     for (final entry in sensorTypes.entries) {
-      final result = await _apiClient.safeGet<Map<String, dynamic>>(
-        ApiConstants.sensorData(entry.key),
-        queryParameters: {
-          'from': from.toIso8601String(),
-          'to': now.toIso8601String(),
-          'page': 1,
-          'pageSize': 2000,
-        },
+      if (!RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(entry.key)) continue;
+      var rows = await _fetchSensorRows(
+        entry.key,
+        from: from,
+        to: now,
       );
-      _checkFailure(result.failure, 'historical data for sensor ${entry.key}');
-      for (final raw in _extractListPayload(
-        result.data.data,
-        'sensor history ${entry.key}',
-      )) {
-        final row = _asStringKeyedMap(raw);
-        final value = (row['value'] ?? row['Value']) as num?;
+      if (rows.isEmpty) {
+        rows = await _fetchSensorRows(entry.key);
+      }
+      for (final row in rows) {
+        final rawVal = row['value'] ?? row['Value'];
+        final value =
+            rawVal is num ? rawVal.toDouble() : double.tryParse('$rawVal');
         final measuredAt = row['measuredAt'] ?? row['MeasuredAt'];
         final timestamp = measuredAt == null
             ? null
@@ -253,7 +250,7 @@ class WaterQualityRemoteDataSourceImpl implements WaterQualityRemoteDataSource {
           row,
           entry.key,
           entry.value,
-          value.toDouble(),
+          value,
           timestamp,
           farmId,
         ));
@@ -262,6 +259,28 @@ class WaterQualityRemoteDataSourceImpl implements WaterQualityRemoteDataSource {
 
     history.sort((a, b) => a.timestamp.compareTo(b.timestamp));
     return history;
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchSensorRows(
+    String sensorId, {
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final query = <String, dynamic>{
+      'page': 1,
+      'pageSize': 2000,
+    };
+    if (from != null) query['from'] = from.toIso8601String();
+    if (to != null) query['to'] = to.toIso8601String();
+    final result = await _apiClient.safeGet<Map<String, dynamic>>(
+      ApiConstants.sensorData(sensorId),
+      queryParameters: query,
+    );
+    if (result.failure != null) return const [];
+    return _extractListPayload(result.data.data, 'sensor history $sensorId')
+        .whereType<Map>()
+        .map(_asStringKeyedMap)
+        .toList();
   }
 
   @override
@@ -327,12 +346,18 @@ class WaterQualityRemoteDataSourceImpl implements WaterQualityRemoteDataSource {
       return [];
     }
 
-    if (body.containsKey('data') && body['data'] is List<dynamic>) {
-      return body['data'] as List<dynamic>;
+    if (body.containsKey('data') && body['data'] is List) {
+      return body['data'] as List;
     }
 
-    if (body.containsKey('items') && body['items'] is List<dynamic>) {
-      return body['items'] as List<dynamic>;
+    if (body.containsKey('items') && body['items'] is List) {
+      return body['items'] as List;
+    }
+    if (body.containsKey('Items') && body['Items'] is List) {
+      return body['Items'] as List;
+    }
+    if (body.containsKey('data') && body['data'] is Map) {
+      return _extractList(_asMap(body['data']), operationName);
     }
 
     // Body might be a list at the root in some API shapes.
@@ -377,8 +402,16 @@ class WaterQualityRemoteDataSourceImpl implements WaterQualityRemoteDataSource {
       temperature: type.contains('temp') ? value : 0,
       ph: type == 'ph' || type.contains('ph') ? value : 0,
       dissolvedOxygen:
-          type.contains('do') || type.contains('oxygen') ? value : 0,
-      salinity: type.contains('salin') || type.contains('salt') ? value : 0,
+          type == 'do' ||
+                  type.contains('oxygen') ||
+                  type.contains('oxy')
+              ? value
+              : 0,
+      salinity: type.contains('salin') ||
+              type.contains('salt') ||
+              type.contains('tds')
+          ? value
+          : 0,
       timestamp: timestamp,
       isAlertTriggered: false,
     );

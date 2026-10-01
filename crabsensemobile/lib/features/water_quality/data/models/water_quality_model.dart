@@ -24,6 +24,11 @@ class WaterQualityModel extends WaterQuality {
     required super.timestamp,
     required super.isAlertTriggered,
     super.pondId,
+    super.ammonia,
+    super.nitrite,
+    super.kh,
+    super.calcium,
+    super.magnesium,
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -98,6 +103,11 @@ class WaterQualityModel extends WaterQuality {
     ph: entity.ph,
     dissolvedOxygen: entity.dissolvedOxygen,
     salinity: entity.salinity,
+    ammonia: entity.ammonia,
+    nitrite: entity.nitrite,
+    kh: entity.kh,
+    calcium: entity.calcium,
+    magnesium: entity.magnesium,
     timestamp: entity.timestamp,
     isAlertTriggered: entity.isAlertTriggered,
   );
@@ -146,6 +156,11 @@ class WaterQualityModel extends WaterQuality {
     ph: ph,
     dissolvedOxygen: dissolvedOxygen,
     salinity: salinity,
+    ammonia: ammonia,
+    nitrite: nitrite,
+    kh: kh,
+    calcium: calcium,
+    magnesium: magnesium,
     timestamp: timestamp,
     isAlertTriggered: isAlertTriggered,
   );
@@ -160,6 +175,11 @@ class WaterQualityModel extends WaterQuality {
     double? ph,
     double? dissolvedOxygen,
     double? salinity,
+    double? ammonia,
+    double? nitrite,
+    double? kh,
+    double? calcium,
+    double? magnesium,
     DateTime? timestamp,
     bool? isAlertTriggered,
   }) => WaterQualityModel(
@@ -171,6 +191,11 @@ class WaterQualityModel extends WaterQuality {
     ph: ph ?? this.ph,
     dissolvedOxygen: dissolvedOxygen ?? this.dissolvedOxygen,
     salinity: salinity ?? this.salinity,
+    ammonia: ammonia ?? this.ammonia,
+    nitrite: nitrite ?? this.nitrite,
+    kh: kh ?? this.kh,
+    calcium: calcium ?? this.calcium,
+    magnesium: magnesium ?? this.magnesium,
     timestamp: timestamp ?? this.timestamp,
     isAlertTriggered: isAlertTriggered ?? this.isAlertTriggered,
   );
