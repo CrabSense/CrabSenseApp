@@ -1017,6 +1017,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                               _onSensorMenu(a, s, detail.controller),
                           itemBuilder: (_) => [
                             const PopupMenuItem(
+                                value: 'hist', child: Text('Lịch sử')),
+                            const PopupMenuItem(
                                 value: 'delete', child: Text('Xóa sensor')),
                             const PopupMenuItem(
                                 value: 'off', child: Text('Tắt sensor')),
@@ -1447,8 +1449,48 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
         await _svc.updateSensor(sensorId: s.id, isActive: false);
         if (mounted) _toast('Đã tắt sensor ${s.code}.');
       case 'hist':
-        widget.onNavigate?.call(AppRoute.environment);
+        await _showSensorHistory(s);
     }
+  }
+
+  Future<void> _showSensorHistory(ControllerChild s) async {
+    List<Map<String, dynamic>> rows;
+    try {
+      rows = await _svc.sensorHistory(s.id);
+    } catch (e) {
+      if (mounted) _toast('$e');
+      return;
+    }
+    if (!mounted) return;
+    final unit = s.unit ?? '';
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Lịch sử ${_sensorTitle(s)}'),
+        content: SizedBox(
+          width: 420,
+          height: 360,
+          child: rows.isEmpty
+              ? const Text('Chưa có điểm đo.')
+              : ListView(
+                  children: [
+                    for (final r in rows.take(80))
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          '${_histValue(r)} $unit   ${_histWhen(r)}',
+                          style: bvText(fontSize: 13),
+                        ),
+                      ),
+                  ],
+                ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Đóng')),
+        ],
+      ),
+    );
   }
 
   Future<void> _editSensor(ControllerChild s) async {
@@ -1705,7 +1747,26 @@ String _sensorTitle(ControllerChild s) {
   if (t.contains('tds')) return 'TDS';
   if (t.contains('temp')) return 'Nhiệt độ';
   if (t.contains('do') || t.contains('oxy')) return 'DO';
+  if (t.contains('volt') || s.code == 'meter_v') return 'Điện áp';
+  if (t.contains('current') || s.code == 'meter_a') return 'Dòng';
+  if (s.code == 'meter_va' || t.contains('apparent')) return 'Công suất biểu kiến';
+  if (s.code == 'meter_w' || (t.contains('power') && !t.contains('factor'))) return 'Công suất';
+  if (t.contains('energy') || s.code == 'meter_kwh') return 'Điện năng';
+  if (t.contains('freq') || s.code == 'meter_hz') return 'Tần số';
+  if (t.contains('factor') || s.code == 'meter_pf') return 'Hệ số công suất';
   return s.name.isEmpty ? s.code : s.name;
+}
+
+String _histValue(Map<String, dynamic> r) {
+  final raw = r['value'] ?? r['Value'];
+  if (raw is num) return raw.toString();
+  return raw?.toString() ?? '—';
+}
+
+String _histWhen(Map<String, dynamic> r) {
+  final raw = r['measuredAt'] ?? r['MeasuredAt'];
+  final dt = raw == null ? null : DateTime.tryParse(raw.toString());
+  return dt == null ? '' : fmtDateTimeVn(dt);
 }
 
 String _fmtValue(ControllerChild s) {

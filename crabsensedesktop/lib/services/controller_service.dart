@@ -531,6 +531,17 @@ class ControllerService extends ChangeNotifier {
     }
   }
 
+  Future<List<Map<String, dynamic>>> sensorHistory(String sensorId) {
+    final to = DateTime.now().toUtc();
+    return _api.fetchSensorHistory(
+      _session.token,
+      sensorId: sensorId,
+      from: to.subtract(const Duration(hours: 24)),
+      to: to,
+      pageSize: 200,
+    );
+  }
+
   Future<void> _mergePinsFromEsp(ControllerDetail detail) async {
     final ip = detail.controller.ipLan?.trim() ?? '';
     if (ip.isEmpty) return;
