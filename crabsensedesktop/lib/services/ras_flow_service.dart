@@ -19,6 +19,7 @@ class RasFlowService extends ChangeNotifier {
     _session = session;
     stopLiveRefresh(notify: false);
     _diagram = null;
+    _power = const PowerSnapshot();
     _error = null;
     _notifyDeferred();
   }
@@ -32,7 +33,9 @@ class RasFlowService extends ChangeNotifier {
   DateTime? _lastRefreshedAt;
 
   Timer? _liveTimer;
+  Timer? _meterTimer;
   String? _liveAreaId;
+  PowerSnapshot _power = const PowerSnapshot();
 
   bool get loading => _loading;
   bool get isLiveActive => _liveTimer != null;
@@ -40,6 +43,7 @@ class RasFlowService extends ChangeNotifier {
   String? get error => _error;
   RasFlowDiagram? get diagram => _diagram;
   DateTime? get lastRefreshedAt => _lastRefreshedAt;
+  PowerSnapshot get power => _power;
 
   /// Bật làm mới sơ đồ RAS mỗi [interval] (mặc định 2s, khớp telemetry Edge ~5s).
   void startLiveRefresh(
@@ -52,6 +56,10 @@ class RasFlowService extends ChangeNotifier {
     stopLiveRefresh();
     _liveAreaId = areaId;
     unawaited(loadDiagram(areaId));
+    unawaited(refreshPower());
+    _meterTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      unawaited(refreshPower());
+    });
     _liveTimer = Timer.periodic(interval, (_) {
       if (_liveAreaId == areaId) {
         unawaited(loadDiagram(areaId, silent: true));
@@ -62,7 +70,9 @@ class RasFlowService extends ChangeNotifier {
 
   void stopLiveRefresh({bool notify = true}) {
     _liveTimer?.cancel();
+    _meterTimer?.cancel();
     _liveTimer = null;
+    _meterTimer = null;
     _liveAreaId = null;
     if (notify) _notifyDeferred();
   }
@@ -213,6 +223,54 @@ class RasFlowService extends ChangeNotifier {
     );
   }
 
+  Future<void> refreshPower() async {
+    try {
+      final res = await http.get(
+        Uri.parse('${AppEnv.cloudApiUrl}/api/iot/live'),
+        headers: _headers(),
+      );
+      if (res.statusCode != 200) return;
+      final body = _decode(res.body);
+      final data = body['data'] ?? body['Data'];
+      if (data is! List) return;
+      final points = <String, PowerPoint>{};
+      for (final raw in data) {
+        if (raw is! Map) continue;
+        final row = Map<String, dynamic>.from(raw);
+        final code = (row['sensorCode'] ?? row['SensorCode'] ?? '').toString();
+        if (!code.startsWith('meter_')) continue;
+        final valueRaw = row['latestValue'] ?? row['LatestValue'];
+        final atRaw = row['latestMeasuredAt'] ?? row['LatestMeasuredAt'];
+        points[code] = PowerPoint(
+          id: (row['id'] ?? row['Id'] ?? '').toString(),
+          value: valueRaw is num ? valueRaw.toDouble() : double.tryParse('$valueRaw'),
+          unit: (row['unit'] ?? row['Unit'])?.toString(),
+          at: atRaw == null ? null : DateTime.tryParse(atRaw.toString()),
+        );
+      }
+      _power = PowerSnapshot(points);
+      _notifyDeferred();
+    } catch (_) {}
+  }
+
+  Future<List<Map<String, dynamic>>> powerHistory(String sensorId) async {
+    final to = DateTime.now().toUtc();
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/iot/sensor-data/$sensorId').replace(
+      queryParameters: {
+        'from': to.subtract(const Duration(hours: 24)).toIso8601String(),
+        'to': to.toIso8601String(),
+        'page': '1',
+        'pageSize': '48',
+      },
+    );
+    final res = await http.get(uri, headers: _headers());
+    final body = _decode(res.body);
+    final data = body['data'] ?? body['Data'];
+    final items = data is Map ? (data['items'] ?? data['Items']) : data;
+    if (items is! List) return const [];
+    return items.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
   Map<String, String> _headers() => {
         'Authorization': 'Bearer ${_session.token}',
         'Content-Type': 'application/json',
@@ -294,4 +352,23 @@ class RasFlowService extends ChangeNotifier {
     stopLiveRefresh();
     super.dispose();
   }
+}
+
+class PowerPoint {
+  const PowerPoint({required this.id, this.value, this.unit, this.at});
+
+  final String id;
+  final double? value;
+  final String? unit;
+  final DateTime? at;
+}
+
+class PowerSnapshot {
+  const PowerSnapshot([this.points = const {}]);
+
+  final Map<String, PowerPoint> points;
+
+  PowerPoint? operator [](String code) => points[code];
+
+  bool get hasData => points.values.any((p) => p.value != null);
 }

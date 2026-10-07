@@ -609,6 +609,8 @@ class _RasControlPageState extends State<RasControlPage> {
                   onOff: () => _cmd(n, 'off'),
                   onMenu: (a) => _onDeviceMenu(n, a),
                   onOpenController: () => widget.onNavigate?.call(AppRoute.controllers),
+                  power: n.hasRelay ? _svc.power : null,
+                  onPower: n.hasRelay ? () => _openPowerHistory() : null,
                 ),
               ),
           ],
@@ -645,6 +647,8 @@ class _RasControlPageState extends State<RasControlPage> {
     switch (action) {
       case 'history':
         _openActivityDetail(_lastEvent(n), n);
+      case 'power':
+        _openPowerHistory();
       case 'controller':
         widget.onNavigate?.call(AppRoute.controllers);
       case 'relay':
@@ -1037,6 +1041,65 @@ class _RasControlPageState extends State<RasControlPage> {
     return '$s';
   }
 
+  Future<void> _openPowerHistory() async {
+    final specs = [
+      ('meter_v', 'Điện áp', 'V'),
+      ('meter_a', 'Dòng', 'A'),
+      ('meter_w', 'Công suất', 'W'),
+      ('meter_kwh', 'Điện năng', 'kWh'),
+    ];
+    final sections = <({String title, List<Map<String, dynamic>> rows, String unit})>[];
+    for (final spec in specs) {
+      final point = _svc.power[spec.$1];
+      if (point == null || point.id.isEmpty) continue;
+      try {
+        final rows = await _svc.powerHistory(point.id);
+        sections.add((title: spec.$2, rows: rows, unit: point.unit ?? spec.$3));
+      } catch (e) {
+        if (mounted) _toast('$e');
+        return;
+      }
+    }
+    if (!mounted) return;
+    if (sections.isEmpty) {
+      _toast('Chưa có số đo điện.');
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Lịch sử điện 24 giờ'),
+        content: SizedBox(
+          width: 460,
+          height: 420,
+          child: ListView(
+            children: [
+              for (final section in sections) ...[
+                Text(section.title, style: bvText(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 6),
+                if (section.rows.isEmpty)
+                  Text('Chưa có điểm.', style: bvText(color: DashboardColors.textMuted))
+                else
+                  for (final row in section.rows.take(12))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        '${_powerValue(row)} ${section.unit}   ${_powerWhen(row)}',
+                        style: bvText(fontSize: 13),
+                      ),
+                    ),
+                const SizedBox(height: 12),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng')),
+        ],
+      ),
+    );
+  }
+
   void _openActivityDetail(RasControlEvent? e, RasFlowNodeLive? node) {
     if (e == null) {
       _toast('Chưa có lịch sử lệnh cho thiết bị này.');
@@ -1230,6 +1293,8 @@ class _DeviceCard extends StatelessWidget {
     required this.onOff,
     required this.onMenu,
     required this.onOpenController,
+    this.power,
+    this.onPower,
   });
 
   final RasFlowNodeLive node;
@@ -1242,6 +1307,8 @@ class _DeviceCard extends StatelessWidget {
   final VoidCallback onOff;
   final ValueChanged<String> onMenu;
   final VoidCallback onOpenController;
+  final PowerSnapshot? power;
+  final VoidCallback? onPower;
 
   @override
   Widget build(BuildContext context) {
@@ -1290,6 +1357,8 @@ class _DeviceCard extends StatelessWidget {
                 onSelected: onMenu,
                 itemBuilder: (_) => [
                   const PopupMenuItem(value: 'history', child: Text('Xem lịch sử')),
+                  if (power != null)
+                    const PopupMenuItem(value: 'power', child: Text('Lịch sử điện')),
                   const PopupMenuItem(value: 'controller', child: Text('Xem Controller')),
                   const PopupMenuItem(value: 'relay', child: Text('Gán Controller / SSR')),
                   const PopupMenuItem(value: 'auto', child: Text('Cấu hình AUTO')),
@@ -1312,6 +1381,7 @@ class _DeviceCard extends StatelessWidget {
           _meta('Thời gian chạy', _runtime(node)),
           _meta('Lần thay đổi', node.lastCommandAt == null ? '—' : fmtDateTimeVn(node.lastCommandAt)),
           _meta('Nguồn lệnh', commandSource),
+          if (power != null) _powerBlock(),
           if (offline) ...[
             const SizedBox(height: 8),
             Text('⚠ Không thể gửi lệnh điều khiển.', style: bvText(fontSize: 12, color: _kAmber)),
@@ -1343,6 +1413,32 @@ class _DeviceCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _powerBlock() {
+    final snap = power!;
+    String line(String code, String unit) {
+      final point = snap[code];
+      if (point?.value == null) return '—';
+      return '${point!.value!.toStringAsFixed(code == 'meter_kwh' ? 3 : 1)} $unit';
+    }
+
+    return InkWell(
+      onTap: onPower,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Điện C115', style: bvText(fontSize: 12, fontWeight: FontWeight.w800, color: DashboardColors.brand)),
+            _meta('Điện áp', line('meter_v', 'V')),
+            _meta('Dòng', line('meter_a', 'A')),
+            _meta('Công suất', line('meter_w', 'W')),
+            _meta('Điện năng', line('meter_kwh', 'kWh')),
+          ],
+        ),
       ),
     );
   }
@@ -1477,6 +1573,18 @@ class _RasAlert {
   final double? value;
   final double? threshold;
   final String? unit;
+}
+
+String _powerValue(Map<String, dynamic> row) {
+  final raw = row['value'] ?? row['Value'];
+  if (raw is num) return raw.toString();
+  return raw?.toString() ?? '—';
+}
+
+String _powerWhen(Map<String, dynamic> row) {
+  final raw = row['measuredAt'] ?? row['MeasuredAt'];
+  final at = raw == null ? null : DateTime.tryParse(raw.toString());
+  return at == null ? '' : fmtDateTimeVn(at);
 }
 
 String _controllerCode(RasFlowNodeLive n) {
