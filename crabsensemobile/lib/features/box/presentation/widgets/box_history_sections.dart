@@ -37,14 +37,31 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
   Future<void> _load() async {
     try {
       final api = sl<ApiClient>();
-      final responses = await Future.wait<dynamic>([
+      var crabs = <dynamic>[];
+      try {
+        crabs = await sl<BoxRemoteDataSource>().getCrabsByBox(widget.boxId);
+      } catch (_) {}
+      final crabId = crabs.isNotEmpty ? crabs.first.id : '';
+      final fetches = <Future<dynamic>>[
         api.get<dynamic>(
           ApiConstants.operationsForBox(widget.boxId),
           queryParameters: const {'page': 1, 'limit': 80},
         ),
         api.get<dynamic>(ApiConstants.boxTimeline(widget.boxId)),
-      ]);
-      final operations = _asList(responses[0].data);
+      ];
+      if (crabId.isNotEmpty) {
+        fetches.add(
+          api.get<dynamic>(
+            ApiConstants.operationsForCrab(crabId),
+            queryParameters: const {'page': 1, 'limit': 80},
+          ),
+        );
+      }
+      final responses = await Future.wait<dynamic>(fetches);
+      final operations = _mergeOps(
+        _asList(responses[0].data),
+        responses.length > 2 ? _asList(responses[2].data) : const [],
+      );
       final feeding =
           operations.map(_parseFeeding).whereType<_FeedingRecord>().toList()
             ..sort((a, b) => b.at.compareTo(a.at));
@@ -56,9 +73,7 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
       var growth = <_GrowthMolt>[];
       var weights = <_GrowthPoint>[];
       try {
-        final crabs = await sl<BoxRemoteDataSource>().getCrabsByBox(widget.boxId);
-        if (crabs.isNotEmpty) {
-          final crabId = crabs.first.id;
+        if (crabId.isNotEmpty) {
           final extra = await Future.wait<dynamic>([
             api.get<dynamic>(ApiConstants.crabMoltings(crabId)),
             api.get<dynamic>(ApiConstants.crabWeights(crabId)),
@@ -116,6 +131,29 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
           .toList()
         ..sort((a, b) => a.at.compareTo(b.at));
       if (ofDay.isNotEmpty) out.add(ofDay.last);
+    }
+    return out;
+  }
+
+  static List<dynamic> _mergeOps(List<dynamic> a, List<dynamic> b) {
+    if (b.isEmpty) return a;
+    final seen = <String>{};
+    final out = <dynamic>[];
+    void add(dynamic raw) {
+      if (raw is! Map) return;
+      final id = (raw['id'] ?? raw['Id'] ?? '').toString();
+      final key = id.isNotEmpty
+          ? id
+          : '${raw['timestamp'] ?? raw['Timestamp']}|${raw['notes'] ?? raw['Notes']}';
+      if (!seen.add(key)) return;
+      out.add(raw);
+    }
+
+    for (final item in a) {
+      add(item);
+    }
+    for (final item in b) {
+      add(item);
     }
     return out;
   }
