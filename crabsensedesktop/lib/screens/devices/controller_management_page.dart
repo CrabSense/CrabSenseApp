@@ -655,6 +655,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                     const PopupMenuItem(
                         value: 'disable',
                         child: Text('Vô hiệu hóa Controller')),
+                    const PopupMenuItem(
+                        value: 'delete', child: Text('Xóa Controller')),
                   ],
                 ),
               ],
@@ -1349,6 +1351,36 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
         _tabs.animateTo(4);
       case 'disable':
         _deactivate(d, detail);
+      case 'delete':
+        _deleteController(d);
+    }
+  }
+
+  Future<void> _deleteController(IoTDevice d) async {
+    final name = d.deviceName ?? d.deviceCode;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Xóa $name?'),
+        content: const Text(
+          'Controller bị xóa khỏi khu. Sensor và số đo giữ lại, không còn gắn board này.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Hủy')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: _kRed),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final deleted = await _svc.deleteController(d.id);
+    if (mounted) {
+      _toast(deleted ? 'Đã xóa $name.' : (_svc.error ?? 'Không xóa được controller.'));
     }
   }
 

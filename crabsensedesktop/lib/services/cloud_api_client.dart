@@ -1453,6 +1453,15 @@ class CloudApiClient {
     _throwIfFailed(res, body, '/api/kiosks/$kioskId/revoke');
   }
 
+  Future<void> deleteKiosk(String token, String kioskId) async {
+    final res = await _client.delete(
+      Uri.parse('$_base/api/kiosks/$kioskId'),
+      headers: authHeaders(token),
+    );
+    final body = _decode(res);
+    _throwIfFailed(res, body, '/api/kiosks/$kioskId');
+  }
+
   Future<List<Map<String, dynamic>>> listEdgeControllers(
     String token,
     String farmingAreaId,

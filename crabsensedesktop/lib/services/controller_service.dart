@@ -421,6 +421,22 @@ class ControllerService extends ChangeNotifier {
     }
   }
 
+  Future<bool> deleteController(String deviceId) async {
+    try {
+      await _api.deleteController(_session.token, deviceId);
+      if (_selectedId == deviceId) {
+        _selectedId = null;
+        _detail = null;
+      }
+      await load();
+      return true;
+    } on CloudApiException catch (e) {
+      _error = e.message;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> addSensor({
     required String deviceId,
     required String sensorCode,

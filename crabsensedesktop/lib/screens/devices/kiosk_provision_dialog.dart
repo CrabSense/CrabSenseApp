@@ -128,6 +128,29 @@ class _KioskProvisionDialogState extends State<_KioskProvisionDialog> {
     }
   }
 
+  Future<void> _deleteKiosk(String id, String code) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Xóa $code?'),
+        content: const Text('Kiosk và mã cấp phát bị xóa. Controller gắn kiosk này trở lại chưa nối.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Xóa')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() => _error = null);
+    try {
+      await _api.deleteKiosk(_token, id);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final farm = widget.service.session.selectedFarm;
@@ -230,6 +253,7 @@ class _KioskProvisionDialogState extends State<_KioskProvisionDialog> {
                     ),
                   TextButton(onPressed: () => _reissue(id), child: const Text('Cấp mã mới')),
                   TextButton(onPressed: () => _revoke(id), child: const Text('Thu hồi')),
+                  TextButton(onPressed: () => _deleteKiosk(id, code), child: const Text('Xóa')),
                 ],
               ),
             ],
