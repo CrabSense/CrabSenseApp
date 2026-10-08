@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import 'crab_box.dart';
@@ -289,29 +291,39 @@ class RasFlowNodeLive {
         temperatureCelsius: tempC,
       );
 
-  IconData get icon => switch (iconKey ?? nodeCode) {
-
-        'crab_boxes' => Icons.grid_view,
-
-        'drum' => Icons.filter_alt_outlined,
-
-        'discharge_100' => Icons.water_drop_outlined,
-
-        'skimmer' => Icons.air_outlined,
-
-        'bio' => Icons.biotech_outlined,
-
-        'sand_coral_200' => Icons.spa_outlined,
-
-        'settling' => Icons.layers_outlined,
-
-        'pump' => Icons.settings_input_component_outlined,
-
-        _ => Icons.precision_manufacturing_outlined,
-
-      };
+  IconData get icon {
+    final saved = _savedIcon(paramDefaultsJson);
+    return _rasIcon(saved ?? iconKey ?? nodeCode);
+  }
 
 }
+
+String? _savedIcon(String? raw) {
+  if (raw == null || raw.isEmpty) return null;
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is Map && decoded['icon'] != null) {
+      return decoded['icon'].toString();
+    }
+  } catch (_) {}
+  return null;
+}
+
+IconData _rasIcon(String key) => switch (key) {
+      'crab_boxes' => Icons.grid_view,
+      'drum' => Icons.filter_alt_outlined,
+      'discharge_100' => Icons.water_drop_outlined,
+      'skimmer' => Icons.air_outlined,
+      'bio' => Icons.biotech_outlined,
+      'sand_coral_200' => Icons.spa_outlined,
+      'settling' => Icons.layers_outlined,
+      'pump' => Icons.water,
+      'ozone' => Icons.bubble_chart_outlined,
+      'oxy' => Icons.air,
+      'uv' => Icons.wb_sunny_outlined,
+      'heater' => Icons.thermostat_outlined,
+      _ => Icons.precision_manufacturing_outlined,
+    };
 
 
 
@@ -341,6 +353,8 @@ class RasFlowDiagram {
 
     this.activity = const [],
 
+    this.flows = const [],
+
   });
 
 
@@ -366,6 +380,8 @@ class RasFlowDiagram {
   final int faultCount;
 
   final List<RasControlEvent> activity;
+
+  final List<RasPipe> flows;
 
 
 
@@ -414,6 +430,8 @@ class RasFlowDiagram {
           (json['faultCount'] ?? json['FaultCount'] as num?)?.toInt() ?? 0,
 
       activity: _events(json['activity'] ?? json['Activity']),
+
+      flows: _pipes(json['flows'] ?? json['Flows']),
 
     );
 
@@ -473,6 +491,28 @@ List<RasControlEvent> _events(dynamic raw) {
 
   ];
 
+}
+
+class RasPipe {
+  const RasPipe({required this.id, required this.fromId, required this.toId});
+
+  final String id;
+  final String fromId;
+  final String toId;
+
+  factory RasPipe.fromJson(Map<String, dynamic> json) => RasPipe(
+        id: '${json['id'] ?? json['Id']}',
+        fromId: '${json['fromComponentId'] ?? json['FromComponentId']}',
+        toId: '${json['toComponentId'] ?? json['ToComponentId']}',
+      );
+}
+
+List<RasPipe> _pipes(dynamic raw) {
+  if (raw is! List) return const [];
+  return [
+    for (final e in raw)
+      if (e is Map) RasPipe.fromJson(Map<String, dynamic>.from(e)),
+  ];
 }
 
 

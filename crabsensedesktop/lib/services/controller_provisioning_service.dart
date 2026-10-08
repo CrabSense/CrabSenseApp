@@ -27,6 +27,7 @@ class EspProvisionInfo {
     this.lastError = '',
     this.cloudBackendUrl = '',
     this.sensors = const [],
+    this.outputs = const [],
   });
 
   final String deviceId;
@@ -47,6 +48,7 @@ class EspProvisionInfo {
   final String lastError;
   final String cloudBackendUrl;
   final List<EspSensorPin> sensors;
+  final List<EspOutputPin> outputs;
 
   String get displayName => apName.isNotEmpty
       ? apName
@@ -71,6 +73,7 @@ class EspProvisionInfo {
 
     num? n(dynamic v) => v is num ? v : num.tryParse('$v');
     final pins = _parseSensors(json['sensors'] ?? json['Sensors']);
+    final outputs = _parseOutputs(json['outputs'] ?? json['Outputs']);
     return EspProvisionInfo(
       deviceId: read('deviceId', 'DeviceId'),
       deviceCode: read('deviceCode', 'DeviceCode'),
@@ -92,12 +95,43 @@ class EspProvisionInfo {
           n(json['lastHeartbeatSeconds'] ?? json['LastHeartbeatSeconds'])?.toInt(),
       sensorCount: n(json['sensorCount'] ?? json['SensorCount'])?.toInt() ??
           (pins.isEmpty ? null : pins.length),
-      outputCount: n(json['outputCount'] ?? json['OutputCount'])?.toInt(),
+      outputCount: n(json['outputCount'] ?? json['OutputCount'])?.toInt() ??
+          (outputs.isEmpty ? null : outputs.length),
       lastError: read('lastError', 'LastError'),
       cloudBackendUrl: read('backendUrl', 'BackendUrl'),
       sensors: pins,
+      outputs: outputs,
     );
   }
+}
+
+class EspOutputPin {
+  const EspOutputPin({required this.channel, required this.gpio, this.on});
+
+  final int channel;
+  final int gpio;
+  final bool? on;
+}
+
+List<EspOutputPin> _parseOutputs(dynamic raw) {
+  if (raw is! List) return const [];
+  final pins = <EspOutputPin>[];
+  for (final e in raw.whereType<Map>()) {
+    final m = Map<String, dynamic>.from(e);
+    final channel = m['channel'] ?? m['Channel'];
+    final gpio = m['gpio'] ?? m['Gpio'] ?? m['pin'] ?? m['Pin'];
+    final ch = channel is num ? channel.toInt() : int.tryParse('$channel') ?? 0;
+    final pin = gpio is num ? gpio.toInt() : int.tryParse('$gpio') ?? 0;
+    if (ch < 1 || pin <= 0) continue;
+    pins.add(EspOutputPin(
+      channel: ch,
+      gpio: pin,
+      on: m['on'] == true || m['On'] == true
+          ? true
+          : (m['on'] == false || m['On'] == false ? false : null),
+    ));
+  }
+  return pins;
 }
 
 class EspSensorPin {
@@ -146,6 +180,32 @@ class ControllerProvisioningService {
   final http.Client _client;
 
   static const defaultApBase = 'http://192.168.4.1';
+  static const setupSsid = 'CrabSense-C115';
+
+  /// Kiosk URL the ESP can reach: this PC on the farm LAN, port 8090.
+  static Future<String> localKioskUrl({int port = 8090}) async {
+    String? other;
+    try {
+      final ifaces = await NetworkInterface.list(
+        includeLinkLocal: false,
+        type: InternetAddressType.IPv4,
+      );
+      for (final iface in ifaces) {
+        for (final addr in iface.addresses) {
+          final ip = addr.address;
+          if (ip.startsWith('127.') ||
+              ip.startsWith('169.254.') ||
+              ip.startsWith('192.168.4.')) {
+            continue;
+          }
+          if (ip.startsWith('192.168.1.')) return 'http://$ip:$port';
+          if (ip.startsWith('192.168.') && other == null) other = ip;
+        }
+      }
+    } catch (_) {}
+    if (other != null) return 'http://$other:$port';
+    return 'http://192.168.1.95:$port';
+  }
 
   /// Desktop uses localhost; ESP cannot. Replace with this PC's LAN IPv4.
   static Future<String> backendUrlForEsp(String cloudApiUrl) async {
@@ -182,8 +242,9 @@ class ControllerProvisioningService {
 
   Future<EspProvisionInfo> discover({String baseUrl = defaultApBase}) async {
     final uri = Uri.parse('$baseUrl/api/info');
+    // The board stops answering while a kiosk call is in flight (~5s).
     final res =
-        await _client.get(uri).timeout(const Duration(milliseconds: 700));
+        await _client.get(uri).timeout(const Duration(seconds: 8));
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw const FormatException('Controller không trả /api/info');
     }
@@ -254,7 +315,7 @@ class ControllerProvisioningService {
   }
 
   Future<List<String>> _lanHosts() async {
-    final hosts = <String>{'192.168.110.240', '192.168.4.1'};
+    final prefixes = <String>{};
     try {
       final ifaces = await NetworkInterface.list(
         includeLinkLocal: false,
@@ -262,14 +323,44 @@ class ControllerProvisioningService {
       );
       for (final iface in ifaces) {
         for (final addr in iface.addresses) {
-          final parts = addr.address.split('.');
-          if (parts.length != 4) continue;
-          if (parts[0] == '127') continue;
-          final prefix = '${parts[0]}.${parts[1]}.${parts[2]}';
-          for (var i = 1; i <= 254; i++) {
-            hosts.add('$prefix.$i');
+          final ip = addr.address;
+          if (!ip.startsWith('192.168.') || ip.startsWith('192.168.4.')) {
+            continue;
+          }
+          final parts = ip.split('.');
+          if (parts.length == 4) {
+            prefixes.add('${parts[0]}.${parts[1]}.${parts[2]}');
           }
         }
+      }
+    } catch (_) {}
+    if (prefixes.isEmpty) prefixes.add('192.168.1');
+
+    final targets = <String>[
+      for (final prefix in prefixes)
+        for (var i = 1; i <= 254; i++) '$prefix.$i',
+    ];
+    const batch = 48;
+    for (var i = 0; i < targets.length; i += batch) {
+      final end = min(i + batch, targets.length);
+      await Future.wait(
+        targets.sublist(i, end).map(
+              (host) => Process.run(
+                'ping',
+                ['-n', '1', '-w', '200', host],
+                runInShell: true,
+              ).then((_) {}, onError: (_) {}),
+            ),
+      );
+    }
+
+    final hosts = <String>{'192.168.4.1'};
+    try {
+      final arp = await Process.run('arp', ['-a'], runInShell: true);
+      final re = RegExp(r'\b((?:\d{1,3}\.){3}\d{1,3})\b');
+      for (final match in re.allMatches(arp.stdout.toString())) {
+        final ip = match.group(1)!;
+        if (ip.startsWith('192.168.') && !ip.endsWith('.255')) hosts.add(ip);
       }
     } catch (_) {}
     return hosts.toList();
@@ -318,41 +409,107 @@ class ControllerProvisioningService {
         baseUrl: root,
       );
     } on TimeoutException {
-      // ESP đóng TCP khi restart — lệnh thường đã lưu.
-      return EspProvisionInfo(
-        deviceId: '',
-        deviceCode: '',
-        apName: '',
-        controllerType: '',
-        firmware: '',
-        mac: '',
-        provisioned: true,
-        baseUrl: root,
-      );
-    } on SocketException {
-      return EspProvisionInfo(
-        deviceId: '',
-        deviceCode: '',
-        apName: '',
-        controllerType: '',
-        firmware: '',
-        mac: '',
-        provisioned: true,
-        baseUrl: root,
-      );
-    } on http.ClientException {
-      return EspProvisionInfo(
-        deviceId: '',
-        deviceCode: '',
-        apName: '',
-        controllerType: '',
-        firmware: '',
-        mac: '',
-        provisioned: true,
-        baseUrl: root,
+      throw const FormatException(
+        'ESP32 không phản hồi. Máy tính phải đang ở Wi-Fi CrabSense-C115.',
       );
     }
   }
+
+  Future<String?> currentSsid() async {
+    try {
+      final result = await Process.run(
+        'netsh',
+        ['wlan', 'show', 'interfaces'],
+      );
+      final match = RegExp(r'^\s*SSID\s*:\s*(.+)\s*$', multiLine: true)
+          .firstMatch(result.stdout.toString());
+      final name = match?.group(1)?.trim();
+      if (name == null || name.isEmpty) return null;
+      return name;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Join the board's open setup network so 192.168.4.1 is reachable.
+  Future<void> joinSetupAp() async {
+    if (await currentSsid() == setupSsid) {
+      await _waitForSetupAp();
+      return;
+    }
+    final xmlPath = '${Directory.systemTemp.path}\\CrabSense-C115.xml';
+    await File(xmlPath).writeAsString(_setupProfileXml, flush: true);
+    final add = await Process.run(
+      'netsh',
+      ['wlan', 'add', 'profile', 'filename=$xmlPath'],
+    );
+    if (add.exitCode != 0) {
+      throw const FormatException('Không thêm được Wi-Fi CrabSense-C115');
+    }
+    final connect = await Process.run(
+      'netsh',
+      ['wlan', 'connect', 'name=$setupSsid'],
+    );
+    if (connect.exitCode != 0) {
+      throw const FormatException('Không kết nối được Wi-Fi CrabSense-C115');
+    }
+    for (var i = 0; i < 20; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      if (await currentSsid() == setupSsid) break;
+      if (i == 19) {
+        throw const FormatException('Không vào được Wi-Fi CrabSense-C115');
+      }
+    }
+    await _waitForSetupAp();
+  }
+
+  Future<void> _waitForSetupAp() async {
+    Object? last;
+    for (var i = 0; i < 4; i++) {
+      try {
+        await discover();
+        return;
+      } catch (e) {
+        last = e;
+        await Future<void>.delayed(const Duration(seconds: 1));
+      }
+    }
+    throw FormatException('Không mở được cấu hình trên CrabSense-C115. $last');
+  }
+
+  Future<void> joinSaved(String profile) async {
+    final name = profile.trim();
+    if (name.isEmpty) return;
+    await Process.run(
+      'netsh',
+      ['wlan', 'connect', 'name=$name', 'ssid=$name'],
+    );
+    for (var i = 0; i < 20; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      if (await currentSsid() == name) return;
+    }
+  }
+
+  static const _setupProfileXml = '''
+<?xml version="1.0"?>
+<WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1">
+  <name>CrabSense-C115</name>
+  <SSIDConfig>
+    <SSID><name>CrabSense-C115</name></SSID>
+  </SSIDConfig>
+  <connectionType>ESS</connectionType>
+  <connectionMode>manual</connectionMode>
+  <MSM>
+    <security>
+      <authEncryption>
+        <authentication>open</authentication>
+        <encryption>none</encryption>
+        <useOneX>false</useOneX>
+      </authEncryption>
+    </security>
+  </MSM>
+</WLANProfile>
+''';
 
   Future<http.Response> _postProvision(Uri uri, String payload) {
     return _client
@@ -414,5 +571,48 @@ class ControllerProvisioningService {
     } on http.ClientException {
       return true;
     }
+  }
+
+  /// Cafe page only stores farm Wi-Fi. Desktop sends the Kiosk address after the board is picked.
+  Future<void> pushKioskUrl({
+    required String baseUrl,
+    required String kioskUrl,
+  }) async {
+    final root = baseUrl.startsWith('http') ? baseUrl : 'http://$baseUrl';
+    final uri = Uri.parse('$root/api/provision');
+    await _client
+        .post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'kioskUrl': kioskUrl.trim()}),
+        )
+        .timeout(const Duration(seconds: 8));
+  }
+
+  /// Bật/tắt SSR trên board. `status` chỉ đọc trạng thái.
+  Future<({bool output1, bool output2})?> commandEsp({
+    required String ip,
+    required String command,
+    int? channel,
+  }) async {
+    final host = ip.trim().replaceFirst(RegExp(r'^https?://'), '');
+    final res = await _client
+        .post(
+          Uri.parse('http://$host/api/command'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'command': command,
+            if (channel != null) 'channel': channel,
+          }),
+        )
+        .timeout(const Duration(seconds: 8));
+    final decoded = jsonDecode(res.body);
+    if (decoded is! Map || res.statusCode < 200 || res.statusCode >= 300) {
+      return null;
+    }
+    return (
+      output1: decoded['output1'] == true,
+      output2: decoded['output2'] == true,
+    );
   }
 }

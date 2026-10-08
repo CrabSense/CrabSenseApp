@@ -483,7 +483,7 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
                 ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
                 : points.isEmpty
                     ? _chartEmpty()
-                    : _HistoryChart(
+                    : HistoryChart(
                         segments: segs,
                         rangeMinutes: _svc.chartRangeMinutesValue,
                         color: metric?.accent ?? DashboardColors.brand,
@@ -1010,8 +1010,8 @@ class _SensorCard extends StatelessWidget {
   }
 }
 
-class _HistoryChart extends StatelessWidget {
-  const _HistoryChart({
+class HistoryChart extends StatelessWidget {
+  const HistoryChart({
     required this.segments,
     required this.rangeMinutes,
     required this.color,

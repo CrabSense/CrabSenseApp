@@ -141,7 +141,6 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
   final _location = TextEditingController();
   final _ssid = TextEditingController();
   final _password = TextEditingController();
-  final _kioskUrl = TextEditingController(text: AppEnv.kioskUrl);
   final _staticIp = TextEditingController();
   final _subnet = TextEditingController();
   final _gateway = TextEditingController();
@@ -196,7 +195,6 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
     _location.dispose();
     _ssid.dispose();
     _password.dispose();
-    _kioskUrl.dispose();
     _staticIp.dispose();
     _subnet.dispose();
     _gateway.dispose();
@@ -258,10 +256,19 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
       _selected = info;
       _duplicate = dup;
       _name.text = info.displayName;
+      if (info.wifiSsid.isNotEmpty) _ssid.text = info.wifiSsid;
       _type = _typeFromFirmware(info.controllerType);
       _error = null;
       if (dup == null) _step = _Step.config;
     });
+    _pushKiosk(info);
+  }
+
+  Future<void> _pushKiosk(EspProvisionInfo info) async {
+    final url = await ControllerProvisioningService.localKioskUrl();
+    try {
+      await _provisioning.pushKioskUrl(baseUrl: info.baseUrl, kioskUrl: url);
+    } catch (_) {}
   }
 
   Future<void> _runChecks() async {
@@ -388,42 +395,58 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
       setState(() => _wifiError = '⚠ Nhập SSID và mật khẩu Wi-Fi mới.');
       return;
     }
-    final kiosk = Uri.tryParse(_kioskUrl.text.trim());
-    if (kiosk == null ||
-        !{'http', 'https'}.contains(kiosk.scheme) ||
-        kiosk.host.isEmpty) {
-      setState(() => _wifiError =
-          '⚠ Kiosk URL không hợp lệ. Ví dụ: http://192.168.1.50:8090');
-      return;
-    }
+    final farm = _ssid.text.trim();
     setState(() {
       _wifiSending = true;
       _wifiError = null;
-      _wifiPhase = 'Đang gửi cấu hình...';
+      _wifiPhase = 'Đang vào Wi-Fi CrabSense-C115';
     });
+    final back = await _provisioning.currentSsid();
     try {
-      setState(() => _wifiPhase = 'Đã gửi SSID/password');
+      await _provisioning.joinSetupAp();
+      if (!mounted) return;
+      setState(() => _wifiPhase = 'Đang gửi cấu hình...');
       await _provisioning.provision(
         ssid: _ssid.text,
         password: _password.text,
         backendUrl: await ControllerProvisioningService.backendUrlForEsp(
           AppEnv.cloudApiUrl,
         ),
-        kioskUrl: _kioskUrl.text,
+        kioskUrl: await ControllerProvisioningService.localKioskUrl(),
+        baseUrl: ControllerProvisioningService.defaultApBase,
       );
       if (!mounted) return;
-      setState(() => _wifiPhase = 'ESP32 đang khởi động lại');
-      await Future<void>.delayed(const Duration(seconds: 3));
+      setState(() => _wifiPhase = 'Đang quay lại $farm');
+      await _provisioning.joinSaved(
+        back != null && back != ControllerProvisioningService.setupSsid
+            ? back
+            : farm,
+      );
       if (!mounted) return;
-      setState(() => _wifiPhase = 'Đang kết nối ${_ssid.text.trim()}');
-      await Future<void>.delayed(const Duration(seconds: 2));
+      setState(() {
+        _wifiPhase = 'ESP32 đang vào $farm';
+        _findTab = _FindTab.lan;
+      });
+      await Future<void>.delayed(const Duration(seconds: 12));
+      if (!mounted) return;
+      await _scan();
       if (!mounted) return;
       setState(() {
         _wifiSending = false;
-        _wifiPhase = '✓ Đã gửi cấu hình. Quét LAN để tìm Controller.';
-        _findTab = _FindTab.lan;
+        _wifiPhase = _found.isEmpty
+            ? null
+            : '✓ Đã gửi cấu hình. Controller đã có trên LAN.';
+        if (_found.isEmpty) {
+          _error =
+              '⚠ Đã gửi cấu hình nhưng chưa thấy Controller. Kiểm tra lại mật khẩu Wi-Fi.';
+        }
       });
     } catch (e) {
+      final restore =
+          back != null && back != ControllerProvisioningService.setupSsid
+              ? back
+              : farm;
+      await _provisioning.joinSaved(restore);
       if (!mounted) return;
       setState(() {
         _wifiSending = false;
@@ -610,7 +633,10 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
     final on = _findTab == tab;
     return Expanded(
       child: InkWell(
-        onTap: () => setState(() => _findTab = tab),
+        onTap: () {
+          setState(() => _findTab = tab);
+          if (tab == _FindTab.wifi) _loadSsids();
+        },
         borderRadius: BorderRadius.circular(10),
         child: Container(
           height: 38,
@@ -696,7 +722,10 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
                 label: 'Quét lại'),
             const SizedBox(width: 10),
             TextButton(
-              onPressed: () => setState(() => _findTab = _FindTab.wifi),
+              onPressed: () {
+                setState(() => _findTab = _FindTab.wifi);
+                _loadSsids();
+              },
               child: Text('Không tìm thấy thiết bị? Cấu hình Wi-Fi →',
                   style: bvText(
                       color: DashboardColors.brand,
@@ -744,7 +773,10 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
               MgmtPrimaryButton(
                 label: 'Cấu hình Wi-Fi',
                 icon: Icons.wifi,
-                onTap: () => setState(() => _findTab = _FindTab.wifi),
+                onTap: () {
+                  setState(() => _findTab = _FindTab.wifi);
+                  _loadSsids();
+                },
               ),
             ],
           ),
@@ -845,7 +877,7 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
-            'ⓘ Thiết bị sẽ tạo Wi-Fi tạm thời CrabSense-Setup để cấu hình mạng.',
+            'ⓘ Board chưa vào Wi-Fi trại thì nối máy tính vào Wi-Fi CrabSense-C115, rồi gửi cấu hình.',
             style: bvText(height: 1.4),
           ),
         ),
@@ -863,15 +895,6 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
                   ? Icons.visibility_outlined
                   : Icons.visibility_off_outlined),
             ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _kioskUrl,
-          keyboardType: TextInputType.url,
-          decoration: _input('Kiosk URL (PC trong LAN)').copyWith(
-            helperText:
-                'ESP gửi telemetry về Kiosk; không nhập URL BE Cloud ở đây.',
           ),
         ),
         const SizedBox(height: 8),
@@ -897,11 +920,9 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
         ],
         const SizedBox(height: 8),
         Text(
-          '1. Kết nối vào Wi-Fi tạm thời: CrabSense-Setup\n'
-          '2. Nhập thông tin Wi-Fi của trại\n'
-          '3. Gửi cấu hình tới ESP32\n'
-          '4. Chờ ESP32 kết nối Wi-Fi\n'
-          '5. Quay lại quét mạng LAN',
+          '1. Nhập Wi-Fi trại (Crabsense)\n'
+          '2. Bấm gửi. Máy tính tự vào CrabSense-C115 rồi quay lại\n'
+          '3. Chờ quét LAN thấy Controller',
           style: bvText(color: DashboardColors.textMuted, height: 1.45),
         ),
         const SizedBox(height: 12),
@@ -1481,15 +1502,21 @@ class _AddControllerWizardState extends State<_AddControllerWizard> {
         if (suggestions.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Wrap(
-              spacing: 6,
-              children: [
-                for (final s in suggestions.take(8))
-                  ActionChip(
-                    label: Text(s, style: bvText(fontSize: 11)),
-                    onPressed: () => setState(() => c.text = s),
-                  ),
-              ],
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 148),
+              child: SingleChildScrollView(
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final s in suggestions)
+                      ActionChip(
+                        label: Text(s, style: bvText(fontSize: 11)),
+                        onPressed: () => setState(() => c.text = s),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
       ],

@@ -7,6 +7,13 @@ import '../models/auth_models.dart';
 import 'auth_session_store.dart';
 import 'cloud_api_client.dart';
 
+/// Token mới nhất sau khi làm mới phiên. Service đang giữ bản cũ vẫn dùng được.
+class LiveSession {
+  static AuthSession? current;
+
+  static String tokenOf(AuthSession fallback) => (current ?? fallback).token;
+}
+
 class CloudAuthResult {
   const CloudAuthResult._({
     required this.success,
@@ -142,6 +149,40 @@ class CloudAuthService {
       }
     } catch (_) {
       return await _offlineFallback(session);
+    }
+  }
+
+  /// Access token sống 1 giờ. Gọi khi API trả 401 trong lúc app đang mở.
+  /// Nhiều chỗ cùng 401 chỉ được đổi refresh token một lần.
+  static Future<AuthSession?>? _refreshing;
+
+  Future<AuthSession?> refreshSession(AuthSession session) {
+    final live = LiveSession.current;
+    if (live != null && live.token != session.token) return Future.value(live);
+    final pending = _refreshing;
+    if (pending != null) return pending;
+    final run = _refreshOnce(session);
+    _refreshing = run;
+    return run.whenComplete(() {
+      if (identical(_refreshing, run)) _refreshing = null;
+    });
+  }
+
+  Future<AuthSession?> _refreshOnce(AuthSession session) async {
+    final refresh = session.refreshToken?.trim();
+    if (refresh == null || refresh.isEmpty) return null;
+    try {
+      final next = await _api.refresh(refresh);
+      final updated = session.copyWith(
+        token: next.token,
+        refreshToken: next.refreshToken ?? refresh,
+        user: next.user ?? session.user,
+      );
+      LiveSession.current = updated;
+      await persistSessionIfRemembered(updated);
+      return updated;
+    } catch (_) {
+      return null;
     }
   }
 

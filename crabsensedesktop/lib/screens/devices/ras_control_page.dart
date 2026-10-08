@@ -1,14 +1,19 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/area_environment_metric.dart';
 import '../../models/ras_flow.dart';
+import '../../models/water_quality.dart';
 import '../../navigation/app_route.dart';
 import '../../services/area_environment_service.dart';
+import '../../services/controller_provisioning_service.dart';
 import '../../services/ras_flow_service.dart';
 import '../../theme/dashboard_theme.dart';
 import '../../widgets/shared/mgmt_ui.dart';
+import '../environment/realtime_monitor_page.dart';
 
 const _kAmber = Color(0xFFF5B700);
 const _kRed = Color(0xFFEF4444);
@@ -91,6 +96,8 @@ class _RasControlPageState extends State<RasControlPage> {
 
   List<RasFlowNodeLive> get _nodes => _svc.diagram?.nodes ?? const [];
   List<RasFlowNodeLive> get _devices => _nodes.where((n) => n.hasRelay).toList();
+  List<RasFlowNodeLive> get _managed =>
+      _nodes.where((n) => n.nodeType != 'source').toList();
 
   bool get _systemAuto =>
       _devices.isNotEmpty && _devices.every((n) => n.isAuto);
@@ -312,13 +319,18 @@ class _RasControlPageState extends State<RasControlPage> {
                 _errorBanner(),
               ],
               const SizedBox(height: 16),
+              _EspMonitor(
+                power: _svc.power,
+                loadHistory: (id, range) => _svc.powerHistory(id, range: range),
+              ),
+              const SizedBox(height: 16),
               _flowCard(loading),
               const SizedBox(height: 18),
               _deviceHeader(),
               const SizedBox(height: 12),
               if (loading)
                 _deviceSkeleton()
-              else if (_devices.isEmpty)
+              else if (_managed.isEmpty)
                 _emptyDevices()
               else
                 _deviceGrid(),
@@ -482,7 +494,7 @@ class _RasControlPageState extends State<RasControlPage> {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text('Sơ đồ tuần hoàn RAS', style: bvText(fontSize: 15, fontWeight: FontWeight.w800)),
+              Text('Sơ đồ RAS', style: bvText(fontSize: 15, fontWeight: FontWeight.w800)),
               ...sensors,
               TextButton(
                 onPressed: () => widget.onNavigate?.call(AppRoute.environment),
@@ -496,10 +508,16 @@ class _RasControlPageState extends State<RasControlPage> {
           const SizedBox(height: 12),
           if (loading)
             _flowSkeleton()
-          else if (_nodes.isEmpty)
-            Text('Chưa có sơ đồ tuần hoàn cho khu này.', style: bvText(color: DashboardColors.textMuted))
           else
-            _RasMintFlow(nodes: _nodes, titleOf: _flowTitle),
+            _RasCanvas(
+              areaId: widget.areaId,
+              nodes: _nodes,
+              pipes: _topologyPipes(),
+              titleOf: _flowTitle,
+              onOpen: _openTopologyNode,
+              onAdd: _addDevice,
+              meterOf: _ratedLine,
+            ),
         ],
       ),
     );
@@ -559,6 +577,11 @@ class _RasControlPageState extends State<RasControlPage> {
           alignment: WrapAlignment.end,
           children: [
             MgmtOutlineButton(
+              onTap: _addDevice,
+              icon: Icons.add,
+              label: 'Thêm thiết bị',
+            ),
+            MgmtOutlineButton(
               onTap: _devices.isEmpty ? null : () => _openAutoConfig(),
               icon: Icons.settings_outlined,
               label: 'Cấu hình AUTO',
@@ -595,7 +618,7 @@ class _RasControlPageState extends State<RasControlPage> {
           spacing: 12,
           runSpacing: 12,
           children: [
-            for (final n in _devices)
+            for (final n in _managed)
               SizedBox(
                 width: w,
                 child: _DeviceCard(
@@ -609,8 +632,9 @@ class _RasControlPageState extends State<RasControlPage> {
                   onOff: () => _cmd(n, 'off'),
                   onMenu: (a) => _onDeviceMenu(n, a),
                   onOpenController: () => widget.onNavigate?.call(AppRoute.controllers),
-                  power: n.hasRelay ? _svc.power : null,
-                  onPower: n.hasRelay ? () => _openPowerHistory() : null,
+                  power: _isElectrical(n) ? _svc.power : null,
+                  onPower: _isElectrical(n) ? () => _openPowerHistory() : null,
+                  assignable: _isElectrical(n),
                 ),
               ),
           ],
@@ -652,7 +676,9 @@ class _RasControlPageState extends State<RasControlPage> {
       case 'controller':
         widget.onNavigate?.call(AppRoute.controllers);
       case 'relay':
-        _assignRelay(n);
+        _assignActuator(n);
+      case 'delete':
+        _deleteDevice(n);
       case 'auto':
         _openAutoConfig(focus: n);
       case 'schedule':
@@ -664,65 +690,586 @@ class _RasControlPageState extends State<RasControlPage> {
     }
   }
 
-  Future<void> _assignRelay(RasFlowNodeLive node) async {
-    final controller = TextEditingController(text: 'CrabSense-C115');
-    var channel = (node.relayChannel == '2') ? '2' : '1';
-    final result = await showDialog<(String, String)?>(
+  Future<void> _addDevice() async {
+    final picked = await _pickDevice(title: 'Thêm thiết bị', submit: 'Thêm');
+    if (picked == null || !mounted) return;
+    final code = '${picked.icon}_${DateTime.now().millisecondsSinceEpoch}';
+    final saved = await _svc.addNode(
+      areaId: widget.areaId,
+      nodeCode: code,
+      displayLabel: picked.label,
+      sortOrder: _nodes.length + 1,
+      nodeType: picked.electrical ? 'equipment' : 'tank',
+      type: picked.kind,
+      paramDefaults: jsonEncode({
+        'label': picked.label,
+        'icon': picked.icon,
+        'electrical': picked.electrical,
+        'kind': picked.kind,
+        'group': picked.group,
+        ...picked.specs,
+      }),
+    );
+    if (saved) await _dropAutoPipe(code);
+    if (mounted) {
+      _toast(saved ? 'Đã thêm ${picked.label}.' : (_svc.error ?? 'Không thêm được thiết bị.'));
+    }
+  }
+
+  Future<void> _dropAutoPipe(String nodeCode) async {
+    RasFlowNodeLive? created;
+    for (final node in _nodes) {
+      if (node.nodeCode == nodeCode) created = node;
+    }
+    if (created == null) return;
+    final incoming = [
+      for (final pipe in _svc.diagram?.flows ?? const <RasPipe>[])
+        if (pipe.toId == created.id) pipe.id,
+    ];
+    if (incoming.isEmpty) return;
+    final map = _paramMap(created.paramDefaultsJson);
+    final cut = {
+      for (final item in (map['cutPipes'] as List?) ?? const []) item.toString(),
+      ...incoming,
+    };
+    map['cutPipes'] = cut.toList();
+    await _writeParams(created, map);
+  }
+
+  Future<void> _editDevice(RasFlowNodeLive node) async {
+    final current = _paramMap(node.paramDefaultsJson);
+    final picked = await _pickDevice(
+      title: 'Sửa thiết bị',
+      submit: 'Cập nhật',
+      initialName: _savedLabel(node),
+      initialElectrical: _isElectrical(node),
+      initialKind: current['kind']?.toString() ?? node.type,
+      initialIcon: current['icon']?.toString() ?? node.iconKey ?? node.nodeCode,
+      initialGroup: _savedGroup(node, current),
+      initialSpecs: current,
+    );
+    if (picked == null || !mounted) return;
+    current['label'] = picked.label;
+    current['icon'] = picked.icon;
+    current['electrical'] = picked.electrical;
+    current['kind'] = picked.kind;
+    current['group'] = picked.group;
+    for (final key in ['length', 'width', 'volume', 'volts', 'amps', 'watts', 'flow']) {
+      current.remove(key);
+    }
+    current.addAll(picked.specs);
+    final saved = await _writeParams(node, current);
+    if (mounted) {
+      _toast(saved ? 'Đã cập nhật ${picked.label}.' : (_svc.error ?? 'Không cập nhật được.'));
+    }
+  }
+
+  Future<_PickedDevice?> _pickDevice({
+    required String title,
+    required String submit,
+    String initialName = '',
+    bool initialElectrical = false,
+    String? initialKind,
+    String? initialIcon,
+    String? initialGroup,
+    Map<String, dynamic>? initialSpecs,
+  }) async {
+    final known = _deviceKinds.where(
+      (item) => item.type == initialKind || item.label == initialKind,
+    );
+    String textOf(String key) => initialSpecs?[key]?.toString() ?? '';
+    final name = TextEditingController(text: initialName);
+    final length = TextEditingController(text: textOf('length'));
+    final width = TextEditingController(text: textOf('width'));
+    final volume = TextEditingController(text: textOf('volume'));
+    final volts = TextEditingController(text: textOf('volts'));
+    final amps = TextEditingController(text: textOf('amps'));
+    final watts = TextEditingController(text: textOf('watts'));
+    final flow = TextEditingController(text: textOf('flow'));
+    var group = initialGroup ??
+        (known.isEmpty
+            ? (initialElectrical ? 'electric' : 'tank')
+            : (known.first.type == 'PUMP'
+                ? 'pump'
+                : (known.first.electrical ? 'electric' : 'tank')));
+    var icon = _deviceIcons.any((item) => item.key == initialIcon)
+        ? initialIcon!
+        : (known.isEmpty ? _deviceIcons.first.key : known.first.icon);
+    final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text('Gán SSR cho ${_deviceTitle(node)}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
+        builder: (ctx, setDialog) {
+          Widget numberField(TextEditingController controller, String label) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: TextField(
                 controller: controller,
-                decoration: const InputDecoration(
-                  labelText: 'Mã Controller',
-                  hintText: 'Ví dụ: CrabSense-C115',
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(labelText: label),
+              ),
+            );
+          }
+
+          return AlertDialog(
+            title: Text(title),
+            content: SizedBox(
+              width: 440,
+              child: SingleChildScrollView(
+                child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: name,
+                    autofocus: true,
+                    decoration: const InputDecoration(labelText: 'Tên thiết bị'),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: group,
+                    decoration: const InputDecoration(labelText: 'Nhóm'),
+                    items: const [
+                      DropdownMenuItem(value: 'tank', child: Text('Bể / thùng')),
+                      DropdownMenuItem(value: 'electric', child: Text('Thiết bị điện')),
+                      DropdownMenuItem(value: 'pump', child: Text('Máy bơm')),
+                    ],
+                    onChanged: (value) => setDialog(() => group = value ?? 'tank'),
+                  ),
+                  const SizedBox(height: 12),
+                  Text('Icon', style: bvText(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final item in _deviceIcons)
+                        InkWell(
+                          onTap: () => setDialog(() => icon = item.key),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: icon == item.key
+                                  ? DashboardColors.lightMint
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: icon == item.key
+                                    ? DashboardColors.brand
+                                    : DashboardColors.cardBorder,
+                              ),
+                            ),
+                            child: Icon(item.icon, size: 20, color: DashboardColors.brand),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (group == 'tank') ...[
+                    numberField(length, 'Chiều dài (m)'),
+                    numberField(width, 'Chiều rộng (m)'),
+                    numberField(volume, 'Thể tích (m³)'),
+                  ] else ...[
+                    numberField(volts, 'Điện áp (V)'),
+                    numberField(amps, 'Dòng điện (A)'),
+                    numberField(watts, 'Công suất (W)'),
+                    if (group == 'pump') numberField(flow, 'Lưu lượng (L/phút)'),
+                  ],
+                ],
                 ),
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: channel,
-                decoration: const InputDecoration(labelText: 'Kênh SSR'),
-                items: const [
-                  DropdownMenuItem(value: '1', child: Text('SSR 1')),
-                  DropdownMenuItem(value: '2', child: Text('SSR 2')),
-                ],
-                onChanged: (value) =>
-                    setDialogState(() => channel = value ?? '1'),
-              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(submit)),
             ],
+          );
+        },
+      ),
+    );
+    final label = name.text.trim();
+    String read(TextEditingController controller) => controller.text.trim();
+    final specs = <String, String>{};
+    void keep(String key, String value) {
+      if (value.isNotEmpty) specs[key] = value;
+    }
+    if (group == 'tank') {
+      keep('length', read(length));
+      keep('width', read(width));
+      keep('volume', read(volume));
+    } else {
+      keep('volts', read(volts));
+      keep('amps', read(amps));
+      keep('watts', read(watts));
+      if (group == 'pump') keep('flow', read(flow));
+    }
+    name.dispose();
+    length.dispose();
+    width.dispose();
+    volume.dispose();
+    volts.dispose();
+    amps.dispose();
+    watts.dispose();
+    flow.dispose();
+    if (ok != true || label.isEmpty) return null;
+    final matched = _deviceKinds.where(
+      (item) => item.label.toLowerCase() == label.toLowerCase(),
+    );
+    final kindCode = group == 'pump'
+        ? 'PUMP'
+        : (matched.isEmpty ? label : matched.first.type);
+    return _PickedDevice(label, group != 'tank', kindCode, icon, group, specs);
+  }
+
+  Future<void> _deleteDevice(RasFlowNodeLive node) async {
+    final title = _deviceTitle(node);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xóa thiết bị'),
+        content: Text('Xóa $title khỏi sơ đồ RAS?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: _kRed),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final saved = await _svc.deleteNode(areaId: widget.areaId, nodeId: node.id);
+    if (mounted) {
+      _toast(saved ? 'Đã xóa $title.' : (_svc.error ?? 'Không xóa được thiết bị.'));
+    }
+  }
+
+  Future<void> _openTopologyNode(RasFlowNodeLive node) async {
+    final pipes = _topologyPipes();
+    final outgoing = pipes.where((p) => p.fromId == node.id).toList();
+    final electrical = _isElectrical(node);
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_deviceTitle(node)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              electrical
+                  ? (node.hasRelay
+                      ? 'Đã gán actuator kênh ${node.relayChannel}'
+                      : 'Chưa gán actuator')
+                  : 'Bể / thùng — không gán actuator',
+              style: bvText(color: DashboardColors.textMuted),
+            ),
+            if (_ratedLine(node) != null) ...[
+              const SizedBox(height: 8),
+              Text('Định mức  ${_ratedLine(node)}', style: bvText(color: DashboardColors.textMuted)),
+            ],
+            if (outgoing.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text('Ống nước đi', style: bvText(fontWeight: FontWeight.w800)),
+              for (final pipe in outgoing)
+                Row(
+                  children: [
+                    Expanded(child: Text(_pipeTarget(pipe.toId))),
+                    IconButton(
+                      tooltip: 'Gỡ ống',
+                      onPressed: () => Navigator.pop(ctx, 'cut:${pipe.id}'),
+                      icon: const Icon(Icons.link_off, size: 18),
+                    ),
+                  ],
+                ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, 'edit'), child: const Text('Sửa thông tin')),
+          TextButton(onPressed: () => Navigator.pop(ctx, 'connect'), child: const Text('Nối tới')),
+          if (electrical)
+            TextButton(onPressed: () => Navigator.pop(ctx, 'assign'), child: const Text('Gán actuator')),
+          TextButton(onPressed: () => Navigator.pop(ctx, 'delete'), child: const Text('Xóa')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng')),
+        ],
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == 'edit') {
+      await _editDevice(node);
+    } else if (action == 'assign') {
+      await _assignActuator(node);
+    } else if (action == 'delete') {
+      await _deleteDevice(node);
+    } else if (action == 'connect') {
+      await _connectNode(node);
+    } else if (action.startsWith('cut:')) {
+      await _dropPipe(node, action.substring(4));
+    }
+  }
+
+  String _pipeTarget(String id) {
+    for (final n in _nodes) {
+      if (n.id == id) return _deviceTitle(n);
+    }
+    return id;
+  }
+
+  Future<void> _connectNode(RasFlowNodeLive node) async {
+    final others = _nodes.where((n) => n.id != node.id).toList();
+    if (others.isEmpty) return;
+    var target = others.first.id;
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: Text('Nối từ ${_deviceTitle(node)}'),
+          content: DropdownButtonFormField<String>(
+            value: target,
+            decoration: const InputDecoration(labelText: 'Tới thiết bị'),
+            items: [
+              for (final n in others)
+                DropdownMenuItem(value: n.id, child: Text(_deviceTitle(n))),
+            ],
+            onChanged: (value) => setDialog(() => target = value ?? target),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Hủy'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(
-                ctx,
-                (controller.text.trim(), channel),
-              ),
-              child: const Text('Lưu'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, target), child: const Text('Nối')),
           ],
         ),
       ),
     );
-    controller.dispose();
-    if (result == null || result.$1.isEmpty) return;
+    if (picked == null || !mounted) return;
+    final ok = await _svc.addFlow(areaId: widget.areaId, fromId: node.id, toId: picked);
+    if (!ok && (_svc.error ?? '').contains('404')) {
+      final saved = await _rememberPipe(node, picked);
+      if (mounted) {
+        _toast(saved ? 'Đã nối ống nước.' : (_svc.error ?? 'Không nối được.'));
+      }
+      return;
+    }
+    if (mounted) {
+      _toast(ok ? 'Đã nối ống nước.' : (_svc.error ?? 'Không nối được.'));
+    }
+  }
+
+  List<RasPipe> _topologyPipes() {
+    final hidden = <String>{};
+    final extra = <RasPipe>[];
+    for (final node in _nodes) {
+      final map = _paramMap(node.paramDefaultsJson);
+      final cut = map['cutPipes'];
+      if (cut is List) {
+        hidden.addAll(cut.map((e) => e.toString()));
+      }
+      final links = map['pipes'];
+      if (links is List) {
+        for (final to in links) {
+          final toId = to.toString();
+          extra.add(RasPipe(id: 'extra:${node.id}:$toId', fromId: node.id, toId: toId));
+        }
+      }
+    }
+    final seen = <String>{};
+    final pipes = <RasPipe>[];
+    for (final pipe in [...?_svc.diagram?.flows, ...extra]) {
+      if (hidden.contains(pipe.id)) continue;
+      final key = '${pipe.fromId}>${pipe.toId}';
+      if (!seen.add(key)) continue;
+      pipes.add(pipe);
+    }
+    return pipes;
+  }
+
+  Map<String, dynamic> _paramMap(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      return {'label': raw};
+    } catch (_) {
+      return {'label': raw};
+    }
+  }
+
+  Future<bool> _writeParams(RasFlowNodeLive node, Map<String, dynamic> map) {
+    return _svc.updateNodeRelay(
+      areaId: widget.areaId,
+      nodeId: node.id,
+      relayDeviceId: node.hasRelay ? node.relayDeviceId : null,
+      relayChannel: node.hasRelay ? node.relayChannel : null,
+      paramDefaultsJson: jsonEncode(map),
+    );
+  }
+
+  Future<bool> _rememberPipe(RasFlowNodeLive node, String toId) async {
+    final map = _paramMap(node.paramDefaultsJson);
+    final links = [
+      for (final item in (map['pipes'] as List?) ?? const []) item.toString(),
+    ];
+    if (!links.contains(toId)) links.add(toId);
+    map['pipes'] = links;
+    return _writeParams(node, map);
+  }
+
+  Future<void> _dropPipe(RasFlowNodeLive node, String pipeId) async {
+    if (pipeId.startsWith('extra:')) {
+      final toId = pipeId.split(':').skip(2).join(':');
+      final map = _paramMap(node.paramDefaultsJson);
+      final links = [
+        for (final item in (map['pipes'] as List?) ?? const []) item.toString(),
+      ]..remove(toId);
+      map['pipes'] = links;
+      final ok = await _writeParams(node, map);
+      if (mounted) _toast(ok ? 'Đã gỡ ống nước.' : (_svc.error ?? 'Không gỡ được ống.'));
+      return;
+    }
+    final ok = await _svc.deleteFlow(areaId: widget.areaId, flowId: pipeId);
+    if (!ok && (_svc.error ?? '').contains('404')) {
+      final map = _paramMap(node.paramDefaultsJson);
+      final cut = [
+        for (final item in (map['cutPipes'] as List?) ?? const []) item.toString(),
+      ];
+      if (!cut.contains(pipeId)) cut.add(pipeId);
+      map['cutPipes'] = cut;
+      final saved = await _writeParams(node, map);
+      if (mounted) _toast(saved ? 'Đã gỡ ống nước.' : (_svc.error ?? 'Không gỡ được ống.'));
+      return;
+    }
+    if (mounted) _toast(ok ? 'Đã gỡ ống nước.' : (_svc.error ?? 'Không gỡ được ống.'));
+  }
+
+  Future<void> _assignActuator(RasFlowNodeLive node) async {
+    final controllers = await _svc.areaControllers(widget.areaId);
+    if (!mounted) return;
+    if (controllers.isEmpty) {
+      _toast('Khu này chưa có Controller.');
+      return;
+    }
+    var picked = controllers.first;
+    List<EspOutputPin> outputs = [];
+    String? readError;
+    var channel = node.relayChannel ?? '';
+    var started = false;
+
+    Future<void> loadOutputs(
+      ({String code, String name, String ip}) controller,
+      void Function(void Function()) setDialog,
+    ) async {
+      setDialog(() {
+        picked = controller;
+        outputs = [];
+        readError = null;
+      });
+      if (controller.ip.isEmpty) {
+        setDialog(() => readError = 'Controller chưa có IP.');
+        return;
+      }
+      try {
+        final info = await ControllerProvisioningService()
+            .discover(baseUrl: 'http://${controller.ip}');
+        if (!mounted) return;
+        setDialog(() {
+          outputs = info.outputs;
+          if (outputs.isEmpty) {
+            readError = 'Controller chưa trả danh sách actuator.';
+          } else if (!outputs.any((p) => '${p.channel}' == channel)) {
+            channel = '${outputs.first.channel}';
+          }
+        });
+      } catch (_) {
+        if (!mounted) return;
+        setDialog(() => readError = 'Không đọc được actuator từ Controller.');
+      }
+    }
+
+    final result = await showDialog<({String code, String channel})?>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) {
+          if (!started) {
+            started = true;
+            Future<void>.microtask(() => loadOutputs(picked, setDialog));
+          }
+          return AlertDialog(
+            title: Text('Gán actuator cho ${_deviceTitle(node)}'),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: picked.code,
+                    decoration: const InputDecoration(labelText: 'Controller'),
+                    items: [
+                      for (final c in controllers)
+                        DropdownMenuItem(
+                          value: c.code,
+                          child: Text(c.name.isEmpty ? c.code : c.name),
+                        ),
+                    ],
+                    onChanged: (code) {
+                      final next = controllers.firstWhere((c) => c.code == code);
+                      loadOutputs(next, setDialog);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  if (readError != null)
+                    Text(readError!, style: bvText(color: _kRed))
+                  else if (outputs.isEmpty)
+                    Text('Đang đọc actuator...', style: bvText(color: DashboardColors.textMuted))
+                  else
+                    DropdownButtonFormField<String>(
+                      value: outputs.any((p) => '${p.channel}' == channel)
+                          ? channel
+                          : '${outputs.first.channel}',
+                      decoration: const InputDecoration(labelText: 'Actuator'),
+                      items: [
+                        for (final pin in outputs)
+                          DropdownMenuItem(
+                            value: '${pin.channel}',
+                            child: Text('Kênh ${pin.channel} · GPIO ${pin.gpio}'),
+                          ),
+                      ],
+                      onChanged: (value) => setDialog(() => channel = value ?? channel),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              if (node.hasRelay)
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, (code: '', channel: '')),
+                  child: const Text('Bỏ gán'),
+                ),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+              FilledButton(
+                onPressed: outputs.isEmpty
+                    ? null
+                    : () => Navigator.pop(ctx, (code: picked.code, channel: channel)),
+                child: const Text('Lưu'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (result == null || !mounted) return;
     final ok = await _svc.updateNodeRelay(
       areaId: widget.areaId,
       nodeId: node.id,
-      relayDeviceCode: result.$1,
-      relayChannel: result.$2,
+      relayDeviceCode: result.code.isEmpty ? null : result.code,
+      relayChannel: result.channel.isEmpty ? null : result.channel,
     );
     if (mounted) {
       _toast(ok
-          ? 'Đã gán ${result.$1} / SSR ${result.$2}.'
-          : (_svc.error ?? 'Không gán được SSR.'));
+          ? (result.code.isEmpty
+              ? 'Đã bỏ gán actuator.'
+              : 'Đã gán ${result.code} / kênh ${result.channel}.')
+          : (_svc.error ?? 'Không gán được actuator.'));
     }
   }
 
@@ -734,11 +1281,12 @@ class _RasControlPageState extends State<RasControlPage> {
         children: [
           const Icon(Icons.settings_outlined, size: 36, color: DashboardColors.brand),
           const SizedBox(height: 10),
-          Text('Chưa có thiết bị RAS được cấu hình.', style: bvText(fontWeight: FontWeight.w700)),
+          Text('Chưa có thiết bị điều khiển.', style: bvText(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           MgmtOutlineButton(
-            onTap: () => widget.onNavigate?.call(AppRoute.controllers),
-            label: 'Quản lý Controller →',
+            onTap: _addDevice,
+            icon: Icons.add,
+            label: 'Thêm thiết bị',
           ),
         ],
       ),
@@ -1236,10 +1784,70 @@ class _RasControlPageState extends State<RasControlPage> {
     );
   }
 
-  String _flowTitle(RasFlowNodeLive n) => n.displayLabel.trim();
+  String _savedLabel(RasFlowNodeLive n) {
+    final label = _paramMap(n.paramDefaultsJson)['label']?.toString().trim() ?? '';
+    return label.isEmpty ? n.displayLabel.trim() : label;
+  }
+
+  String _flowTitle(RasFlowNodeLive n) => _savedLabel(n);
+
+  bool _isElectrical(RasFlowNodeLive n) {
+    final saved = _paramMap(n.paramDefaultsJson);
+    if (saved['electrical'] == true) return true;
+    if (saved['electrical'] == false) return false;
+    final text = '${n.displayLabel} ${n.nodeCode} ${n.type}'.toLowerCase();
+    const machine = [
+      'drum', 'skimmer', 'pump', 'bơm', 'bom', 'ozone', 'oxy',
+      'máy', 'may', 'filter', 'lọc', 'ssr', 'blower', 'uv', 'đèn',
+    ];
+    final tankWord = text.contains('bể') ||
+        text.contains('hộp') ||
+        text.contains('thùng') ||
+        text.contains('tank') ||
+        n.nodeType == 'source';
+    final machineWord = machine.any(text.contains);
+    if (tankWord && !machineWord) return false;
+    return machineWord;
+  }
+
+  String _savedGroup(RasFlowNodeLive node, Map<String, dynamic> current) {
+    final saved = current['group']?.toString();
+    if (saved == 'tank' || saved == 'electric' || saved == 'pump') return saved!;
+    final text = '${current['kind'] ?? ''} ${node.type} ${_savedLabel(node)}'.toLowerCase();
+    if (text.contains('pump') || text.contains('bơm') || text.contains('bom')) return 'pump';
+    return _isElectrical(node) ? 'electric' : 'tank';
+  }
+
+  String? _ratedLine(RasFlowNodeLive n) {
+    final map = _paramMap(n.paramDefaultsJson);
+    String one(String key, String unit) {
+      final value = map[key]?.toString().trim() ?? '';
+      if (value.isEmpty) return '';
+      return '$value $unit';
+    }
+
+    final group = map['group']?.toString();
+    if (group == 'tank') {
+      final parts = [one('length', 'm'), one('width', 'm'), one('volume', 'm³')]
+          .where((part) => part.isNotEmpty);
+      final line = parts.join(' · ');
+      return line.isEmpty ? null : line;
+    }
+    if (group == 'electric' || group == 'pump' || _isElectrical(n)) {
+      final parts = [
+        one('volts', 'V'),
+        one('amps', 'A'),
+        one('watts', 'W'),
+        one('flow', 'L/phút'),
+      ].where((part) => part.isNotEmpty);
+      if (parts.isNotEmpty) return parts.join(' · ');
+      return null;
+    }
+    return null;
+  }
 
   String _deviceTitle(RasFlowNodeLive n) {
-    final label = n.displayLabel.trim();
+    final label = _savedLabel(n);
     if (!n.hasRelay) return label;
     final t = label.toLowerCase();
     final looksLikeTank = (t.contains('bể') || t.contains('be ')) &&
@@ -1281,6 +1889,450 @@ class _RasControlPageState extends State<RasControlPage> {
   }
 }
 
+class _EspChannel {
+  const _EspChannel(this.code, this.label, this.unit, this.icon, this.digits);
+
+  final String code;
+  final String label;
+  final String unit;
+  final IconData icon;
+  final int digits;
+}
+
+const _espChannels = [
+  _EspChannel('meter_v', 'Điện áp', 'V', Icons.bolt_outlined, 1),
+  _EspChannel('meter_a', 'Dòng điện', 'A', Icons.electric_meter_outlined, 2),
+  _EspChannel('meter_w', 'Công suất', 'W', Icons.power_outlined, 0),
+  _EspChannel('meter_va', 'Công suất biểu kiến', 'VA', Icons.flash_on_outlined, 0),
+  _EspChannel('meter_kwh', 'Điện năng', 'kWh', Icons.energy_savings_leaf_outlined, 3),
+  _EspChannel('meter_hz', 'Tần số', 'Hz', Icons.waves_outlined, 1),
+  _EspChannel('meter_pf', 'Hệ số công suất', '', Icons.percent, 2),
+];
+
+const _espRanges = [
+  ('1H', Duration(hours: 1)),
+  ('6H', Duration(hours: 6)),
+  ('24H', Duration(hours: 24)),
+  ('7 Ngày', Duration(days: 7)),
+  ('30 Ngày', Duration(days: 30)),
+];
+
+class _EspMonitor extends StatefulWidget {
+  const _EspMonitor({required this.power, required this.loadHistory});
+
+  final PowerSnapshot power;
+  final Future<List<Map<String, dynamic>>> Function(String sensorId, Duration range) loadHistory;
+
+  @override
+  State<_EspMonitor> createState() => _EspMonitorState();
+}
+
+class _EspMonitorState extends State<_EspMonitor> {
+  String _code = 'meter_v';
+  int _range = 2;
+  bool _detail = false;
+  bool _showThreshold = true;
+  String _loadedFor = '';
+  DateTime _loadedAt = DateTime.fromMillisecondsSinceEpoch(0);
+  List<({DateTime at, double value})> _points = [];
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void didUpdateWidget(covariant _EspMonitor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (!_detail) return;
+    final point = widget.power[_code];
+    final id = point?.id ?? '';
+    if (id.isEmpty) return;
+    final key = '$id:$_range';
+    if (key == _loadedFor && DateTime.now().difference(_loadedAt) < const Duration(seconds: 30)) {
+      return;
+    }
+    _loadedFor = key;
+    _loadedAt = DateTime.now();
+    final rows = await widget.loadHistory(id, _espRanges[_range].$2);
+    final points = <({DateTime at, double value})>[];
+    for (final row in rows) {
+      final raw = row['value'] ?? row['Value'];
+      final when = row['measuredAt'] ?? row['MeasuredAt'];
+      final at = when == null ? null : DateTime.tryParse(when.toString());
+      final value = raw is num ? raw.toDouble() : double.tryParse('$raw');
+      if (at == null || value == null) continue;
+      points.add((at: at.toLocal(), value: value));
+    }
+    points.sort((a, b) => a.at.compareTo(b.at));
+    if (!mounted) return;
+    setState(() => _points = points);
+  }
+
+  String _fmt(_EspChannel channel, double? value) {
+    final shown = value ?? 0;
+    final unit = channel.unit.isEmpty ? '' : ' ${channel.unit}';
+    return '${shown.toStringAsFixed(channel.digits)}$unit';
+  }
+
+  String _ago(DateTime? at) {
+    if (at == null) return 'Chưa nhận được dữ liệu từ đồng hồ.';
+    final d = DateTime.now().difference(at.toLocal());
+    final when = d.inSeconds < 15
+        ? 'vừa xong'
+        : d.inMinutes < 1
+            ? '${d.inSeconds} giây trước'
+            : d.inHours < 1
+                ? '${d.inMinutes} phút trước'
+                : '${d.inHours} giờ trước';
+    return 'Cập nhật: $when';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final channel = _espChannels.firstWhere((item) => item.code == _code);
+    final live = widget.power[channel.code];
+    final fallback = live?.value ?? 0;
+    final values = [for (final point in _points) point.value];
+    final minV = values.isEmpty ? fallback : values.reduce((a, b) => a < b ? a : b);
+    final maxV = values.isEmpty ? fallback : values.reduce((a, b) => a > b ? a : b);
+    final avg = values.isEmpty ? fallback : values.reduce((a, b) => a + b) / values.length;
+    final lo = live?.min;
+    final hi = live?.max;
+    var over = 0;
+    if (lo != null && hi != null) {
+      for (final value in values) {
+        if (value < lo || value > hi) over++;
+      }
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: mgmtCardDeco(radius: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: DashboardColors.lightMint,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.ssid_chart, color: DashboardColors.brand),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Giám sát điện', style: bvText(fontSize: 20, fontWeight: FontWeight.w800)),
+                    Text(
+                      'Điện áp, dòng, công suất và các thông số đồng hồ từ Controller.',
+                      style: bvText(color: DashboardColors.textMuted, fontSize: 12.5),
+                    ),
+                  ],
+                ),
+              ),
+              MgmtOutlineButton(icon: Icons.refresh_rounded, label: 'Làm mới', onTap: () {
+                setState(() => _loadedFor = '');
+                _load();
+              }),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final cols = constraints.maxWidth > 1100 ? 4 : (constraints.maxWidth > 700 ? 3 : 2);
+            final width = (constraints.maxWidth - (cols - 1) * 12) / cols;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                for (final item in _espChannels)
+                  SizedBox(width: width, child: _valueCard(item)),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 14),
+        InkWell(
+          onTap: () {
+            setState(() {
+              _detail = !_detail;
+              if (_detail) _loadedFor = '';
+            });
+            if (_detail) _load();
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: mgmtCardDeco(radius: 14),
+            child: Row(
+              children: [
+                Text('Xem chi tiết', style: bvText(fontWeight: FontWeight.w800)),
+                const Spacer(),
+                Icon(
+                  _detail ? Icons.expand_less : Icons.expand_more,
+                  color: DashboardColors.brand,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_detail) ...[
+          const SizedBox(height: 14),
+          Container(
+          padding: const EdgeInsets.all(16),
+          decoration: mgmtCardDeco(radius: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Biểu đồ ${channel.label}', style: bvText(fontSize: 15, fontWeight: FontWeight.w800)),
+              Text(
+                'Diễn biến ${channel.label.toLowerCase()} theo thời gian.',
+                style: bvText(color: DashboardColors.textMuted, fontSize: 12.5),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 220,
+                    child: DropdownButtonFormField<String>(
+                      value: _code,
+                      decoration: const InputDecoration(labelText: 'Chỉ số'),
+                      items: [
+                        for (final item in _espChannels)
+                          DropdownMenuItem(value: item.code, child: Text(item.label)),
+                      ],
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() {
+                          _code = value;
+                          _loadedFor = '';
+                        });
+                        _load();
+                      },
+                    ),
+                  ),
+                  for (var i = 0; i < _espRanges.length; i++)
+                    InkWell(
+                      onTap: () {
+                        setState(() {
+                          _range = i;
+                          _loadedFor = '';
+                        });
+                        _load();
+                      },
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: i == _range ? DashboardColors.brand : Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: i == _range ? DashboardColors.brand : DashboardColors.cardBorder,
+                          ),
+                        ),
+                        child: Text(
+                          _espRanges[i].$1,
+                          style: bvText(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            color: i == _range ? Colors.white : DashboardColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  FilterChip(
+                    selected: _showThreshold,
+                    label: Text('Hiện ngưỡng', style: bvText(fontWeight: FontWeight.w700, fontSize: 12)),
+                    selectedColor: DashboardColors.mint,
+                    onSelected: (value) => setState(() => _showThreshold = value),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 16,
+                children: [
+                  _stat('THẤP NHẤT', _fmt(channel, minV)),
+                  _stat('TRUNG BÌNH', _fmt(channel, avg)),
+                  _stat('CAO NHẤT', _fmt(channel, maxV)),
+                  _stat('NGOÀI NGƯỠNG', '$over lần'),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 260,
+                child: HistoryChart(
+                  segments: _segments(),
+                  rangeMinutes: _espRanges[_range].$2.inMinutes,
+                  color: const Color(0xFFFF9800),
+                  unit: channel.unit,
+                  minTh: _showThreshold ? lo : null,
+                  maxTh: _showThreshold ? hi : null,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 14,
+                children: [
+                  _legend(const Color(0xFFFF9800), channel.label),
+                  if (_showThreshold) ...[
+                    _legend(const Color(0xFF94A3B8), 'Ngưỡng thấp'),
+                    _legend(_kRed, 'Ngưỡng cao'),
+                  ],
+                  _legend(const Color(0xFFCBD5E1), 'Mất dữ liệu'),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text('Lịch sử gần nhất', style: bvText(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              if (_points.isEmpty)
+                Text('${_fmt(channel, widget.power[channel.code]?.value ?? 0)}    ${fmtDateTimeVn(DateTime.now())}', style: bvText(fontSize: 13))
+              else
+                for (final point in _points.reversed.take(8))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '${_fmt(channel, point.value)}    ${fmtDateTimeVn(point.at)}',
+                      style: bvText(fontSize: 13),
+                    ),
+                  ),
+            ],
+          ),
+        ),
+        ],
+      ],
+    );
+  }
+
+  Widget _valueCard(_EspChannel item) {
+    final point = widget.power[item.code];
+    final has = point?.value != null;
+    final on = item.code == _code;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _code = item.code;
+          _loadedFor = '';
+        });
+        _load();
+      },
+      child: Container(
+        height: 132,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: on ? DashboardColors.brand : DashboardColors.cardBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(item.icon, size: 18, color: DashboardColors.brand),
+                const SizedBox(width: 6),
+                Expanded(child: Text(item.label, style: bvText(fontWeight: FontWeight.w800))),
+                MgmtStatusBadge(
+                  label: has ? 'Đang nhận' : 'Chưa có dữ liệu',
+                  color: has ? DashboardColors.brand : const Color(0xFF94A3B8),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(_fmt(item, point?.value), style: bvText(fontSize: 26, fontWeight: FontWeight.w800)),
+            const Spacer(),
+            Text(_ago(point?.at), style: bvText(fontSize: 11.5, color: DashboardColors.textMuted)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _stat(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: bvText(fontSize: 10.5, color: DashboardColors.textMuted, fontWeight: FontWeight.w700)),
+        Text(value, style: bvText(fontWeight: FontWeight.w800)),
+      ],
+    );
+  }
+
+  List<List<RealtimeChartPoint>> _segments() {
+    final minutes = _espRanges[_range].$2.inMinutes;
+    final start = DateTime.now().subtract(Duration(minutes: minutes));
+    final current = widget.power[_code]?.value ?? 0;
+    final series = <RealtimeChartPoint>[
+      if (_points.isEmpty) ...[
+        RealtimeChartPoint(xMinutes: 0, label: '0p', timestamp: start, value: current),
+        RealtimeChartPoint(
+          xMinutes: minutes.toDouble(),
+          label: '${minutes}p',
+          timestamp: DateTime.now(),
+          value: current,
+        ),
+      ] else
+        for (final point in _points)
+          if (!point.at.isBefore(start))
+            RealtimeChartPoint(
+              xMinutes: point.at.difference(start).inSeconds / 60,
+              label: '',
+              timestamp: point.at,
+              value: point.value,
+            ),
+    ];
+    if (series.isEmpty) {
+      return [
+        [
+          RealtimeChartPoint(xMinutes: 0, label: '0p', timestamp: start, value: 0),
+          RealtimeChartPoint(xMinutes: minutes.toDouble(), label: '${minutes}p', timestamp: DateTime.now(), value: 0),
+        ],
+      ];
+    }
+    if (_points.isEmpty) return [series];
+    final gap = switch (minutes) {
+      <= 60 => const Duration(seconds: 90),
+      <= 360 => const Duration(minutes: 8),
+      <= 1440 => const Duration(minutes: 20),
+      _ => const Duration(hours: 3),
+    };
+    final segs = <List<RealtimeChartPoint>>[];
+    var cur = <RealtimeChartPoint>[series.first];
+    for (var i = 1; i < series.length; i++) {
+      if (series[i].timestamp.difference(series[i - 1].timestamp) > gap) {
+        segs.add(cur);
+        cur = [series[i]];
+      } else {
+        cur.add(series[i]);
+      }
+    }
+    segs.add(cur);
+    return segs;
+  }
+
+  Widget _legend(Color color, String label) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
+          const SizedBox(width: 4),
+          Text(label, style: bvText(fontSize: 11.5, color: DashboardColors.textMuted)),
+        ],
+      );
+}
+
 class _DeviceCard extends StatelessWidget {
   const _DeviceCard({
     required this.node,
@@ -1295,6 +2347,7 @@ class _DeviceCard extends StatelessWidget {
     required this.onOpenController,
     this.power,
     this.onPower,
+    this.assignable = false,
   });
 
   final RasFlowNodeLive node;
@@ -1309,6 +2362,7 @@ class _DeviceCard extends StatelessWidget {
   final VoidCallback onOpenController;
   final PowerSnapshot? power;
   final VoidCallback? onPower;
+  final bool assignable;
 
   @override
   Widget build(BuildContext context) {
@@ -1329,7 +2383,8 @@ class _DeviceCard extends StatelessWidget {
             : running
                 ? 'Đang chạy'
                 : 'Đang tắt';
-    final manualOk = !node.isAuto && !offline && pending == null;
+    final canCmd = node.hasRelay && !offline && pending == null;
+    final manualOk = canCmd && !node.isAuto;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: mgmtCardDeco(radius: 16),
@@ -1360,10 +2415,12 @@ class _DeviceCard extends StatelessWidget {
                   if (power != null)
                     const PopupMenuItem(value: 'power', child: Text('Lịch sử điện')),
                   const PopupMenuItem(value: 'controller', child: Text('Xem Controller')),
-                  const PopupMenuItem(value: 'relay', child: Text('Gán Controller / SSR')),
+                  if (assignable)
+                    const PopupMenuItem(value: 'relay', child: Text('Gán actuator')),
+                  const PopupMenuItem(value: 'delete', child: Text('Xóa thiết bị')),
                   const PopupMenuItem(value: 'auto', child: Text('Cấu hình AUTO')),
                   const PopupMenuItem(value: 'schedule', child: Text('Lịch chạy')),
-                  if (!node.isAuto && !offline) ...[
+                  if (node.hasRelay && !node.isAuto && !offline) ...[
                     const PopupMenuItem(value: 'on', child: Text('Bật')),
                     const PopupMenuItem(value: 'off', child: Text('Tắt')),
                   ],
@@ -1372,8 +2429,9 @@ class _DeviceCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          _meta('Controller', node.relayDeviceId == null ? 'Chưa gán' : 'C115'),
-          _meta('Output', _controllerCode(node)),
+          _meta('Vị trí', '${node.sortOrder}'),
+          _meta('Controller', node.relayDeviceId == null ? 'Chưa gán' : 'Đã gán'),
+          _meta('Actuator', _controllerCode(node)),
           _meta('Kết nối', offline ? 'Mất kết nối' : 'Online', color: offline ? _kRed : DashboardColors.brand),
           if (offline)
             _meta('Lần thấy', node.lastCommandAt == null ? '—' : fmtDateTimeVn(node.lastCommandAt)),
@@ -1403,9 +2461,9 @@ class _DeviceCard extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              _modeBtn('AUTO', node.isAuto, pending == null && !offline ? onAuto : null, 'Chuyển $title sang AUTO'),
+              _modeBtn('AUTO', node.isAuto, canCmd ? onAuto : null, 'Chuyển $title sang AUTO'),
               const SizedBox(width: 6),
-              _modeBtn('MANUAL', !node.isAuto, pending == null && !offline ? onManual : null, 'Chuyển $title sang MANUAL'),
+              _modeBtn('MANUAL', !node.isAuto, canCmd ? onManual : null, 'Chuyển $title sang MANUAL'),
               const Spacer(),
               _modeBtn('Bật', false, manualOk ? onOn : null, 'Bật $title'),
               const SizedBox(width: 6),
@@ -1421,9 +2479,16 @@ class _DeviceCard extends StatelessWidget {
     final snap = power!;
     String line(String code, String unit) {
       final point = snap[code];
-      if (point?.value == null) return '—';
+      if (point?.value == null) return '';
       return '${point!.value!.toStringAsFixed(code == 'meter_kwh' ? 3 : 1)} $unit';
     }
+
+    final rows = [
+      ('Điện áp', line('meter_v', 'V')),
+      ('Dòng', line('meter_a', 'A')),
+      ('Công suất', line('meter_w', 'W')),
+      ('Điện năng', line('meter_kwh', 'kWh')),
+    ].where((row) => row.$2.isNotEmpty);
 
     return InkWell(
       onTap: onPower,
@@ -1432,11 +2497,8 @@ class _DeviceCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Điện C115', style: bvText(fontSize: 12, fontWeight: FontWeight.w800, color: DashboardColors.brand)),
-            _meta('Điện áp', line('meter_v', 'V')),
-            _meta('Dòng', line('meter_a', 'A')),
-            _meta('Công suất', line('meter_w', 'W')),
-            _meta('Điện năng', line('meter_kwh', 'kWh')),
+            Text('Điện', style: bvText(fontSize: 12, fontWeight: FontWeight.w800, color: DashboardColors.brand)),
+            for (final row in rows) _meta(row.$1, row.$2),
           ],
         ),
       ),
@@ -1589,7 +2651,7 @@ String _powerWhen(Map<String, dynamic> row) {
 
 String _controllerCode(RasFlowNodeLive n) {
   final ch = (n.relayChannel ?? '').trim();
-  if (ch.isNotEmpty && ch.toLowerCase() != 'online') return 'SSR $ch';
+  if (ch.isNotEmpty && ch.toLowerCase() != 'online') return 'Kênh $ch';
   final id = (n.relayDeviceId ?? '').trim();
   if (id.length >= 8) return 'CTRL-${id.substring(0, 8).toUpperCase()}';
   return n.connectionLabel.isEmpty ? '—' : n.connectionLabel;
@@ -1615,121 +2677,531 @@ String _hhmm(DateTime at) {
   return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
 }
 
-class _RasMintFlow extends StatelessWidget {
-  const _RasMintFlow({required this.nodes, required this.titleOf});
+class _PickedDevice {
+  const _PickedDevice(
+    this.label,
+    this.electrical,
+    this.kind,
+    this.icon,
+    this.group,
+    this.specs,
+  );
 
+  final String label;
+  final bool electrical;
+  final String kind;
+  final String icon;
+  final String group;
+  final Map<String, String> specs;
+}
+
+class _KindChoice {
+  const _KindChoice(this.label, this.type, this.icon, this.electrical);
+
+  final String label;
+  final String type;
+  final String icon;
+  final bool electrical;
+}
+
+class _IconChoice {
+  const _IconChoice(this.key, this.icon);
+
+  final String key;
+  final IconData icon;
+}
+
+const _deviceKinds = [
+  _KindChoice('Hộp nuôi', 'CULTURE', 'crab_boxes', false),
+  _KindChoice('Bể xả', 'DRAIN_TANK', 'discharge_100', false),
+  _KindChoice('Bể vi sinh', 'BIOFILTER', 'bio', false),
+  _KindChoice('Bể san hô', 'CORAL_TANK', 'sand_coral_200', false),
+  _KindChoice('Bể lắng', 'SETTLING_TANK', 'settling', false),
+  _KindChoice('Drum Filter', 'FILTER', 'drum', true),
+  _KindChoice('Skimmer', 'SKIMMER', 'skimmer', true),
+  _KindChoice('Máy bơm', 'PUMP', 'pump', true),
+  _KindChoice('Ozone', 'OZONE', 'ozone', true),
+  _KindChoice('Máy oxy', 'OXY', 'oxy', true),
+  _KindChoice('UV', 'UV', 'uv', true),
+];
+
+const _deviceIcons = [
+  _IconChoice('crab_boxes', Icons.grid_view),
+  _IconChoice('discharge_100', Icons.water_drop_outlined),
+  _IconChoice('bio', Icons.biotech_outlined),
+  _IconChoice('sand_coral_200', Icons.spa_outlined),
+  _IconChoice('settling', Icons.layers_outlined),
+  _IconChoice('drum', Icons.filter_alt_outlined),
+  _IconChoice('skimmer', Icons.air_outlined),
+  _IconChoice('pump', Icons.water),
+  _IconChoice('ozone', Icons.bubble_chart_outlined),
+  _IconChoice('oxy', Icons.air),
+  _IconChoice('uv', Icons.wb_sunny_outlined),
+  _IconChoice('heater', Icons.thermostat_outlined),
+];
+
+class _RasCanvas extends StatefulWidget {
+  const _RasCanvas({
+    required this.areaId,
+    required this.nodes,
+    required this.pipes,
+    required this.titleOf,
+    required this.onOpen,
+    required this.onAdd,
+    required this.meterOf,
+  });
+
+  final String areaId;
   final List<RasFlowNodeLive> nodes;
+  final List<RasPipe> pipes;
   final String Function(RasFlowNodeLive) titleOf;
+  final ValueChanged<RasFlowNodeLive> onOpen;
+  final VoidCallback onAdd;
+  final String? Function(RasFlowNodeLive) meterOf;
+
+  @override
+  State<_RasCanvas> createState() => _RasCanvasState();
+}
+
+class _RasCanvasState extends State<_RasCanvas> with SingleTickerProviderStateMixin {
+  static const _cardW = 176.0;
+
+  final _drag = <String, Offset>{};
+  final _view = TransformationController();
+  late final AnimationController _flow;
+  late Map<String, Offset> _saved;
+  Map<String, Offset> _base = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _saved = RasLayoutStore.load(widget.areaId);
+    _flow = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))
+      ..repeat();
+  }
+
+  @override
+  void dispose() {
+    _flow.dispose();
+    _view.dispose();
+    super.dispose();
+  }
+
+  double _cardH(RasFlowNodeLive n) => widget.meterOf(n) == null ? 96 : 124;
+
+  RasFlowNodeLive? _node(String id) {
+    for (final n in widget.nodes) {
+      if (n.id == id) return n;
+    }
+    return null;
+  }
+
+  double get _scale => _view.value.getMaxScaleOnAxis();
+
+  void _setScale(double next) {
+    final scale = next.clamp(0.4, 2.5);
+    _view.value = Matrix4.identity()..scale(scale);
+    setState(() {});
+  }
+
+  void _syncLayout() {
+    final ids = widget.nodes.map((n) => n.id).toSet();
+    _saved.removeWhere((id, _) => !ids.contains(id));
+    _base.removeWhere((id, _) => !ids.contains(id));
+    _drag.removeWhere((id, _) => !ids.contains(id));
+    if (_saved.isEmpty && _base.isEmpty && widget.nodes.isNotEmpty) {
+      _base = _place(widget.nodes, widget.pipes);
+      _saved = Map<String, Offset>.from(_base);
+      RasLayoutStore.save(widget.areaId, _saved);
+      return;
+    }
+    final missing = <RasFlowNodeLive>[];
+    for (final n in widget.nodes) {
+      if (_drag.containsKey(n.id)) continue;
+      final kept = _saved[n.id];
+      if (kept != null) {
+        _base[n.id] = kept;
+      } else {
+        missing.add(n);
+      }
+    }
+    if (missing.isEmpty) return;
+    var maxX = 20.0;
+    for (final spot in _base.values) {
+      if (spot.dx > maxX) maxX = spot.dx;
+    }
+    for (var i = 0; i < missing.length; i++) {
+      final spot = Offset(maxX + 230, 16 + i * 150.0);
+      _base[missing[i].id] = spot;
+      _saved[missing[i].id] = spot;
+    }
+    RasLayoutStore.save(widget.areaId, _saved);
+  }
+
+  void _keep(String id) {
+    final spot = _at(id);
+    _base[id] = spot;
+    _drag.remove(id);
+    _saved[id] = spot;
+    RasLayoutStore.save(widget.areaId, _saved);
+  }
+
+  Offset _at(String id) => (_base[id] ?? Offset.zero) + (_drag[id] ?? Offset.zero);
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (var i = 0; i < nodes.length; i++) ...[
-            _node(nodes[i]),
-            if (i < nodes.length - 1) _arrow(nodes[i + 1]),
+    _syncLayout();
+    var width = 1400.0;
+    var height = 720.0;
+    for (final n in widget.nodes) {
+      final p = _at(n.id);
+      if (p.dx + _cardW + 240 > width) width = p.dx + _cardW + 240;
+      if (p.dy + _cardH(n) + 240 > height) height = p.dy + _cardH(n) + 240;
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            MgmtOutlineButton(onTap: widget.onAdd, icon: Icons.add, label: 'Thêm mới'),
+            MgmtOutlineButton(
+              onTap: () => _setScale(_scale / 1.2),
+              icon: Icons.zoom_out,
+              label: 'Thu nhỏ',
+            ),
+            Text('${(_scale * 100).round()}%', style: bvText(fontWeight: FontWeight.w800)),
+            MgmtOutlineButton(
+              onTap: () => _setScale(_scale * 1.2),
+              icon: Icons.zoom_in,
+              label: 'Phóng to',
+            ),
+            MgmtOutlineButton(
+              onTap: () => _setScale(1),
+              icon: Icons.fit_screen,
+              label: 'Vừa khung',
+            ),
           ],
-        ],
-      ),
+        ),
+        const SizedBox(height: 8),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF7FBFA),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: DashboardColors.cardBorder),
+          ),
+          child: SizedBox(
+            height: 460,
+            child: Listener(
+              onPointerSignal: (event) {
+                if (event is! PointerScrollEvent) return;
+                GestureBinding.instance.pointerSignalResolver.register(event, (signal) {
+                  if (signal is! PointerScrollEvent || !mounted) return;
+                  _setScale(_scale * (signal.scrollDelta.dy > 0 ? 0.9 : 1.1));
+                });
+              },
+              child: InteractiveViewer(
+                transformationController: _view,
+                constrained: false,
+                boundaryMargin: const EdgeInsets.all(600),
+                minScale: 0.4,
+                maxScale: 2.5,
+                child: SizedBox(
+                  width: width,
+                  height: height,
+                  child: Stack(
+                    children: [
+                      AnimatedBuilder(
+                        animation: _flow,
+                        builder: (context, _) => CustomPaint(
+                          size: Size(width, height),
+                          painter: _PipePainter(
+                            phase: _flow.value,
+                            cardWidth: _cardW,
+                            segments: [
+                              for (final pipe in widget.pipes)
+                                if (_node(pipe.fromId) != null && _node(pipe.toId) != null)
+                                  (
+                                    _at(pipe.fromId),
+                                    _cardH(_node(pipe.fromId)!),
+                                    _at(pipe.toId),
+                                    _cardH(_node(pipe.toId)!),
+                                  ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      for (final n in widget.nodes)
+                        Positioned(
+                          left: _at(n.id).dx,
+                          top: _at(n.id).dy,
+                          child: GestureDetector(
+                            onTap: () => widget.onOpen(n),
+                            onPanUpdate: (d) => setState(() {
+                              final scale = _scale == 0 ? 1.0 : _scale;
+                              _drag[n.id] = (_drag[n.id] ?? Offset.zero) + d.delta / scale;
+                            }),
+                            onPanEnd: (_) => setState(() => _keep(n.id)),
+                            child: _canvasNode(n),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _arrow(RasFlowNodeLive next) {
-    final error = next.status.toLowerCase() == 'alarm' || next.status.toLowerCase() == 'error';
-    final offline = next.isOnline == false;
+  Widget _canvasNode(RasFlowNodeLive n) {
+    final error = n.status.toLowerCase() == 'alarm' || n.status.toLowerCase() == 'error';
+    final offline = n.isOnline == false;
+    final running = n.hasRelay && n.isOn == true && !offline && !error;
     final color = error
         ? _kRed
         : offline
             ? const Color(0xFF94A3B8)
-            : const Color(0xFF2495E8).withValues(alpha: 0.55);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: Icon(
-        offline ? Icons.more_horiz : Icons.arrow_forward_rounded,
-        size: 18,
-        color: color,
+            : running
+                ? DashboardColors.brand
+                : const Color(0xFF2495E8);
+    final status = error
+        ? 'Lỗi'
+        : offline
+            ? 'Mất kết nối'
+            : running
+                ? 'Đang chạy'
+                : n.hasRelay
+                    ? 'Tắt'
+                    : 'Online';
+    return Container(
+      width: _cardW,
+      height: _cardH(n),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+        boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 8, offset: Offset(0, 2))],
       ),
-    );
-  }
-
-  Widget _node(RasFlowNodeLive n) {
-    final error = n.status.toLowerCase() == 'alarm' || n.status.toLowerCase() == 'error';
-    final offline = n.isOnline == false;
-    final running = n.hasRelay && n.isOn == true && !offline && !error;
-    final Color color;
-    final String status;
-    if (error) {
-      color = _kRed;
-      status = 'Lỗi';
-    } else if (offline) {
-      color = const Color(0xFF94A3B8);
-      status = 'Mất kết nối';
-    } else if (n.hasRelay) {
-      color = running ? DashboardColors.brand : DashboardColors.textMuted;
-      status = running ? 'Đang chạy' : 'Đang tắt';
-    } else {
-      color = DashboardColors.brand;
-      status = 'Bình thường';
-    }
-    final tag = n.hasRelay
-        ? (n.isAuto ? 'AUTO' : 'MANUAL')
-        : (offline ? 'Ngoại tuyến' : 'Trực tuyến');
-    return Semantics(
-      label: '${titleOf(n)}, $status, $tag',
-      child: Container(
-        width: 148,
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.28)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: DashboardColors.lightMint,
-                borderRadius: BorderRadius.circular(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: DashboardColors.lightMint,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(n.icon, size: 16, color: DashboardColors.brand),
               ),
-              child: Icon(n.icon, size: 18, color: DashboardColors.brand),
-            ),
-            const SizedBox(height: 8),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  widget.titleOf(n),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: bvText(fontWeight: FontWeight.w800, fontSize: 12.5),
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          if (widget.meterOf(n) != null)
             Text(
-              titleOf(n),
+              widget.meterOf(n)!,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: bvText(fontWeight: FontWeight.w800, fontSize: 13),
+              style: bvText(fontSize: 11, fontWeight: FontWeight.w800, color: DashboardColors.brand),
             ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Container(width: 7, height: 7, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-                const SizedBox(width: 5),
-                Expanded(
-                  child: Text(status, style: bvText(fontSize: 11.5, fontWeight: FontWeight.w700, color: color)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-              decoration: BoxDecoration(
-                color: DashboardColors.lightMint,
-                borderRadius: BorderRadius.circular(999),
+          Row(
+            children: [
+              Container(width: 7, height: 7, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(status, style: bvText(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
               ),
-              child: Text(
-                tag,
-                style: bvText(fontSize: 10.5, fontWeight: FontWeight.w800, color: DashboardColors.brand),
-              ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
     );
   }
+}
+
+class RasLayoutStore {
+  static File _file() {
+    final root = Platform.environment['LOCALAPPDATA'] ?? Directory.systemTemp.path;
+    final dir = Directory('$root\\CrabSense');
+    if (!dir.existsSync()) dir.createSync(recursive: true);
+    return File('${dir.path}\\ras-layout.json');
+  }
+
+  static Map<String, Offset> load(String areaId) {
+    try {
+      final raw = jsonDecode(_file().readAsStringSync());
+      final area = raw is Map ? raw[areaId] : null;
+      if (area is! Map) return {};
+      final points = <String, Offset>{};
+      for (final entry in area.entries) {
+        final value = entry.value;
+        if (value is! List || value.length < 2) continue;
+        points[entry.key.toString()] = Offset(
+          (value[0] as num).toDouble(),
+          (value[1] as num).toDouble(),
+        );
+      }
+      return points;
+    } catch (_) {
+      return {};
+    }
+  }
+
+  static void save(String areaId, Map<String, Offset> points) {
+    Map<String, dynamic> all = {};
+    try {
+      final raw = jsonDecode(_file().readAsStringSync());
+      if (raw is Map<String, dynamic>) all = raw;
+      if (raw is Map && raw is! Map<String, dynamic>) {
+        all = Map<String, dynamic>.from(raw);
+      }
+    } catch (_) {}
+    all[areaId] = {
+      for (final entry in points.entries) entry.key: [entry.value.dx, entry.value.dy],
+    };
+    _file().writeAsStringSync(jsonEncode(all));
+  }
+}
+
+Map<String, Offset> _place(List<RasFlowNodeLive> nodes, List<RasPipe> pipes) {
+  final ids = nodes.map((n) => n.id).toList();
+  final out = <String, List<String>>{for (final id in ids) id: []};
+  final incoming = <String, int>{for (final id in ids) id: 0};
+  for (final pipe in pipes) {
+    if (!out.containsKey(pipe.fromId) || !incoming.containsKey(pipe.toId)) continue;
+    out[pipe.fromId]!.add(pipe.toId);
+    incoming[pipe.toId] = incoming[pipe.toId]! + 1;
+  }
+  final depth = <String, int>{};
+  final queue = <String>[];
+  for (final id in ids) {
+    if (incoming[id] == 0) {
+      depth[id] = 0;
+      queue.add(id);
+    }
+  }
+  if (queue.isEmpty && ids.isNotEmpty) {
+    depth[ids.first] = 0;
+    queue.add(ids.first);
+  }
+  var guard = 0;
+  while (queue.isNotEmpty && guard < 400) {
+    guard++;
+    final id = queue.removeAt(0);
+    for (final next in out[id] ?? const <String>[]) {
+      final d = (depth[id] ?? 0) + 1;
+      if (d > 12) continue;
+      if ((depth[next] ?? -1) >= d) continue;
+      depth[next] = d;
+      queue.add(next);
+    }
+  }
+  final layers = <int, List<String>>{};
+  for (final id in ids) {
+    final d = depth[id] ?? 0;
+    layers.putIfAbsent(d, () => []).add(id);
+  }
+  final pos = <String, Offset>{};
+  const dx = 210.0;
+  const dy = 150.0;
+  for (final layer in layers.entries) {
+    for (var i = 0; i < layer.value.length; i++) {
+      pos[layer.value[i]] = Offset(20 + layer.key * dx, 16 + i * dy);
+    }
+  }
+  return pos;
+}
+
+class _PipePainter extends CustomPainter {
+  _PipePainter({
+    required this.segments,
+    required this.phase,
+    required this.cardWidth,
+  });
+
+  final List<(Offset, double, Offset, double)> segments;
+  final double phase;
+  final double cardWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final base = Paint()
+      ..color = const Color(0xFF2495E8).withValues(alpha: 0.35)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    final moving = Paint()..color = const Color(0xFF1D4ED8);
+    for (final segment in segments) {
+      final fromBox = segment.$1;
+      final fromH = segment.$2;
+      final toBox = segment.$3;
+      final toH = segment.$4;
+      final fromCenter = fromBox + Offset(cardWidth / 2, fromH / 2);
+      final toCenter = toBox + Offset(cardWidth / 2, toH / 2);
+      final leave = _port(fromBox, fromH, _toward(fromCenter, toCenter));
+      final arrive = _port(toBox, toH, _toward(toCenter, fromCenter));
+      final out = _outward(_toward(fromCenter, toCenter));
+      final inn = _outward(_toward(toCenter, fromCenter));
+      final path = Path()
+        ..moveTo(leave.dx, leave.dy)
+        ..cubicTo(
+          leave.dx + out.dx * 70,
+          leave.dy + out.dy * 70,
+          arrive.dx + inn.dx * 70,
+          arrive.dy + inn.dy * 70,
+          arrive.dx,
+          arrive.dy,
+        );
+      canvas.drawPath(path, base);
+      for (final metric in path.computeMetrics()) {
+        if (metric.length < 8) continue;
+        const gap = 14.0;
+        final shift = (phase % 1) * gap;
+        for (var distance = shift; distance < metric.length - 2; distance += gap) {
+          final spot = metric.getTangentForOffset(distance);
+          if (spot == null) continue;
+          canvas.drawCircle(spot.position, 3.4, moving);
+        }
+      }
+    }
+  }
+
+  Offset _port(Offset topLeft, double height, Offset dir) {
+    if (dir.dx.abs() >= dir.dy.abs()) {
+      return dir.dx >= 0
+          ? Offset(topLeft.dx + cardWidth, topLeft.dy + height / 2)
+          : Offset(topLeft.dx, topLeft.dy + height / 2);
+    }
+    return dir.dy >= 0
+        ? Offset(topLeft.dx + cardWidth / 2, topLeft.dy + height)
+        : Offset(topLeft.dx + cardWidth / 2, topLeft.dy);
+  }
+
+  Offset _toward(Offset from, Offset to) => to - from;
+
+  Offset _outward(Offset dir) {
+    if (dir.dx.abs() >= dir.dy.abs()) {
+      return Offset(dir.dx >= 0 ? 1 : -1, 0);
+    }
+    return Offset(0, dir.dy >= 0 ? 1 : -1);
+  }
+
+  @override
+  bool shouldRepaint(covariant _PipePainter oldDelegate) => true;
 }

@@ -7,6 +7,7 @@ import '../models/auth_models.dart';
 import '../models/esp_controller.dart';
 import '../models/iot_device.dart';
 import 'cloud_api_client.dart';
+import 'cloud_auth_service.dart';
 import 'controller_provisioning_service.dart';
 
 enum ControllerMetaSaveResult { ok, conflict, failed }
@@ -70,7 +71,15 @@ class ControllerService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> load({bool silent = false}) async {
+  /// Đổi access token, không xóa danh sách controller đang hiện.
+  Future<String?> renewToken() async {
+    final next = await CloudAuthService().refreshSession(_session);
+    if (next == null) return null;
+    _session = next;
+    return next.token;
+  }
+
+  Future<void> load({bool silent = false, bool allowRefresh = true}) async {
     if (!silent) {
       _loading = true;
       _error = null;
@@ -78,7 +87,7 @@ class ControllerService extends ChangeNotifier {
     }
     try {
       final raw = await _api.fetchCrabSenseDevices(
-        _session.token,
+        LiveSession.tokenOf(_session),
         farmingAreaId: _session.selectedFarm.id,
       );
       _items = raw.map(IoTDevice.fromJson).toList()
@@ -94,6 +103,13 @@ class ControllerService extends ChangeNotifier {
         await _loadDetail(_selectedId!, silent: true);
       }
     } on CloudApiException catch (e) {
+      if (e.statusCode == 401 && allowRefresh) {
+        final renewed = await renewToken();
+        if (renewed != null) {
+          await load(silent: silent, allowRefresh: false);
+          return;
+        }
+      }
       _error = e.message;
       if (!silent) _items = [];
     } catch (e) {
@@ -113,7 +129,11 @@ class ControllerService extends ChangeNotifier {
     startLiveRefresh();
   }
 
+  bool _detailBusy = false;
+
   Future<void> _loadDetail(String id, {bool silent = false}) async {
+    if (silent && _detailBusy) return;
+    _detailBusy = true;
     if (!silent) {
       _detailLoading = true;
       notifyListeners();
@@ -122,7 +142,16 @@ class ControllerService extends ChangeNotifier {
     }
     try {
       final raw = await _api.fetchControllerDetail(_session.token, id);
-      _detail = ControllerDetail.fromJson(raw);
+      final loaded = ControllerDetail.fromJson(raw);
+      final previous = _detail?.controller.id == id ? _detail : null;
+      _detail = previous == null
+          ? loaded
+          : ControllerDetail(
+              controller: loaded.controller,
+              sensors: _reuseSensorPins(loaded.sensors, previous.sensors),
+              actuators: loaded.actuators,
+              boardOutputs: previous.boardOutputs,
+            );
       _detailError = null;
       _detailRefreshedAt = DateTime.now();
       await _mergePinsFromEsp(_detail!);
@@ -134,10 +163,29 @@ class ControllerService extends ChangeNotifier {
       _detailError = '$e';
       if (!silent) _detail = null;
     } finally {
+      _detailBusy = false;
       _detailLoading = false;
       _detailRefreshing = false;
       notifyListeners();
     }
+  }
+
+  List<ControllerChild> _reuseSensorPins(
+    List<ControllerChild> next,
+    List<ControllerChild> previous,
+  ) {
+    return next.map((s) {
+      for (final old in previous) {
+        if (old.code == s.code && old.gpio != null) {
+          return s.copyWith(
+            gpio: old.gpio,
+            interface: old.interface,
+            channel: old.channel,
+          );
+        }
+      }
+      return s;
+    }).toList();
   }
 
   void startLiveRefresh() {
@@ -488,16 +536,41 @@ class ControllerService extends ChangeNotifier {
         installationLocation: installationLocation,
         note: note,
       );
-      if (registerRealtimeSensors) {
-        final deviceId = (created['id'] ?? created['Id'] ?? '').toString();
-        final code = deviceCode.trim();
-        if (deviceId.isNotEmpty) {
-          await _registerRealtimeSensors(deviceId, code, firmwareSensors);
-        }
-      }
+      await _afterCreate(
+        created,
+        deviceCode.trim(),
+        registerRealtimeSensors,
+        firmwareSensors,
+      );
       await load();
       return created;
     } on CloudApiException catch (e) {
+      if (e.statusCode == 409 ||
+          e.message.toLowerCase().contains('already') ||
+          e.message.toLowerCase().contains('exists')) {
+        final claimed = await _claimExisting(
+          deviceCode: deviceCode.trim(),
+          name: name?.trim(),
+          deviceType: deviceType,
+          macAddress: macAddress?.trim(),
+          ipAddress: ipAddress?.trim(),
+          firmwareVersion: firmwareVersion?.trim(),
+          farmingAreaId: farmingAreaId ?? _session.selectedFarm.id,
+          farmingRowId: farmingRowId,
+          installationLocation: installationLocation,
+          note: note,
+        );
+        if (claimed != null) {
+          await _afterCreate(
+            claimed,
+            deviceCode.trim(),
+            registerRealtimeSensors,
+            firmwareSensors,
+          );
+          await load();
+          return claimed;
+        }
+      }
       _error = e.message;
       notifyListeners();
       return null;
@@ -508,28 +581,96 @@ class ControllerService extends ChangeNotifier {
     }
   }
 
+  Future<void> _afterCreate(
+    Map<String, dynamic> created,
+    String deviceCode,
+    bool registerRealtimeSensors,
+    List<EspSensorPin> firmwareSensors,
+  ) async {
+    if (!registerRealtimeSensors) return;
+    final deviceId = (created['id'] ?? created['Id'] ?? '').toString();
+    if (deviceId.isEmpty) return;
+    try {
+      await _registerRealtimeSensors(deviceId, deviceCode, firmwareSensors);
+    } on CloudApiException {
+      // Sensors may already be linked to this controller.
+    }
+  }
+
+  Future<Map<String, dynamic>?> _claimExisting({
+    required String deviceCode,
+    String? name,
+    String? deviceType,
+    String? macAddress,
+    String? ipAddress,
+    String? firmwareVersion,
+    String? farmingAreaId,
+    String? farmingRowId,
+    String? installationLocation,
+    String? note,
+  }) async {
+    final all = await _api.fetchCrabSenseDevices(_session.token);
+    Map<String, dynamic>? found;
+    for (final raw in all) {
+      final code = (raw['deviceCode'] ?? raw['DeviceCode'] ?? '')
+          .toString()
+          .toLowerCase();
+      if (code == deviceCode.toLowerCase()) {
+        found = raw;
+        break;
+      }
+    }
+    if (found == null) return null;
+    final id = (found['id'] ?? found['Id'] ?? '').toString();
+    if (id.isEmpty) return null;
+    return _api.updateController(
+      _session.token,
+      id,
+      name: name,
+      deviceType: deviceType,
+      ipAddress: ipAddress,
+      farmingAreaId: farmingAreaId,
+      farmingRowId: farmingRowId,
+      firmwareVersion: firmwareVersion,
+      macAddress: macAddress,
+      installationLocation: installationLocation,
+      note: note,
+    );
+  }
+
   Future<void> _registerRealtimeSensors(
     String deviceId,
     String deviceCode,
     List<EspSensorPin> firmwareSensors,
   ) async {
-    final specs = firmwareSensors.isNotEmpty
-        ? firmwareSensors
-            .map((s) => (
-                  s.suffix.isNotEmpty
-                      ? s.suffix
-                      : (s.sensorCode.startsWith(deviceCode)
-                          ? s.sensorCode.substring(deviceCode.length)
-                          : '-${s.sensorType.toLowerCase()}'),
-                  s.sensorType,
-                  s.unit,
-                ))
-            .toList()
-        : const [
-            ('-temp', 'Temperature', 'C'),
-            ('-ph', 'pH', 'pH'),
-            ('-tds', 'Salinity', 'ppt'),
-          ];
+    final specs = <(String, String, String)>[
+      if (firmwareSensors.isNotEmpty)
+        for (final s in firmwareSensors)
+          (
+            s.suffix.isNotEmpty
+                ? s.suffix
+                : (s.sensorCode.startsWith(deviceCode)
+                    ? s.sensorCode.substring(deviceCode.length)
+                    : '-${s.sensorType.toLowerCase()}'),
+            s.sensorType,
+            s.unit,
+          )
+      else
+        ...const [
+          ('-temp', 'Temperature', 'C'),
+          ('-ph', 'pH', 'pH'),
+          ('-tds', 'Salinity', 'ppt'),
+        ],
+      ...const [
+        ('meter_v', 'Voltage', 'V'),
+        ('meter_a', 'Current', 'A'),
+        ('meter_w', 'Power', 'W'),
+        ('meter_va', 'ApparentPower', 'VA'),
+        ('meter_kwh', 'Energy', 'kWh'),
+        ('meter_hz', 'Frequency', 'Hz'),
+        ('meter_pf', 'PowerFactor', '%'),
+      ],
+    ];
     for (final spec in specs) {
       try {
         await _api.createSensor(
@@ -562,8 +703,8 @@ class ControllerService extends ChangeNotifier {
     final ip = detail.controller.ipLan?.trim() ?? '';
     if (ip.isEmpty) return;
     try {
-      final info = await _provisioning.pingLan(ip).timeout(const Duration(seconds: 2));
-      if (info.sensors.isEmpty) return;
+      final info = await _provisioning.pingLan(ip).timeout(const Duration(seconds: 8));
+      if (info.sensors.isEmpty && info.outputs.isEmpty) return;
       final mapped = detail.sensors.map((s) {
         EspSensorPin? pin;
         for (final p in info.sensors) {
@@ -588,6 +729,7 @@ class ControllerService extends ChangeNotifier {
         controller: detail.controller,
         sensors: mapped,
         actuators: detail.actuators,
+        boardOutputs: info.outputs,
       );
     } catch (_) {}
   }

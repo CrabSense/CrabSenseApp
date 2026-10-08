@@ -10,7 +10,7 @@ class WifiSsidScanner {
     try {
       final result = await Process.run(
         'netsh',
-        ['wlan', 'show', 'networks'],
+        ['wlan', 'show', 'networks', 'mode=bssid'],
         runInShell: true,
       );
       if (result.exitCode != 0) {
@@ -25,10 +25,24 @@ class WifiSsidScanner {
           names.add(ssid);
         }
       }
-      final list = names.toList()..sort();
+      final list = names.toList()
+        ..sort((a, b) {
+          final rank = _rank(a).compareTo(_rank(b));
+          if (rank != 0) return rank;
+          return a.toLowerCase().compareTo(b.toLowerCase());
+        });
       return list;
     } catch (_) {
       return const [];
     }
+  }
+
+  /// Farm Wi-Fi first. The board's own setup AP is not a network it can join.
+  static int _rank(String name) {
+    final n = name.toLowerCase();
+    if (n == 'crabsense-c115') return 3;
+    if (n == 'crabsense') return 0;
+    if (n.startsWith('crabsense')) return 1;
+    return 2;
   }
 }

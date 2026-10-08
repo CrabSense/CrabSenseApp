@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../config/app_env.dart';
 import '../models/auth_models.dart';
 import '../models/ras_flow.dart';
+import 'cloud_auth_service.dart';
 
 class RasFlowService extends ChangeNotifier {
   RasFlowService({required AuthSession session}) : _session = session;
@@ -57,7 +58,7 @@ class RasFlowService extends ChangeNotifier {
     _liveAreaId = areaId;
     unawaited(loadDiagram(areaId));
     unawaited(refreshPower());
-    _meterTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+    _meterTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       unawaited(refreshPower());
     });
     _liveTimer = Timer.periodic(interval, (_) {
@@ -77,7 +78,11 @@ class RasFlowService extends ChangeNotifier {
     if (notify) _notifyDeferred();
   }
 
-  Future<void> loadDiagram(String areaId, {bool silent = false}) async {
+  Future<void> loadDiagram(
+    String areaId, {
+    bool silent = false,
+    bool allowRefresh = true,
+  }) async {
     if (areaId.trim().isEmpty) return;
     if (!silent) {
       _loading = true;
@@ -92,7 +97,10 @@ class RasFlowService extends ChangeNotifier {
         headers: _headers(),
       );
       if (res.statusCode == 401) {
-        // Token hết hạn: dừng poll ngay, nếu không Timer 2s sẽ gọi 401 mãi mãi.
+        if (allowRefresh && await _renew()) {
+          await loadDiagram(areaId, silent: silent, allowRefresh: false);
+          return;
+        }
         _error = 'Phiên đăng nhập hết hạn';
         stopLiveRefresh(notify: false);
         return;
@@ -121,6 +129,62 @@ class RasFlowService extends ChangeNotifier {
     }
   }
 
+  Future<List<({String code, String name, String ip})>> areaControllers(
+    String areaId,
+  ) async {
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/devices').replace(
+      queryParameters: {'farmingAreaId': areaId},
+    );
+    final res = await http.get(uri, headers: _headers());
+    if (res.statusCode < 200 || res.statusCode >= 300) return const [];
+    final data = _decode(res.body)['data'] ?? _decode(res.body)['Data'];
+    if (data is! List) return const [];
+    final out = <({String code, String name, String ip})>[];
+    for (final raw in data) {
+      if (raw is! Map) continue;
+      final m = Map<String, dynamic>.from(raw);
+      final code = (m['deviceCode'] ?? m['DeviceCode'] ?? '').toString();
+      if (code.isEmpty) continue;
+      out.add((
+        code: code,
+        name: (m['name'] ?? m['Name'] ?? code).toString(),
+        ip: (m['ipAddress'] ?? m['IpAddress'] ?? '').toString(),
+      ));
+    }
+    return out;
+  }
+
+  Future<bool> addFlow({
+    required String areaId,
+    required String fromId,
+    required String toId,
+  }) {
+    return _mutate(
+      () => http.post(
+        Uri.parse('${AppEnv.cloudApiUrl}/api/areas/$areaId/ras-flow/flows'),
+        headers: _headers(),
+        body: jsonEncode({
+          'fromComponentId': fromId,
+          'toComponentId': toId,
+        }),
+      ),
+      areaId,
+    );
+  }
+
+  Future<bool> deleteFlow({
+    required String areaId,
+    required String flowId,
+  }) {
+    return _mutate(
+      () => http.delete(
+        Uri.parse('${AppEnv.cloudApiUrl}/api/areas/$areaId/ras-flow/flows/$flowId'),
+        headers: _headers(),
+      ),
+      areaId,
+    );
+  }
+
   Future<bool> reorderNodes({
     required String areaId,
     required List<String> nodeIdsInOrder,
@@ -142,6 +206,8 @@ class RasFlowService extends ChangeNotifier {
     required int sortOrder,
     String? relayChannel,
     String? relayDeviceId,
+    String nodeType = 'equipment',
+    String? type,
     String? paramDefaults,
   }) async {
     return _mutate(
@@ -152,7 +218,8 @@ class RasFlowService extends ChangeNotifier {
           'nodeCode': nodeCode,
           'displayLabel': displayLabel,
           'sortOrder': sortOrder,
-          'nodeType': 'equipment',
+          'nodeType': nodeType,
+          if (type != null && type.isNotEmpty) 'type': type,
           if (relayChannel != null && relayChannel.isNotEmpty)
             'relayChannel': relayChannel,
           if (relayDeviceId != null && relayDeviceId.isNotEmpty)
@@ -238,14 +305,17 @@ class RasFlowService extends ChangeNotifier {
         if (raw is! Map) continue;
         final row = Map<String, dynamic>.from(raw);
         final code = (row['sensorCode'] ?? row['SensorCode'] ?? '').toString();
-        if (!code.startsWith('meter_')) continue;
+        if (!code.startsWith('meter_') && !code.startsWith('float_')) continue;
         final valueRaw = row['latestValue'] ?? row['LatestValue'];
         final atRaw = row['latestMeasuredAt'] ?? row['LatestMeasuredAt'];
+        double? numOf(dynamic raw) => raw is num ? raw.toDouble() : double.tryParse('$raw');
         points[code] = PowerPoint(
           id: (row['id'] ?? row['Id'] ?? '').toString(),
           value: valueRaw is num ? valueRaw.toDouble() : double.tryParse('$valueRaw'),
           unit: (row['unit'] ?? row['Unit'])?.toString(),
           at: atRaw == null ? null : DateTime.tryParse(atRaw.toString()),
+          min: numOf(row['minThreshold'] ?? row['MinThreshold']),
+          max: numOf(row['maxThreshold'] ?? row['MaxThreshold']),
         );
       }
       _power = PowerSnapshot(points);
@@ -253,14 +323,17 @@ class RasFlowService extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<List<Map<String, dynamic>>> powerHistory(String sensorId) async {
+  Future<List<Map<String, dynamic>>> powerHistory(
+    String sensorId, {
+    Duration range = const Duration(hours: 24),
+  }) async {
     final to = DateTime.now().toUtc();
     final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/iot/sensor-data/$sensorId').replace(
       queryParameters: {
-        'from': to.subtract(const Duration(hours: 24)).toIso8601String(),
+        'from': to.subtract(range).toIso8601String(),
         'to': to.toIso8601String(),
         'page': '1',
-        'pageSize': '48',
+        'pageSize': '200',
       },
     );
     final res = await http.get(uri, headers: _headers());
@@ -272,9 +345,16 @@ class RasFlowService extends ChangeNotifier {
   }
 
   Map<String, String> _headers() => {
-        'Authorization': 'Bearer ${_session.token}',
+        'Authorization': 'Bearer ${LiveSession.tokenOf(_session)}',
         'Content-Type': 'application/json',
       };
+
+  Future<bool> _renew() async {
+    final next = await CloudAuthService().refreshSession(LiveSession.current ?? _session);
+    if (next == null) return false;
+    _session = next;
+    return true;
+  }
 
   Future<bool> _mutate(
     Future<http.Response> Function() call,
@@ -282,7 +362,10 @@ class RasFlowService extends ChangeNotifier {
     bool expectNoContent = false,
   }) async {
     try {
-      final res = await call();
+      var res = await call();
+      if (res.statusCode == 401 && await _renew()) {
+        res = await call();
+      }
       if (res.statusCode == 401) {
         _error = 'Phiên đăng nhập hết hạn';
         stopLiveRefresh(notify: false);
@@ -355,12 +438,14 @@ class RasFlowService extends ChangeNotifier {
 }
 
 class PowerPoint {
-  const PowerPoint({required this.id, this.value, this.unit, this.at});
+  const PowerPoint({required this.id, this.value, this.unit, this.at, this.min, this.max});
 
   final String id;
   final double? value;
   final String? unit;
   final DateTime? at;
+  final double? min;
+  final double? max;
 }
 
 class PowerSnapshot {

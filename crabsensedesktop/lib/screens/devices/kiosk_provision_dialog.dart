@@ -1,71 +1,133 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../config/app_env.dart';
 import '../../services/cloud_api_client.dart';
+import '../../services/cloud_auth_service.dart';
+import '../../services/controller_provisioning_service.dart';
 import '../../services/controller_service.dart';
 import '../../theme/dashboard_theme.dart';
 import '../../widgets/shared/mgmt_ui.dart';
 
-Future<void> showKioskProvisionDialog(
-  BuildContext context,
-  ControllerService service,
-) {
-  return showDialog<void>(
-    context: context,
-    builder: (_) => _KioskProvisionDialog(service: service),
-  );
-}
-
-class _KioskProvisionDialog extends StatefulWidget {
-  const _KioskProvisionDialog({required this.service});
+class KioskSection extends StatefulWidget {
+  const KioskSection({super.key, required this.service});
 
   final ControllerService service;
 
   @override
-  State<_KioskProvisionDialog> createState() => _KioskProvisionDialogState();
+  State<KioskSection> createState() => KioskSectionState();
 }
 
-class _KioskProvisionDialogState extends State<_KioskProvisionDialog> {
+class KioskSectionState extends State<KioskSection> {
   final _api = CloudApiClient();
   List<Map<String, dynamic>> _items = [];
   List<Map<String, dynamic>> _controllers = [];
   bool _loading = true;
   String? _error;
   Timer? _tick;
+  DateTime _lastFetch = DateTime.fromMillisecondsSinceEpoch(0);
+  String? _espKioskUrl;
+  List<EspProvisionInfo> _espBoards = const [];
 
   @override
   void initState() {
     super.initState();
+    _seenArea = widget.service.session.selectedFarm.id;
+    widget.service.addListener(_onService);
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      setState(() {});
+      if (DateTime.now().difference(_lastFetch).inSeconds >= 5) _load(silent: true);
     });
+    _load();
+    _loadEspUrl();
+    _loadEspWifi();
+  }
+
+  Future<void> _loadEspUrl() async {
+    String? farm;
+    String? lan;
+    String? other;
+    for (final iface in await NetworkInterface.list()) {
+      for (final addr in iface.addresses) {
+        if (addr.type != InternetAddressType.IPv4) continue;
+        final ip = addr.address;
+        if (ip.startsWith('127.') || ip.startsWith('169.254.')) continue;
+        if (ip.startsWith('192.168.1.')) {
+          farm ??= ip;
+        } else if (ip.startsWith('192.168.')) {
+          lan ??= ip;
+        } else {
+          other ??= ip;
+        }
+      }
+    }
+    final ip = farm ?? lan ?? other;
+    if (!mounted || ip == null) return;
+    setState(() => _espKioskUrl = 'http://$ip:8090');
+  }
+
+  Future<void> _loadEspWifi() async {
+    try {
+      final boards = await ControllerProvisioningService().discoverAllNearby();
+      if (!mounted) return;
+      setState(() => _espBoards = boards);
+    } catch (_) {}
+  }
+
+  void _onService() {
+    final id = widget.service.session.selectedFarm.id;
+    if (id == _seenArea) return;
+    _seenArea = id;
     _load();
   }
 
   @override
   void dispose() {
+    widget.service.removeListener(_onService);
     _tick?.cancel();
     super.dispose();
   }
 
-  String get _token => widget.service.session.token;
+  String? _seenArea;
+
+  String get _token => LiveSession.tokenOf(widget.service.session);
   String get _areaId => widget.service.session.selectedFarm.id;
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> create() => _create();
+
+  Future<void> _load({bool silent = false}) async {
+    _lastFetch = DateTime.now();
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
-      final items = await _api.listKiosks(_token, _areaId);
-      final controllers = await _api.listEdgeControllers(_token, _areaId);
+      var token = _token;
+      List<Map<String, dynamic>> items;
+      List<Map<String, dynamic>> controllers;
+      try {
+        items = await _api.listKiosks(token, _areaId);
+        controllers = await _api.listEdgeControllers(token, _areaId);
+      } on CloudApiException catch (e) {
+        if (e.statusCode != 401) rethrow;
+        final renewed = await widget.service.renewToken();
+        if (renewed == null) rethrow;
+        token = renewed;
+        items = await _api.listKiosks(token, _areaId);
+        controllers = await _api.listEdgeControllers(token, _areaId);
+      }
       if (!mounted) return;
       setState(() {
         _items = items;
         _controllers = controllers;
         _loading = false;
+        _error = null;
       });
     } catch (e) {
       if (!mounted) return;
@@ -154,45 +216,45 @@ class _KioskProvisionDialogState extends State<_KioskProvisionDialog> {
   @override
   Widget build(BuildContext context) {
     final farm = widget.service.session.selectedFarm;
-    return AlertDialog(
-      title: Text('Kiosk — ${farm.name}', style: bvText(fontSize: 18, fontWeight: FontWeight.w800)),
-      content: SizedBox(
-        width: 520,
-        height: _loading ? 80 : 420,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Site ${farm.code}. Nhập mã vào setup-kiosk.bat trên máy trại. Mã hết hạn sau 10 phút và chỉ dùng một lần.',
-                    style: bvText(fontSize: 13, color: DashboardColors.textMuted, height: 1.4),
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 8),
-                    Text(_error!, style: bvText(fontSize: 13, color: const Color(0xFFEF4444))),
-                  ],
-                  const SizedBox(height: 12),
-                  if (_items.isEmpty)
-                    Text('Chưa có Kiosk trong khu này.', style: bvText(fontSize: 13))
-                  else
-                    ..._items.map(_tile),
-                  if (_controllers.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text('Controller', style: bvText(fontSize: 14, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 8),
-                    ..._controllers.map(_controllerTile),
-                  ],
-                ],
-              ),
+    return DecoratedBox(
+      decoration: mgmtCardDeco(radius: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Kiosk', style: bvText(fontSize: 16, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text(
+              'Site ${farm.code}. Máy trại nhập mã vào start-kiosk.bat. Mã hết hạn sau 10 phút và chỉ dùng một lần.',
+              style: bvText(fontSize: 13, color: DashboardColors.textMuted, height: 1.4),
             ),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: LinearProgressIndicator(),
+              )
+            else ...[
+              if (_error != null) ...[
+                const SizedBox(height: 8),
+                Text(_error!, style: bvText(fontSize: 13, color: const Color(0xFFEF4444))),
+              ],
+              const SizedBox(height: 12),
+              if (_items.isEmpty)
+                Text('Chưa có Kiosk trong khu này.', style: bvText(fontSize: 13))
+              else
+                ..._items.map(_tile),
+              if (_controllers.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text('Controller đang gắn Kiosk', style: bvText(fontSize: 14, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
+                ..._controllers.map(_controllerTile),
+              ],
+            ],
+          ],
+        ),
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Đóng')),
-        MgmtPrimaryButton(label: 'Tạo Kiosk', icon: Icons.add, onTap: _loading ? null : _create),
-      ],
     );
   }
 
@@ -234,9 +296,23 @@ class _KioskProvisionDialogState extends State<_KioskProvisionDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('$code  ·  $status', style: bvText(fontSize: 14, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              _info('BE', AppEnv.cloudApiUrl, copy: true),
+              if (_espKioskUrl != null) _info('Cho ESP', _espKioskUrl!, copy: true),
+              for (final board in _espBoards)
+                if (board.wifiSsid.isNotEmpty)
+                  _info('Wi-Fi ${board.displayName}', board.wifiSsid, copy: true),
+              _info('Kết nối', _when(item['lastSeenAt'])),
+              _info('IP máy trại', _text(item['lanIp'])),
+              if (_text(item['name']) != '—') _info('Tên', _text(item['name'])),
               if (provision != null && alive) ...[
                 const SizedBox(height: 6),
-                SelectableText(provision, style: bvText(fontSize: 22, fontWeight: FontWeight.w800)),
+                Row(
+                  children: [
+                    SelectableText(provision, style: bvText(fontSize: 22, fontWeight: FontWeight.w800)),
+                    _copyIcon(provision),
+                  ],
+                ),
                 Text(
                   'Còn ${_fmt(left)}',
                   style: bvText(fontSize: 12, color: DashboardColors.textMuted),
@@ -246,11 +322,6 @@ class _KioskProvisionDialogState extends State<_KioskProvisionDialog> {
               Wrap(
                 spacing: 8,
                 children: [
-                  if (provision != null && alive)
-                    TextButton(
-                      onPressed: () => Clipboard.setData(ClipboardData(text: provision)),
-                      child: const Text('Chép mã'),
-                    ),
                   TextButton(onPressed: () => _reissue(id), child: const Text('Cấp mã mới')),
                   TextButton(onPressed: () => _revoke(id), child: const Text('Thu hồi')),
                   TextButton(onPressed: () => _deleteKiosk(id, code), child: const Text('Xóa')),
@@ -267,5 +338,38 @@ class _KioskProvisionDialogState extends State<_KioskProvisionDialog> {
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$m:$s';
+  }
+
+  String _text(Object? value) {
+    final text = value?.toString().trim() ?? '';
+    return text.isEmpty || text == 'null' ? '—' : text;
+  }
+
+  String _when(Object? value) {
+    final at = DateTime.tryParse('${value ?? ''}');
+    return at == null ? '—' : fmtDateTimeVn(at.toLocal());
+  }
+
+  Widget _copyIcon(String value) {
+    return IconButton(
+      tooltip: 'Copy',
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      icon: const Icon(Icons.copy_outlined, size: 16),
+      onPressed: () => Clipboard.setData(ClipboardData(text: value)),
+    );
+  }
+
+  Widget _info(String label, String value, {bool copy = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        children: [
+          Text('$label: $value', style: bvText(fontSize: 13, color: DashboardColors.textMuted)),
+          if (copy) _copyIcon(value),
+        ],
+      ),
+    );
   }
 }

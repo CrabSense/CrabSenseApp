@@ -1,4 +1,5 @@
 import 'iot_device.dart';
+import '../services/controller_provisioning_service.dart';
 
 class ControllerChild {
   const ControllerChild({
@@ -111,11 +112,13 @@ class ControllerDetail {
     required this.controller,
     required this.sensors,
     required this.actuators,
+    this.boardOutputs = const [],
   });
 
   final IoTDevice controller;
   final List<ControllerChild> sensors;
   final List<ControllerChild> actuators;
+  final List<EspOutputPin> boardOutputs;
 
   factory ControllerDetail.fromJson(Map<String, dynamic> json) {
     final sensorsRaw = json['sensors'] ?? json['Sensors'];

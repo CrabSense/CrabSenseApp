@@ -8,6 +8,7 @@ import '../../models/farm_alert.dart';
 import '../../models/iot_device.dart';
 import '../../navigation/app_route.dart';
 import '../../services/alert_service.dart';
+import '../../services/controller_provisioning_service.dart';
 import '../../services/controller_service.dart';
 import '../../services/farm_log_service.dart';
 import '../../services/row_management_service.dart';
@@ -60,7 +61,11 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
   String _statusFilter = 'all';
   String _typeFilter = 'all';
   late final TabController _tabs;
+  final _kiosks = GlobalKey<KioskSectionState>();
   bool _checking = false;
+  final Map<int, bool> _ssrOn = {};
+  int? _ssrBusy;
+  String _ssrSig = '';
 
   ControllerService get _svc => widget.service;
 
@@ -204,6 +209,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
               _errorBanner(_svc.error!, () => _svc.load()),
             ],
             const SizedBox(height: 14),
+            KioskSection(key: _kiosks, service: _svc),
+            const SizedBox(height: 14),
           ];
           if (compactHeight) {
             content.add(SizedBox(height: 560, child: _body(loading)));
@@ -261,7 +268,7 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
         MgmtPrimaryButton(
           label: 'Thêm Kiosk',
           icon: Icons.dns_outlined,
-          onTap: () => showKioskProvisionDialog(context, _svc),
+          onTap: () => _kiosks.currentState?.create(),
         ),
         const SizedBox(width: 8),
         MgmtPrimaryButton(
@@ -547,7 +554,7 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
             tabs: [
               const Tab(text: 'Tổng quan'),
               Tab(text: 'Sensors (${detail.sensors.length})'),
-              Tab(text: 'Outputs (${detail.actuators.length})'),
+              Tab(text: 'Actuator (${detail.boardOutputs.length})'),
               const Tab(text: 'Mạng & hệ thống'),
               const Tab(text: 'Lịch sử'),
             ],
@@ -647,7 +654,7 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                     const PopupMenuItem(
                         value: 'sensors', child: Text('Quản lý Sensor')),
                     const PopupMenuItem(
-                        value: 'outputs', child: Text('Quản lý Output')),
+                        value: 'outputs', child: Text('Quản lý Actuator')),
                     const PopupMenuItem(
                         value: 'alerts', child: Text('Xem cảnh báo')),
                     const PopupMenuItem(
@@ -828,7 +835,7 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
           d.isOnline
               ? '$liveSensors / ${detail.sensors.length} hoạt động'
               : '0 / ${detail.sensors.length} realtime'),
-      _kv('Outputs', '${detail.actuators.length}'),
+      _kv('Actuator', '${detail.boardOutputs.length}'),
       if ((d.firmwareVersion ?? '').isNotEmpty)
         _kv('Firmware', 'v${d.firmwareVersion}'),
     ]);
@@ -851,15 +858,11 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
   }
 
   Widget _outputPreview(ControllerDetail detail) {
+    final n = detail.boardOutputs.length;
     return _card(
-      'Outputs / Thiết bị điều khiển (${detail.actuators.length})',
+      'Actuator ($n)',
       Icons.settings_input_component,
-      [
-        if (detail.actuators.isEmpty)
-          _emptyOutput(detail.controller)
-        else
-          _outputTable(detail, compact: true),
-      ],
+      [_outputTable(detail, compact: true)],
       action: 'Xem tất cả →',
       onAction: () => _tabs.animateTo(2),
     );
@@ -896,25 +899,11 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        if (detail.actuators.isEmpty)
-          MgmtEmptyState(
-            icon: Icons.settings_input_component,
-            title: 'Chưa có thiết bị đầu ra được liên kết.',
-            message: 'Controller này hiện chỉ dùng để đọc cảm biến.',
-            action: MgmtPrimaryButton(
-              label: 'Liên kết thiết bị',
-              icon: Icons.add,
-              onTap: () => _linkOutput(),
-            ),
-          )
-        else
-          _card(
-            'Outputs / Thiết bị điều khiển (${detail.actuators.length})',
-            Icons.settings_input_component,
-            [_outputTable(detail, compact: false)],
-            action: '+ Liên kết thiết bị',
-            onAction: _linkOutput,
-          ),
+        _card(
+          'Actuator (${detail.boardOutputs.length})',
+          Icons.settings_input_component,
+          [_outputTable(detail, compact: false)],
+        ),
       ],
     );
   }
@@ -1065,7 +1054,64 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
     );
   }
 
+  void _noteBoardOutputs(List<EspOutputPin> pins) {
+    final sig = pins.map((p) => '${p.channel}:${p.gpio}').join(',');
+    if (sig == _ssrSig) return;
+    _ssrSig = sig;
+    _ssrOn
+      ..clear()
+      ..addAll({
+        for (final p in pins)
+          if (p.on != null) p.channel: p.on!,
+      });
+  }
+
+  Future<void> _setSsr(IoTDevice device, int channel, bool on) async {
+    final ip = device.ipLan;
+    if (ip == null || ip.isEmpty) return;
+    setState(() => _ssrBusy = channel);
+    try {
+      final state = await ControllerProvisioningService().commandEsp(
+        ip: ip,
+        command: on ? 'on' : 'off',
+        channel: channel,
+      );
+      if (!mounted || state == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Không điều khiển được Actuator')));
+        }
+        return;
+      }
+      setState(() {
+        _ssrOn[1] = state.output1;
+        _ssrOn[2] = state.output2;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không điều khiển được Actuator')));
+    } finally {
+      if (mounted) setState(() => _ssrBusy = null);
+    }
+  }
+
+  String _actuatorName(ControllerDetail detail, int channel) {
+    for (final a in detail.actuators) {
+      if (a.relayChannel == '$channel') {
+        return a.name.isEmpty ? a.code : a.name;
+      }
+    }
+    return 'SSR $channel';
+  }
+
   Widget _outputTable(ControllerDetail detail, {required bool compact}) {
+    final pins = detail.boardOutputs;
+    if (pins.isEmpty) {
+      return Text('Chưa đọc được chân từ Controller.',
+          style: bvText(color: DashboardColors.textMuted));
+    }
+    _noteBoardOutputs(pins);
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
@@ -1075,59 +1121,36 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
             color: DashboardColors.textMuted),
         dataTextStyle: bvText(fontSize: 12.5),
         columns: const [
-          DataColumn(label: Text('TÊN THIẾT BỊ')),
-          DataColumn(label: Text('LOẠI')),
-          DataColumn(label: Text('RELAY')),
+          DataColumn(label: Text('ACTUATOR')),
           DataColumn(label: Text('GPIO')),
-          DataColumn(label: Text('KẾT NỐI')),
-          DataColumn(label: Text('OPERATING')),
-          DataColumn(label: Text('RAS')),
+          DataColumn(label: Text('TRẠNG THÁI')),
+          DataColumn(label: Text('THAO TÁC')),
         ],
         rows: [
-          for (final a in detail.actuators)
+          for (final pin in pins)
             DataRow(cells: [
-              DataCell(Text(a.name.isEmpty ? a.code : a.name,
+              DataCell(Text(_actuatorName(detail, pin.channel),
                   style: bvText(fontWeight: FontWeight.w700))),
-              DataCell(Text(a.type ?? '—')),
-              DataCell(
-                  Text((a.relayChannel ?? '').isEmpty ? '—' : a.relayChannel!)),
-              const DataCell(Text('—')),
+              DataCell(Text('GPIO ${pin.gpio}')),
               DataCell(Text(
-                detail.controller.isOnline ? 'Online' : 'Offline',
-                style: bvText(
-                    color: detail.controller.isOnline
-                        ? DashboardColors.brand
-                        : _kSlate,
-                    fontWeight: FontWeight.w700),
-              )),
-              DataCell(Text(
-                a.isOn == null ? '—' : (a.isOn! ? 'ON' : 'OFF'),
+                _ssrOn[pin.channel] == null
+                    ? '—'
+                    : (_ssrOn[pin.channel]! ? 'Bật' : 'Tắt'),
                 style: bvText(
                     fontWeight: FontWeight.w800,
-                    color: a.isOn == true
+                    color: _ssrOn[pin.channel] == true
                         ? DashboardColors.brand
                         : DashboardColors.textMuted),
               )),
-              DataCell(Text(a.name.isEmpty ? a.code : a.name)),
+              DataCell(Switch(
+                value: _ssrOn[pin.channel] ?? false,
+                onChanged: _ssrBusy != null
+                    ? null
+                    : (v) => _setSsr(detail.controller, pin.channel, v),
+              )),
             ]),
         ],
       ),
-    );
-  }
-
-  Widget _emptyOutput(IoTDevice d) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Chưa có thiết bị đầu ra được liên kết.',
-            style: bvText(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 4),
-        Text('Controller này hiện chỉ dùng để đọc cảm biến.',
-            style: bvText(color: DashboardColors.textMuted, fontSize: 12.5)),
-        const SizedBox(height: 8),
-        MgmtOutlineButton(
-            onTap: _linkOutput, icon: Icons.add, label: 'Liên kết thiết bị'),
-      ],
     );
   }
 
@@ -1470,12 +1493,6 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
           : (_svc.detailError ?? 'Không thêm được sensor.'));
   }
 
-  void _linkOutput() {
-    _toast(
-        'Liên kết output thực hiện trên Điều khiển RAS — không gán RelayDeviceId trên UI này.');
-    widget.onNavigate?.call(AppRoute.devices);
-  }
-
   Future<void> _onSensorMenu(String a, ControllerChild s, IoTDevice d) async {
     switch (a) {
       case 'detail':
@@ -1714,7 +1731,7 @@ class _ControllerCard extends StatelessWidget {
                       bvText(fontSize: 12, color: DashboardColors.textMuted)),
               const SizedBox(height: 4),
               Text(
-                '${device.sensorCount} sensors • ${device.actuatorCount} outputs',
+                '${device.sensorCount} sensors',
                 style: bvText(fontSize: 12.5, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 4),

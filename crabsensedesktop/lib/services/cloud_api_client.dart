@@ -1123,7 +1123,7 @@ class CloudApiClient {
     final body = _decode(res);
     if (_isApiFailure(res, body)) {
       throw CloudApiException(
-        _errorMessage(body) ?? 'Không thêm controller',
+        _errorMessage(body) ?? 'Không thêm controller (${res.statusCode})',
         statusCode: res.statusCode,
       );
     }
