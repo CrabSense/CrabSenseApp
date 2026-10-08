@@ -1403,6 +1403,68 @@ class CloudApiClient {
     return false;
   }
 
+  Future<List<Map<String, dynamic>>> listKiosks(
+    String token,
+    String farmingAreaId,
+  ) async {
+    final uri = Uri.parse('$_base/api/kiosks').replace(
+      queryParameters: {'farmingAreaId': farmingAreaId},
+    );
+    final res = await _client.get(uri, headers: authHeaders(token));
+    final body = _decode(res);
+    _throwIfFailed(res, body, '/api/kiosks');
+    return _itemsOf(body).map(_asMap).toList();
+  }
+
+  Future<Map<String, dynamic>> createKiosk(
+    String token,
+    String farmingAreaId, {
+    String? name,
+  }) async {
+    final res = await _client.post(
+      Uri.parse('$_base/api/kiosks'),
+      headers: {...authHeaders(token), 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'farmingAreaId': farmingAreaId,
+        if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+      }),
+    );
+    final body = _decode(res);
+    _throwIfFailed(res, body, '/api/kiosks');
+    return _asMap(_dataOf(body));
+  }
+
+  Future<Map<String, dynamic>> issueKioskCode(String token, String kioskId) async {
+    final res = await _client.post(
+      Uri.parse('$_base/api/kiosks/$kioskId/provisioning-codes'),
+      headers: authHeaders(token),
+    );
+    final body = _decode(res);
+    _throwIfFailed(res, body, '/api/kiosks/$kioskId/provisioning-codes');
+    return _asMap(_dataOf(body));
+  }
+
+  Future<void> revokeKiosk(String token, String kioskId) async {
+    final res = await _client.post(
+      Uri.parse('$_base/api/kiosks/$kioskId/revoke'),
+      headers: authHeaders(token),
+    );
+    final body = _decode(res);
+    _throwIfFailed(res, body, '/api/kiosks/$kioskId/revoke');
+  }
+
+  void _throwIfFailed(http.Response res, Map<String, dynamic> body, String path) {
+    if (res.statusCode == 401) {
+      throw CloudApiException('Phiên đăng nhập hết hạn', statusCode: 401);
+    }
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Lỗi API $path (${res.statusCode})',
+        statusCode: res.statusCode,
+      );
+    }
+  }
+
   dynamic _dataOf(Map<String, dynamic> body) => body['data'] ?? body['Data'];
 
   List<dynamic> _itemsOf(Map<String, dynamic> body) {

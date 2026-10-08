@@ -15,6 +15,7 @@ import '../../theme/dashboard_theme.dart';
 import '../../widgets/shared/mgmt_ui.dart';
 import 'add_controller_dialog.dart';
 import 'edit_controller_dialog.dart';
+import 'kiosk_provision_dialog.dart';
 
 const _kAmber = Color(0xFFF5B700);
 const _kRed = Color(0xFFEF4444);
@@ -257,6 +258,12 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
             ],
           ),
         ),
+        MgmtPrimaryButton(
+          label: 'Thêm Kiosk',
+          icon: Icons.dns_outlined,
+          onTap: () => showKioskProvisionDialog(context, _svc),
+        ),
+        const SizedBox(width: 8),
         MgmtPrimaryButton(
           label: 'Thêm Controller',
           icon: Icons.add,
