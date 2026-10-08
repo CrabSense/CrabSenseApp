@@ -1453,6 +1453,37 @@ class CloudApiClient {
     _throwIfFailed(res, body, '/api/kiosks/$kioskId/revoke');
   }
 
+  Future<List<Map<String, dynamic>>> listEdgeControllers(
+    String token,
+    String farmingAreaId,
+  ) async {
+    final uri = Uri.parse('$_base/api/kiosks/controllers').replace(
+      queryParameters: {'farmingAreaId': farmingAreaId},
+    );
+    final res = await _client.get(uri, headers: authHeaders(token));
+    final body = _decode(res);
+    _throwIfFailed(res, body, '/api/kiosks/controllers');
+    return _itemsOf(body).map(_asMap).toList();
+  }
+
+  Future<void> approveController(String token, String deviceId) async {
+    final res = await _client.post(
+      Uri.parse('$_base/api/controllers/$deviceId/approve'),
+      headers: authHeaders(token),
+    );
+    final body = _decode(res);
+    _throwIfFailed(res, body, '/api/controllers/$deviceId/approve');
+  }
+
+  Future<void> rejectController(String token, String deviceId) async {
+    final res = await _client.post(
+      Uri.parse('$_base/api/controllers/$deviceId/reject'),
+      headers: authHeaders(token),
+    );
+    final body = _decode(res);
+    _throwIfFailed(res, body, '/api/controllers/$deviceId/reject');
+  }
+
   void _throwIfFailed(http.Response res, Map<String, dynamic> body, String path) {
     if (res.statusCode == 401) {
       throw CloudApiException('Phiên đăng nhập hết hạn', statusCode: 401);

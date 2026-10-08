@@ -30,6 +30,7 @@ class _KioskProvisionDialog extends StatefulWidget {
 class _KioskProvisionDialogState extends State<_KioskProvisionDialog> {
   final _api = CloudApiClient();
   List<Map<String, dynamic>> _items = [];
+  List<Map<String, dynamic>> _controllers = [];
   bool _loading = true;
   String? _error;
   Timer? _tick;
@@ -59,9 +60,11 @@ class _KioskProvisionDialogState extends State<_KioskProvisionDialog> {
     });
     try {
       final items = await _api.listKiosks(_token, _areaId);
+      final controllers = await _api.listEdgeControllers(_token, _areaId);
       if (!mounted) return;
       setState(() {
         _items = items;
+        _controllers = controllers;
         _loading = false;
       });
     } catch (e) {
@@ -99,6 +102,21 @@ class _KioskProvisionDialogState extends State<_KioskProvisionDialog> {
     }
   }
 
+  Future<void> _decide(String id, bool approve) async {
+    setState(() => _error = null);
+    try {
+      if (approve) {
+        await _api.approveController(_token, id);
+      } else {
+        await _api.rejectController(_token, id);
+      }
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    }
+  }
+
   Future<void> _revoke(String id) async {
     setState(() => _error = null);
     try {
@@ -116,10 +134,12 @@ class _KioskProvisionDialogState extends State<_KioskProvisionDialog> {
     return AlertDialog(
       title: Text('Kiosk — ${farm.name}', style: bvText(fontSize: 18, fontWeight: FontWeight.w800)),
       content: SizedBox(
-        width: 460,
+        width: 520,
+        height: _loading ? 80 : 420,
         child: _loading
-            ? const SizedBox(height: 80, child: Center(child: CircularProgressIndicator()))
-            : Column(
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -136,13 +156,40 @@ class _KioskProvisionDialogState extends State<_KioskProvisionDialog> {
                     Text('Chưa có Kiosk trong khu này.', style: bvText(fontSize: 13))
                   else
                     ..._items.map(_tile),
+                  if (_controllers.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text('Controller', style: bvText(fontSize: 14, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 8),
+                    ..._controllers.map(_controllerTile),
+                  ],
                 ],
               ),
+            ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Đóng')),
         MgmtPrimaryButton(label: 'Tạo Kiosk', icon: Icons.add, onTap: _loading ? null : _create),
       ],
+    );
+  }
+
+  Widget _controllerTile(Map<String, dynamic> item) {
+    final id = '${item['id']}';
+    final code = '${item['deviceCode']}';
+    final state = '${item['linkStatus'] ?? item['edgeState']}';
+    final ip = item['ipAddress']?.toString();
+    final pending = state == 'Pending';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(child: Text('$code  ·  $state${ip == null ? '' : '  ·  $ip'}', style: bvText(fontSize: 13))),
+          if (pending) ...[
+            TextButton(onPressed: () => _decide(id, true), child: const Text('Duyệt')),
+            TextButton(onPressed: () => _decide(id, false), child: const Text('Từ chối')),
+          ],
+        ],
+      ),
     );
   }
 
