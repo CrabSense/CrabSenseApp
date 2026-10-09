@@ -16,7 +16,7 @@ abstract class AlertsCommandRepository {
     bool forceRefresh = false,
     String searchQuery = '',
     Set<AlertQuickFilter> quickFilters = const {AlertQuickFilter.all},
-    AlertSortOption sortOption = AlertSortOption.priorityDesc,
+    AlertSortOption sortOption = AlertSortOption.newest,
     AlertGroupBy groupBy = AlertGroupBy.severity,
     bool showingHistory = false,
     AlertHistoryRange historyRange = AlertHistoryRange.today,

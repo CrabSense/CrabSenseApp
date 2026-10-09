@@ -140,11 +140,6 @@ class ModernHomeScreen extends StatelessWidget {
                         onTap: () => context.push(RoutePaths.aiCenter),
                       ),
                       _QuickAction(
-                        icon: Icons.shopping_basket_rounded,
-                        label: 'Thu hoạch',
-                        onTap: () => context.push(RoutePaths.harvest),
-                      ),
-                      _QuickAction(
                         icon: Icons.bar_chart_rounded,
                         label: 'Báo cáo',
                         onTap: () => context.push(RoutePaths.reports),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
@@ -24,6 +25,22 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
   static const blue = Color(0xFF168BE5);
   static const page = Colors.white;
   final Set<String> _completedTaskIds = <String>{};
+  Timer? _activityPoll;
+
+  @override
+  void initState() {
+    super.initState();
+    _activityPoll = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (!mounted) return;
+      ref.read(homeStateProvider.notifier).refresh();
+    });
+  }
+
+  @override
+  void dispose() {
+    _activityPoll?.cancel();
+    super.dispose();
+  }
 
   String _headerAsset() {
     return 'assets/images/desktop/background_chao_user.png';
@@ -594,10 +611,39 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
     );
   }
 
+  void _openActivityLog() {
+    final items = ref.read(homeStateProvider).valueOrNull?.recentActivities ??
+        const <RecentActivityItem>[];
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          backgroundColor: page,
+          appBar: AppBar(
+            backgroundColor: page,
+            foregroundColor: navy,
+            elevation: 0,
+            title: const Text(
+              'Nhật ký hoạt động',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            ),
+          ),
+          body: items.isEmpty
+              ? const Center(child: Text('Chưa có hoạt động điều khiển.'))
+              : ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: items.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) => _activityRow(items[i]),
+                ),
+        ),
+      ),
+    );
+  }
+
   Widget _recentActivityCard(HomeStateData data) => _card(
     title: 'Nhật ký hoạt động gần đây',
     action: 'Xem tất cả',
-    onAction: () => context.push(RoutePaths.operationHistory),
+    onAction: _openActivityLog,
     child: Column(
       children: [
         for (final activity in data.recentActivities.take(5))
@@ -607,22 +653,22 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
   );
 
   Widget _activityRow(RecentActivityItem activity) {
-    final text = '${activity.title} ${activity.description}'.toLowerCase();
-    final icon =
-        text.contains('chuyển') ||
-            text.contains('move') ||
-            text.contains('transfer')
+    final sentence = _activitySentence(activity);
+    final text = sentence.toLowerCase();
+    final icon = text.contains('tắt') || text.contains('bật')
+        ? Icons.power_settings_new_rounded
+        : text.contains('auto') || text.contains('tự động')
+        ? Icons.autorenew_rounded
+        : text.contains('chuyển') || text.contains('move')
         ? Icons.swap_horiz_rounded
-        : text.contains('thêm') ||
-              text.contains('add') ||
-              text.contains('assign')
+        : text.contains('thêm')
         ? Icons.person_add_alt_1_rounded
         : text.contains('qr')
         ? Icons.qr_code_scanner_rounded
-        : text.contains('thu hoạch') || text.contains('harvest')
+        : text.contains('thu hoạch')
         ? Icons.inventory_2_outlined
         : Icons.history_rounded;
-    final color = text.contains('cảnh báo') || text.contains('alert')
+    final color = text.contains('cảnh báo')
         ? const Color(0xFFE34850)
         : const Color(0xFF159BAA);
 
@@ -641,31 +687,18 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  activity.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: navy,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  activity.description,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF708090),
-                    fontSize: 10,
-                  ),
-                ),
-              ],
+            child: Text(
+              sentence,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: navy,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
+          const SizedBox(width: 8),
           Text(
             _activityTime(activity.timestamp),
             style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 9),
@@ -673,6 +706,35 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
         ],
       ),
     );
+  }
+
+  String _activitySentence(RecentActivityItem activity) {
+    for (final part in activity.description.split('|')) {
+      final text = part.trim();
+      if (text.isEmpty) continue;
+      if (RegExp(r'^[0-9a-fA-F]{16,}$').hasMatch(text)) continue;
+      if (RegExp(r'^ch\d+$', caseSensitive: false).hasMatch(text)) continue;
+      if (text.toLowerCase().startsWith('crabsense-')) continue;
+      return text;
+    }
+    switch (activity.title.toLowerCase()) {
+      case 'on':
+      case 'start':
+      case 'ras_on':
+      case 'bật thiết bị':
+        return 'Bật thiết bị';
+      case 'off':
+      case 'stop':
+      case 'ras_off':
+      case 'tắt thiết bị':
+        return 'Tắt thiết bị';
+      case 'auto':
+        return 'Chuyển sang tự động';
+      case 'manual':
+        return 'Chuyển sang thủ công';
+      default:
+        return activity.title;
+    }
   }
 
   String _activityTime(DateTime timestamp) {
@@ -1208,11 +1270,6 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
           'Pha nước\n& khoáng',
           _desktopIcon('tab_RAS_control.png', size: 42),
           () => context.push(RoutePaths.mineralDosing),
-        ),
-        _Quick(
-          'Thu hoạch',
-          _desktopIcon('tab_manage_controll.png', size: 42),
-          () => context.push(RoutePaths.harvest),
         ),
         _Quick(
           'AI lột\nxác',

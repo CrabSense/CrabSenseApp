@@ -605,7 +605,7 @@ class ControllerProvisioningService {
             if (channel != null) 'channel': channel,
           }),
         )
-        .timeout(const Duration(seconds: 8));
+        .timeout(const Duration(seconds: 20));
     final decoded = jsonDecode(res.body);
     if (decoded is! Map || res.statusCode < 200 || res.statusCode >= 300) {
       return null;

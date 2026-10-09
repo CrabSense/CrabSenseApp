@@ -1,4 +1,4 @@
-// ignore_for_file: lines_longer_than_80_chars
+﻿// ignore_for_file: lines_longer_than_80_chars
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -163,8 +163,6 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
   List<FarmOption> _farms = const [];
   List<WaterMetricItem> _metrics = const [];
   bool _farmsLoading = true;
-  bool _showAllHistory = false;
-  final _historyKey = GlobalKey();
 
   @override
   void initState() {
@@ -343,20 +341,6 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
         );
   }
 
-  void _scrollToHistory() {
-    setState(() => _showAllHistory = true);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctx = _historyKey.currentContext;
-      if (ctx != null) {
-        Scrollable.ensureVisible(
-          ctx,
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-  }
-
   void _showThresholds(WaterQualityThresholds t) {
     showModalBottomSheet<void>(
       context: context,
@@ -456,7 +440,6 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
               _SensorStatusRow(
                 timestamp: latestTimestamp,
                 online: online,
-                onHistory: _scrollToHistory,
               ),
               const SizedBox(height: 16),
               _CurrentMetricsSection(
@@ -470,16 +453,6 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
                 historicalReadings: historicalReadings,
                 thresholds: thresholds,
                 refreshing: widget.state.isRefreshing,
-              ),
-              const SizedBox(height: 16),
-              KeyedSubtree(
-                key: _historyKey,
-                child: _WaterQualityHistorySection(
-                  records: historicalReadings,
-                  thresholds: thresholds,
-                  showAll: _showAllHistory,
-                  onShowAll: () => setState(() => _showAllHistory = true),
-                ),
               ),
             ]),
           ),
@@ -651,12 +624,10 @@ class _SensorStatusRow extends StatelessWidget {
   const _SensorStatusRow({
     required this.timestamp,
     required this.online,
-    required this.onHistory,
   });
 
   final DateTime? timestamp;
   final bool online;
-  final VoidCallback onHistory;
 
   @override
   Widget build(BuildContext context) {
@@ -687,29 +658,6 @@ class _SensorStatusRow extends StatelessWidget {
             fontSize: 12,
             fontWeight: FontWeight.w600,
             color: online ? kHomePrimaryDark : kHomeDanger,
-          ),
-        ),
-        const SizedBox(width: 8),
-        OutlinedButton(
-          onPressed: onHistory,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: kHomePrimaryDark,
-            side: const BorderSide(color: Color(0xFFB7E0C8)),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-            minimumSize: const Size(0, 32),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            visualDensity: VisualDensity.compact,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.calendar_today_outlined, size: 12),
-              SizedBox(width: 4),
-              Text('Lịch sử chi tiết', style: TextStyle(fontSize: 11)),
-            ],
           ),
         ),
       ],
@@ -885,196 +833,6 @@ class _PeriodPills extends StatelessWidget {
             ),
           );
         }).toList(),
-      ),
-    );
-  }
-}
-
-class _WaterQualityHistorySection extends StatelessWidget {
-  const _WaterQualityHistorySection({
-    required this.records,
-    required this.thresholds,
-    required this.showAll,
-    required this.onShowAll,
-  });
-
-  final List<WaterQuality> records;
-  final WaterQualityThresholds thresholds;
-  final bool showAll;
-  final   VoidCallback onShowAll;
-
-  @override
-  Widget build(BuildContext context) {
-    final sorted = [...records]..sort((a, b) => b.timestamp.compareTo(a.timestamp));
-    final visible = showAll ? sorted : sorted.take(3).toList();
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: homeCardDecoration(radius: 22),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.history_rounded,
-                  size: 18, color: kHomePrimaryDark),
-              const SizedBox(width: 6),
-              const Expanded(
-                child: Text(
-                  'Lịch sử chỉ số',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: kHomeTextMain,
-                  ),
-                ),
-              ),
-              if (sorted.length > 3)
-                TextButton(
-                  onPressed: onShowAll,
-                  child: const Text('Xem tất cả >'),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (visible.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Text(
-                'Chưa có lịch sử chỉ số',
-                style: TextStyle(color: kHomeTextHint),
-              ),
-            )
-          else
-            _HistoryTable(records: visible, thresholds: thresholds),
-        ],
-      ),
-    );
-  }
-}
-
-class _HistoryTable extends StatelessWidget {
-  const _HistoryTable({required this.records, required this.thresholds});
-
-  final List<WaterQuality> records;
-  final WaterQualityThresholds thresholds;
-
-  @override
-  Widget build(BuildContext context) {
-    return Table(
-      columnWidths: const {
-        0: FlexColumnWidth(1.15),
-        1: FlexColumnWidth(0.7),
-        2: FlexColumnWidth(1.05),
-        3: FlexColumnWidth(1.0),
-        4: FlexColumnWidth(0.85),
-        5: FlexColumnWidth(1.2),
-      },
-      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-      children: [
-        TableRow(
-          decoration: const BoxDecoration(
-            color: Color(0xFFF3F7F5),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
-          ),
-          children: [
-            _th('Thời gian'),
-            _th('pH'),
-            _th('Oxy hòa tan\n(mg/L)'),
-            _th('Nhiệt độ\n(°C)'),
-            _th('Độ mặn\n(ppt)'),
-            _th('Trạng thái'),
-          ],
-        ),
-        for (final r in records)
-          TableRow(
-            children: [
-              _td(DateFormat('dd/MM HH:mm').format(r.timestamp.toLocal())),
-              _td(r.ph.toStringAsFixed(1)),
-              _td(
-                r.dissolvedOxygen.toStringAsFixed(1),
-                color: thresholds.isDissolvedOxygenNormal(r.dissolvedOxygen)
-                    ? null
-                    : const Color(0xFFE09A2A),
-              ),
-              _td(r.temperature.toStringAsFixed(1)),
-              _td(r.salinity.toStringAsFixed(1)),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
-                child: _StatusChip(
-                  ok: thresholds.isPhNormal(r.ph) &&
-                      thresholds.isDissolvedOxygenNormal(r.dissolvedOxygen) &&
-                      thresholds.isTemperatureNormal(r.temperature) &&
-                      thresholds.isSalinityNormal(r.salinity),
-                ),
-              ),
-            ],
-          ),
-      ],
-    );
-  }
-
-  Widget _th(String t) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
-        child: Text(
-          t,
-          style: const TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.w700,
-            color: kHomeTextSub,
-            height: 1.2,
-          ),
-        ),
-      );
-
-  Widget _td(String t, {Color? color}) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
-        child: Text(
-          t,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: color ?? kHomeTextMain,
-          ),
-        ),
-      );
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.ok});
-  final bool ok;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = ok ? const Color(0xFF1B8A5A) : const Color(0xFFE09A2A);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            ok ? Icons.check_circle : Icons.warning_amber_rounded,
-            size: 12,
-            color: color,
-          ),
-          const SizedBox(width: 3),
-          Flexible(
-            child: Text(
-              ok ? 'Tốt' : 'Cảnh báo',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

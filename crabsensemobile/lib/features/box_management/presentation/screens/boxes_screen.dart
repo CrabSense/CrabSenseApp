@@ -590,6 +590,7 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             sliver: SliverToBoxAdapter(
               child: _OccupancyFilterRow(
+                boxes: data.allBoxes,
                 active: data.quickFilters,
                 onToggle: notifier.toggleQuickFilter,
               ),
@@ -718,11 +719,6 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
         )
         .toList();
     final allBoxes = data.allBoxes;
-    final occupiedCount = allBoxes.where((b) => b.crabCount > 0).length;
-    final emptyCount = allBoxes.length - occupiedCount;
-    final watchCount = allBoxes
-        .where((b) => b.status == BoxStatus.watch)
-        .length;
     final activeFilters = data.quickFilters;
 
     return RefreshIndicator(
@@ -746,19 +742,8 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-              child: _OverviewCard(
-                totalBoxes: allBoxes.length,
-                activeBoxes: occupiedCount,
-                emptyBoxes: emptyCount,
-                watchBoxes: watchCount,
-                onStatTap: (filter) => ref
-                    .read(boxesStateProvider.notifier)
-                    .toggleQuickFilter(filter),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
               child: _OccupancyFilterRow(
+                boxes: allBoxes,
                 active: activeFilters,
                 onToggle: (f) =>
                     ref.read(boxesStateProvider.notifier).toggleQuickFilter(f),
@@ -1364,149 +1349,6 @@ class _FarmSelectorDropdown extends ConsumerWidget {
   }
 }
 
-class _OverviewCard extends StatelessWidget {
-  const _OverviewCard({
-    required this.totalBoxes,
-    required this.activeBoxes,
-    required this.emptyBoxes,
-    required this.watchBoxes,
-    required this.onStatTap,
-  });
-
-  final int totalBoxes;
-  final int activeBoxes;
-  final int emptyBoxes;
-  final int watchBoxes;
-  final ValueChanged<BoxQuickFilter> onStatTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final stats = [
-      (
-        Icons.grid_view_rounded,
-        'Tổng',
-        totalBoxes,
-        kHomePrimaryDark,
-        kHomePrimary.withValues(alpha: 0.18),
-        BoxQuickFilter.all,
-      ),
-      (
-        Icons.check_circle_rounded,
-        BoxStatus.normal.label,
-        activeBoxes,
-        BoxStatus.normal.color,
-        BoxStatus.normal.color.withValues(alpha: 0.18),
-        BoxQuickFilter.occupied,
-      ),
-      (
-        Icons.visibility_rounded,
-        BoxStatus.watch.label,
-        watchBoxes,
-        BoxStatus.watch.color,
-        BoxStatus.watch.color.withValues(alpha: 0.18),
-        BoxQuickFilter.watch,
-      ),
-      (
-        Icons.crop_square_rounded,
-        BoxStatus.empty.label,
-        emptyBoxes,
-        BoxStatus.empty.color,
-        BoxStatus.empty.color.withValues(alpha: 0.18),
-        BoxQuickFilter.empty,
-      ),
-    ];
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: homeCardDecoration(radius: 16),
-      child: Row(
-        children: [
-          for (var i = 0; i < stats.length; i++) ...[
-            if (i > 0) const SizedBox(width: 6),
-            Expanded(
-              child: GestureDetector(
-                onTap: () => onStatTap(stats[i].$6),
-                child: _StatItem(
-                  icon: stats[i].$1,
-                  label: stats[i].$2,
-                  value: '${stats[i].$3}',
-                  color: stats[i].$4,
-                  tint: stats[i].$5,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _StatItem extends StatelessWidget {
-  const _StatItem({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.tint,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-  final Color tint;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, c) {
-        final u = c.maxWidth;
-        return Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: u * 0.06,
-            vertical: u * 0.08,
-          ),
-          decoration: BoxDecoration(
-            color: tint,
-            borderRadius: BorderRadius.circular(u * 0.14),
-            border: Border.all(color: color, width: 1.2),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: color, size: u * 0.22),
-              SizedBox(height: u * 0.02),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: u * 0.2,
-                    fontWeight: FontWeight.w800,
-                    color: color,
-                  ),
-                ),
-              ),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  style: TextStyle(
-                    fontSize: u * 0.11,
-                    color: color,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
 // ─── Box Farm Grid ─────────────────────────────────────────────────────────────
 
 class _BoxFarmGrid extends StatelessWidget {
@@ -1649,9 +1491,37 @@ class _StatusGlyph extends StatelessWidget {
   }
 }
 
-class _OccupancyFilterRow extends StatelessWidget {
-  const _OccupancyFilterRow({required this.active, required this.onToggle});
+int _chipCount(BoxQuickFilter f, List<BoxSummary> boxes) {
+  switch (f) {
+    case BoxQuickFilter.all:
+      return boxes.length;
+    case BoxQuickFilter.empty:
+      return boxes.where((b) => b.crabCount <= 0).length;
+    case BoxQuickFilter.occupied:
+      return boxes.where((b) => b.crabCount > 0).length;
+    case BoxQuickFilter.normal:
+      return boxes
+          .where((b) => b.status == BoxStatus.normal && b.crabCount > 0)
+          .length;
+    case BoxQuickFilter.watch:
+      return boxes.where((b) => b.status == BoxStatus.watch).length;
+    case BoxQuickFilter.molting:
+      return boxes.where((b) => b.status == BoxStatus.molting).length;
+    case BoxQuickFilter.alert:
+      return boxes.where((b) => b.status == BoxStatus.alert).length;
+    default:
+      return 0;
+  }
+}
 
+class _OccupancyFilterRow extends StatelessWidget {
+  const _OccupancyFilterRow({
+    required this.boxes,
+    required this.active,
+    required this.onToggle,
+  });
+
+  final List<BoxSummary> boxes;
   final Set<BoxQuickFilter> active;
   final ValueChanged<BoxQuickFilter> onToggle;
 
@@ -1659,7 +1529,7 @@ class _OccupancyFilterRow extends StatelessWidget {
   Widget build(BuildContext context) {
     const filters = [
       BoxQuickFilter.all,
-      BoxQuickFilter.occupied,
+      BoxQuickFilter.normal,
       BoxQuickFilter.empty,
       BoxQuickFilter.watch,
       BoxQuickFilter.molting,
@@ -1672,6 +1542,7 @@ class _OccupancyFilterRow extends StatelessWidget {
               active.length == 1 &&
               active.contains(BoxQuickFilter.all));
       final fg = _filterColor(f);
+      final n = _chipCount(f, boxes);
       return Padding(
         padding: const EdgeInsets.all(4),
         child: GestureDetector(
@@ -1685,7 +1556,7 @@ class _OccupancyFilterRow extends StatelessWidget {
               border: Border.all(color: fg, width: 1.2),
             ),
             child: Text(
-              f.label,
+              '${f.label} $n',
               maxLines: 1,
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,

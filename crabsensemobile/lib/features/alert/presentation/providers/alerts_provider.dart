@@ -129,7 +129,7 @@ class AlertsNotifier extends StateNotifier<AsyncValue<AlertsStateData>> {
         forceRefresh: forceRefresh,
         searchQuery: current?.searchQuery ?? '',
         quickFilters: current?.quickFilters ?? {AlertQuickFilter.all},
-        sortOption: current?.sortOption ?? AlertSortOption.priorityDesc,
+        sortOption: current?.sortOption ?? AlertSortOption.newest,
         groupBy: current?.groupBy ?? AlertGroupBy.severity,
         showingHistory: current?.showingHistory ?? false,
         historyRange: current?.historyRange ?? AlertHistoryRange.today,

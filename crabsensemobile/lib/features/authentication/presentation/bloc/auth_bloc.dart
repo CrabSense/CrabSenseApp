@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/errors/failures.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/logout_usecase.dart';
 import '../../domain/usecases/refresh_token_usecase.dart';
@@ -117,9 +118,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       if (isAuthenticated) {
         final userResult = await authRepository.getCurrentUser();
         userResult.fold((_) => emit(const Unauthenticated()), (user) => emit(Authenticated(user)));
-      } else {
-        emit(const Unauthenticated());
+        return;
       }
+      // Access token is one hour. A still-valid refresh token (7 days)
+      // should reopen the app without asking for the password again.
+      final refreshed = await refreshTokenUseCase();
+      await refreshed.fold((failure) async {
+        if (failure is! NetworkFailure) {
+          emit(const Unauthenticated());
+          return;
+        }
+        final cached = await authRepository.getCurrentUser();
+        cached.fold((_) => emit(const Unauthenticated()), (user) => emit(Authenticated(user)));
+      }, (user) async => emit(Authenticated(user)));
     });
   }
 

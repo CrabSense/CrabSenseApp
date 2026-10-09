@@ -21,6 +21,8 @@ class MockAuthRepository implements AuthRepository {
   Future<Either<Failure, User>> Function({required String email, required String password})?
   onLogin;
 
+  Future<Either<Failure, User>> Function({String? idToken})? onLoginWithGoogle;
+
   Future<Either<Failure, void>> Function()? onLogout;
 
   Future<Either<Failure, User>> Function()? onRefreshToken;
@@ -34,6 +36,10 @@ class MockAuthRepository implements AuthRepository {
   @override
   Future<Either<Failure, User>> login({required String email, required String password}) async =>
       onLogin != null ? onLogin!(email: email, password: password) : Right(_testUser());
+
+  @override
+  Future<Either<Failure, User>> loginWithGoogle({String? idToken}) async =>
+      onLoginWithGoogle != null ? onLoginWithGoogle!(idToken: idToken) : Right(_testUser());
 
   @override
   Future<Either<Failure, void>> logout() async =>
@@ -349,24 +355,24 @@ void main() {
 
     group('LogoutRequested', () {
       blocTest<AuthBloc, AuthState>(
-        'emits [AuthLoading, Unauthenticated] when logout succeeds',
+        'emits [Unauthenticated] when logout succeeds',
         build: () {
           final repo = MockAuthRepository()..onLogout = () async => const Right(null);
           return _buildBloc(repo);
         },
         act: (bloc) => bloc.add(const LogoutRequested()),
-        expect: () => [const AuthLoading(), const Unauthenticated()],
+        expect: () => [const Unauthenticated()],
       );
 
       blocTest<AuthBloc, AuthState>(
-        'emits [AuthLoading, Unauthenticated] even when server logout fails',
+        'emits [Unauthenticated] even when server logout fails',
         build: () {
           final repo = MockAuthRepository()..onLogout = () async => const Left(NetworkFailure());
           return _buildBloc(repo);
         },
         act: (bloc) => bloc.add(const LogoutRequested()),
         // BLoC treats both fold branches as Unauthenticated (local-first logout)
-        expect: () => [const AuthLoading(), const Unauthenticated()],
+        expect: () => [const Unauthenticated()],
       );
     });
 
@@ -388,9 +394,23 @@ void main() {
       );
 
       blocTest<AuthBloc, AuthState>(
+        'emits [Authenticated] by refreshing when the access token has expired',
+        build: () {
+          final repo = MockAuthRepository()
+            ..onIsAuthenticated = (() async => const Right(false))
+            ..onRefreshToken = (() async => Right(_testUser()));
+          return _buildBloc(repo);
+        },
+        act: (bloc) => bloc.add(const AuthenticationStatusRequested()),
+        expect: () => [Authenticated(_testUser())],
+      );
+
+      blocTest<AuthBloc, AuthState>(
         'emits [Unauthenticated] when no valid session exists',
         build: () {
-          final repo = MockAuthRepository()..onIsAuthenticated = () async => const Right(false);
+          final repo = MockAuthRepository()
+            ..onIsAuthenticated = (() async => const Right(false))
+            ..onRefreshToken = (() async => const Left(AuthenticationFailure.tokenExpired()));
           return _buildBloc(repo);
         },
         act: (bloc) => bloc.add(const AuthenticationStatusRequested()),

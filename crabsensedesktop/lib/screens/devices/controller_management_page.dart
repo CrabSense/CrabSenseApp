@@ -6,6 +6,7 @@ import '../../models/esp_controller.dart';
 import '../../models/farm_activity_log.dart';
 import '../../models/farm_alert.dart';
 import '../../models/iot_device.dart';
+import '../../models/water_quality.dart';
 import '../../navigation/app_route.dart';
 import '../../services/alert_service.dart';
 import '../../services/controller_provisioning_service.dart';
@@ -14,6 +15,7 @@ import '../../services/farm_log_service.dart';
 import '../../services/row_management_service.dart';
 import '../../theme/dashboard_theme.dart';
 import '../../widgets/shared/mgmt_ui.dart';
+import '../environment/realtime_monitor_page.dart';
 import 'add_controller_dialog.dart';
 import 'edit_controller_dialog.dart';
 import 'kiosk_provision_dialog.dart';
@@ -65,7 +67,6 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
   bool _checking = false;
   final Map<int, bool> _ssrOn = {};
   int? _ssrBusy;
-  String _ssrSig = '';
 
   ControllerService get _svc => widget.service;
 
@@ -94,6 +95,12 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
   }
 
   void _onUpdate() {
+    final pins = _svc.detail?.boardOutputs ?? const <EspOutputPin>[];
+    if (_ssrBusy == null) {
+      for (final pin in pins) {
+        if (pin.on != null) _ssrOn[pin.channel] = pin.on!;
+      }
+    }
     if (mounted) setState(() {});
   }
 
@@ -1001,6 +1008,14 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
+                          tooltip: 'Biểu đồ',
+                          icon: const Icon(Icons.show_chart, size: 18),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                              minWidth: 28, minHeight: 28),
+                          onPressed: () => _showSensorHistory(s),
+                        ),
+                        IconButton(
                           tooltip: 'Cập nhật sensor',
                           icon: const Icon(Icons.edit_outlined, size: 18),
                           padding: EdgeInsets.zero,
@@ -1054,45 +1069,34 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
     );
   }
 
-  void _noteBoardOutputs(List<EspOutputPin> pins) {
-    final sig = pins.map((p) => '${p.channel}:${p.gpio}').join(',');
-    if (sig == _ssrSig) return;
-    _ssrSig = sig;
-    _ssrOn
-      ..clear()
-      ..addAll({
-        for (final p in pins)
-          if (p.on != null) p.channel: p.on!,
-      });
-  }
-
   Future<void> _setSsr(IoTDevice device, int channel, bool on) async {
     final ip = device.ipLan;
-    if (ip == null || ip.isEmpty) return;
+    if (ip == null || ip.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Controller chưa có IP')));
+      return;
+    }
     setState(() => _ssrBusy = channel);
+    _svc.stopLiveRefresh();
     try {
       final state = await ControllerProvisioningService().commandEsp(
         ip: ip,
         command: on ? 'on' : 'off',
         channel: channel,
       );
-      if (!mounted || state == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Không điều khiển được Actuator')));
-        }
-        return;
-      }
+      if (!mounted || state == null) return;
       setState(() {
         _ssrOn[1] = state.output1;
         _ssrOn[2] = state.output2;
       });
+      final echoed = channel == 1 ? state.output1 : state.output2;
+      if (echoed == on) {
+        widget.service.reportRelay(device.deviceCode, channel, on);
+      }
     } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Không điều khiển được Actuator')));
     } finally {
       if (mounted) setState(() => _ssrBusy = null);
+      _svc.startLiveRefresh();
     }
   }
 
@@ -1111,7 +1115,6 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
       return Text('Chưa đọc được chân từ Controller.',
           style: bvText(color: DashboardColors.textMuted));
     }
-    _noteBoardOutputs(pins);
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
@@ -1142,11 +1145,25 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                         ? DashboardColors.brand
                         : DashboardColors.textMuted),
               )),
-              DataCell(Switch(
-                value: _ssrOn[pin.channel] ?? false,
-                onChanged: _ssrBusy != null
-                    ? null
-                    : (v) => _setSsr(detail.controller, pin.channel, v),
+              DataCell(Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Switch(
+                    value: _ssrOn[pin.channel] ?? false,
+                    onChanged: _ssrBusy != null
+                        ? null
+                        : (v) => _setSsr(detail.controller, pin.channel, v),
+                  ),
+                  IconButton(
+                    tooltip: 'Biểu đồ bật tắt',
+                    icon: const Icon(Icons.show_chart, size: 18),
+                    onPressed: () => _showRelayHistory(
+                      detail.controller,
+                      pin.channel,
+                      _actuatorName(detail, pin.channel),
+                    ),
+                  ),
+                ],
               )),
             ]),
         ],
@@ -1509,6 +1526,49 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
     }
   }
 
+  Future<void> _showRelayHistory(
+      IoTDevice device, int channel, String name) async {
+    List<Map<String, dynamic>> rows;
+    try {
+      rows = await _svc.relayHistory(device.deviceCode, channel);
+    } catch (e) {
+      if (mounted) _toast('$e');
+      return;
+    }
+    if (!mounted) return;
+    final points = <Map<String, dynamic>>[
+      for (final row in rows)
+        {
+          'value': _relayOn(row) ? 1 : 0,
+          'measuredAt': row['timestamp'] ?? row['Timestamp'],
+        },
+    ];
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Lịch sử $name'),
+        content: SizedBox(
+          width: 640,
+          height: 360,
+          child: points.isEmpty
+              ? const Text('Chưa có lần bật tắt nào được ghi.')
+              : _seriesChart(points, 'bật'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Đóng')),
+        ],
+      ),
+    );
+  }
+
+  bool _relayOn(Map<String, dynamic> row) {
+    final text =
+        '${row['title'] ?? row['Title'] ?? ''} ${row['description'] ?? row['Description'] ?? ''}'
+            .toLowerCase();
+    return text.contains('bật') && !text.contains('tắt');
+  }
+
   Future<void> _showSensorHistory(ControllerChild s) async {
     List<Map<String, dynamic>> rows;
     try {
@@ -1524,22 +1584,11 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
       builder: (ctx) => AlertDialog(
         title: Text('Lịch sử ${_sensorTitle(s)}'),
         content: SizedBox(
-          width: 420,
+          width: 640,
           height: 360,
           child: rows.isEmpty
-              ? const Text('Chưa có điểm đo.')
-              : ListView(
-                  children: [
-                    for (final r in rows.take(80))
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text(
-                          '${_histValue(r)} $unit   ${_histWhen(r)}',
-                          style: bvText(fontSize: 13),
-                        ),
-                      ),
-                  ],
-                ),
+              ? const Text('Chưa có điểm đo trong 24 giờ.')
+              : _seriesChart(rows, unit),
         ),
         actions: [
           TextButton(
@@ -1817,6 +1866,55 @@ String _histValue(Map<String, dynamic> r) {
   final raw = r['value'] ?? r['Value'];
   if (raw is num) return raw.toString();
   return raw?.toString() ?? '—';
+}
+
+Widget _seriesChart(List<Map<String, dynamic>> rows, String unit) {
+  final samples = <({DateTime at, double value})>[];
+  for (final row in rows) {
+    final raw = row['value'] ?? row['Value'];
+    final value = raw is num ? raw.toDouble() : double.tryParse('$raw');
+    final at = DateTime.tryParse(
+      '${row['measuredAt'] ?? row['MeasuredAt'] ?? ''}',
+    )?.toLocal();
+    if (value == null || at == null) continue;
+    samples.add((at: at, value: value));
+  }
+  if (samples.isEmpty) return const Text('Chưa có điểm đo trong 24 giờ.');
+  samples.sort((a, b) => a.at.compareTo(b.at));
+  final start = samples.first.at;
+  final end = samples.last.at;
+  final minutes = end.difference(start).inMinutes.clamp(1, 24 * 60);
+  final points = [
+    for (final sample in samples)
+      RealtimeChartPoint(
+        xMinutes: sample.at.difference(start).inSeconds / 60,
+        label: '',
+        timestamp: sample.at,
+        value: sample.value,
+      ),
+  ];
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Text(
+        '${samples.length} điểm · ${_histWhen({
+              'measuredAt': start.toIso8601String()
+            })} → ${_histWhen({
+              'measuredAt': end.toIso8601String()
+            })}',
+        style: bvText(fontSize: 12, color: DashboardColors.textMuted),
+      ),
+      const SizedBox(height: 8),
+      Expanded(
+        child: HistoryChart(
+          segments: [points],
+          rangeMinutes: minutes,
+          color: DashboardColors.brand,
+          unit: unit,
+        ),
+      ),
+    ],
+  );
 }
 
 String _histWhen(Map<String, dynamic> r) {

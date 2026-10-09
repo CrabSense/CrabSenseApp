@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 
 import '../config/app_env.dart';
 import '../models/auth_models.dart';
@@ -49,6 +51,23 @@ class ControllerService extends ChangeNotifier {
   DateTime? get detailRefreshedAt => _detailRefreshedAt;
   bool get restarting => _restarting;
   AuthSession get session => _session;
+
+  Future<void> reportRelay(String deviceCode, int channel, bool on) async {
+    try {
+      await http.post(
+        Uri.parse('${AppEnv.cloudApiUrl}/api/iot/relay-state'),
+        headers: {
+          'Authorization': 'Bearer ${_session.token}',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'deviceCode': deviceCode,
+          'channel': channel,
+          'on': on,
+        }),
+      );
+    } catch (_) {}
+  }
 
   int get totalCount => _items.length;
   int get onlineCount => _items.where((d) => d.isOnline).length;
@@ -697,6 +716,28 @@ class ControllerService extends ChangeNotifier {
       to: to,
       pageSize: 200,
     );
+  }
+
+  Future<List<Map<String, dynamic>>> relayHistory(
+      String deviceCode, int channel) async {
+    final area = _session.selectedFarm.id.trim();
+    final rows = await _api.fetchOperationsRecent(
+      _session.token,
+      farmingAreaId: area.isEmpty ? null : area,
+      limit: 50,
+    );
+    final code = deviceCode.toLowerCase();
+    final channelMark = 'ch$channel';
+    return [
+      for (final row in rows)
+        if ('${row['description'] ?? row['Description'] ?? ''}'
+            .toLowerCase()
+            .contains(code) &&
+            '${row['description'] ?? row['Description'] ?? ''}'
+                .toLowerCase()
+                .contains(channelMark))
+          row,
+    ];
   }
 
   Future<void> _mergePinsFromEsp(ControllerDetail detail) async {

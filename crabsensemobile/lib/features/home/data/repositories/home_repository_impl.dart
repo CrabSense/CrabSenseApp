@@ -131,10 +131,10 @@ class HomeRepositoryImpl implements HomeRepository {
         waterMetrics: waterMetrics ?? const [],
           todayTasks: [...?todayTasks, ...scheduledTasks],
         feedingHistory: feedingHistory ?? const [],
-        boxStatusHistory: _statusFromFeeding(
-          feedingHistory,
-          boxInfo?['total'] ?? 0,
+        boxStatusHistory: _mergeStatusHistory(
           boxStatusHistory,
+          feedingHistory,
+          boxInfo,
         ),
         boxStatusCounts: boxInfo ?? const {},
         deviceSummary:
@@ -320,6 +320,10 @@ class HomeRepositoryImpl implements HomeRepository {
                       cc.contains('attention') ||
                       cc.contains('alert'))
                     ? 'alert'
+                    : (cc.contains('premolt') ||
+                          cc.contains('molting') ||
+                          cc.contains('soft'))
+                    ? 'molting'
                     : cc.contains('weak')
                     ? 'watch'
                     : 'normal';
@@ -840,7 +844,10 @@ class HomeRepositoryImpl implements HomeRepository {
   ) async {
     final res = await _api.get(
       ApiConstants.operationsRecent,
-      queryParameters: _areaQuery(farmingAreaId),
+      queryParameters: {
+        ...?_areaQuery(farmingAreaId),
+        'limit': 50,
+      },
     );
     if (res.statusCode != 200 || res.data == null) return null;
     final list = _extractList(res.data);
@@ -874,25 +881,80 @@ class HomeRepositoryImpl implements HomeRepository {
         .toList();
   }
 
-  /// Cùng quy tắc phiếu ăn: nhiều=khỏe, ít=theo dõi, không=cảnh báo.
-  /// Trống = tổng hộp khu − hộp đã có phiếu hôm đó.
-  List<BoxStatusHistoryDay> _statusFromFeeding(
+  /// 7 ngày: API lịch sử tình trạng nếu có; hôm nay luôn = đếm hộp live.
+  /// Không lấy phiếu ăn để bịa "hộp trống = chưa cho ăn hôm nay".
+  List<BoxStatusHistoryDay> _mergeStatusHistory(
+    List<BoxStatusHistoryDay>? api,
     List<FeedingHistoryDay>? feeding,
-    int totalBoxes,
-    List<BoxStatusHistoryDay>? fallback,
+    Map<String, int>? boxInfo,
   ) {
-    if (feeding == null || feeding.isEmpty) return fallback ?? const [];
-    return [
-      for (final d in feeding)
-        BoxStatusHistoryDay(
-          date: d.date,
+    DateTime dayOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+    final today = dayOnly(DateTime.now());
+    final live = BoxStatusHistoryDay(
+      date: today,
+      normal: boxInfo?['normal'] ?? 0,
+      watch: boxInfo?['watch'] ?? 0,
+      molting: boxInfo?['molting'] ?? 0,
+      alert: boxInfo?['alert'] ?? 0,
+      empty: boxInfo?['empty'] ?? 0,
+    );
+
+    final byDay = <DateTime, BoxStatusHistoryDay>{};
+    if (api != null) {
+      for (final d in api) {
+        byDay[dayOnly(d.date)] = d;
+      }
+    }
+    if (byDay.isEmpty && feeding != null) {
+      for (final d in feeding) {
+        byDay[dayOnly(d.date)] = BoxStatusHistoryDay(
+          date: dayOnly(d.date),
           normal: d.many,
           watch: d.little,
           molting: 0,
           alert: d.none,
-          empty: (totalBoxes - d.many - d.little - d.none).clamp(0, totalBoxes),
-        ),
-    ];
+          empty: 0,
+        );
+      }
+    }
+
+    final days = <BoxStatusHistoryDay>[];
+    BoxStatusHistoryDay? prev;
+    for (var i = 6; i >= 0; i--) {
+      final date = today.subtract(Duration(days: i));
+      if (i == 0) {
+        days.add(live);
+        break;
+      }
+      final cur = byDay[date];
+      if (cur != null) {
+        days.add(cur);
+        prev = cur;
+      } else if (prev != null) {
+        days.add(
+          BoxStatusHistoryDay(
+            date: date,
+            normal: prev.normal,
+            watch: prev.watch,
+            molting: prev.molting,
+            alert: prev.alert,
+            empty: prev.empty,
+          ),
+        );
+      } else {
+        days.add(
+          BoxStatusHistoryDay(
+            date: date,
+            normal: 0,
+            watch: 0,
+            molting: 0,
+            alert: 0,
+            empty: 0,
+          ),
+        );
+      }
+    }
+    return days;
   }
 
   HomeStateData _emptyDataState() {

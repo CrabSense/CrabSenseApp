@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,16 +28,24 @@ class AlertsScreen extends ConsumerStatefulWidget {
 class _AlertsScreenState extends ConsumerState<AlertsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  Timer? _poll;
   UserRole? _lastRole;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(alertsStateProvider.notifier).refresh();
+    });
+    _poll = Timer.periodic(const Duration(seconds: 8), (_) {
+      if (mounted) ref.read(alertsStateProvider.notifier).refresh();
+    });
   }
 
   @override
   void dispose() {
+    _poll?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -130,7 +140,9 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen>
     if (tabIndex == 1) {
       return alerts.where((a) => a.category == AlertCategory.waterQuality).toList();
     }
-    return alerts.where((a) => a.category != AlertCategory.waterQuality).toList();
+    return alerts.where((a) =>
+        a.category == AlertCategory.device ||
+        a.category == AlertCategory.system).toList();
   }
 
   @override
@@ -147,11 +159,8 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen>
         preferredSize: const Size.fromHeight(56 + 48),
         child: Container(
           decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [kHomePrimary, kHomePrimaryDark],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: kHomeBg,
+            border: Border(bottom: BorderSide(color: kHomeBorder)),
           ),
           child: SafeArea(
             child: Column(
@@ -162,9 +171,9 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen>
                     children: [
                       const Expanded(
                         child: Text(
-                          'Cảnh báo',
+                          'Thông báo',
                           style: TextStyle(
-                            color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700,
+                            color: kHomeTextMain, fontSize: 18, fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
@@ -173,20 +182,20 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen>
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.25),
+                            color: kHomePrimaryBg,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
                             '$totalUnread',
                             style: const TextStyle(
-                              color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13,
+                              color: kHomePrimaryDark, fontWeight: FontWeight.w700, fontSize: 13,
                             ),
                           ),
                         ),
                       const SizedBox(width: 8),
                       IconButton(
                         icon: const Icon(Icons.refresh_rounded,
-                            color: Colors.white),
+                            color: kHomePrimaryDark),
                         onPressed: () =>
                             ref.read(alertsStateProvider.notifier).refresh(),
                         padding: EdgeInsets.zero,
@@ -197,9 +206,9 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen>
                 ),
                 TabBar(
                   controller: _tabController,
-                  labelColor: Colors.white,
-                  unselectedLabelColor: Colors.white60,
-                  indicatorColor: Colors.white,
+                  labelColor: kHomePrimaryDark,
+                  unselectedLabelColor: kHomeTextSub,
+                  indicatorColor: kHomePrimaryDark,
                   indicatorWeight: 3,
                   dividerColor: Colors.transparent,
                   labelStyle: const TextStyle(
@@ -208,8 +217,8 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen>
                       fontSize: 13, fontWeight: FontWeight.w500),
                   tabs: const [
                     Tab(text: 'Tất cả'),
-                    Tab(text: 'Chất lượng nước'),
-                    Tab(text: 'Cua'),
+                    Tab(text: 'Nước'),
+                    Tab(text: 'Thiết bị & bể'),
                   ],
                 ),
               ],
@@ -316,6 +325,10 @@ class _AlertCard extends StatelessWidget {
   }
 
   IconData _icon() {
+    final text = '${alert.title} ${alert.description}'.toLowerCase();
+    if (text.contains('tràn')) return Icons.water_rounded;
+    if (text.contains('cạn')) return Icons.water_drop_outlined;
+    if (text.contains('bật') || text.contains('tắt')) return Icons.power_settings_new_rounded;
     switch (alert.severity) {
       case AlertItemSeverity.critical:
         return Icons.error_rounded;
@@ -340,12 +353,7 @@ class _AlertCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: kHomeBorder),
-          boxShadow: [BoxShadow(color: const Color(0x14000000), blurRadius: 6, offset: const Offset(0, 2))],  
-        ),
+        decoration: homeCardDecoration(radius: 16),
         child: IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -442,7 +450,8 @@ class _EmptyAlertsState extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           const Text(
-            'Không có cảnh báo nào',
+            'Chưa có thông báo tắt máy hoặc mực bể',
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -450,9 +459,13 @@ class _EmptyAlertsState extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Trang trại hoạt động bình thường 🎉',
-            style: TextStyle(fontSize: 13, color: kHomeTextSub),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              'Khi thiết bị tắt, hoặc bể chuyển sang cạn hay tràn, thông báo hiện ở đây.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: kHomeTextSub, height: 1.4),
+            ),
           ),
         ],
       ),

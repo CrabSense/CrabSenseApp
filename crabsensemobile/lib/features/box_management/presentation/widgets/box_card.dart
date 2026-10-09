@@ -5,10 +5,12 @@ import '../../domain/models/boxes_models.dart';
 import 'box_status_badge.dart';
 
 String formatRelativeTime(DateTime dt) {
-  final diff = DateTime.now().difference(dt);
-  if (diff.inMinutes < 1) return 'Vừa xong';
-  if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
-  if (diff.inHours < 24) return '${diff.inHours} giờ trước';
+  final diff = DateTime.now().difference(dt.toLocal());
+  if (diff.isNegative || diff.inMinutes < 1) return 'vừa xong';
+  if (diff.inHours < 24) {
+    final hours = diff.inHours < 1 ? 1 : diff.inHours;
+    return '$hours tiếng trước';
+  }
   return '${diff.inDays} ngày trước';
 }
 

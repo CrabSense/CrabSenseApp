@@ -23,7 +23,7 @@ class AlertsCommandRepositoryImpl implements AlertsCommandRepository {
     bool forceRefresh = false,
     String searchQuery = '',
     Set<AlertQuickFilter> quickFilters = const {AlertQuickFilter.all},
-    AlertSortOption sortOption = AlertSortOption.priorityDesc,
+    AlertSortOption sortOption = AlertSortOption.newest,
     AlertGroupBy groupBy = AlertGroupBy.severity,
     bool showingHistory = false,
     AlertHistoryRange historyRange = AlertHistoryRange.today,
@@ -144,7 +144,7 @@ class AlertsCommandRepositoryImpl implements AlertsCommandRepository {
       forceRefresh: true,
       searchQuery: _cached?.searchQuery ?? '',
       quickFilters: _cached?.quickFilters ?? {AlertQuickFilter.all},
-      sortOption: _cached?.sortOption ?? AlertSortOption.priorityDesc,
+      sortOption: _cached?.sortOption ?? AlertSortOption.newest,
       groupBy: _cached?.groupBy ?? AlertGroupBy.severity,
       showingHistory: _cached?.showingHistory ?? false,
       historyRange: _cached?.historyRange ?? AlertHistoryRange.today,
@@ -351,7 +351,7 @@ class AlertsCommandRepositoryImpl implements AlertsCommandRepository {
         forceRefresh: true,
         searchQuery: _cached?.searchQuery ?? '',
         quickFilters: _cached?.quickFilters ?? {AlertQuickFilter.all},
-        sortOption: _cached?.sortOption ?? AlertSortOption.priorityDesc,
+        sortOption: _cached?.sortOption ?? AlertSortOption.newest,
         groupBy: _cached?.groupBy ?? AlertGroupBy.severity,
         showingHistory: _cached?.showingHistory ?? false,
         historyRange: _cached?.historyRange ?? AlertHistoryRange.today,
@@ -390,7 +390,7 @@ class AlertsCommandRepositoryImpl implements AlertsCommandRepository {
       forceRefresh: true,
       searchQuery: _cached?.searchQuery ?? '',
       quickFilters: _cached?.quickFilters ?? {AlertQuickFilter.all},
-      sortOption: _cached?.sortOption ?? AlertSortOption.priorityDesc,
+      sortOption: _cached?.sortOption ?? AlertSortOption.newest,
       groupBy: _cached?.groupBy ?? AlertGroupBy.severity,
       showingHistory: _cached?.showingHistory ?? false,
       historyRange: _cached?.historyRange ?? AlertHistoryRange.today,
@@ -562,7 +562,11 @@ class AlertsCommandRepositoryImpl implements AlertsCommandRepository {
 
     final detectedAt =
         DateTime.tryParse(
-          map['createdAt']?.toString() ?? map['created_at']?.toString() ?? '',
+          map['lastOccurredAt']?.toString() ??
+              map['last_occurred_at']?.toString() ??
+              map['createdAt']?.toString() ??
+              map['created_at']?.toString() ??
+              '',
         ) ??
         DateTime.now();
     final ackAt = DateTime.tryParse(
@@ -761,7 +765,13 @@ class AlertsCommandRepositoryImpl implements AlertsCommandRepository {
     if (m.contains('mất kết nối') ||
         m.contains('offline') ||
         m.contains('camera') ||
-        m.contains('esp32')) {
+        m.contains('esp32') ||
+        m.contains('đã tắt') ||
+        m.contains('đang tắt') ||
+        m.contains('đã bật') ||
+        m.contains('đang bật') ||
+        m.contains('cạn') ||
+        m.contains('tràn')) {
       return AlertCategory.device;
     }
     return AlertCategory.waterQuality;

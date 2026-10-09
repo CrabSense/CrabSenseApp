@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -6,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/area_environment_metric.dart';
 import '../../models/ras_flow.dart';
+import '../../models/tank_level.dart';
 import '../../models/water_quality.dart';
 import '../../navigation/app_route.dart';
 import '../../services/area_environment_service.dart';
@@ -44,7 +46,11 @@ class RasControlPage extends StatefulWidget {
 
 class _RasControlPageState extends State<RasControlPage> {
   final _pending = <String, String>{};
+  final _relayOn = <String, bool>{};
+  final _controllerIp = <String, String>{};
+  final _controllerCode = <String, String>{};
   var _systemBusy = false;
+  Timer? _relayTimer;
 
   RasFlowService get _svc => widget.service;
   AreaEnvironmentService? get _env => widget.environment;
@@ -56,6 +62,8 @@ class _RasControlPageState extends State<RasControlPage> {
     _env?.addListener(_onUpdate);
     _svc.startLiveRefresh(widget.areaId);
     _env?.startLiveRefresh(widget.areaId);
+    _relayTimer = Timer.periodic(const Duration(seconds: 2), (_) => _pollRelays());
+    _pollRelays();
   }
 
   @override
@@ -69,9 +77,56 @@ class _RasControlPageState extends State<RasControlPage> {
 
   @override
   void dispose() {
+    _relayTimer?.cancel();
     _svc.removeListener(_onUpdate);
     _env?.removeListener(_onUpdate);
     super.dispose();
+  }
+
+  String _relayKey(String deviceId, int channel) => '$deviceId:$channel';
+
+  bool? _liveOn(RasFlowNodeLive n) {
+    final channel = int.tryParse(n.relayChannel ?? '');
+    if (channel == null) return null;
+    final deviceId = n.relayDeviceId ?? '';
+    final exact = _relayOn[_relayKey(deviceId, channel)];
+    if (exact != null) return exact;
+    final sameChannel = [
+      for (final entry in _relayOn.entries)
+        if (entry.key.endsWith(':$channel')) entry.value,
+    ];
+    if (sameChannel.length == 1) return sameChannel.first;
+    return null;
+  }
+
+  Future<void> _pollRelays() async {
+    try {
+      final controllers = await _svc.areaControllers(widget.areaId);
+      if (!mounted) return;
+      final next = <String, bool>{};
+      for (final controller in controllers) {
+        try {
+          final ip = controller.ip.trim();
+          if (controller.id.isEmpty || ip.isEmpty) continue;
+          _controllerIp[controller.id] = ip;
+          _controllerCode[controller.id] = controller.code;
+          final info = await ControllerProvisioningService().discover(
+            baseUrl: 'http://$ip',
+          );
+          for (final pin in info.outputs) {
+            if (pin.on != null) {
+              next[_relayKey(controller.id, pin.channel)] = pin.on!;
+            }
+          }
+        } catch (_) {}
+      }
+      if (!mounted) return;
+      setState(() {
+        _relayOn
+          ..clear()
+          ..addAll(next);
+      });
+    } catch (_) {}
   }
 
   void _onUpdate() {
@@ -107,11 +162,13 @@ class _RasControlPageState extends State<RasControlPage> {
           ? _nodes.any((n) => n.isOnline != false)
           : _devices.any((n) => n.isOnline != false);
 
+  bool _shownOn(RasFlowNodeLive n) => _liveOn(n) ?? n.isOn == true;
+
   int get _running => _devices
-      .where((n) => n.isOn == true && !_isError(n) && n.isOnline != false)
+      .where((n) => _shownOn(n) && !_isError(n) && n.isOnline != false)
       .length;
   int get _off =>
-      _devices.where((n) => n.isOn != true && !_isError(n)).length;
+      _devices.where((n) => !_shownOn(n) && !_isError(n)).length;
   int get _errors => _nodes.where(_isError).length;
   bool _isError(RasFlowNodeLive n) {
     final s = n.status.toLowerCase();
@@ -134,6 +191,11 @@ class _RasControlPageState extends State<RasControlPage> {
 
   Future<void> _cmd(RasFlowNodeLive node, String command) async {
     if (_pending.containsKey(node.id) || _systemBusy) return;
+    final lowered = command.toLowerCase();
+    if (lowered == 'on' || lowered == 'off' || lowered == 'start' || lowered == 'stop') {
+      await _driveRelay(node, lowered == 'on' || lowered == 'start');
+      return;
+    }
     if (node.isOnline == false) {
       _toast('⚠ Không thể gửi lệnh. Controller / thiết bị mất kết nối.');
       return;
@@ -154,6 +216,43 @@ class _RasControlPageState extends State<RasControlPage> {
       return;
     }
     _toast('✓ ${_deviceTitle(node)} ${_cmdDone(command)}.');
+  }
+
+  Future<void> _driveRelay(RasFlowNodeLive node, bool on) async {
+    final channel = int.tryParse(node.relayChannel ?? '');
+    final deviceId = node.relayDeviceId ?? '';
+    if (channel == null || deviceId.isEmpty) {
+      _toast('Chưa gán actuator cho ${_deviceTitle(node)}.');
+      return;
+    }
+    final ip = _controllerIp[deviceId];
+    if (ip == null || ip.isEmpty) {
+      _toast('Controller đã gán chưa có IP, không bật tắt được.');
+      return;
+    }
+    setState(() => _pending[node.id] = on ? 'on' : 'off');
+    try {
+      final state = await ControllerProvisioningService().commandEsp(
+        ip: ip,
+        command: on ? 'on' : 'off',
+        channel: channel,
+      );
+      if (!mounted) return;
+      if (state == null) {
+        _toast('Không điều khiển được actuator trên Controller.');
+        return;
+      }
+      setState(() => _relayOn[_relayKey(deviceId, channel)] = on);
+      _toast('✓ ${_deviceTitle(node)} ${on ? 'đã bật' : 'đã tắt'}.');
+      final code = _controllerCode[deviceId];
+      if (code != null) {
+        await _svc.reportRelay(deviceCode: code, channel: channel, on: on);
+      }
+    } catch (_) {
+      if (mounted) _toast('Không nối được Controller.');
+    } finally {
+      if (mounted) setState(() => _pending.remove(node.id));
+    }
   }
 
   Future<void> _sendOn(RasFlowNodeLive node) async {
@@ -279,8 +378,10 @@ class _RasControlPageState extends State<RasControlPage> {
     );
     if (ok != true || !mounted) return;
     setState(() => _systemBusy = true);
-    for (final n in _devices.where((e) => e.isOnline != false)) {
-      await _svc.sendCommand(areaId: widget.areaId, nodeId: n.id, command: 'off');
+    for (final n in _devices) {
+      final channel = int.tryParse(n.relayChannel ?? '');
+      if (channel == null) continue;
+      await _driveRelay(n, false);
     }
     if (mounted) {
       setState(() => _systemBusy = false);
@@ -517,6 +618,13 @@ class _RasControlPageState extends State<RasControlPage> {
               onOpen: _openTopologyNode,
               onAdd: _addDevice,
               meterOf: _ratedLine,
+              levelOf: _tankLevel,
+              kindOf: (n) => _savedGroup(n, _paramMap(n.paramDefaultsJson)),
+              liveOf: _liveOn,
+              floatsOf: (n) {
+                if (_savedGroup(n, _paramMap(n.paramDefaultsJson)) != 'tank') return null;
+                return 'Dưới ${_floatLine(n, 'lowFloat', 'lowWhen')} · Trên ${_floatLine(n, 'highFloat', 'highWhen')}';
+              },
             ),
         ],
       ),
@@ -626,6 +734,12 @@ class _RasControlPageState extends State<RasControlPage> {
                   title: _deviceTitle(n),
                   pending: _pending[n.id],
                   commandSource: _commandSource(n),
+                  level: _tankLevel(n),
+                  lowFloat: _floatLine(n, 'lowFloat', 'lowWhen'),
+                  highFloat: _floatLine(n, 'highFloat', 'highWhen'),
+                  tank: _savedGroup(n, _paramMap(n.paramDefaultsJson)) == 'tank',
+                  pump: _savedGroup(n, _paramMap(n.paramDefaultsJson)) == 'pump',
+                  liveOn: _liveOn(n),
                   onAuto: () => _cmd(n, 'auto'),
                   onManual: () => _cmd(n, 'manual'),
                   onOn: () => _sendOn(n),
@@ -679,6 +793,8 @@ class _RasControlPageState extends State<RasControlPage> {
         _assignActuator(n);
       case 'delete':
         _deleteDevice(n);
+      case 'edit':
+        _editDevice(n);
       case 'auto':
         _openAutoConfig(focus: n);
       case 'schedule':
@@ -754,7 +870,7 @@ class _RasControlPageState extends State<RasControlPage> {
     current['electrical'] = picked.electrical;
     current['kind'] = picked.kind;
     current['group'] = picked.group;
-    for (final key in ['length', 'width', 'volume', 'volts', 'amps', 'watts', 'flow']) {
+    for (final key in ['length', 'width', 'volume', 'volts', 'amps', 'watts', 'flow', ...tankLevelKeys]) {
       current.remove(key);
     }
     current.addAll(picked.specs);
@@ -786,6 +902,17 @@ class _RasControlPageState extends State<RasControlPage> {
     final amps = TextEditingController(text: textOf('amps'));
     final watts = TextEditingController(text: textOf('watts'));
     final flow = TextEditingController(text: textOf('flow'));
+    String savedFloat(String key) {
+      const known = {'float_1', 'float_2', 'float_3', 'float_4'};
+      final value = initialSpecs?[key]?.toString() ?? '';
+      return known.contains(value) ? value : '';
+    }
+
+    String savedWhen(String key) => initialSpecs?[key]?.toString() == 'off' ? 'off' : 'on';
+    var lowFloat = savedFloat('lowFloat');
+    var lowWhen = savedWhen('lowWhen');
+    var highFloat = savedFloat('highFloat');
+    var highWhen = savedWhen('highWhen');
     var group = initialGroup ??
         (known.isEmpty
             ? (initialElectrical ? 'electric' : 'tank')
@@ -869,6 +996,35 @@ class _RasControlPageState extends State<RasControlPage> {
                     numberField(length, 'Chiều dài (m)'),
                     numberField(width, 'Chiều rộng (m)'),
                     numberField(volume, 'Thể tích (m³)'),
+                    const SizedBox(height: 4),
+                    Text('Mực nước', style: bvText(fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 6),
+                    _levelAssign(
+                      'Cạn',
+                      lowFloat,
+                      lowWhen,
+                      highFloat,
+                      (sensor, when) => setDialog(() {
+                        lowFloat = sensor;
+                        lowWhen = when;
+                        if (sensor.isNotEmpty && sensor == highFloat) highFloat = '';
+                      }),
+                    ),
+                    _levelAssign(
+                      'Tràn',
+                      highFloat,
+                      highWhen,
+                      lowFloat,
+                      (sensor, when) => setDialog(() {
+                        highFloat = sensor;
+                        highWhen = when;
+                        if (sensor.isNotEmpty && sensor == lowFloat) lowFloat = '';
+                      }),
+                    ),
+                    Text(
+                      'Bình thường khi không cạn và không tràn.',
+                      style: bvText(fontSize: 12, color: DashboardColors.textMuted),
+                    ),
                   ] else ...[
                     numberField(volts, 'Điện áp (V)'),
                     numberField(amps, 'Dòng điện (A)'),
@@ -897,6 +1053,14 @@ class _RasControlPageState extends State<RasControlPage> {
       keep('length', read(length));
       keep('width', read(width));
       keep('volume', read(volume));
+      void level(String floatKey, String whenKey, String sensor, String when) {
+        if (sensor.isEmpty) return;
+        specs[floatKey] = sensor;
+        specs[whenKey] = when;
+      }
+
+      level('lowFloat', 'lowWhen', lowFloat, lowWhen);
+      level('highFloat', 'highWhen', highFloat, highWhen);
     } else {
       keep('volts', read(volts));
       keep('amps', read(amps));
@@ -965,6 +1129,15 @@ class _RasControlPageState extends State<RasControlPage> {
                   : 'Bể / thùng — không gán actuator',
               style: bvText(color: DashboardColors.textMuted),
             ),
+            if (!electrical) ...[
+              const SizedBox(height: 8),
+              Text(
+                _tankLevel(node) ?? 'Chưa gán',
+                style: bvText(fontWeight: FontWeight.w800, color: _levelColor(_tankLevel(node)) ?? DashboardColors.textMuted),
+              ),
+              Text('Phao dưới  ${_floatLine(node, 'lowFloat', 'lowWhen')}', style: bvText(color: DashboardColors.textMuted)),
+              Text('Phao trên  ${_floatLine(node, 'highFloat', 'highWhen')}', style: bvText(color: DashboardColors.textMuted)),
+            ],
             if (_ratedLine(node) != null) ...[
               const SizedBox(height: 8),
               Text('Định mức  ${_ratedLine(node)}', style: bvText(color: DashboardColors.textMuted)),
@@ -1156,7 +1329,7 @@ class _RasControlPageState extends State<RasControlPage> {
     var started = false;
 
     Future<void> loadOutputs(
-      ({String code, String name, String ip}) controller,
+      ({String id, String code, String name, String ip}) controller,
       void Function(void Function()) setDialog,
     ) async {
       setDialog(() {
@@ -1793,9 +1966,12 @@ class _RasControlPageState extends State<RasControlPage> {
 
   bool _isElectrical(RasFlowNodeLive n) {
     final saved = _paramMap(n.paramDefaultsJson);
-    if (saved['electrical'] == true) return true;
+    final group = saved['group']?.toString();
+    if (group == 'tank') return false;
+    if (group == 'electric' || group == 'pump') return true;
     if (saved['electrical'] == false) return false;
-    final text = '${n.displayLabel} ${n.nodeCode} ${n.type}'.toLowerCase();
+    if (saved['electrical'] == true) return true;
+    final text = _savedLabel(n).toLowerCase();
     const machine = [
       'drum', 'skimmer', 'pump', 'bơm', 'bom', 'ozone', 'oxy',
       'máy', 'may', 'filter', 'lọc', 'ssr', 'blower', 'uv', 'đèn',
@@ -1810,10 +1986,28 @@ class _RasControlPageState extends State<RasControlPage> {
     return machineWord;
   }
 
+  String? _tankLevel(RasFlowNodeLive n) {
+    final map = _paramMap(n.paramDefaultsJson);
+    if (_savedGroup(n, map) != 'tank') return null;
+    return tankLevelLabel(map, (code) => _svc.power[code]?.value);
+  }
+
+  String _floatLine(RasFlowNodeLive n, String floatKey, String whenKey) {
+    final map = _paramMap(n.paramDefaultsJson);
+    final sensor = map[floatKey]?.toString().trim() ?? '';
+    if (!sensor.startsWith('float_') || sensor.length < 7) return 'Chưa gán';
+    final when = map[whenKey]?.toString() == 'off' ? 'Tắt' : 'Bật';
+    final value = _svc.power[sensor]?.value;
+    final now = value == null ? '' : (value >= 0.5 ? ', đang bật' : ', đang tắt');
+    return 'Phao ${sensor.substring(sensor.length - 1)} khi $when$now';
+  }
+
   String _savedGroup(RasFlowNodeLive node, Map<String, dynamic> current) {
     final saved = current['group']?.toString();
     if (saved == 'tank' || saved == 'electric' || saved == 'pump') return saved!;
-    final text = '${current['kind'] ?? ''} ${node.type} ${_savedLabel(node)}'.toLowerCase();
+    if (current['electrical'] == false) return 'tank';
+    if (current['electrical'] == true) return 'electric';
+    final text = _savedLabel(node).toLowerCase();
     if (text.contains('pump') || text.contains('bơm') || text.contains('bom')) return 'pump';
     return _isElectrical(node) ? 'electric' : 'tank';
   }
@@ -1901,12 +2095,14 @@ class _EspChannel {
 
 const _espChannels = [
   _EspChannel('meter_v', 'Điện áp', 'V', Icons.bolt_outlined, 1),
-  _EspChannel('meter_a', 'Dòng điện', 'A', Icons.electric_meter_outlined, 2),
+  _EspChannel('meter_a', 'Dòng điện', 'A', Icons.electric_meter_outlined, 3),
   _EspChannel('meter_w', 'Công suất', 'W', Icons.power_outlined, 0),
   _EspChannel('meter_va', 'Công suất biểu kiến', 'VA', Icons.flash_on_outlined, 0),
   _EspChannel('meter_kwh', 'Điện năng', 'kWh', Icons.energy_savings_leaf_outlined, 3),
   _EspChannel('meter_hz', 'Tần số', 'Hz', Icons.waves_outlined, 1),
-  _EspChannel('meter_pf', 'Hệ số công suất', '', Icons.percent, 2),
+  _EspChannel('meter_pf', 'Hệ số công suất', '%', Icons.percent, 0),
+  _EspChannel('meter_min', 'Thời gian chạy', 'phút', Icons.timer_outlined, 0),
+  _EspChannel('meter_c', 'Nhiệt độ đồng hồ', '°C', Icons.thermostat_outlined, 0),
 ];
 
 const _espRanges = [
@@ -2339,6 +2535,12 @@ class _DeviceCard extends StatelessWidget {
     required this.title,
     required this.pending,
     required this.commandSource,
+    required this.level,
+    required this.lowFloat,
+    required this.highFloat,
+    required this.tank,
+    required this.pump,
+    this.liveOn,
     required this.onAuto,
     required this.onManual,
     required this.onOn,
@@ -2354,6 +2556,12 @@ class _DeviceCard extends StatelessWidget {
   final String title;
   final String? pending;
   final String commandSource;
+  final String? level;
+  final String lowFloat;
+  final String highFloat;
+  final bool tank;
+  final bool pump;
+  final bool? liveOn;
   final VoidCallback onAuto;
   final VoidCallback onManual;
   final VoidCallback onOn;
@@ -2368,21 +2576,30 @@ class _DeviceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final offline = node.isOnline == false;
     final error = node.status.toLowerCase() == 'alarm' || node.status.toLowerCase() == 'error';
-    final running = node.isOn == true && !offline && !error;
-    final statusColor = error
-        ? _kRed
-        : offline
-            ? const Color(0xFF94A3B8)
-            : running
-                ? DashboardColors.brand
-                : DashboardColors.textMuted;
-    final statusLabel = error
-        ? 'Lỗi'
-        : offline
-            ? 'Mất kết nối'
-            : running
-                ? 'Đang chạy'
-                : 'Đang tắt';
+    final on = liveOn ?? node.isOn;
+    final running = on == true && !offline && !error;
+    final statusLabel = tank
+        ? (level ?? 'Chưa gán')
+        : pump
+            ? (on == true ? 'Mở' : 'Tắt')
+            : (error
+                ? 'Lỗi'
+                : offline
+                    ? 'Mất kết nối'
+                    : running
+                        ? 'Đang chạy'
+                        : 'Đang tắt');
+    final statusColor = tank
+        ? (_levelColor(level) ?? const Color(0xFF94A3B8))
+        : pump
+            ? (on == true ? DashboardColors.brand : DashboardColors.textMuted)
+            : (error
+                ? _kRed
+                : offline
+                    ? const Color(0xFF94A3B8)
+                    : running
+                        ? DashboardColors.brand
+                        : DashboardColors.textMuted);
     final canCmd = node.hasRelay && !offline && pending == null;
     final manualOk = canCmd && !node.isAuto;
     return Container(
@@ -2411,16 +2628,19 @@ class _DeviceCard extends StatelessWidget {
                 tooltip: 'Thao tác',
                 onSelected: onMenu,
                 itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'history', child: Text('Xem lịch sử')),
-                  if (power != null)
+                  if (tank) const PopupMenuItem(value: 'edit', child: Text('Gán phao')),
+                  if (!tank) const PopupMenuItem(value: 'history', child: Text('Xem lịch sử')),
+                  if (!tank && power != null)
                     const PopupMenuItem(value: 'power', child: Text('Lịch sử điện')),
-                  const PopupMenuItem(value: 'controller', child: Text('Xem Controller')),
+                  if (!tank) const PopupMenuItem(value: 'controller', child: Text('Xem Controller')),
                   if (assignable)
                     const PopupMenuItem(value: 'relay', child: Text('Gán actuator')),
                   const PopupMenuItem(value: 'delete', child: Text('Xóa thiết bị')),
-                  const PopupMenuItem(value: 'auto', child: Text('Cấu hình AUTO')),
-                  const PopupMenuItem(value: 'schedule', child: Text('Lịch chạy')),
-                  if (node.hasRelay && !node.isAuto && !offline) ...[
+                  if (!tank) ...[
+                    const PopupMenuItem(value: 'auto', child: Text('Cấu hình AUTO')),
+                    const PopupMenuItem(value: 'schedule', child: Text('Lịch chạy')),
+                  ],
+                  if (!tank && node.hasRelay && !node.isAuto && !offline) ...[
                     const PopupMenuItem(value: 'on', child: Text('Bật')),
                     const PopupMenuItem(value: 'off', child: Text('Tắt')),
                   ],
@@ -2428,7 +2648,29 @@ class _DeviceCard extends StatelessWidget {
               ),
             ],
           ),
+          if (!tank && node.hasRelay) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _modeBtn(pump ? 'Mở' : 'Bật', on == true, manualOk ? onOn : null, 'Bật $title'),
+                const SizedBox(width: 6),
+                _modeBtn('Tắt', on != true, manualOk ? onOff : null, 'Tắt $title'),
+              ],
+            ),
+          ],
           const SizedBox(height: 10),
+          if (tank) ...[
+            _meta('Trạng thái', statusLabel, color: statusColor),
+            _meta('Phao dưới', lowFloat),
+            _meta('Phao trên', highFloat),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () => onMenu('edit'),
+                child: const Text('Gán phao'),
+              ),
+            ),
+          ] else ...[
           _meta('Vị trí', '${node.sortOrder}'),
           _meta('Controller', node.relayDeviceId == null ? 'Chưa gán' : 'Đã gán'),
           _meta('Actuator', _controllerCode(node)),
@@ -2436,7 +2678,7 @@ class _DeviceCard extends StatelessWidget {
           if (offline)
             _meta('Lần thấy', node.lastCommandAt == null ? '—' : fmtDateTimeVn(node.lastCommandAt)),
           _meta('Chế độ', node.isAuto ? 'AUTO' : 'MANUAL', color: node.isAuto ? DashboardColors.brand : _kAmber),
-          _meta('Thời gian chạy', _runtime(node)),
+          _meta('Thời gian chạy', on == true ? _runtime(node) : '—'),
           _meta('Lần thay đổi', node.lastCommandAt == null ? '—' : fmtDateTimeVn(node.lastCommandAt)),
           _meta('Nguồn lệnh', commandSource),
           if (power != null) _powerBlock(),
@@ -2464,12 +2706,9 @@ class _DeviceCard extends StatelessWidget {
               _modeBtn('AUTO', node.isAuto, canCmd ? onAuto : null, 'Chuyển $title sang AUTO'),
               const SizedBox(width: 6),
               _modeBtn('MANUAL', !node.isAuto, canCmd ? onManual : null, 'Chuyển $title sang MANUAL'),
-              const Spacer(),
-              _modeBtn('Bật', false, manualOk ? onOn : null, 'Bật $title'),
-              const SizedBox(width: 6),
-              _modeBtn('Tắt', false, manualOk ? onOff : null, 'Tắt $title'),
             ],
           ),
+          ],
         ],
       ),
     );
@@ -2677,6 +2916,58 @@ String _hhmm(DateTime at) {
   return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
 }
 
+Color? _levelColor(String? level) => switch (level) {
+      'Tràn' => _kRed,
+      'Cạn' => _kAmber,
+      'Bình thường' => DashboardColors.brand,
+      null => null,
+      _ => const Color(0xFF94A3B8),
+    };
+
+Widget _levelAssign(
+  String title,
+  String sensor,
+  String when,
+  String taken,
+  void Function(String sensor, String when) onChanged,
+) {
+  const floats = ['float_1', 'float_2', 'float_3', 'float_4'];
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Row(
+      children: [
+        SizedBox(width: 96, child: Text(title, style: bvText(fontWeight: FontWeight.w700))),
+        Expanded(
+          child: DropdownButtonFormField<String>(
+            value: sensor,
+            decoration: const InputDecoration(labelText: 'Phao'),
+            items: [
+              const DropdownMenuItem(value: '', child: Text('Không gán')),
+              for (final code in floats)
+                if (code != taken || code == sensor)
+                  DropdownMenuItem(value: code, child: Text('Phao ${code.substring(code.length - 1)}')),
+            ],
+            onChanged: (value) => onChanged(value ?? '', when),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 110,
+          child: DropdownButtonFormField<String>(
+            value: when,
+            decoration: const InputDecoration(labelText: 'Khi phao'),
+            items: const [
+              DropdownMenuItem(value: 'on', child: Text('Bật')),
+              DropdownMenuItem(value: 'off', child: Text('Tắt')),
+            ],
+            onChanged: sensor.isEmpty ? null : (value) => onChanged(sensor, value ?? 'on'),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 class _PickedDevice {
   const _PickedDevice(
     this.label,
@@ -2749,6 +3040,10 @@ class _RasCanvas extends StatefulWidget {
     required this.onOpen,
     required this.onAdd,
     required this.meterOf,
+    required this.levelOf,
+    required this.kindOf,
+    required this.liveOf,
+    required this.floatsOf,
   });
 
   final String areaId;
@@ -2758,6 +3053,10 @@ class _RasCanvas extends StatefulWidget {
   final ValueChanged<RasFlowNodeLive> onOpen;
   final VoidCallback onAdd;
   final String? Function(RasFlowNodeLive) meterOf;
+  final String? Function(RasFlowNodeLive) levelOf;
+  final String Function(RasFlowNodeLive) kindOf;
+  final bool? Function(RasFlowNodeLive) liveOf;
+  final String? Function(RasFlowNodeLive) floatsOf;
 
   @override
   State<_RasCanvas> createState() => _RasCanvasState();
@@ -2787,7 +3086,12 @@ class _RasCanvasState extends State<_RasCanvas> with SingleTickerProviderStateMi
     super.dispose();
   }
 
-  double _cardH(RasFlowNodeLive n) => widget.meterOf(n) == null ? 96 : 124;
+  double _cardH(RasFlowNodeLive n) {
+    var height = 96.0;
+    if (widget.meterOf(n) != null) height += 28;
+    if (widget.floatsOf(n) != null) height += 32;
+    return height;
+  }
 
   RasFlowNodeLive? _node(String id) {
     for (final n in widget.nodes) {
@@ -2961,23 +3265,37 @@ class _RasCanvasState extends State<_RasCanvas> with SingleTickerProviderStateMi
   Widget _canvasNode(RasFlowNodeLive n) {
     final error = n.status.toLowerCase() == 'alarm' || n.status.toLowerCase() == 'error';
     final offline = n.isOnline == false;
-    final running = n.hasRelay && n.isOn == true && !offline && !error;
-    final color = error
-        ? _kRed
-        : offline
-            ? const Color(0xFF94A3B8)
-            : running
-                ? DashboardColors.brand
-                : const Color(0xFF2495E8);
-    final status = error
-        ? 'Lỗi'
-        : offline
-            ? 'Mất kết nối'
-            : running
-                ? 'Đang chạy'
-                : n.hasRelay
-                    ? 'Tắt'
-                    : 'Online';
+    final on = widget.liveOf(n) ?? n.isOn;
+    final running = n.hasRelay && on == true && !offline && !error;
+    final kind = widget.kindOf(n);
+    final level = widget.levelOf(n);
+    final open = n.hasRelay && on == true;
+    final String status;
+    final Color color;
+    if (kind == 'tank') {
+      status = level ?? 'Chưa gán';
+      color = _levelColor(level) ?? const Color(0xFF94A3B8);
+    } else if (kind == 'pump') {
+      status = open ? 'Mở' : 'Tắt';
+      color = open ? DashboardColors.brand : const Color(0xFF94A3B8);
+    } else {
+      color = error
+          ? _kRed
+          : offline
+              ? const Color(0xFF94A3B8)
+              : running
+                  ? DashboardColors.brand
+                  : const Color(0xFF2495E8);
+      status = error
+          ? 'Lỗi'
+          : offline
+              ? 'Mất kết nối'
+              : running
+                  ? 'Đang chạy'
+                  : n.hasRelay
+                      ? 'Tắt'
+                      : 'Online';
+    }
     return Container(
       width: _cardW,
       height: _cardH(n),
@@ -3020,6 +3338,13 @@ class _RasCanvasState extends State<_RasCanvas> with SingleTickerProviderStateMi
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: bvText(fontSize: 11, fontWeight: FontWeight.w800, color: DashboardColors.brand),
+            ),
+          if (widget.floatsOf(n) != null)
+            Text(
+              widget.floatsOf(n)!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: bvText(fontSize: 10.5, color: DashboardColors.textMuted),
             ),
           Row(
             children: [

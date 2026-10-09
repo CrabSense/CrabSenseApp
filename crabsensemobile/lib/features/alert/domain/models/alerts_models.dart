@@ -590,7 +590,7 @@ class AlertsStateData {
     page: 1,
     searchQuery: '',
     quickFilters: {AlertQuickFilter.all},
-    sortOption: AlertSortOption.priorityDesc,
+    sortOption: AlertSortOption.newest,
     groupBy: AlertGroupBy.severity,
     summary: AlertSeveritySummary.empty,
     allAlerts: [],

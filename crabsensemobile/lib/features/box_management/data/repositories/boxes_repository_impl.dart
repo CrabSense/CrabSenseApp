@@ -430,7 +430,7 @@ class BoxesRepositoryImpl implements BoxesRepository {
             case BoxQuickFilter.empty:
               return b.crabCount <= 0;
             case BoxQuickFilter.normal:
-              return b.status == BoxStatus.normal;
+              return b.status == BoxStatus.normal && b.crabCount > 0;
             case BoxQuickFilter.watch:
               return b.status == BoxStatus.watch;
             case BoxQuickFilter.molting:
@@ -750,7 +750,12 @@ class BoxesRepositoryImpl implements BoxesRepository {
                       ? ActionPriorityLevel.high
                       : ActionPriorityLevel.medium,
                 ),
-          lastUpdated: DateTime.now(),
+          lastUpdated: DateTime.tryParse(
+                map['lastUpdated']?.toString() ??
+                    map['updatedAt']?.toString() ??
+                    '',
+              ) ??
+              DateTime.now(),
           expectedHarvestAt: apiStatus?.toLowerCase() == 'molting'
               ? DateTime.now().add(const Duration(hours: 6))
               : null,

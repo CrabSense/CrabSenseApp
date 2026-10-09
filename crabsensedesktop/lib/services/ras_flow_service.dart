@@ -58,7 +58,7 @@ class RasFlowService extends ChangeNotifier {
     _liveAreaId = areaId;
     unawaited(loadDiagram(areaId));
     unawaited(refreshPower());
-    _meterTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    _meterTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       unawaited(refreshPower());
     });
     _liveTimer = Timer.periodic(interval, (_) {
@@ -129,23 +129,34 @@ class RasFlowService extends ChangeNotifier {
     }
   }
 
-  Future<List<({String code, String name, String ip})>> areaControllers(
+  Future<List<({String id, String code, String name, String ip})>> areaControllers(
     String areaId,
   ) async {
     final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/devices').replace(
       queryParameters: {'farmingAreaId': areaId},
     );
     final res = await http.get(uri, headers: _headers());
+    if (res.statusCode == 401 && await _renew()) {
+      final again = await http.get(uri, headers: _headers());
+      return _controllersFrom(again);
+    }
+    return _controllersFrom(res);
+  }
+
+  List<({String id, String code, String name, String ip})> _controllersFrom(
+    http.Response res,
+  ) {
     if (res.statusCode < 200 || res.statusCode >= 300) return const [];
     final data = _decode(res.body)['data'] ?? _decode(res.body)['Data'];
     if (data is! List) return const [];
-    final out = <({String code, String name, String ip})>[];
+    final out = <({String id, String code, String name, String ip})>[];
     for (final raw in data) {
       if (raw is! Map) continue;
       final m = Map<String, dynamic>.from(raw);
       final code = (m['deviceCode'] ?? m['DeviceCode'] ?? '').toString();
       if (code.isEmpty) continue;
       out.add((
+        id: (m['id'] ?? m['Id'] ?? '').toString(),
         code: code,
         name: (m['name'] ?? m['Name'] ?? code).toString(),
         ip: (m['ipAddress'] ?? m['IpAddress'] ?? '').toString(),
@@ -271,6 +282,24 @@ class RasFlowService extends ChangeNotifier {
       areaId,
       expectNoContent: true,
     );
+  }
+
+  Future<void> reportRelay({
+    required String deviceCode,
+    required int channel,
+    required bool on,
+  }) async {
+    try {
+      await http.post(
+        Uri.parse('${AppEnv.cloudApiUrl}/api/iot/relay-state'),
+        headers: _headers(),
+        body: jsonEncode({
+          'deviceCode': deviceCode,
+          'channel': channel,
+          'on': on,
+        }),
+      );
+    } catch (_) {}
   }
 
   Future<bool> sendCommand({

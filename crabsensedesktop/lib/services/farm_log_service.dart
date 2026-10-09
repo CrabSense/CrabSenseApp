@@ -417,7 +417,7 @@ class FarmLogService extends ChangeNotifier {
   FarmLogType _fromRecentType(String raw, String title) {
     final t = '${raw.toLowerCase()} ${title.toLowerCase()}';
     if (t.contains('ai') || t.contains('phát hiện')) return FarmLogType.aiEvent;
-    if (t.contains('ras') || t.contains('bơm') || t.contains('skimmer')) {
+    if (t.contains('ras') || t.contains('bơm') || t.contains('skimmer') || t.contains('bật') || t.contains('tắt')) {
       return FarmLogType.rasControl;
     }
     if (t.contains('alert') || t.contains('cảnh báo')) return FarmLogType.anomaly;

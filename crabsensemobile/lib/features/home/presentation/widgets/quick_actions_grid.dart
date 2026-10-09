@@ -5,7 +5,6 @@ class QuickActionsGrid extends StatelessWidget {
   final VoidCallback onScanQrPressed;
   final VoidCallback onRecordVideoPressed;
   final VoidCallback onWaterTestPressed;
-  final VoidCallback onHarvestPressed;
   final VoidCallback? onTrackingPressed;
   final VoidCallback? onMineralDosingPressed;
   final VoidCallback? onOperationsPressed;
@@ -17,7 +16,6 @@ class QuickActionsGrid extends StatelessWidget {
     required this.onScanQrPressed,
     required this.onRecordVideoPressed,
     required this.onWaterTestPressed,
-    required this.onHarvestPressed,
     this.onTrackingPressed,
     this.onMineralDosingPressed,
     this.onOperationsPressed,
@@ -91,13 +89,6 @@ class QuickActionsGrid extends StatelessWidget {
               bgColor: const Color(0xFFE0F2F1),
               iconColor: kHomeInfo,
               onTap: onMineralDosingPressed ?? () {},
-            ),
-            _QuickBtn(
-              label: 'Thu hoạch',
-              icon: Icons.agriculture_rounded,
-              bgColor: const Color(0xFFFFF8E1),
-              iconColor: const Color(0xFFF9A825),
-              onTap: onHarvestPressed,
             ),
             _QuickBtn(
               label: 'Theo dõi',

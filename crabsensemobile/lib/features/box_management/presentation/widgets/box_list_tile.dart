@@ -116,9 +116,12 @@ class BoxListTileCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${box.location.areaName} · ${box.crabCount} cua'
-                          '${box.water.ph != null ? ' · pH ${box.water.ph!.toStringAsFixed(1)}' : ''}'
-                          '${box.water.temperature != null ? ' · ${box.water.temperature!.toStringAsFixed(0)}°C' : ''}',
+                          [
+                            box.location.areaName,
+                            if (box.location.rowName != null &&
+                                box.location.rowName!.trim().isNotEmpty)
+                              box.location.rowName!.trim(),
+                          ].join(' · '),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -147,7 +150,7 @@ class BoxListTileCard extends StatelessWidget {
                               const SizedBox(width: 8),
                             ],
                             Text(
-                              formatRelativeTime(box.lastUpdated),
+                              'Cập nhật ${formatRelativeTime(box.lastUpdated)}',
                               style: TextStyle(
                                 color: const Color(0xFF5A7184),
                                 fontSize: 10,

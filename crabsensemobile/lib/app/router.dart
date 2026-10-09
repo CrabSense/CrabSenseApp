@@ -651,12 +651,6 @@ class _SplashScreenState extends State<_SplashScreen> {
         widget.authBloc.add(const AuthenticationStatusRequested());
       }
     });
-
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted && widget.authBloc.state is AuthInitial) {
-        widget.authBloc.add(const LogoutRequested());
-      }
-    });
   }
 
   @override

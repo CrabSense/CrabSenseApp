@@ -5,6 +5,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../data/scheduled_task_repository.dart';
 import '../domain/models/scheduled_task.dart';
+import 'widgets/task_plan_widgets.dart';
 
 class _TaskInput {
   const _TaskInput({
@@ -433,6 +434,7 @@ class _StableTaskDialogState extends State<_StableTaskDialog> {
   }
 }
 
+
 class ScheduledTasksScreen extends StatefulWidget {
   const ScheduledTasksScreen({super.key});
 
@@ -443,18 +445,20 @@ class ScheduledTasksScreen extends StatefulWidget {
 class _ScheduledTasksScreenState extends State<ScheduledTasksScreen> {
   late final ScheduledTaskRepository _repository;
   List<ScheduledTask> _tasks = const [];
-  final Map<String, Set<String>> _completedByDay = <String, Set<String>>{};
-  int _selectedDay = 0;
+  final Map<String, DateTime> _completedAt = {};
+  DateTime _selectedDate = taskDay(DateTime.now());
+  TaskPlanFilter _filter = TaskPlanFilter.all;
   bool _loading = true;
+  bool _error = false;
 
-  DateTime get _selectedDate => DateTime.now()
-      .copyWith(hour: 0, minute: 0, second: 0, millisecond: 0)
-      .add(Duration(days: _selectedDay));
+  String _key(DateTime day, String id) =>
+      '${taskDay(day).toIso8601String().substring(0, 10)}|$id';
 
-  Set<String> get _completedIds => _completedByDay.putIfAbsent(
-        _selectedDate.toIso8601String().substring(0, 10),
-        () => <String>{},
-      );
+  List<ScheduledTask> _forDay(DateTime day) =>
+      _tasks.where((t) => taskOccursOn(t, day)).toList();
+
+  int _doneCount(DateTime day) =>
+      _forDay(day).where((t) => _completedAt.containsKey(_key(day, t.id))).length;
 
   @override
   void initState() {
@@ -464,13 +468,23 @@ class _ScheduledTasksScreenState extends State<ScheduledTasksScreen> {
   }
 
   Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = false;
+    });
     try {
       final tasks = await _repository.list();
-      if (mounted) {
-        setState(() => _tasks = tasks.isEmpty ? _sampleTasks : tasks);
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      if (!mounted) return;
+      setState(() {
+        _tasks = tasks;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = true;
+      });
     }
   }
 
@@ -494,236 +508,134 @@ class _ScheduledTasksScreenState extends State<ScheduledTasksScreen> {
     await _load();
   }
 
-  void _openAddDialog() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _add();
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null) setState(() => _selectedDate = taskDay(picked));
+  }
+
+  void _toggleDone(ScheduledTask task) {
+    final k = _key(_selectedDate, task.id);
+    setState(() {
+      if (_completedAt.containsKey(k)) {
+        _completedAt.remove(k);
+      } else {
+        _completedAt[k] = DateTime.now();
+      }
     });
   }
 
-  List<ScheduledTask> get _sampleTasks => [
-    ScheduledTask(
-      id: 'sample-feeding',
-      title: 'Kiểm tra và cho ăn định kỳ',
-      description: 'Theo dõi lượng ăn của từng hộp',
-      recurrenceType: 'daily',
-      daysOfWeek: const [1, 2, 3, 4, 5, 6, 7],
-      startDate: DateTime.now(),
-      reminderMinuteOfDay: 420,
-      isEnabled: true,
-    ),
-    ScheduledTask(
-      id: 'sample-water',
-      title: 'Kiểm tra chất lượng nước',
-      description: 'Đo pH, độ mặn và NO2/NO3',
-      recurrenceType: 'weekly',
-      daysOfWeek: const [1, 4, 7],
-      startDate: DateTime.now(),
-      reminderMinuteOfDay: 900,
-      isEnabled: true,
-    ),
-    ScheduledTask(
-      id: 'sample-box',
-      title: 'Chăm sóc và kiểm tra hộp',
-      description: 'Kiểm tra cua yếu, lột xác và hộp trống',
-      recurrenceType: 'daily',
-      daysOfWeek: const [1, 2, 3, 4, 5, 6, 7],
-      startDate: DateTime.now(),
-      reminderMinuteOfDay: 1080,
-      isEnabled: false,
-    ),
-  ];
-
-  Widget _taskCard(ScheduledTask task) {
-    final hour = task.reminderMinuteOfDay ~/ 60;
-    final minute = (task.reminderMinuteOfDay % 60).toString().padLeft(2, '0');
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 10),
-      color: Colors.white.withValues(alpha: .88),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-        leading: CircleAvatar(
-          radius: 24,
-          backgroundColor: CrabSenseColors.primaryMuted,
-          child: Icon(_taskIcon(task), color: CrabSenseColors.teal),
-        ),
-        title: Text(
-          task.title,
-          style: const TextStyle(
-            color: CrabSenseColors.textPrimary,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        subtitle: Text(
-          '${task.recurrenceType == 'daily' ? 'Mỗi ngày' : 'Theo tuần'} • $hour:$minute',
-          style: const TextStyle(color: CrabSenseColors.textSecondary),
-        ),
-        trailing: Checkbox(
-          value: _completedIds.contains(task.id),
-          activeColor: CrabSenseColors.teal,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-          onChanged: (value) {
-            setState(() {
-              if (value == true) {
-                _completedIds.add(task.id);
-              } else {
-                _completedIds.remove(task.id);
-              }
-            });
-          },
-        ),
-      ),
-    );
+  Future<void> _delete(ScheduledTask task) async {
+    await _repository.delete(task.id);
+    await _load();
   }
 
-  IconData _taskIcon(ScheduledTask task) {
-    if (task.title.toLowerCase().contains('nước')) {
-      return Icons.water_drop_outlined;
-    }
-    if (task.title.toLowerCase().contains('hộp')) {
-      return Icons.grid_view_rounded;
-    }
-    return Icons.restaurant_outlined;
-  }
+  @override
+  Widget build(BuildContext context) {
+    final dayTasks = _forDay(_selectedDate);
+    final done = _doneCount(_selectedDate);
+    final total = dayTasks.length;
+    final pending = total - done;
+    final visible = switch (_filter) {
+      TaskPlanFilter.all => dayTasks,
+      TaskPlanFilter.pending =>
+        dayTasks.where((t) => !_completedAt.containsKey(_key(_selectedDate, t.id))).toList(),
+      TaskPlanFilter.doing => const <ScheduledTask>[],
+      TaskPlanFilter.done =>
+        dayTasks.where((t) => _completedAt.containsKey(_key(_selectedDate, t.id))).toList(),
+    };
+    final weekStart = weekMonday(_selectedDate);
+    final bottom = MediaQuery.paddingOf(context).bottom + 88;
 
-  Widget _dateStrip() => SizedBox(
-    height: 62,
-    child: ListView(
-      scrollDirection: Axis.horizontal,
-      children: [
-        for (var i = 0; i < 7; i++)
-          Container(
-            width: 55,
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: i == _selectedDay ? CrabSenseColors.teal : Colors.white70,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: () => setState(() => _selectedDay = i),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+    return Scaffold(
+      backgroundColor: const Color(0xFFF6FAF1),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  Text(
-                    ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][i],
-                    style: TextStyle(
-                      color: i == _selectedDay
-                          ? Colors.white
-                          : CrabSenseColors.textPrimary,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  Text(
-                    '${DateTime.now().day + i}/${DateTime.now().month}',
-                    style: TextStyle(
-                      color: i == _selectedDay
-                          ? Colors.white
-                          : CrabSenseColors.textSecondary,
-                      fontSize: 11,
+                  TaskHeroHeader(onPickDate: _pickDate),
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    bottom: 0,
+                    child: WeeklyTaskCalendar(
+                      weekStart: weekStart,
+                      selected: _selectedDate,
+                      doneForDay: _doneCount,
+                      totalForDay: (d) => _forDay(d).length,
+                      onSelect: (d) => setState(() => _selectedDate = taskDay(d)),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-      ],
-    ),
-  );
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: CrabSenseColors.background,
-    appBar: AppBar(
-      backgroundColor: CrabSenseColors.headerBg,
-      foregroundColor: Colors.white,
-      title: const Text('Kế hoạch việc cần làm'),
-      actions: [
-        IconButton(
-          onPressed: () {},
-          icon: const Icon(Icons.calendar_month_outlined),
-        ),
-      ],
-    ),
-    body: _loading
-        ? const Center(child: CircularProgressIndicator())
-        : RefreshIndicator(
-            onRefresh: _load,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 100),
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: SizedBox(
-                    height: 150,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Image.asset(
-                          'assets/images/background_chao_user.png',
-                          fit: BoxFit.cover,
-                        ),
-                        const Positioned(
-                          left: 18,
-                          top: 28,
-                          child: Text(
-                            'Làm việc đúng kế hoạch\nTrại cua hiệu quả hơn',
-                            style: TextStyle(
-                              color: CrabSenseColors.primaryDark,
-                              fontSize: 19,
-                              fontWeight: FontWeight.w800,
-                            ),
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(12, 12, 12, bottom),
+              sliver: SliverToBoxAdapter(
+                child: _loading
+                    ? const TaskPlanSkeleton()
+                    : _error
+                        ? TaskPlanErrorCard(onRetry: _load)
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              TodayProgressHeader(
+                                date: _selectedDate,
+                                done: done,
+                                total: total,
+                              ),
+                              const SizedBox(height: 14),
+                              TaskSummarySection(
+                                total: total,
+                                pending: pending,
+                                doing: 0,
+                                done: done,
+                                selected: _filter,
+                                onSelect: (f) => setState(() => _filter = f),
+                              ),
+                              const SizedBox(height: 16),
+                              if (visible.isEmpty)
+                                TaskEmptyState(onAdd: _add)
+                              else
+                                ...visible.map(
+                                  (task) => TaskPlanCard(
+                                    task: task,
+                                    completed: _completedAt.containsKey(
+                                      _key(_selectedDate, task.id),
+                                    ),
+                                    completedAt: _completedAt[_key(
+                                      _selectedDate,
+                                      task.id,
+                                    )],
+                                    onToggleDone: () => _toggleDone(task),
+                                    onDelete: () => _delete(task),
+                                  ),
+                                ),
+                              if (total > 0 && done == total) ...[
+                                const SizedBox(height: 8),
+                                const DailyCompletionCard(),
+                              ],
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                _dateStrip(),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    const Text(
-                      'Hôm nay',
-                      style: TextStyle(
-                        color: CrabSenseColors.textPrimary,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      'Thứ 2, 21/9/2026',
-                      style: TextStyle(
-                        color: CrabSenseColors.textSecondary,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      '${_completedIds.length}/${_tasks.length} đã hoàn thành',
-                      style: const TextStyle(
-                        color: CrabSenseColors.teal,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (_tasks.isEmpty)
-                  const Center(child: Text('Chưa có việc cần làm'))
-                else
-                  ..._tasks.map(_taskCard),
-              ],
+              ),
             ),
-          ),
-    floatingActionButton: FloatingActionButton(
-      onPressed: _openAddDialog,
-      backgroundColor: CrabSenseColors.teal,
-      child: const Icon(Icons.add, color: Colors.white),
-    ),
-  );
-
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _add,
+        backgroundColor: CrabSenseColors.teal,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
 }

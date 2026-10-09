@@ -242,7 +242,10 @@ Future<void> init() async {
   // Requirements: 1.6, 23.4 - JWT tokens stored in platform Keychain/Keystore
   sl.registerLazySingleton<FlutterSecureStorage>(
     () => const FlutterSecureStorage(
-      aOptions: AndroidOptions(encryptedSharedPreferences: true),
+      aOptions: AndroidOptions(
+        encryptedSharedPreferences: true,
+        resetOnError: false,
+      ),
       iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
       // Web: dùng localStorage với encryption key (hoạt động trên Chrome)
       webOptions: WebOptions(dbName: 'crabsense_secure', publicKey: 'CrabSenseWeb'),

@@ -226,8 +226,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               context.go(RoutePaths.waterQuality);
                             }
                           },
-                          onHarvestPressed: () =>
-                              context.push(RoutePaths.harvest),
                           onTrackingPressed: () =>
                               context.push(RoutePaths.crabTracking),
                           onMineralDosingPressed: () =>
