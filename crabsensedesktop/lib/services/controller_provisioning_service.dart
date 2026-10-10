@@ -590,7 +590,8 @@ class ControllerProvisioningService {
   }
 
   /// Bật/tắt SSR trên board. `status` chỉ đọc trạng thái.
-  Future<({bool output1, bool output2})?> commandEsp({
+  /// Map kênh → đang bật, lấy từ output1..outputN mà board trả về.
+  Future<Map<int, bool>?> commandEsp({
     required String ip,
     required String command,
     int? channel,
@@ -610,9 +611,13 @@ class ControllerProvisioningService {
     if (decoded is! Map || res.statusCode < 200 || res.statusCode >= 300) {
       return null;
     }
-    return (
-      output1: decoded['output1'] == true,
-      output2: decoded['output2'] == true,
-    );
+    final states = <int, bool>{};
+    for (final entry in decoded.entries) {
+      final key = entry.key.toString();
+      if (!key.startsWith('output')) continue;
+      final n = int.tryParse(key.substring('output'.length));
+      if (n != null && n > 0) states[n] = entry.value == true;
+    }
+    return states;
   }
 }

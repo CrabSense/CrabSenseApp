@@ -1085,11 +1085,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
         channel: channel,
       );
       if (!mounted || state == null) return;
-      setState(() {
-        _ssrOn[1] = state.output1;
-        _ssrOn[2] = state.output2;
-      });
-      final echoed = channel == 1 ? state.output1 : state.output2;
+      setState(() => _ssrOn.addAll(state));
+      final echoed = state[channel];
       if (echoed == on) {
         widget.service.reportRelay(device.deviceCode, channel, on);
       }

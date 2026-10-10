@@ -242,10 +242,15 @@ class _RasControlPageState extends State<RasControlPage> {
         _toast('Không điều khiển được actuator trên Controller.');
         return;
       }
-      setState(() => _relayOn[_relayKey(deviceId, channel)] = on);
-      _toast('✓ ${_deviceTitle(node)} ${on ? 'đã bật' : 'đã tắt'}.');
+      final echoed = state[channel];
+      if (echoed == null) {
+        _toast('Không điều khiển được actuator trên Controller.');
+        return;
+      }
+      setState(() => _relayOn[_relayKey(deviceId, channel)] = echoed);
+      _toast('✓ ${_deviceTitle(node)} ${echoed ? 'đã bật' : 'đã tắt'}.');
       final code = _controllerCode[deviceId];
-      if (code != null) {
+      if (code != null && echoed == on) {
         await _svc.reportRelay(deviceCode: code, channel: channel, on: on);
       }
     } catch (_) {
@@ -1688,9 +1693,9 @@ class _RasControlPageState extends State<RasControlPage> {
       return;
     }
     final current = _params(focus) ?? const <String, dynamic>{};
-    final onSensor = TextEditingController(text: '${current['onSensor'] ?? 'float_1'}');
+    final onSensor = TextEditingController(text: '${current['onSensor'] ?? ''}');
     final onValue = TextEditingController(text: '${current['onValue'] ?? 1}');
-    final offSensor = TextEditingController(text: '${current['offSensor'] ?? 'float_2'}');
+    final offSensor = TextEditingController(text: '${current['offSensor'] ?? ''}');
     final offValue = TextEditingController(text: '${current['offValue'] ?? 1}');
     showDialog<void>(context: context, builder: (ctx) => AlertDialog(
       title: Text('C?u h?nh AUTO ${_deviceTitle(focus)}'),
@@ -1704,7 +1709,14 @@ class _RasControlPageState extends State<RasControlPage> {
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('H?y')),
         FilledButton(onPressed: () async {
           final rule = jsonEncode({'onSensor': onSensor.text.trim(), 'onValue': double.tryParse(onValue.text) ?? 1, 'offSensor': offSensor.text.trim(), 'offValue': double.tryParse(offValue.text) ?? 1});
-          final ok = await _svc.updateNodeRelay(areaId: widget.areaId, nodeId: focus.id, relayDeviceCode: 'CrabSense-C115', relayChannel: focus.relayChannel ?? '1', paramDefaultsJson: rule);
+          final channel = (focus.relayChannel ?? '').trim();
+          final ok = await _svc.updateNodeRelay(
+            areaId: widget.areaId,
+            nodeId: focus.id,
+            relayDeviceId: focus.relayDeviceId,
+            relayChannel: channel.isEmpty ? null : channel,
+            paramDefaultsJson: rule,
+          );
           if (ctx.mounted) Navigator.pop(ctx);
           if (mounted) _toast(ok ? '?? l?u logic AUTO.' : (_svc.error ?? 'Kh?ng l?u ???c logic AUTO.'));
         }, child: const Text('L?u')),
