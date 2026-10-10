@@ -65,20 +65,19 @@ class HarvestRemoteDataSourceImpl implements HarvestRemoteDataSource {
 
     final result = await apiClient.safePost<Map<String, dynamic>>(
       ApiConstants.recordHarvest,
-      data: model.toJson(),
+      data: _voucherBody(model),
     );
 
     _checkFailure(result.failure, 'record harvest');
 
-    final body = result.data.data;
-    if (body == null) {
+    if (result.data.data == null) {
       throw const ServerException(
         message: 'Empty response from record harvest endpoint',
         code: 'PARSE_ERROR',
       );
     }
 
-    return HarvestModel.fromJson(_unwrapData(body));
+    return model.copyWith(isSynced: true, isDirty: false, syncedAt: DateTime.now());
   }
 
   @override
@@ -199,10 +198,47 @@ class HarvestRemoteDataSourceImpl implements HarvestRemoteDataSource {
       );
     }
 
+    final detail = failure is ValidationFailure
+        ? failure.fieldErrors?.values
+            .map((value) => value.toString())
+            .where((value) => value.trim().isNotEmpty)
+            .join(' ')
+        : null;
     throw ServerException(
-      message: 'Failed to fetch $context: ${failure.message}',
+      message: 'Failed to fetch $context: ${(detail == null || detail.isEmpty) ? failure.message : detail}',
       code: failure.code,
     );
+  }
+
+  Map<String, dynamic> _voucherBody(HarvestModel model) {
+    final guid = RegExp(
+      r'^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$',
+    );
+    final crabId = (model.crabId ?? '').trim();
+    final farmId = model.farmId.trim();
+    final grade = switch (model.qualityGrade) {
+      QualityGrade.gradeA => 'A',
+      QualityGrade.gradeB => 'B',
+      QualityGrade.gradeC => 'C',
+    };
+    final notes = model.notes?.trim();
+    return {
+      'harvestDate': model.harvestDate.toUtc().toIso8601String(),
+      'status': 'Completed',
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+      if (guid.hasMatch(farmId)) 'farmingAreaId': farmId,
+      if (model.operatorName.trim().isNotEmpty)
+        'performedByName': model.operatorName.trim(),
+      'lines': [
+        {
+          if (guid.hasMatch(crabId)) 'crabId': crabId,
+          'weightGram': model.totalWeight * 1000,
+          'grade': grade,
+          'isSoftshell': model.qualityGrade == QualityGrade.gradeC,
+          if (notes != null && notes.isNotEmpty) 'notes': notes,
+        },
+      ],
+    };
   }
 
   List<dynamic> _extractList(Map<String, dynamic>? body, String operationName) {

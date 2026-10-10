@@ -227,6 +227,7 @@ class HarvestBloc extends Bloc<HarvestEvent, HarvestState> {
       photoUrls: s.photoPaths,
       notes: s.notes?.trim().isEmpty == true ? null : s.notes?.trim(),
       createdAt: DateTime.now(),
+      crabId: s.crabId?.trim(),
     );
 
     emit(s.copyWith(isSubmitting: true, clearSubmissionError: true));

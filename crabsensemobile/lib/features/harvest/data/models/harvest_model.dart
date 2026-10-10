@@ -33,6 +33,7 @@ class HarvestModel extends Harvest {
     super.notes,
     super.createdAt,
     super.isSynced = false,
+    super.crabId,
     this.isDirty = false,
     this.syncedAt,
   });
@@ -105,6 +106,7 @@ class HarvestModel extends Harvest {
         notes: entity.notes,
         createdAt: entity.createdAt,
         isSynced: entity.isSynced,
+        crabId: entity.crabId,
         isDirty: isDirty,
         syncedAt: syncedAt,
       );
@@ -167,6 +169,7 @@ class HarvestModel extends Harvest {
         notes: notes,
         createdAt: createdAt,
         isSynced: !isDirty && isSynced,
+        crabId: crabId,
       );
 
   @override
@@ -186,6 +189,7 @@ class HarvestModel extends Harvest {
     bool? isSynced,
     bool? isDirty,
     DateTime? syncedAt,
+    String? crabId,
   }) =>
       HarvestModel(
         id: id ?? this.id,
@@ -203,6 +207,7 @@ class HarvestModel extends Harvest {
         isSynced: isSynced ?? this.isSynced,
         isDirty: isDirty ?? this.isDirty,
         syncedAt: syncedAt ?? this.syncedAt,
+        crabId: crabId ?? this.crabId,
       );
 
   // ──────────────────────────────────────────────────────────────────────────

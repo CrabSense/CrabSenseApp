@@ -83,6 +83,7 @@ class Harvest {
     this.notes,
     this.createdAt,
     this.isSynced = false,
+    this.crabId,
   });
 
   /// Unique record identifier
@@ -124,6 +125,9 @@ class Harvest {
   /// Offline synchronization indicator
   final bool isSynced;
 
+  /// Crab being harvested. The voucher API needs this id.
+  final String? crabId;
+
   /// Average weight per crab in kilograms.
   double get averageWeightPerCrab => crabCount > 0 ? totalWeight / crabCount : 0.0;
 
@@ -142,6 +146,7 @@ class Harvest {
     String? notes,
     DateTime? createdAt,
     bool? isSynced,
+    String? crabId,
   }) {
     return Harvest(
       id: id ?? this.id,
@@ -157,6 +162,7 @@ class Harvest {
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       isSynced: isSynced ?? this.isSynced,
+      crabId: crabId ?? this.crabId,
     );
   }
 
