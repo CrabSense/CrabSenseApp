@@ -57,9 +57,25 @@ class CameraDevice {
 
   factory CameraDevice.fromJson(Map<String, dynamic> json) {
     if (json.containsKey('deviceCode') || json.containsKey('DeviceCode')) {
-      if (json.containsKey('streamUrl') || json.containsKey('StreamUrl')) {
+      if (!(json.containsKey('id') || json.containsKey('Id'))) {
         return CameraDevice.fromBoxCamera(json);
       }
+      final code = '${json['deviceCode'] ?? json['DeviceCode']}';
+      final name = '${json['name'] ?? json['Name'] ?? ''}'.trim();
+      return CameraDevice(
+        id: '${json['id'] ?? json['Id']}',
+        gatewayId: '${json['gatewayId'] ?? json['GatewayId'] ?? ''}',
+        boxId: (json['boxId'] ?? json['BoxId'])?.toString(),
+        cameraCode: code,
+        name: name.isEmpty ? code : name,
+        streamUrl: (json['streamUrl'] ?? json['StreamUrl'])?.toString(),
+        ipAddress: (json['ipAddress'] ?? json['IpAddress'])?.toString(),
+        status: '${json['status'] ?? json['Status'] ?? 'offline'}',
+        lastSeenAt: json['lastSeenAt'] != null || json['LastSeenAt'] != null
+            ? DateTime.tryParse((json['lastSeenAt'] ?? json['LastSeenAt']).toString())
+            : null,
+        snapshotUrl: (json['snapshotUrl'] ?? json['SnapshotUrl'])?.toString(),
+      );
     }
     return CameraDevice(
       id: '${json['id'] ?? json['Id']}',
@@ -96,7 +112,7 @@ class CameraDevice {
     };
   }
 
-  bool get isOnline => status == 'online';
+  bool get isOnline => status.toLowerCase() == 'online';
 }
 
 class UpsertCameraRequest {

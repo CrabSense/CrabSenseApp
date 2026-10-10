@@ -22,6 +22,7 @@ import 'area_boxes_tab.dart';
 import 'area_cameras_tab.dart';
 import 'area_environment_tab.dart';
 import 'area_history_tab.dart';
+import 'camera_link_dialog.dart';
 
 const _kCamFallback = 'assets/images/maps.png';
 
@@ -142,6 +143,51 @@ class _AreaDetailPageState extends State<AreaDetailPage> {
       final live = await _api.fetchIotLive(_token, farmingAreaId: widget.areaId);
       if (mounted) setState(() => _live = live);
     } catch (_) {}
+  }
+
+  Future<void> _addCamera() async {
+    final saved = await showCameraLinkDialog(
+      context,
+      api: _api,
+      token: _token,
+      areaId: widget.areaId,
+    );
+    if (saved && mounted) await _loadCameras();
+  }
+
+  Future<void> _editCamera(CameraDevice cam) async {
+    final saved = await showCameraLinkDialog(
+      context,
+      api: _api,
+      token: _token,
+      areaId: widget.areaId,
+      deviceId: cam.id,
+      code: cam.cameraCode,
+      name: cam.name,
+      ipAddress: cam.ipAddress,
+      streamUrl: cam.streamUrl,
+      resolution: null,
+    );
+    if (saved && mounted) await _loadCameras();
+  }
+
+  Future<void> _deleteCamera(CameraDevice cam) async {
+    final label = cam.name.trim().isEmpty ? cam.cameraCode : '${cam.cameraCode} · ${cam.name}';
+    if (!await confirmDelete(
+      context,
+      title: 'Xóa camera?',
+      message: '$label sẽ bị gỡ khỏi khu này.',
+    )) {
+      return;
+    }
+    if (!mounted) return;
+    try {
+      await _api.deleteController(_token, cam.id);
+      if (mounted) await _loadCameras();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
   }
 
   Future<void> _loadCameras() async {
@@ -440,6 +486,13 @@ class _AreaDetailPageState extends State<AreaDetailPage> {
                 cameras: _cameras,
                 index: _camIndex,
                 onIndex: (i) => setState(() => _camIndex = i),
+                onAdd: _addCamera,
+                onEdit: _cameras.isEmpty
+                    ? null
+                    : () => _editCamera(_cameras[_camIndex.clamp(0, _cameras.length - 1)]),
+                onDelete: _cameras.isEmpty
+                    ? null
+                    : () => _deleteCamera(_cameras[_camIndex.clamp(0, _cameras.length - 1)]),
               );
               if (c.maxWidth < 1000) {
                 return Column(
@@ -1543,12 +1596,18 @@ class _CameraCard extends StatelessWidget {
     required this.cameras,
     required this.index,
     required this.onIndex,
+    required this.onAdd,
+    this.onEdit,
+    this.onDelete,
   });
 
   final String areaName;
   final List<CameraDevice> cameras;
   final int index;
   final ValueChanged<int> onIndex;
+  final VoidCallback onAdd;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -1588,6 +1647,28 @@ class _CameraCard extends StatelessWidget {
                     letterSpacing: 0.6,
                   ),
                 ),
+              ),
+              const SizedBox(width: 6),
+              MgmtOutlineButton(
+                icon: Icons.edit_outlined,
+                tooltip: 'Sửa camera',
+                height: 28,
+                onTap: onEdit,
+              ),
+              const SizedBox(width: 6),
+              MgmtOutlineButton(
+                icon: Icons.delete_outline_rounded,
+                tooltip: 'Xóa camera',
+                height: 28,
+                color: DashboardColors.risk,
+                onTap: onDelete,
+              ),
+              const SizedBox(width: 6),
+              MgmtPrimaryButton(
+                icon: Icons.add_rounded,
+                label: 'Thêm',
+                height: 28,
+                onTap: onAdd,
               ),
             ],
           ),

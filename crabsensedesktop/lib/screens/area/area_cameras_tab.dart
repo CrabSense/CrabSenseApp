@@ -11,7 +11,9 @@ import '../../models/production_models.dart';
 import '../../services/cloud_api_client.dart';
 import '../../theme/dashboard_theme.dart';
 import '../../widgets/camera/camera_stream_player.dart';
+import '../../widgets/production/production_dialogs.dart' show confirmDelete;
 import '../../widgets/shared/mgmt_ui.dart';
+import 'camera_link_dialog.dart';
 
 /// Màu tím chỉ dùng cho trạng thái "Lột xác".
 const _kMolt = Color(0xFF7C3AED);
@@ -679,6 +681,51 @@ class _AreaCamerasTabState extends State<AreaCamerasTab> {
     );
   }
 
+  Future<void> _addCam() async {
+    final saved = await showCameraLinkDialog(
+      context,
+      api: _api,
+      token: widget.token,
+      areaId: widget.areaId,
+    );
+    if (saved && mounted) await _loadCams();
+  }
+
+  Future<void> _editCam(_Cam c) async {
+    final saved = await showCameraLinkDialog(
+      context,
+      api: _api,
+      token: widget.token,
+      areaId: widget.areaId,
+      deviceId: c.id,
+      code: c.code,
+      name: c.name,
+      ipAddress: c.ipAddress,
+      streamUrl: c.streamUrl,
+      resolution: c.resolution,
+    );
+    if (saved && mounted) await _loadCams();
+  }
+
+  Future<void> _deleteCam(_Cam c) async {
+    final label = c.name.trim().isEmpty ? c.code : '${c.code} · ${c.name}';
+    if (!await confirmDelete(
+      context,
+      title: 'Xóa camera?',
+      message: '$label sẽ bị gỡ khỏi khu này.',
+    )) {
+      return;
+    }
+    if (!mounted) return;
+    try {
+      await _api.deleteController(widget.token, c.id);
+      if (mounted) await _loadCams();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = '$e');
+    }
+  }
+
   /// Cấu hình camera: gán dãy, URL stream/snapshot, độ phân giải (PUT /api/devices/{id}).
   Future<void> _configureCam(_Cam c) async {
     const emptyGuid = '00000000-0000-0000-0000-000000000000';
@@ -939,6 +986,28 @@ class _AreaCamerasTabState extends State<AreaCamerasTab> {
             ),
             const SizedBox(width: 6),
             MgmtOutlineButton(
+              icon: Icons.edit_outlined,
+              tooltip: 'Sửa camera đang xem',
+              height: 38,
+              onTap: main == null ? null : () => _editCam(main),
+            ),
+            const SizedBox(width: 6),
+            MgmtOutlineButton(
+              icon: Icons.delete_outline_rounded,
+              tooltip: 'Xóa camera đang xem',
+              height: 38,
+              color: DashboardColors.risk,
+              onTap: main == null ? null : () => _deleteCam(main),
+            ),
+            const SizedBox(width: 6),
+            MgmtPrimaryButton(
+              icon: Icons.add_rounded,
+              label: 'Thêm camera',
+              height: 38,
+              onTap: _addCam,
+            ),
+            const SizedBox(width: 6),
+            MgmtOutlineButton(
               icon: Icons.fullscreen_rounded,
               tooltip: 'Toàn màn hình camera chính',
               height: 38,
@@ -953,12 +1022,10 @@ class _AreaCamerasTabState extends State<AreaCamerasTab> {
             icon: Icons.videocam_outlined,
             title: 'Chưa có camera giám sát',
             message: 'Khu ${widget.areaName} hiện chưa được cấu hình camera.',
-            action: widget.onAddCamera == null
-                ? null
-                : MgmtPrimaryButton(
+            action: MgmtPrimaryButton(
                     icon: Icons.add_rounded,
                     label: 'Thêm camera',
-                    onTap: widget.onAddCamera,
+                    onTap: _addCam,
                   ),
           )
         else ...[
