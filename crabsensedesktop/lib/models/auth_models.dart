@@ -1,33 +1,46 @@
 /// Roles returned by CrabSenseBE (`UserRole` enum `.ToString()`).
 abstract final class UserRoles {
-  static const systemAdmin = 'SystemAdmin';
-  static const farmOwner = 'FarmOwner';
-  static const staff = 'Staff';
+  static const systemAdministrator = 'SystemAdministrator';
+  static const farmAdministrator = 'FarmAdministrator';
+  static const farmManager = 'FarmManager';
+  static const farmStaff = 'FarmStaff';
 
   static String normalize(String raw) {
     final v = raw.trim();
     switch (v.toLowerCase()) {
+      case 'systemadministrator':
       case 'systemadmin':
       case 'admin':
-        return systemAdmin;
+        return systemAdministrator;
+      case 'farmadministrator':
       case 'farmowner':
       case 'owner':
-        return farmOwner;
-      case 'staff':
+        return farmAdministrator;
+      case 'farmmanager':
+      case 'manager':
       case 'operator':
+        return farmManager;
+      case 'farmstaff':
+      case 'staff':
       case 'viewer':
       case 'sales':
-        return staff;
+        return farmStaff;
       default:
         return v;
     }
   }
 
-  static bool isFarmOwner(String role) => normalize(role) == farmOwner;
+  static bool isFarmOwner(String role) => normalize(role) == farmAdministrator;
 
-  static bool isSystemAdmin(String role) => normalize(role) == systemAdmin;
+  static bool isSystemAdmin(String role) => normalize(role) == systemAdministrator;
 
-  static bool isStaff(String role) => normalize(role) == staff;
+  static bool isStaff(String role) => normalize(role) == farmStaff;
+
+  /// Desktop = portal trại (không dùng System Administrator).
+  static bool canUseDesktop(String role) {
+    final n = normalize(role);
+    return n == farmAdministrator || n == farmManager || n == farmStaff;
+  }
 }
 
 class AuthUser {
@@ -61,7 +74,9 @@ class AuthUser {
       displayName: fullName.isNotEmpty
           ? fullName
           : (display.isNotEmpty ? display : (uname ?? 'User')),
-      role: UserRoles.normalize(_str(json, 'role', 'Role', fallback: 'Staff')),
+      role: UserRoles.normalize(
+        _str(json, 'role', 'Role', fallback: 'FarmStaff'),
+      ),
       username: uname,
       orgId: _optionalStr(json, 'orgId', 'OrgId'),
     );
@@ -143,10 +158,10 @@ class AuthMePayload {
       user: AuthUser.fromJson(json),
       farms: farms,
       isOrgAdmin: UserRoles.isSystemAdmin(
-        _str(json, 'role', 'Role', fallback: 'Staff'),
+        _str(json, 'role', 'Role', fallback: 'FarmStaff'),
       ),
       canViewAllFarms: UserRoles.isSystemAdmin(
-        _str(json, 'role', 'Role', fallback: 'Staff'),
+        _str(json, 'role', 'Role', fallback: 'FarmStaff'),
       ),
     );
   }
@@ -257,7 +272,7 @@ class AuthSession {
               id: '',
               email: '',
               displayName: '',
-              role: UserRoles.staff,
+              role: UserRoles.farmStaff,
             ),
       farms: farms,
       selectedFarm: selectedRaw is Map

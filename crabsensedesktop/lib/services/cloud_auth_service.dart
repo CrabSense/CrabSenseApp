@@ -74,11 +74,16 @@ class CloudAuthService {
       }
 
       final login = await _api.login(username: userTrim, password: password);
-      if (!login.user.isFarmOwner) {
+      if (login.user.isSystemAdmin) {
         return CloudAuthResult.failure(
-          'Desktop hiện chỉ có trang chủ trại. Role "${login.user.role}" '
-          '(${login.user.displayName}) không được vào. '
-          'Dùng tài khoản FarmOwner (vd. owner / Owner@123).',
+          'Tài khoản System Administrator (${login.user.username ?? userTrim}) '
+          'dùng web CrabSenseFE (/system), không đăng nhập Desktop trại.',
+        );
+      }
+      if (!UserRoles.canUseDesktop(login.user.role)) {
+        return CloudAuthResult.failure(
+          'Role "${login.user.role}" không được vào Desktop. '
+          'Dùng owner/Owner@123, manager/Manager@123 hoặc staff/Staff@123.',
         );
       }
       return CloudAuthResult.success(
