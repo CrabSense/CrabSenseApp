@@ -1923,6 +1923,13 @@ String _histWhen(Map<String, dynamic> r) {
 String _fmtValue(ControllerChild s) {
   final v = s.latestValue;
   if (v == null) return '—';
+  // Meter values are only trusted for 15s; hide stale AC301 readings.
+  if (s.code.startsWith('meter_') &&
+      (s.lastUpdatedAt == null ||
+          DateTime.now().toUtc().difference(s.lastUpdatedAt!.toUtc()).abs() >
+              const Duration(seconds: 15))) {
+    return '—';
+  }
   final t = (s.type ?? s.unit ?? s.name).toLowerCase();
   if (t.contains('tds')) return v.round().toString();
   if (t.contains('ph')) return v.toStringAsFixed(2);

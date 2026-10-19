@@ -2693,7 +2693,7 @@ class _DeviceCard extends StatelessWidget {
           _meta('Thời gian chạy', on == true ? _runtime(node) : '—'),
           _meta('Lần thay đổi', node.lastCommandAt == null ? '—' : fmtDateTimeVn(node.lastCommandAt)),
           _meta('Nguồn lệnh', commandSource),
-          if (power != null) _powerBlock(),
+          if (power?.hasData == true) _powerBlock(),
           if (offline) ...[
             const SizedBox(height: 8),
             Text('⚠ Không thể gửi lệnh điều khiển.', style: bvText(fontSize: 12, color: _kAmber)),

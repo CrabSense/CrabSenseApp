@@ -321,8 +321,14 @@ class RasFlowService extends ChangeNotifier {
 
   Future<void> refreshPower() async {
     try {
+      final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/iot/live').replace(
+        queryParameters: {
+          if (_liveAreaId != null && _liveAreaId!.trim().isNotEmpty)
+            'farmingAreaId': _liveAreaId!,
+        },
+      );
       final res = await http.get(
-        Uri.parse('${AppEnv.cloudApiUrl}/api/iot/live'),
+        uri,
         headers: _headers(),
       );
       if (res.statusCode != 200) return;
@@ -337,12 +343,19 @@ class RasFlowService extends ChangeNotifier {
         if (!code.startsWith('meter_') && !code.startsWith('float_')) continue;
         final valueRaw = row['latestValue'] ?? row['LatestValue'];
         final atRaw = row['latestMeasuredAt'] ?? row['LatestMeasuredAt'];
+        final at = atRaw == null ? null : DateTime.tryParse(atRaw.toString());
+        if (code.startsWith('meter_')
+            && (at == null
+                || DateTime.now().toUtc().difference(at.toUtc()).abs()
+                    > const Duration(seconds: 15))) {
+          continue;
+        }
         double? numOf(dynamic raw) => raw is num ? raw.toDouble() : double.tryParse('$raw');
         points[code] = PowerPoint(
           id: (row['id'] ?? row['Id'] ?? '').toString(),
           value: valueRaw is num ? valueRaw.toDouble() : double.tryParse('$valueRaw'),
           unit: (row['unit'] ?? row['Unit'])?.toString(),
-          at: atRaw == null ? null : DateTime.tryParse(atRaw.toString()),
+          at: at,
           min: numOf(row['minThreshold'] ?? row['MinThreshold']),
           max: numOf(row['maxThreshold'] ?? row['MaxThreshold']),
         );
