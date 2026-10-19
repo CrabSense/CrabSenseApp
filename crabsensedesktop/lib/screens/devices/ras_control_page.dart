@@ -3116,7 +3116,7 @@ class _RasCanvasState extends State<_RasCanvas> with SingleTickerProviderStateMi
 
   void _setScale(double next) {
     final scale = next.clamp(0.4, 2.5);
-    _view.value = Matrix4.identity()..scale(scale);
+    _view.value = Matrix4.identity()..scaleByDouble(scale, scale, scale, 1.0);
     setState(() {});
   }
 
