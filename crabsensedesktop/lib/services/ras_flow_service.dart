@@ -12,7 +12,9 @@ import 'cloud_auth_service.dart';
 class RasFlowService extends ChangeNotifier {
   RasFlowService({required AuthSession session}) : _session = session;
 
-  static const livePollInterval = Duration(seconds: 2);
+  /// Live view refresh. Backend /api/iot/live is heavy, so 5s matches the Edge
+  /// telemetry cadence instead of hammering it every 2s.
+  static const livePollInterval = Duration(seconds: 5);
 
   AuthSession _session;
 
@@ -46,7 +48,7 @@ class RasFlowService extends ChangeNotifier {
   DateTime? get lastRefreshedAt => _lastRefreshedAt;
   PowerSnapshot get power => _power;
 
-  /// Bật làm mới sơ đồ RAS mỗi [interval] (mặc định 2s, khớp telemetry Edge ~5s).
+  /// Bật làm mới sơ đồ RAS mỗi [interval] (mặc định 5s, khớp telemetry Edge ~5s).
   void startLiveRefresh(
     String areaId, {
     Duration interval = livePollInterval,
@@ -58,7 +60,7 @@ class RasFlowService extends ChangeNotifier {
     _liveAreaId = areaId;
     unawaited(loadDiagram(areaId));
     unawaited(refreshPower());
-    _meterTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+    _meterTimer = Timer.periodic(interval, (_) {
       unawaited(refreshPower());
     });
     _liveTimer = Timer.periodic(interval, (_) {
