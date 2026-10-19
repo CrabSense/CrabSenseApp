@@ -958,7 +958,7 @@ class _RasControlPageState extends State<RasControlPage> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: group,
+                    initialValue: group,
                     decoration: const InputDecoration(labelText: 'Nhóm'),
                     items: const [
                       DropdownMenuItem(value: 'tank', child: Text('Bể / thùng')),
@@ -1205,7 +1205,7 @@ class _RasControlPageState extends State<RasControlPage> {
         builder: (ctx, setDialog) => AlertDialog(
           title: Text('Nối từ ${_deviceTitle(node)}'),
           content: DropdownButtonFormField<String>(
-            value: target,
+            initialValue: target,
             decoration: const InputDecoration(labelText: 'Tới thiết bị'),
             items: [
               for (final n in others)
@@ -1380,7 +1380,7 @@ class _RasControlPageState extends State<RasControlPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: picked.code,
+                    initialValue: picked.code,
                     decoration: const InputDecoration(labelText: 'Controller'),
                     items: [
                       for (final c in controllers)
@@ -1401,7 +1401,7 @@ class _RasControlPageState extends State<RasControlPage> {
                     Text('Đang đọc actuator...', style: bvText(color: DashboardColors.textMuted))
                   else
                     DropdownButtonFormField<String>(
-                      value: outputs.any((p) => '${p.channel}' == channel)
+                      initialValue: outputs.any((p) => '${p.channel}' == channel)
                           ? channel
                           : '${outputs.first.channel}',
                       decoration: const InputDecoration(labelText: 'Actuator'),
@@ -2316,7 +2316,7 @@ class _EspMonitorState extends State<_EspMonitor> {
                   SizedBox(
                     width: 220,
                     child: DropdownButtonFormField<String>(
-                      value: _code,
+                      initialValue: _code,
                       decoration: const InputDecoration(labelText: 'Chỉ số'),
                       items: [
                         for (final item in _espChannels)
@@ -2951,7 +2951,7 @@ Widget _levelAssign(
         SizedBox(width: 96, child: Text(title, style: bvText(fontWeight: FontWeight.w700))),
         Expanded(
           child: DropdownButtonFormField<String>(
-            value: sensor,
+            initialValue: sensor,
             decoration: const InputDecoration(labelText: 'Phao'),
             items: [
               const DropdownMenuItem(value: '', child: Text('Không gán')),
@@ -2966,7 +2966,7 @@ Widget _levelAssign(
         SizedBox(
           width: 110,
           child: DropdownButtonFormField<String>(
-            value: when,
+            initialValue: when,
             decoration: const InputDecoration(labelText: 'Khi phao'),
             items: const [
               DropdownMenuItem(value: 'on', child: Text('Bật')),

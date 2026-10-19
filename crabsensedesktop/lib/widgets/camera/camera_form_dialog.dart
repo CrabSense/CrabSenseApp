@@ -214,7 +214,7 @@ class _CameraFormDialogState extends State<_CameraFormDialog> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _status,
+                  initialValue: _status,
                   decoration: _inputDec('Trạng thái', Icons.circle),
                   dropdownColor: DashboardColors.darkNavy,
                   style: _textStyle(),

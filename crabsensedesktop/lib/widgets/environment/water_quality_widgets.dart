@@ -896,7 +896,7 @@ class WaterQualityFilterBar extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           DropdownButtonFormField<String>(
-            value: items.contains(value) ? value : items.first,
+            initialValue: items.contains(value) ? value : items.first,
             dropdownColor: DashboardColors.card,
             style: GoogleFonts.notoSans(color: DashboardColors.textPrimary, fontSize: 12),
             decoration: InputDecoration(

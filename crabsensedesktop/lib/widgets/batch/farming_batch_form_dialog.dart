@@ -765,7 +765,7 @@ class _LocationDrop extends StatelessWidget {
     return _LabeledField(
       label: label,
       child: DropdownButtonFormField<String>(
-        value: items.any((i) => i.value == value) ? value : null,
+        initialValue: items.any((i) => i.value == value) ? value : null,
         decoration: InputDecoration(
           filled: true,
           fillColor: DashboardColors.darkNavy,

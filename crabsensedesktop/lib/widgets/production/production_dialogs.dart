@@ -586,7 +586,7 @@ class _BatchFormDialogState extends State<_BatchFormDialog> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: DropdownButtonFormField<String>(
-        value: _status,
+        initialValue: _status,
         dropdownColor: DashboardColors.card,
         style: GoogleFonts.notoSans(color: DashboardColors.textPrimary),
         decoration: InputDecoration(
@@ -831,7 +831,7 @@ Widget _dropdown(String label, String value, List<String> options, ValueChanged<
   return Padding(
     padding: const EdgeInsets.only(bottom: 12),
     child: DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       dropdownColor: DashboardColors.card,
       style: GoogleFonts.notoSans(color: DashboardColors.textPrimary),
       decoration: InputDecoration(

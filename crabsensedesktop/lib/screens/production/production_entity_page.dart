@@ -110,8 +110,8 @@ class _ProductionEntityPageState extends State<ProductionEntityPage> {
         ),
         Expanded(
           child: switch (_tab) {
-            ProductionTab.area => const SizedBox.shrink(),
-            ProductionTab.row => const SizedBox.shrink(),
+            ProductionTab.area => _AreaTab(svc: svc),
+            ProductionTab.row => _RowTab(svc: svc),
             ProductionTab.box => _BoxTab(svc: svc),
             ProductionTab.batch => _BatchTab(svc: svc),
             ProductionTab.crab => _CrabTab(svc: svc),
@@ -189,7 +189,7 @@ class _ParentDropdown<T> extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 16),
       child: DropdownButtonFormField<String>(
         isExpanded: true,
-        value: items.any((e) => (e as dynamic).id == value) || value == null
+        initialValue: items.any((e) => (e as dynamic).id == value) || value == null
             ? value
             : null,
         decoration: InputDecoration(

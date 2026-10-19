@@ -690,7 +690,7 @@ Widget _dropdown<T>({
   String Function(T)? itemLabel,
 }) {
   return DropdownButtonFormField<T>(
-    value: value,
+    initialValue: value,
     dropdownColor: DashboardColors.card,
     style: GoogleFonts.notoSans(color: DashboardColors.textPrimary, fontSize: 13),
     decoration: InputDecoration(

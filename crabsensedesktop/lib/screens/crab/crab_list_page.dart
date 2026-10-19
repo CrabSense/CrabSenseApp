@@ -201,7 +201,7 @@ class _FilterBar extends StatelessWidget {
       width: 180,
       child: DropdownButtonFormField<String>(
         isExpanded: true,
-        value: options.contains(value) ? value : options.first,
+        initialValue: options.contains(value) ? value : options.first,
         dropdownColor: DashboardColors.card,
         style: GoogleFonts.notoSans(color: DashboardColors.textPrimary, fontSize: 12),
         decoration: InputDecoration(

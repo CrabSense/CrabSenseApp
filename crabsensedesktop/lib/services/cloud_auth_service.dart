@@ -129,7 +129,7 @@ class CloudAuthService {
     var session = stored.session;
     try {
       final me = await _api.authMe(session.token);
-      return _mergeMe(session, me, stored.username);
+      return await _mergeMe(session, me, stored.username);
     } on CloudApiException catch (e) {
       if (e.statusCode != 401) {
         return await _offlineFallback(session);
@@ -147,7 +147,7 @@ class CloudAuthService {
           user: next.user ?? session.user,
         );
         final me = await _api.authMe(session.token);
-        return _mergeMe(session, me, stored.username);
+        return await _mergeMe(session, me, stored.username);
       } catch (_) {
         await _store.clearTokensKeepUsername();
         return null;

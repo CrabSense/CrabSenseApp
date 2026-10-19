@@ -335,7 +335,7 @@ class CrabLotInboundService extends ChangeNotifier {
     if (paths.isEmpty) return findById(lotId);
     try {
       await _api.uploadLotImages(token, lotId, paths);
-      return refreshOne(lotId);
+      return await refreshOne(lotId);
     } on CloudApiException catch (e) {
       _error = e.message;
       notifyListeners();

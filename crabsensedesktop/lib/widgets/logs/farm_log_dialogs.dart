@@ -232,7 +232,7 @@ class _AddFarmLogDialogState extends State<_AddFarmLogDialog> {
             children: [
               _label('Loại hoạt động'),
               DropdownButtonFormField<FarmLogType>(
-                value: _type,
+                initialValue: _type,
                 dropdownColor: DashboardColors.card,
                 items: [
                   for (final t in FarmLogType.manualChoices)

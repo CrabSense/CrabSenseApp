@@ -376,7 +376,7 @@ Widget _dropdown<T>(
     padding: const EdgeInsets.only(bottom: 10),
     child: DropdownButtonFormField<T>(
       isExpanded: true,
-      value: value,
+      initialValue: value,
       dropdownColor: DashboardColors.card,
       style: GoogleFonts.notoSans(color: DashboardColors.textPrimary, fontSize: 13),
       decoration: InputDecoration(

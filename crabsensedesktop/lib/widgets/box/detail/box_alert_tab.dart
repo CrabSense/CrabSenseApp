@@ -1065,7 +1065,7 @@ class AlertFilters extends StatelessWidget {
       width: 168,
       height: 40,
       child: DropdownButtonFormField<T>(
-        value: value,
+        initialValue: value,
         isExpanded: true,
         items: items,
         onChanged: onChanged,
@@ -1231,7 +1231,7 @@ class AlertTable extends StatelessWidget {
               SizedBox(
                 width: 110,
                 child: DropdownButtonFormField<int>(
-                  value: pageSize,
+                  initialValue: pageSize,
                   isExpanded: true,
                   items: const [
                     DropdownMenuItem(value: 10, child: Text('10 / trang')),
@@ -1478,7 +1478,7 @@ class _ResolveAlertModalState extends State<ResolveAlertModal> {
             Text('Kết quả xử lý *', style: bvText(fontSize: 12.5, fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
             DropdownButtonFormField<String>(
-              value: _code,
+              initialValue: _code,
               items: const [
                 DropdownMenuItem(value: 'fixed', child: Text('Đã khắc phục')),
                 DropdownMenuItem(value: 'gone', child: Text('Không còn lỗi')),

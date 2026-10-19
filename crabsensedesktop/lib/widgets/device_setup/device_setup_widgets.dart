@@ -1762,7 +1762,6 @@ class _SetupField extends StatefulWidget {
   const _SetupField({
     required this.label,
     this.initial,
-    this.controller,
     this.width = 200,
     this.onChanged,
     this.readOnly = false,
@@ -1773,7 +1772,6 @@ class _SetupField extends StatefulWidget {
 
   final String label;
   final String? initial;
-  final TextEditingController? controller;
   final double width;
   final ValueChanged<String>? onChanged;
   final bool readOnly;
@@ -1787,24 +1785,17 @@ class _SetupField extends StatefulWidget {
 
 class _SetupFieldState extends State<_SetupField> {
   late TextEditingController _ctrl;
-  bool _ownsController = false;
 
   @override
   void initState() {
     super.initState();
-    if (widget.controller != null) {
-      _ctrl = widget.controller!;
-    } else {
-      _ownsController = true;
-      _ctrl = TextEditingController(text: widget.initial ?? '');
-    }
+    _ctrl = TextEditingController(text: widget.initial ?? '');
   }
 
   @override
   void didUpdateWidget(_SetupField oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_ownsController &&
-        widget.initial != null &&
+    if (widget.initial != null &&
         widget.initial != oldWidget.initial &&
         _ctrl.text != widget.initial) {
       _ctrl.text = widget.initial!;
@@ -1813,7 +1804,7 @@ class _SetupFieldState extends State<_SetupField> {
 
   @override
   void dispose() {
-    if (_ownsController) _ctrl.dispose();
+    _ctrl.dispose();
     super.dispose();
   }
 
@@ -1901,7 +1892,7 @@ class _SetupDropdown<T> extends StatelessWidget {
     return SizedBox(
       width: width,
       child: DropdownButtonFormField<T>(
-        value: value,
+        initialValue: value,
         decoration: InputDecoration(
           labelText: label,
           labelStyle: GoogleFonts.notoSans(fontSize: 11),

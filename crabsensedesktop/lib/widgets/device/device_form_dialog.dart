@@ -212,7 +212,7 @@ class _DeviceFormDialogState extends State<_DeviceFormDialog> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _status,
+                  initialValue: _status,
                   decoration: _inputDec('Trạng thái', Icons.power_settings_new),
                   dropdownColor: DashboardColors.darkNavy,
                   style: GoogleFonts.notoSans(

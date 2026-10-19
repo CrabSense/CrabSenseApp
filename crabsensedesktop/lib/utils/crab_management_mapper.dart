@@ -353,7 +353,7 @@ CrabIndividual mergeCrabDetail(
     estimatedValueVnd: estimatedVnd,
     meatQualityScore: meatScore,
     alertCount: diseases.length,
-    quickNote: note ?? base.quickNote,
+    quickNote: note,
   );
 }
 

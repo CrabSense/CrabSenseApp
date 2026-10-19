@@ -8,8 +8,6 @@ import '../models/farm_dashboard_overview.dart';
 import '../services/dashboard_env_trend_service.dart';
 import '../theme/dashboard_theme.dart';
 import '../utils/farm_dashboard_mapper.dart';
-import '../models/water_quality.dart';
-import '../utils/live_trend_bootstrap.dart';
 import 'cloud_api_client.dart';
 
 /// Tổng quan Dashboard + poll cảm biến realtime (3s).
@@ -148,33 +146,6 @@ class FarmDashboardService extends ChangeNotifier {
       overview = next;
       notifyListeners();
     } catch (_) {}
-  }
-
-  Future<void> _bootstrapLiveTrend(String areaId, WaterTrendPoint anchor) async {
-    try {
-      final history = await _api.fetchAreaSensorTrend(token, areaId, minutes: 30);
-      if (history.length >= 8) {
-        envTrend.startLiveFromHistory(history);
-      } else {
-        envTrend.startLiveFromAnchor(
-          ph: anchor.ph,
-          temp: anchor.temperature,
-          dissolvedOxygen: anchor.dissolvedOxygen,
-        );
-      }
-    } catch (_) {
-      envTrend.startLiveFromAnchor(
-        ph: anchor.ph,
-        temp: anchor.temperature,
-        dissolvedOxygen: anchor.dissolvedOxygen,
-      );
-    }
-    _liveDoSeries
-      ..clear()
-      ..addAll(doSeriesFromBuffer(envTrend.rawBuffer));
-    if (_liveDoSeries.isEmpty && anchor.dissolvedOxygen != null) {
-      _liveDoSeries.add(anchor.dissolvedOxygen!);
-    }
   }
 
   void _seedTrendFromOverview() {

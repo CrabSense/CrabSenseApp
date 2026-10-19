@@ -318,7 +318,7 @@ class _BoxFormDialogState extends State<BoxFormDialog> {
                         label: 'KHU VỰC QUẢN LÝ',
                         child: DropdownButtonFormField<String?>(
                           isExpanded: true,
-                          value: _areaId,
+                          initialValue: _areaId,
                           decoration: _fieldDecoration(
                             hint: 'Chọn khu nuôi...',
                           ),
@@ -351,7 +351,7 @@ class _BoxFormDialogState extends State<BoxFormDialog> {
                         label: 'DÃY NUÔI',
                         child: DropdownButtonFormField<String?>(
                           isExpanded: true,
-                          value: _rowId,
+                          initialValue: _rowId,
                           decoration: _fieldDecoration(
                             hint: 'Chọn dãy...',
                           ),

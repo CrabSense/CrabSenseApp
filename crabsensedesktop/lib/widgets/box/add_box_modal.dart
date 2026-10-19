@@ -123,13 +123,6 @@ class _AddBoxModalState extends State<_AddBoxModal> {
 
   int get _qty => int.tryParse(_qtyCtrl.text.trim()) ?? 0;
 
-  int get _maxQty {
-    final r = _row;
-    if (r == null) return 1;
-    final rem = remainingOf(r);
-    return rem < 1 ? 1 : rem;
-  }
-
   bool get _canContinue {
     final r = _row;
     if (_areaId == null || r == null) return false;

@@ -309,7 +309,7 @@ class _Toolbar extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: DropdownButtonFormField<String?>(
-                value: svc.areaFilterId,
+                initialValue: svc.areaFilterId,
                 decoration: const InputDecoration(labelText: 'Khu'),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('Tất cả')),
@@ -324,7 +324,7 @@ class _Toolbar extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: DropdownButtonFormField<String?>(
-                value: svc.rowFilterId,
+                initialValue: svc.rowFilterId,
                 decoration: const InputDecoration(labelText: 'Dãy'),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('Tất cả')),
@@ -339,7 +339,7 @@ class _Toolbar extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: DropdownButtonFormField<String?>(
-                value: svc.boxFilterId,
+                initialValue: svc.boxFilterId,
                 decoration: const InputDecoration(labelText: 'Hộp'),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('Tất cả')),

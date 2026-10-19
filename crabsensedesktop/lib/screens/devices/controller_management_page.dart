@@ -1032,6 +1032,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                             const PopupMenuItem(
                                 value: 'hist', child: Text('Lịch sử')),
                             const PopupMenuItem(
+                                value: 'cal', child: Text('Hiệu chuẩn')),
+                            const PopupMenuItem(
                                 value: 'delete', child: Text('Xóa sensor')),
                             const PopupMenuItem(
                                 value: 'off', child: Text('Tắt sensor')),
@@ -1520,6 +1522,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
         if (mounted) _toast('Đã tắt sensor ${s.code}.');
       case 'hist':
         await _showSensorHistory(s);
+      case 'cal':
+        await _calibrate(s);
     }
   }
 
@@ -1857,12 +1861,6 @@ String _sensorTitle(ControllerChild s) {
   if (t.contains('freq') || s.code == 'meter_hz') return 'Tần số';
   if (t.contains('factor') || s.code == 'meter_pf') return 'Hệ số công suất';
   return s.name.isEmpty ? s.code : s.name;
-}
-
-String _histValue(Map<String, dynamic> r) {
-  final raw = r['value'] ?? r['Value'];
-  if (raw is num) return raw.toString();
-  return raw?.toString() ?? '—';
 }
 
 Widget _seriesChart(List<Map<String, dynamic>> rows, String unit) {

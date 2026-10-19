@@ -111,13 +111,4 @@ abstract final class AppEnv {
     if (raw == 'true') return true;
     return false; // Mặc định dùng MJPEG stream
   }
-
-  static String _cameraHost(String ipOrUrl) {
-    var s = ipOrUrl.trim();
-    if (s.startsWith('http://')) s = s.substring(7);
-    if (s.startsWith('https://')) s = s.substring(8);
-    final slash = s.indexOf('/');
-    if (slash >= 0) s = s.substring(0, slash);
-    return s;
-  }
 }

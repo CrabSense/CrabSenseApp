@@ -89,7 +89,7 @@ class _MediaKitStreamPlayerState extends State<_MediaKitStreamPlayer> {
     _player = Player();
     _controller = VideoController(_player);
     _player.stream.error.listen((e) {
-      if (!mounted || e == null) return;
+      if (!mounted) return;
       setState(() => _error = e.toString());
     });
     _player.stream.buffering.listen((buffering) {

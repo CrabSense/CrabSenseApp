@@ -203,7 +203,7 @@ class _FarmToolbar extends StatelessWidget {
           width: 220,
           child: DropdownButtonFormField<String>(
             isExpanded: true,
-            value: service.statusFilter?.name ?? 'all',
+            initialValue: service.statusFilter?.name ?? 'all',
             dropdownColor: DashboardColors.card,
             style: GoogleFonts.notoSans(
               color: DashboardColors.textPrimary,

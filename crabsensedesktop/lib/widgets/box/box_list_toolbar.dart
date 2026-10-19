@@ -233,7 +233,7 @@ class _FilterDropdown<T> extends StatelessWidget {
         : (unique.isNotEmpty ? unique.first.value : null);
     return DropdownButtonFormField<T>(
       isExpanded: true,
-      value: resolved,
+      initialValue: resolved,
       decoration: InputDecoration(
         filled: true,
         fillColor: DashboardColors.card,
