@@ -34,12 +34,6 @@ const _danger = kHomeDanger;
 /// Trần ảnh mỗi lần nhập cua — khớp giới hạn desktop (take(10)) và request 30MB của BE.
 const _maxImages = 6;
 
-/// Tình trạng cua — nhãn + key lấy từ [CrabCondition]/[BoxStatus], nên không
-/// lệch với thẻ hộp, chú giải và phiếu chăm sóc.
-final _conditionOptions = <String, String>{
-  for (final c in CrabCondition.selectable) c.apiKey: c.displayStatus.label,
-};
-
 /// Dòng chính của một lựa chọn lô: "LOT-001 · Cua Cù Mau".
 /// Mã lô một mình không đủ để người nuôi nhận ra lô nào.
 String lotOptionLabel(({String id, String code, String name, String meta}) lot) =>
@@ -554,7 +548,6 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
   String _gender = 'male';
   String _shell = 'hard';
   String _spots = 'few';
-  String _condition = 'normal';
   final List<XFile> _images = [];
   bool _submitting = false;
   bool _loadingLots = true;
@@ -850,7 +843,7 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
           'weightGram': weight,
           'tag': crabTag,
           'gender': _gender,
-          'condition': _condition,
+          // Tình trạng để BE tự suy ra từ tình trạng vỏ / gạch cua.
           if (crabType.isNotEmpty) 'crabType': crabType,
           if (lotId != null && lotId.isNotEmpty) 'crabLotId': lotId,
           if (isMale) 'moltingStage': _shell,
@@ -938,37 +931,20 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
                 style: TextStyle(fontSize: 13, color: _textSub, height: 1.35),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Lô nhập',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: _textMain,
-                ),
-              ),
-              const SizedBox(height: 8),
+              _section('Lô nhập'),
               if (_loadingLots)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
                   child: LinearProgressIndicator(color: _primary),
                 )
               else ...[
-                Row(
-                  children: [
-                    ChoiceChip(
-                      label: const Text('Chọn lô'),
-                      selected: !_createNewLot,
-                      onSelected: _lots.isEmpty
-                          ? null
-                          : (_) => setState(() => _createNewLot = false),
-                    ),
-                    const SizedBox(width: 8),
-                    ChoiceChip(
-                      label: const Text('Tạo lô mới'),
-                      selected: _createNewLot,
-                      onSelected: (_) => setState(() => _createNewLot = true),
-                    ),
-                  ],
+                _OptionPills(
+                  value: _createNewLot ? 'new' : 'pick',
+                  options: const {'pick': 'Chọn lô', 'new': 'Tạo lô mới'},
+                  onChanged: (v) {
+                    if (v == 'pick' && _lots.isEmpty) return;
+                    setState(() => _createNewLot = v == 'new');
+                  },
                 ),
                 const SizedBox(height: 8),
                 if (!_createNewLot && _lots.isNotEmpty)
@@ -1031,15 +1007,7 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
                   ),
               ],
               const SizedBox(height: 20),
-              const Text(
-                'Cân nặng (g)',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: _textMain,
-                ),
-              ),
-              const SizedBox(height: 8),
+              _section('Cân nặng (g)'),
               TextFormField(
                 controller: _weightCtrl,
                 keyboardType: TextInputType.number,
@@ -1052,15 +1020,7 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
                 },
               ),
               const SizedBox(height: 14),
-              const Text(
-                'Kích thước (không bắt buộc)',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: _textMain,
-                ),
-              ),
-              const SizedBox(height: 8),
+              _section('Kích thước (không bắt buộc)'),
               Row(
                 children: [
                   Expanded(child: _numberField(_lengthCtrl, 'Dài cm')),
@@ -1069,30 +1029,14 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
                 ],
               ),
               const SizedBox(height: 18),
-              const Text(
-                'Giới tính',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: _textMain,
-                ),
-              ),
-              const SizedBox(height: 8),
+              _section('Giới tính'),
               _OptionPills(
                 value: _gender,
                 options: const {'male': 'Đực', 'female': 'Cái'},
                 onChanged: (v) => setState(() => _gender = v),
               ),
               const SizedBox(height: 16),
-              Text(
-                isMale ? 'Tình trạng vỏ' : 'Gạch cua',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: _textMain,
-                ),
-              ),
-              const SizedBox(height: 8),
+              _section(isMale ? 'Tình trạng vỏ' : 'Gạch cua'),
               if (isMale)
                 _OptionPills(
                   value: _shell,
@@ -1114,94 +1058,16 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
                   onChanged: (v) => setState(() => _spots = v),
                 ),
               const SizedBox(height: 16),
-              const Text(
-                'Loại cua',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: _textMain,
-                ),
-              ),
-              const SizedBox(height: 8),
+              _section('Loại cua'),
               TextFormField(
                 controller: _crabTypeCtrl,
                 decoration: _deco('VD: Cua biển'),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Tình trạng cua',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: _textMain,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Quyết định màu hộp và cách chăm sóc.',
-                style: TextStyle(fontSize: 12, color: _textSub),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final entry in _conditionOptions.entries)
-                    Builder(
-                      builder: (context) {
-                        final status =
-                            CrabCondition.tryParse(entry.key)?.displayStatus;
-                        final fg = status?.color ?? _primaryDk;
-                        final bg = status?.background ?? _primaryBg;
-                        final selected = _condition == entry.key;
-                        return GestureDetector(
-                          onTap: () =>
-                              setState(() => _condition = entry.key),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: fg.withValues(alpha: selected ? 0.22 : 0.14),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: fg, width: 1.2),
-                            ),
-                            child: Text(
-                              entry.value,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 12,
-                                color: fg,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Ảnh cua (${_images.length}/$_maxImages)',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: _textMain,
-                ),
-              ),
-              const SizedBox(height: 8),
+              _section('Ảnh cua (${_images.length}/$_maxImages)'),
               _imagePicker(),
               const SizedBox(height: 16),
-              const Text(
-                'Ghi chú',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: _textMain,
-                ),
-              ),
-              const SizedBox(height: 8),
+              _section('Ghi chú'),
               TextFormField(
                 controller: _notesCtrl,
                 maxLines: 2,
@@ -1214,8 +1080,8 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
                 child: FilledButton(
                   onPressed: _submitting ? null : _submit,
                   style: FilledButton.styleFrom(
-                    backgroundColor: _primaryDk,
-                    foregroundColor: Colors.white,
+                    backgroundColor: CrabSenseColors.primary,
+                    foregroundColor: CrabSenseColors.textOnPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -1226,7 +1092,7 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
                           height: 22,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: CrabSenseColors.textOnPrimary,
                           ),
                         )
                       : const Text(
@@ -1322,6 +1188,19 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
         decoration: _deco(label),
       );
 
+  /// Tiêu đề mục — cùng style phiếu chăm sóc (đậm, xanh rừng, cách dưới 10).
+  Widget _section(String title) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Text(
+      title,
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w800,
+        color: _primaryDk,
+      ),
+    ),
+  );
+
   InputDecoration _deco(String? hint) => InputDecoration(
     hintText: hint,
     hintStyle: const TextStyle(
@@ -1353,6 +1232,7 @@ class _OptionPills extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Cùng hệ với phiếu chăm sóc: chọn = nền lime + chữ đậm, chưa chọn = trắng + viền.
     return Row(
       children: [
         for (final entry in options.entries) ...[
@@ -1362,25 +1242,34 @@ class _OptionPills extends StatelessWidget {
               color: Colors.transparent,
               child: InkWell(
                 onTap: () => onChanged(entry.key),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
-                  height: 44,
+                  height: 42,
                   alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
                   decoration: BoxDecoration(
-                    color: value == entry.key ? _primaryDk : kHomeBg,
-                    borderRadius: BorderRadius.circular(14),
+                    color: value == entry.key
+                        ? CrabSenseColors.primary
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: value == entry.key ? _primaryDk : _border,
+                      color: value == entry.key
+                          ? CrabSenseColors.primary
+                          : _border,
+                      width: value == entry.key ? 1.5 : 1,
                     ),
                   ),
                   child: Text(
                     entry.value,
                     textAlign: TextAlign.center,
+                    maxLines: 2,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w800,
-                      color: value == entry.key ? Colors.white : _textMain,
+                      color: value == entry.key
+                          ? CrabSenseColors.textOnPrimary
+                          : _textMain,
                     ),
                   ),
                 ),

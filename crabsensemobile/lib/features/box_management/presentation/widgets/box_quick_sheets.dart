@@ -50,6 +50,19 @@ Future<void> showBoxQuickActionsSheet(
                 spacing: 10,
                 runSpacing: 10,
                 children: [
+                  // Hộp trống là nơi duy nhất thả cua được (BE chặn hộp đã có cua sống).
+                  if (box.crabCount == 0)
+                    _Action(
+                      icon: Icons.pest_control_rounded,
+                      label: 'Thêm cua',
+                      enabled: canPerformActions,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        context.push(
+                          RoutePaths.boxCrabs(box.id, boxCode: box.code),
+                        );
+                      },
+                    ),
                   _Action(
                     icon: Icons.qr_code_scanner_rounded,
                     label: 'Scan QR',

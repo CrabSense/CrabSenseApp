@@ -112,13 +112,26 @@ class _BoxDetailsView extends StatelessWidget {
                   onPressed: () => showModalBottomSheet<void>(
                     context: context,
                     builder: (_) => SafeArea(
-                      child: ListTile(
-                        leading: const Icon(Icons.settings_outlined),
-                        title: const Text('Nhật ký vận hành'),
-                        onTap: () {
-                          Navigator.pop(context);
-                          context.push(RoutePaths.operationsForBox(boxId));
-                        },
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ListTile(
+                            leading: const Icon(Icons.pest_control_rounded),
+                            title: const Text('Cua trong hộp'),
+                            onTap: () {
+                              Navigator.pop(context);
+                              context.push(RoutePaths.boxCrabs(boxId));
+                            },
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.settings_outlined),
+                            title: const Text('Nhật ký vận hành'),
+                            onTap: () {
+                              Navigator.pop(context);
+                              context.push(RoutePaths.operationsForBox(boxId));
+                            },
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -191,9 +204,125 @@ class _BoxContent extends StatelessWidget {
           _BoxInfoCard(box: box),
           const SizedBox(height: 12),
 
+          // Hộp trống không có lối vào nào trước đây ⇒ nhân viên không thả cua được.
+          _CrabActionsCard(box: box),
+          const SizedBox(height: 12),
+
           _SummaryMetrics(box: box),
           const SizedBox(height: 12),
           _TabSection(box: box),
+        ],
+      ),
+    );
+  }
+}
+
+/// Cửa ngõ thả/xem cua của hộp — hộp trống thì mời thả cua mới, có cua thì mở danh sách.
+class _CrabActionsCard extends StatefulWidget {
+  const _CrabActionsCard({required this.box});
+  final Box box;
+
+  @override
+  State<_CrabActionsCard> createState() => _CrabActionsCardState();
+}
+
+class _CrabActionsCardState extends State<_CrabActionsCard> {
+  /// null = đang tải; đếm từ danh sách cua sống (đáng tin hơn status của hộp).
+  int? _count;
+
+  /// Lỗi mạng: không được đoán "hộp trống" rồi mời thả cua (BE sẽ trả 409).
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _CrabActionsCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.box.id != widget.box.id) _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final crabs = await sl<BoxRemoteDataSource>().getCrabsByBox(
+        widget.box.id,
+      );
+      if (mounted) {
+        setState(() {
+          _count = crabs.length;
+          _failed = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _count = null;
+          _failed = true;
+        });
+      }
+    }
+  }
+
+  void _open() => context.push(
+    RoutePaths.boxCrabs(
+      widget.box.id,
+      boxCode: widget.box.qrCode.isEmpty ? null : widget.box.qrCode,
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final count = _count;
+    // Hộp có cua rồi thì mọi số đo đã nằm ở "Thông tin hộp" — thẻ này chỉ còn
+    // là lối vào thả cua cho hộp trống. Mất mạng thì hiện nút Xem (an toàn cho
+    // cả hai trường hợp) thay vì đoán "trống" rồi bị BE trả 409.
+    if (count != null && count > 0) return const SizedBox.shrink();
+    if (count == null && !_failed) return const SizedBox.shrink();
+    final empty = count == 0;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: homeCardDecoration(),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  empty
+                      ? 'Hộp đang trống'
+                      : (count == null
+                            ? 'Cua trong hộp'
+                            : 'Cua trong hộp ($count)'),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: kHomeTextMain,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  empty
+                      ? 'Thả cua mới để bắt đầu theo dõi hộp này.'
+                      : 'Xem chi tiết, chăm sóc hoặc chuyển cua.',
+                  style: const TextStyle(fontSize: 12, color: kHomeTextSub),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          FilledButton.icon(
+            onPressed: _open,
+            style: FilledButton.styleFrom(backgroundColor: kHomePrimary),
+            icon: Icon(
+              empty ? Icons.add_rounded : Icons.chevron_right_rounded,
+              size: 18,
+            ),
+            label: Text(empty ? 'Thêm cua' : 'Xem'),
+          ),
         ],
       ),
     );
@@ -212,6 +341,7 @@ class _SummaryMetricsState extends State<_SummaryMetrics> {
   int _molts = 0;
   int _moves = 0;
   double? _crabWeight;
+  DateTime? _stockedAt;
 
   @override
   void initState() {
@@ -233,8 +363,10 @@ class _SummaryMetricsState extends State<_SummaryMetrics> {
       var molts = 0;
       var moves = 0;
       double? crabWeight;
+      DateTime? stockedAt;
       if (crabs.isNotEmpty) {
         crabWeight = crabs.first.weight;
+        stockedAt = crabs.first.addedAt.toLocal();
       }
       if (crabId != null && crabId.isNotEmpty) {
         try {
@@ -255,6 +387,7 @@ class _SummaryMetricsState extends State<_SummaryMetrics> {
         _molts = molts;
         _moves = moves;
         _crabWeight = crabWeight;
+        _stockedAt = stockedAt;
       });
     } catch (_) {}
   }
@@ -280,7 +413,13 @@ class _SummaryMetricsState extends State<_SummaryMetrics> {
   Widget build(BuildContext context) {
     final box = widget.box;
     final items = [
-      ('Ngày nuôi', '${_daysRaised(box)} ngày', Icons.calendar_today_rounded),
+      (
+        'Ngày nuôi',
+        _stockedAt == null
+            ? '—'
+            : '${DateTime.now().difference(_stockedAt!).inDays.clamp(0, 99999)} ngày',
+        Icons.calendar_today_rounded,
+      ),
       (
         'Khối lượng',
         _crabWeight != null && _crabWeight! > 0
@@ -312,8 +451,6 @@ class _SummaryMetricsState extends State<_SummaryMetrics> {
     );
   }
 
-  int _daysRaised(Box box) =>
-      DateTime.now().difference(box.createdAt.toLocal()).inDays.clamp(0, 99999);
 }
 
 class _MetricCard extends StatelessWidget {
@@ -399,6 +536,11 @@ class _BoxInfoCard extends StatelessWidget {
   /// maintenance → vàng. Trước đây mobile gán `maintenance` thành "Sắp lột xác"
   /// và tô bằng bộ màu cũ (kHomeWarning/kHomeSecondary) nên lệch hẳn desktop.
   Color _statusColor() {
+    // Hộp không còn cua sống thì hiển thị "Hộp trống" — status trong DB có thể
+    // còn 'active' sau khi cua chết/thu hoạch, gây tưởng vẫn đang nuôi.
+    if (box.currentCrabCount == 0 && box.status != BoxStatus.maintenance) {
+      return CrabSenseColors.statusIdle;
+    }
     switch (box.status) {
       case BoxStatus.active:
         return CrabSenseColors.statusNormal;
@@ -411,6 +553,9 @@ class _BoxInfoCard extends StatelessWidget {
   }
 
   String _statusLabel() {
+    if (box.currentCrabCount == 0 && box.status != BoxStatus.maintenance) {
+      return 'Hộp trống';
+    }
     switch (box.status) {
       case BoxStatus.active:
         return 'Bình thường';
@@ -485,13 +630,8 @@ class _BoxInfoCard extends StatelessWidget {
             value: box.qrCode.isNotEmpty ? box.qrCode : box.id,
           ),
           _DetailRow(
-            label: 'Ngày thả',
+            label: 'Ngày tạo hộp',
             value: DateFormat('dd/MM/yyyy').format(box.createdAt.toLocal()),
-          ),
-          _DetailRow(
-            label: 'Ngày nuôi',
-            value:
-                '${DateTime.now().difference(box.createdAt.toLocal()).inDays.clamp(0, 99999)} ngày',
           ),
           _DetailRow(
             label: 'Khu nuôi',
@@ -500,6 +640,8 @@ class _BoxInfoCard extends StatelessWidget {
                 ? 'Chưa cập nhật'
                 : box.location.label!,
           ),
+          // Ngày thả / ngày nuôi lấy từ cua thật, không lấy ngày tạo hộp —
+          // hộp trống trước đây vẫn khoe "48 ngày nuôi" như còn cua.
           _LotRow(boxId: box.id),
         ],
       ),
@@ -520,6 +662,10 @@ class _LotRowState extends State<_LotRow> {
   String _species = '—';
   String _length = '—';
   String _width = '—';
+  String _stockedDate = '—';
+  String _days = '—';
+  bool _loaded = false;
+  bool _empty = false;
 
   @override
   void initState() {
@@ -536,14 +682,28 @@ class _LotRowState extends State<_LotRow> {
   Future<void> _load() async {
     try {
       final crabs = await sl<BoxRemoteDataSource>().getCrabsByBox(widget.boxId);
-      if (!mounted || crabs.isEmpty) return;
+      if (!mounted) return;
+      if (crabs.isEmpty) {
+        setState(() {
+          _loaded = true;
+          _empty = true;
+        });
+        return;
+      }
       final crab = crabs.first;
       final code = crab.lotCode?.trim();
       var lot = crab.lotName?.trim();
       if (lot == null || lot.isEmpty || lot == code) {
         lot = await _lotNameForCode(code) ?? lot;
       }
+      if (!mounted) return;
+      final stockedAt = crab.addedAt.toLocal();
       setState(() {
+        _loaded = true;
+        _empty = false;
+        _stockedDate = DateFormat('dd/MM/yyyy').format(stockedAt);
+        _days =
+            '${DateTime.now().difference(stockedAt).inDays.clamp(0, 99999)} ngày';
         _lot = (lot == null || lot.isEmpty) ? (code ?? '—') : lot;
         final type = crab.crabType?.trim();
         _species = (type == null || type.isEmpty) ? '' : type;
@@ -554,7 +714,9 @@ class _LotRowState extends State<_LotRow> {
             ? '—'
             : '${crab.carapaceWidthMm!.toStringAsFixed(1)} mm';
       });
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) setState(() => _loaded = true);
+    }
   }
 
   Future<String?> _lotNameForCode(String? code) async {
@@ -578,10 +740,18 @@ class _LotRowState extends State<_LotRow> {
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      _DetailRow(label: 'Lô cua', value: _lot),
-      if (_species.isNotEmpty) _DetailRow(label: 'Loại cua', value: _species),
-      _DetailRow(label: 'Dài mai', value: _length),
-      _DetailRow(label: 'Rộng mai', value: _width),
+      if (!_loaded)
+        const _DetailRow(label: 'Cua', value: 'Đang tải…')
+      else if (_empty)
+        const _DetailRow(label: 'Cua', value: 'Chưa thả cua')
+      else ...[
+        _DetailRow(label: 'Ngày thả', value: _stockedDate),
+        _DetailRow(label: 'Ngày nuôi', value: _days),
+        _DetailRow(label: 'Lô cua', value: _lot),
+        if (_species.isNotEmpty) _DetailRow(label: 'Loại cua', value: _species),
+        _DetailRow(label: 'Dài mai', value: _length),
+        _DetailRow(label: 'Rộng mai', value: _width),
+      ],
     ],
   );
 }

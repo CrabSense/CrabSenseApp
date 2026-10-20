@@ -9,6 +9,7 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 import '../../data/datasources/box_remote_data_source.dart';
+import '../../data/models/crab_model.dart';
 
 /// Real-data history shown inside the box details history tab.
 class BoxHistorySections extends StatefulWidget {
@@ -27,6 +28,9 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
   List<_HistoryEvent> _events = const [];
   List<_GrowthMolt> _growth = const [];
   List<_GrowthPoint> _weights = const [];
+  double? _crabLengthMm;
+  double? _crabWidthMm;
+  double? _crabWeightGram;
 
   @override
   void initState() {
@@ -37,11 +41,16 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
   Future<void> _load() async {
     try {
       final api = sl<ApiClient>();
-      var crabs = <dynamic>[];
+      var crabs = <CrabModel>[];
       try {
         crabs = await sl<BoxRemoteDataSource>().getCrabsByBox(widget.boxId);
       } catch (_) {}
       final crabId = crabs.isNotEmpty ? crabs.first.id : '';
+      final crabWeight = crabs.isEmpty || crabs.first.weight <= 0
+          ? null
+          : crabs.first.weight;
+      final crabLength = crabs.isEmpty ? null : crabs.first.carapaceLengthMm;
+      final crabWidth = crabs.isEmpty ? null : crabs.first.carapaceWidthMm;
       final fetches = <Future<dynamic>>[
         api.get<dynamic>(
           ApiConstants.operationsForBox(widget.boxId),
@@ -96,6 +105,9 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
         _events = events;
         _growth = growth;
         _weights = weights;
+        _crabLengthMm = crabLength;
+        _crabWidthMm = crabWidth;
+        _crabWeightGram = crabWeight;
         _loading = false;
       });
     } catch (error) {
@@ -438,7 +450,13 @@ class _BoxHistorySectionsState extends State<BoxHistorySections> {
                   'Đây là cân nặng và kích thước cua (sau lột hoặc cân tay). '
                   'Hộp này chưa ghi lần cân / phiếu lột nên chưa có số.',
                 )
-              : _GrowthSection(molts: _growth, weights: _weights),
+              : _GrowthSection(
+                  molts: _growth,
+                  weights: _weights,
+                  crabLengthMm: _crabLengthMm,
+                  crabWidthMm: _crabWidthMm,
+                  crabWeightGram: _crabWeightGram,
+                ),
         ),
         const SizedBox(height: 12),
         _HistoryCard(
@@ -496,128 +514,329 @@ class _GrowthPoint {
 }
 
 class _GrowthSection extends StatelessWidget {
-  const _GrowthSection({required this.molts, required this.weights});
+  const _GrowthSection({
+    required this.molts,
+    required this.weights,
+    this.crabLengthMm,
+    this.crabWidthMm,
+    this.crabWeightGram,
+  });
   final List<_GrowthMolt> molts;
   final List<_GrowthPoint> weights;
 
+  /// Số đo hiện tại của con cua — hiện thành một dòng "Hiện tại" riêng ở cuối.
+  /// KHÔNG gắn vào dòng lột: phiếu lột cũ không có số đo, gắn số hiện tại vào
+  /// đó sẽ thành "lột ngày 22/09 cao 8 mm" trong khi 8 mm đo hôm nay.
+  final double? crabLengthMm;
+  final double? crabWidthMm;
+  final double? crabWeightGram;
+
   @override
   Widget build(BuildContext context) {
-    final points = weights.isNotEmpty
-        ? weights
-        : [
-            for (final molt in [...molts]..sort((a, b) => a.at.compareTo(b.at)))
-              if (molt.weightAfter != null)
-                _GrowthPoint(
-                  at: molt.at,
-                  grams: molt.weightAfter!,
-                  length: molt.lengthAfter,
-                  width: molt.widthAfter,
-                ),
-          ];
+    final sortedMolts = [...molts]..sort((a, b) => a.at.compareTo(b.at));
+    final sortedWeights = [...weights]..sort((a, b) => a.at.compareTo(b.at));
+
+    // Mốc "ban đầu" = lần cân sớm nhất; chưa có lần cân nào thì lấy cân trước
+    // lần lột đầu tiên. Không vẽ biểu đồ: người nuôi cần con số tăng, không cần
+    // trục Y — trước đây trục bắt đầu từ 0 nên 220 g thành đường phẳng vô nghĩa.
+    final baselineWeight = sortedWeights.isNotEmpty
+        ? sortedWeights.first.grams
+        : sortedMolts.map((m) => m.weightBefore).whereType<double>().firstOrNull;
+    final baselineAt = sortedWeights.isNotEmpty
+        ? sortedWeights.first.at
+        : sortedMolts.firstOrNull?.at;
+
+    final rows = <Widget>[];
+    double? lastWeight = baselineWeight;
+
+    // ── Số đo ban đầu ─────────────────────────────────────────────────────
+    // Ưu tiên số đo ghi kèm lần cân đầu tiên. Không có thì lấy số đo trên hồ sơ
+    // cua, NHƯNG chỉ khi toàn bộ lịch sử không có số đo nào — lúc đó số trên hồ
+    // sơ vẫn là số lúc thả vì chưa lần đo/lột nào ghi đè.
+    // ponytail: sửa tay số đo cua (PUT /api/crabs/{id}) cũng ghi đè hồ sơ, khi
+    // đó "Ban đầu" sẽ hiện số mới. Muốn tuyệt đối phải thêm cột Initial* vào DB.
+    final dimEvents = <({DateTime at, double? length, double? width})>[
+      for (final p in sortedWeights)
+        if (p.length != null || p.width != null)
+          (at: p.at, length: p.length, width: p.width),
+      for (final m in sortedMolts)
+        if (m.lengthAfter != null || m.widthAfter != null)
+          (at: m.at, length: m.lengthAfter, width: m.widthAfter),
+    ]..sort((a, b) => a.at.compareTo(b.at));
+
+    final firstWeight = sortedWeights.isEmpty ? null : sortedWeights.first;
+    final hasFirstWeightDims =
+        firstWeight != null && (firstWeight.length != null || firstWeight.width != null);
+    final hasCrabDims = crabLengthMm != null || crabWidthMm != null;
+
+    final initialLength = hasFirstWeightDims
+        ? firstWeight.length
+        : (dimEvents.isEmpty && hasCrabDims ? crabLengthMm : null);
+    final initialWidth = hasFirstWeightDims
+        ? firstWeight.width
+        : (dimEvents.isEmpty && hasCrabDims ? crabWidthMm : null);
+
+    if (baselineWeight != null) {
+      rows.add(
+        _GrowthRow(
+          title: 'Ban đầu',
+          at: baselineAt,
+          after: baselineWeight,
+          lengthAfter: initialLength,
+          widthAfter: initialWidth,
+        ),
+      );
+    }
+
+    if (sortedMolts.isNotEmpty) {
+      for (var i = 0; i < sortedMolts.length; i++) {
+        final m = sortedMolts[i];
+        rows.add(
+          _GrowthRow(
+            title: 'Lột ${i + 1}',
+            at: m.at,
+            before: lastWeight ?? m.weightBefore,
+            after: m.weightAfter,
+            lengthBefore: m.lengthBefore,
+            lengthAfter: m.lengthAfter,
+            widthBefore: m.widthBefore,
+            widthAfter: m.widthAfter,
+          ),
+        );
+        lastWeight = m.weightAfter ?? lastWeight;
+      }
+    } else {
+      // Chưa có phiếu lột: liệt kê từng lần cân để vẫn thấy mức tăng.
+      final rest = baselineWeight == null
+          ? sortedWeights
+          : sortedWeights.skip(1);
+      var prev = baselineWeight;
+      for (final p in rest) {
+        rows.add(
+          _GrowthRow(
+            title: 'Cân',
+            at: p.at,
+            before: prev,
+            after: p.grams,
+            lengthAfter: p.length,
+            widthAfter: p.width,
+          ),
+        );
+        prev = p.grams;
+      }
+      lastWeight = prev;
+    }
+
+    // Dòng "Hiện tại": chỉ thêm khi hồ sơ cua có số mới hơn mốc cuối trong lịch
+    // sử (hoặc cân hiện tại khác lần cân cuối). Không lặp lại số đã hiện ở
+    // "Ban đầu" khi lịch sử chưa từng ghi số đo.
+    final lastDims = dimEvents.isEmpty ? null : dimEvents.last;
+    bool differs(double? a, double? b) {
+      if (a == null && b == null) return false;
+      if (a == null || b == null) return true;
+      return (a - b).abs() >= 0.05;
+    }
+
+    final crabDimsNewer =
+        lastDims != null &&
+        hasCrabDims &&
+        (differs(lastDims.length, crabLengthMm) ||
+            differs(lastDims.width, crabWidthMm));
+    final crabWeightDiffers =
+        crabWeightGram != null &&
+        (lastWeight == null || (crabWeightGram! - lastWeight).abs() >= 0.05);
+
+    final total = baselineWeight != null && lastWeight != null
+        ? lastWeight - baselineWeight
+        : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (points.length >= 2) ...[
-          const Text(
-            'Khối lượng theo lần đo',
-            style: TextStyle(
-              color: kHomeTextMain,
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-            ),
+        ...rows,
+        if (crabDimsNewer || crabWeightDiffers)
+          _GrowthRow(
+            title: 'Hiện tại',
+            at: DateTime.now(),
+            before: lastWeight,
+            after: crabWeightGram ?? lastWeight,
+            lengthAfter: crabLengthMm,
+            widthAfter: crabWidthMm,
+            isCurrent: true,
           ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 140,
-            child: LineChart(
-              LineChartData(
-                minY: 0,
-                borderData: FlBorderData(show: false),
-                gridData: FlGridData(
-                  drawVerticalLine: false,
-                  getDrawingHorizontalLine: (_) =>
-                      FlLine(color: kHomeBorder, strokeWidth: 1),
-                ),
-                titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  leftTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: true, reservedSize: 36),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: points.length > 6
-                          ? (points.length / 4).ceilToDouble()
-                          : 1,
-                      getTitlesWidget: (value, _) {
-                        final i = value.toInt();
-                        if (i < 0 || i >= points.length) {
-                          return const SizedBox.shrink();
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(
-                            DateFormat('dd/MM').format(points[i].at),
-                            style: const TextStyle(
-                              fontSize: 9,
-                              color: kHomeTextSub,
-                            ),
-                          ),
-                        );
-                      },
+        if (rows.length > 1 && total != null && total.abs() >= 0.05)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Tổng tăng sau ${rows.length - 1} lần',
+                    style: const TextStyle(
+                      color: kHomeTextMain,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: [
-                      for (var i = 0; i < points.length; i++)
-                        FlSpot(i.toDouble(), points[i].grams),
-                    ],
-                    isCurved: true,
-                    color: kHomePrimary,
-                    barWidth: 3,
-                    dotData: const FlDotData(show: true),
+                Text(
+                  _signedGram(total),
+                  style: TextStyle(
+                    color: total >= 0 ? kHomePrimaryDark : kHomeDanger,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
                   ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-        for (final molt in molts)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              '${DateFormat('dd/MM HH:mm').format(molt.at)}  '
-              '${_pair(molt.weightBefore, molt.weightAfter, 'g')}  '
-              '${_pair(molt.lengthBefore, molt.lengthAfter, 'mm dài')}  '
-              '${_pair(molt.widthBefore, molt.widthAfter, 'mm rộng')}',
-              style: const TextStyle(
-                color: kHomeTextMain,
-                fontSize: 12,
-                height: 1.35,
-              ),
+                ),
+              ],
             ),
           ),
       ],
     );
   }
+}
 
-  static String _pair(double? before, double? after, String unit) {
-    if (before == null && after == null) return '';
-    final a = after == null ? '—' : after.toStringAsFixed(after % 1 == 0 ? 0 : 1);
-    if (before == null) return '$a $unit';
-    final b = before.toStringAsFixed(before % 1 == 0 ? 0 : 1);
-    final delta = after == null ? '' : ' (${after - before >= 0 ? '+' : ''}${(after - before).toStringAsFixed(1)})';
-    return '$b → $a $unit$delta';
+/// Một dòng tăng trưởng: mốc thời gian · cân trước → sau · mức tăng.
+/// Chỉ render phần có dữ liệu thật — không in "—" cho số chưa từng được nhập.
+class _GrowthRow extends StatelessWidget {
+  const _GrowthRow({
+    required this.title,
+    required this.at,
+    this.before,
+    this.after,
+    this.lengthBefore,
+    this.lengthAfter,
+    this.widthBefore,
+    this.widthAfter,
+    this.isCurrent = false,
+  });
+
+  final String title;
+  final DateTime? at;
+  final double? before;
+  final double? after;
+  final double? lengthBefore;
+  final double? lengthAfter;
+  final double? widthBefore;
+  final double? widthAfter;
+  final bool isCurrent;
+
+  static String _g(double v) => v.toStringAsFixed(v % 1 == 0 ? 0 : 1);
+
+  /// "7 → 8 mm" khi có cả hai, "8 mm" khi chỉ có một đầu.
+  static String? _dim(double? a, double? b, String label) {
+    if (a == null && b == null) return null;
+    if (a == null) return '$label ${_g(b!)} mm';
+    if (b == null) return '$label ${_g(a)} mm';
+    return '$label ${_g(a)} → ${_g(b)} mm';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final delta = (before != null && after != null) ? after! - before! : null;
+    final dims = <String>[
+      ?_dim(lengthBefore, lengthAfter, 'dài'),
+      ?_dim(widthBefore, widthAfter, 'rộng'),
+    ].join(' · ');
+    // Phiếu lột không nhập cân: nói rõ chưa ghi, không để dấu "—" trông như lỗi.
+    final noWeight = after == null;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: isCurrent ? kHomePrimaryBg : kHomeBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isCurrent ? kHomePrimary : kHomeBorder,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          color: kHomeTextMain,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    if (at != null) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        DateFormat('dd/MM').format(at!),
+                        style: const TextStyle(
+                          color: kHomeTextSub,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (dims.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Text(
+                      dims,
+                      style: const TextStyle(
+                        color: kHomeTextSub,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                if (noWeight)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 3),
+                    child: Text(
+                      'Chưa ghi cân',
+                      style: TextStyle(color: kHomeTextSub, fontSize: 11),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (!noWeight) ...[
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  before == null
+                      ? '${_g(after!)} g'
+                      : '${_g(before!)} → ${_g(after!)} g',
+                  style: const TextStyle(
+                    color: kHomeTextMain,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (delta != null && delta.abs() >= 0.05)
+                  Text(
+                    _signedGram(delta),
+                    style: TextStyle(
+                      color: delta >= 0 ? kHomePrimaryDark : kHomeDanger,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
+
+String _signedGram(double value) =>
+    '${value >= 0 ? '+' : ''}${value.toStringAsFixed(value % 1 == 0 ? 0 : 1)} g';
 
 class _FeedingRecord {
   const _FeedingRecord({
