@@ -50,7 +50,12 @@ class _RasControlPageState extends State<RasControlPage> {
   final _controllerIp = <String, String>{};
   final _controllerCode = <String, String>{};
   var _systemBusy = false;
+  var _relayPolling = false;
   Timer? _relayTimer;
+
+  /// Relay state poll. Each tick also does a LAN discovery per controller,
+  /// which can take longer than the tick, so keep it slow and single-flight.
+  static const _relayPollInterval = Duration(seconds: 5);
 
   RasFlowService get _svc => widget.service;
   AreaEnvironmentService? get _env => widget.environment;
@@ -62,7 +67,7 @@ class _RasControlPageState extends State<RasControlPage> {
     _env?.addListener(_onUpdate);
     _svc.startLiveRefresh(widget.areaId);
     _env?.startLiveRefresh(widget.areaId);
-    _relayTimer = Timer.periodic(const Duration(seconds: 2), (_) => _pollRelays());
+    _relayTimer = Timer.periodic(_relayPollInterval, (_) => _pollRelays());
     _pollRelays();
   }
 
@@ -100,6 +105,8 @@ class _RasControlPageState extends State<RasControlPage> {
   }
 
   Future<void> _pollRelays() async {
+    if (_relayPolling) return;
+    _relayPolling = true;
     try {
       final controllers = await _svc.areaControllers(widget.areaId);
       if (!mounted) return;
@@ -126,7 +133,10 @@ class _RasControlPageState extends State<RasControlPage> {
           ..clear()
           ..addAll(next);
       });
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      _relayPolling = false;
+    }
   }
 
   void _onUpdate() {
