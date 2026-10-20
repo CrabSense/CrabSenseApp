@@ -26,6 +26,7 @@ class AppTopBar extends StatelessWidget {
     this.selectedFarm,
     this.onFarmChanged,
     this.hideSearch = false,
+    this.onNotificationsTap,
   });
 
   final String? title;
@@ -44,6 +45,7 @@ class AppTopBar extends StatelessWidget {
   final FarmSummary? selectedFarm;
   final ValueChanged<FarmSummary>? onFarmChanged;
   final bool hideSearch;
+  final VoidCallback? onNotificationsTap;
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +71,10 @@ class AppTopBar extends StatelessWidget {
           ),
           const SizedBox(width: 10),
         ],
-        _NotificationPill(alertCount: alertCount),
+        _NotificationPill(
+          alertCount: alertCount,
+          onTap: onNotificationsTap,
+        ),
         const SizedBox(width: 10),
         _UserChip(name: displayName, onLogout: onLogout),
       ],
@@ -194,9 +199,10 @@ class AppTopBar extends StatelessWidget {
 }
 
 class _NotificationPill extends StatelessWidget {
-  const _NotificationPill({required this.alertCount});
+  const _NotificationPill({required this.alertCount, this.onTap});
 
   final int alertCount;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -205,7 +211,7 @@ class _NotificationPill extends StatelessWidget {
       height: 44,
       decoration: AppTopBar._pillDecoration(),
       child: IconButton(
-        onPressed: () {},
+        onPressed: onTap,
         tooltip: 'Cảnh báo',
         icon: Stack(
           clipBehavior: Clip.none,

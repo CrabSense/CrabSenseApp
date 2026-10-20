@@ -27,22 +27,43 @@ class NotificationHistoryItemModel extends NotificationHistoryItem {
         title: json['title'] as String,
         message: json['message'] as String,
         category: json['category'] as String,
-        receivedAt: DateTime.fromMillisecondsSinceEpoch(json['receivedAt'] as int),
+        receivedAt: DateTime.fromMillisecondsSinceEpoch(
+          json['receivedAt'] as int,
+        ),
         deepLink: json['deepLink'] as String?,
         isRead: (json['isRead'] as bool?) ?? false,
       );
 
   /// Creates a model from a domain [NotificationHistoryItem] entity.
-  factory NotificationHistoryItemModel.fromEntity(NotificationHistoryItem entity) =>
-      NotificationHistoryItemModel(
-        id: entity.id,
-        title: entity.title,
-        message: entity.message,
-        category: entity.category,
-        receivedAt: entity.receivedAt,
-        deepLink: entity.deepLink,
-        isRead: entity.isRead,
-      );
+  factory NotificationHistoryItemModel.fromEntity(
+    NotificationHistoryItem entity,
+  ) => NotificationHistoryItemModel(
+    id: entity.id,
+    title: entity.title,
+    message: entity.message,
+    category: entity.category,
+    receivedAt: entity.receivedAt,
+    deepLink: entity.deepLink,
+    isRead: entity.isRead,
+  );
+
+  /// Creates a model from a CrabSenseBE `NotificationDto`
+  /// (`GET /api/notifications/me`). Field names may arrive camelCase or
+  /// PascalCase depending on the serializer.
+  factory NotificationHistoryItemModel.fromApi(Map<String, dynamic> json) {
+    String str(Object? raw) => raw?.toString() ?? '';
+    final created = DateTime.tryParse(
+      str(json['createdAt'] ?? json['CreatedAt']),
+    )?.toLocal();
+    return NotificationHistoryItemModel(
+      id: str(json['id'] ?? json['Id']),
+      title: str(json['title'] ?? json['Title']),
+      message: str(json['body'] ?? json['Body']),
+      category: str(json['channel'] ?? json['Channel'] ?? 'in_app'),
+      receivedAt: created ?? DateTime.now(),
+      isRead: (json['isRead'] ?? json['IsRead']) == true,
+    );
+  }
 
   // ── Serialization ─────────────────────────────────────────────────────────
 

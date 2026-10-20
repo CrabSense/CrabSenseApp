@@ -37,7 +37,8 @@ abstract class NotificationHistoryLocalDataSource {
 /// Hive-backed implementation of [NotificationHistoryLocalDataSource].
 ///
 /// Items are stored as [Map<String, dynamic>] keyed by [item.id].
-class NotificationHistoryLocalDataSourceImpl implements NotificationHistoryLocalDataSource {
+class NotificationHistoryLocalDataSourceImpl
+    implements NotificationHistoryLocalDataSource {
   NotificationHistoryLocalDataSourceImpl({required this._box});
 
   final Box _box;
@@ -51,7 +52,11 @@ class NotificationHistoryLocalDataSourceImpl implements NotificationHistoryLocal
     final items =
         _box.values
             .whereType<Map>()
-            .map((raw) => NotificationHistoryItemModel.fromJson(Map<String, dynamic>.from(raw)))
+            .map(
+              (raw) => NotificationHistoryItemModel.fromJson(
+                Map<String, dynamic>.from(raw),
+              ),
+            )
             .where((item) => item.receivedAt.isAfter(cutoff))
             .toList()
           ..sort((a, b) => b.receivedAt.compareTo(a.receivedAt));
@@ -103,7 +108,9 @@ class NotificationHistoryLocalDataSourceImpl implements NotificationHistoryLocal
     for (final key in _box.keys) {
       final raw = _box.get(key);
       if (raw is Map) {
-        final model = NotificationHistoryItemModel.fromJson(Map<String, dynamic>.from(raw));
+        final model = NotificationHistoryItemModel.fromJson(
+          Map<String, dynamic>.from(raw),
+        );
         if (oldest == null || model.receivedAt.isBefore(oldest.receivedAt)) {
           oldest = model;
           oldestKey = key as String;

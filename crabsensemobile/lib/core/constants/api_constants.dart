@@ -317,6 +317,12 @@ class ApiConstants {
   static const String updateNotificationSettings = '/notifications/settings';
   static const String notificationHistory = '/notifications/history';
 
+  /// Notification Center của user hiện tại (`GET /api/notifications/me`).
+  static const String myNotifications = '/notifications/me';
+  static const String unreadNotificationCount = '/notifications/unread/count';
+  static const String markAllNotificationsRead = '/notifications/read-all';
+  static String markNotificationRead(String id) => '/notifications/$id/read';
+
   // ===========================================================================
   // Sync Endpoints
   // ===========================================================================

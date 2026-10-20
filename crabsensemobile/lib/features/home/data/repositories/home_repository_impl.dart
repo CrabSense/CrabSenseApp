@@ -397,7 +397,7 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   Future<int?> _fetchUnreadNotificationsCount() async {
-    final res = await _api.get(ApiConstants.unreadAlertCount);
+    final res = await _api.get(ApiConstants.unreadNotificationCount);
     if (res.statusCode != 200 || res.data == null) return null;
     final raw = res.data;
     Map<String, dynamic>? body;

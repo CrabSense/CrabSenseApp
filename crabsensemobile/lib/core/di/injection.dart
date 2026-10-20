@@ -814,7 +814,7 @@ Future<void> init() async {
   );
 
   sl.registerLazySingleton<NotificationHistoryRepository>(
-    () => NotificationHistoryRepositoryImpl(localDataSource: sl(), logger: sl()),
+    () => NotificationHistoryRepositoryImpl(localDataSource: sl(), api: sl(), logger: sl()),
   );
 
   sl.registerLazySingleton(() => GetNotificationHistoryUseCase(sl()));

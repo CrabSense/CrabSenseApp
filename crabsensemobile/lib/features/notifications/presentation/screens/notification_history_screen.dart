@@ -48,17 +48,19 @@ class _NotificationHistoryView extends StatelessWidget {
           return Scaffold(
             backgroundColor: const Color(0xFFF5F7FA),
             appBar: AppBar(
-              title: const Text('Notifications'),
+              title: const Text('Thông báo'),
               backgroundColor: const Color(0xFFFFFFFF),
               foregroundColor: CrabSenseColors.textPrimary,
               actions: [
                 if (hasItems)
                   TextButton(
-                    onPressed: () => _confirmClearAll(context),
+                    onPressed: () => context
+                        .read<NotificationHistoryBloc>()
+                        .add(const NotificationHistoryClearRequested()),
                     child: const Text(
-                      'Clear all',
+                      'Đọc tất cả',
                       style: TextStyle(
-                        color: CrabSenseColors.error,
+                        color: CrabSenseColors.primary,
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.w500,
                       ),
@@ -72,7 +74,8 @@ class _NotificationHistoryView extends StatelessWidget {
       );
 
   Widget _buildBody(BuildContext context, NotificationHistoryState state) {
-    if (state is NotificationHistoryLoading || state is NotificationHistoryInitial) {
+    if (state is NotificationHistoryLoading ||
+        state is NotificationHistoryInitial) {
       return const _SkeletonList();
     }
 
@@ -81,8 +84,9 @@ class _NotificationHistoryView extends StatelessWidget {
         icon: Icons.error_outline,
         title: 'Something went wrong',
         message: state.message,
-        onRetry: () =>
-            context.read<NotificationHistoryBloc>().add(const NotificationHistoryLoadRequested()),
+        onRetry: () => context.read<NotificationHistoryBloc>().add(
+          const NotificationHistoryLoadRequested(),
+        ),
       );
     }
 
@@ -94,32 +98,6 @@ class _NotificationHistoryView extends StatelessWidget {
     }
 
     return const _SkeletonList();
-  }
-
-  /// Shows a confirmation dialog before clearing all notifications.
-  Future<void> _confirmClearAll(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        backgroundColor: const Color(0xFFFFFFFF),
-        title: const Text('Clear notifications'),
-        content: const Text('All notification history will be permanently deleted.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(true),
-            child: const Text('Clear all', style: TextStyle(color: CrabSenseColors.error)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && context.mounted) {
-      context.read<NotificationHistoryBloc>().add(const NotificationHistoryClearRequested());
-    }
   }
 }
 
@@ -138,7 +116,9 @@ class _NotificationList extends StatelessWidget {
     color: CrabSenseColors.primary,
     backgroundColor: const Color(0xFFFFFFFF),
     onRefresh: () async {
-      context.read<NotificationHistoryBloc>().add(const NotificationHistoryLoadRequested());
+      context.read<NotificationHistoryBloc>().add(
+        const NotificationHistoryLoadRequested(),
+      );
       // Wait for a non-loading state.
       await context.read<NotificationHistoryBloc>().stream.firstWhere(
         (s) => s is NotificationHistoryLoaded || s is NotificationHistoryError,
@@ -176,12 +156,17 @@ class _NotificationList extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: NotificationHistoryItemWidget(
                   item: item,
-                  onTap: () {
-                    // Mark item as read via repository directly
-                    // (no separate event needed for single-item read).
-                    // Deep-link navigation can be wired here in the
-                    // future when NotificationNavigationService is
-                    // accessible from the screen.
+                  onTap: () async {
+                    if (!item.isRead) {
+                      await sl<NotificationHistoryRepository>().markRead(
+                        item.id,
+                      );
+                    }
+                    if (ctx.mounted) {
+                      context.read<NotificationHistoryBloc>().add(
+                        const NotificationHistoryLoadRequested(),
+                      );
+                    }
                   },
                 ),
               );
@@ -220,13 +205,17 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'No notifications',
-              style: theme.textTheme.titleMedium?.copyWith(color: CrabSenseColors.textPrimary),
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: CrabSenseColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'Your notification history will appear here.',
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(color: CrabSenseColors.textSecondary),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: CrabSenseColors.textSecondary,
+              ),
             ),
           ],
         ),

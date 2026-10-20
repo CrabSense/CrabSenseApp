@@ -946,6 +946,43 @@ class CloudApiClient {
         extraQuery: {'days': '$days'},
       );
 
+  /// CrabSenseBE `GET /api/notifications/me` — Notification Center của user hiện tại.
+  Future<List<Map<String, dynamic>>> fetchMyNotifications(
+    String token, {
+    bool unreadOnly = false,
+  }) =>
+      _getDataList(
+        token,
+        '/api/notifications/me',
+        extraQuery: {'unreadOnly': '$unreadOnly'},
+      );
+
+  /// CrabSenseBE `PATCH /api/notifications/{id}/read`
+  Future<void> markNotificationRead(String token, String id) async {
+    final uri = Uri.parse('$_base/api/notifications/$id/read');
+    final res = await _client.patch(uri, headers: authHeaders(token));
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không đánh dấu đã đọc',
+        statusCode: res.statusCode,
+      );
+    }
+  }
+
+  /// CrabSenseBE `PATCH /api/notifications/read-all`
+  Future<void> markAllNotificationsRead(String token) async {
+    final uri = Uri.parse('$_base/api/notifications/read-all');
+    final res = await _client.patch(uri, headers: authHeaders(token));
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không đánh dấu đã đọc tất cả',
+        statusCode: res.statusCode,
+      );
+    }
+  }
+
   Future<void> acknowledgeAlert(
     String token,
     String alertId, {

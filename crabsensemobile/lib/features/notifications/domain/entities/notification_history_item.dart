@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
-import '../../../../shared/services/notification_service.dart' show NotificationCategory;
+import '../../../../shared/services/notification_service.dart'
+    show NotificationCategory;
 
 /// Domain entity representing a single notification in the history center.
 ///
@@ -57,5 +58,13 @@ class NotificationHistoryItem extends Equatable {
   );
 
   @override
-  List<Object?> get props => [id, title, message, category, receivedAt, deepLink, isRead];
+  List<Object?> get props => [
+    id,
+    title,
+    message,
+    category,
+    receivedAt,
+    deepLink,
+    isRead,
+  ];
 }

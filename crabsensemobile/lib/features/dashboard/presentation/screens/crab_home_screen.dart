@@ -91,10 +91,9 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
                   if (!unauthorized) ...[
                     const SizedBox(height: 16),
                     FilledButton(
-                      onPressed: () =>
-                          ref.read(homeStateProvider.notifier).loadData(
-                            forceRefresh: true,
-                          ),
+                      onPressed: () => ref
+                          .read(homeStateProvider.notifier)
+                          .loadData(forceRefresh: true),
                       child: const Text('Thử lại'),
                     ),
                   ],
@@ -142,170 +141,170 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
 
   Widget _header(HomeStateData data) {
     final pin = ref.watch(selectedFarmProvider);
-    final farmLabel =
-        pin.name.isNotEmpty ? pin.name : data.selectedFarmName;
+    final farmLabel = pin.name.isNotEmpty ? pin.name : data.selectedFarmName;
     return SizedBox(
-    height: 245,
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Image.asset(
-                'assets/images/crabsense_desktop_logo.png',
-                width: 38,
-                height: 38,
-                fit: BoxFit.contain,
-              ),
-              const SizedBox(width: 7),
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'CrabSense',
-                    style: TextStyle(
-                      color: navy,
-                      fontSize: 17,
+      height: 245,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Image.asset(
+                  'assets/images/crabsense_desktop_logo.png',
+                  width: 38,
+                  height: 38,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(width: 7),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'CrabSense',
+                      style: TextStyle(
+                        color: navy,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      'Trại nuôi cua thông minh',
+                      style: TextStyle(color: Color(0xFF78909C), fontSize: 9),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                _iconButton(
+                  Icons.notifications_none_rounded,
+                  badge: data.unreadNotificationsCount > 0
+                      ? '${data.unreadNotificationsCount}'
+                      : null,
+                  onTap: () => context.push(RoutePaths.notificationHistory),
+                ),
+                const SizedBox(width: 7),
+                CircleAvatar(
+                  radius: 17,
+                  backgroundColor: const Color(0xFF17B77A),
+                  child: Text(
+                    data.operatorName.isEmpty
+                        ? 'D'
+                        : data.operatorName.substring(0, 1).toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  Text(
-                    'Trại nuôi cua thông minh',
-                    style: TextStyle(color: Color(0xFF78909C), fontSize: 9),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              _iconButton(
-                Icons.notifications_none_rounded,
-                badge: data.unreadNotificationsCount > 0
-                    ? '${data.unreadNotificationsCount}'
-                    : null,
-              ),
-              const SizedBox(width: 7),
-              CircleAvatar(
-                radius: 17,
-                backgroundColor: const Color(0xFF17B77A),
-                child: Text(
-                  data.operatorName.isEmpty
-                      ? 'D'
-                      : data.operatorName.substring(0, 1).toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _headerPill(
-                  icon: Icons.location_on_rounded,
-                  text: farmLabel,
-                  trailing: Icons.chevron_right_rounded,
-                  onTap: () => _pickFarm(data),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _headerPill(
-                  icon: Icons.wb_sunny_rounded,
-                  text: '--°C',
-                  subtitle: 'Trời nắng nhẹ',
-                  trailing: Icons.chevron_right_rounded,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Container(
-            height: 105,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF159BAA).withValues(alpha: .16),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.asset(
-                    _headerAsset(),
-                    fit: BoxFit.cover,
-                    alignment: Alignment.center,
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _headerPill(
+                    icon: Icons.location_on_rounded,
+                    text: farmLabel,
+                    trailing: Icons.chevron_right_rounded,
+                    onTap: () => _pickFarm(data),
                   ),
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Color(0xF5FFFFFF),
-                          Color(0x38FFFFFF),
-                          Colors.transparent,
-                        ],
-                        stops: [0, .42, .72],
-                      ),
-                    ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _headerPill(
+                    icon: Icons.wb_sunny_rounded,
+                    text: '--°C',
+                    subtitle: 'Trời nắng nhẹ',
+                    trailing: Icons.chevron_right_rounded,
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 12, 12, 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Chào bạn!',
-                          style: TextStyle(
-                            color: navy,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Chúc bạn một ngày làm việc hiệu quả!',
-                          style: TextStyle(
-                            color: navy.withValues(alpha: .82),
-                            fontSize: 10,
-                            shadows: [
-                              Shadow(
-                                color: Colors.white.withValues(alpha: .8),
-                                blurRadius: 3,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Spacer(),
-                        Align(
-                          alignment: Alignment.bottomLeft,
-                          child: SizedBox(
-                            width: 120,
-                            height: 32,
-                            child: Image.asset(
-                              'assets/images/crabsense_splash_slogan.png',
-                              fit: BoxFit.contain,
-                              alignment: Alignment.bottomLeft,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Container(
+              height: 105,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF159BAA).withValues(alpha: .16),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.asset(
+                      _headerAsset(),
+                      fit: BoxFit.cover,
+                      alignment: Alignment.center,
+                    ),
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Color(0xF5FFFFFF),
+                            Color(0x38FFFFFF),
+                            Colors.transparent,
+                          ],
+                          stops: [0, .42, .72],
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 12, 12, 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Chào bạn!',
+                            style: TextStyle(
+                              color: navy,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Chúc bạn một ngày làm việc hiệu quả!',
+                            style: TextStyle(
+                              color: navy.withValues(alpha: .82),
+                              fontSize: 10,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.white.withValues(alpha: .8),
+                                  blurRadius: 3,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Spacer(),
+                          Align(
+                            alignment: Alignment.bottomLeft,
+                            child: SizedBox(
+                              width: 120,
+                              height: 32,
+                              child: Image.asset(
+                                'assets/images/crabsense_splash_slogan.png',
+                                fit: BoxFit.contain,
+                                alignment: Alignment.bottomLeft,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -317,54 +316,57 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
     VoidCallback? onTap,
   }) {
     final child = Container(
-    height: 42,
-    padding: const EdgeInsets.symmetric(horizontal: 10),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: const Color(0xFFE2F0E9)),
-    ),
-    child: Row(
-      children: [
-        Icon(
-          icon,
-          size: 18,
-          color: icon == Icons.wb_sunny_rounded
-              ? const Color(0xFFF3A51B)
-              : const Color(0xFF176D70),
-        ),
-        const SizedBox(width: 7),
-        Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: navy,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              if (subtitle != null)
+      height: 42,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2F0E9)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: icon == Icons.wb_sunny_rounded
+                ? const Color(0xFFF3A51B)
+                : const Color(0xFF176D70),
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  subtitle,
-                  style: const TextStyle(color: Color(0xFF78909C), fontSize: 8),
+                  text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: navy,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-            ],
+                if (subtitle != null)
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Color(0xFF78909C),
+                      fontSize: 8,
+                    ),
+                  ),
+              ],
+            ),
           ),
-        ),
-        if (trailing != null)
-          const Icon(
-            Icons.chevron_right_rounded,
-            size: 17,
-            color: Color(0xFF90A4AE),
-          ),
-      ],
-    ),
+          if (trailing != null)
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 17,
+              color: Color(0xFF90A4AE),
+            ),
+        ],
+      ),
     );
     if (onTap == null) return child;
     return Material(
@@ -388,8 +390,7 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
       );
       return;
     }
-    final selectedId =
-        ref.read(selectedFarmProvider).id ?? data.selectedFarmId;
+    final selectedId = ref.read(selectedFarmProvider).id ?? data.selectedFarmId;
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.white,
@@ -501,8 +502,7 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
               alert: data.boxStatusCounts['alert'] ?? 0,
               empty:
                   data.boxStatusCounts['empty'] ??
-                  (data.farmSummary.totalBoxes -
-                      data.farmSummary.activeBoxes),
+                  (data.farmSummary.totalBoxes - data.farmSummary.activeBoxes),
             ),
             child: Center(
               child: Text(
@@ -518,10 +518,7 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
           ),
         ),
         const SizedBox(height: 4),
-        const Text(
-          'Tổng số cua',
-          style: TextStyle(fontSize: 9, color: navy),
-        ),
+        const Text('Tổng số cua', style: TextStyle(fontSize: 9, color: navy)),
         const SizedBox(height: 3),
         _Legend(
           'Bình thường',
@@ -559,8 +556,7 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
           'Hộp trống',
           _legendValue(
             data.boxStatusCounts['empty'] ??
-                (data.farmSummary.totalBoxes -
-                    data.farmSummary.activeBoxes),
+                (data.farmSummary.totalBoxes - data.farmSummary.activeBoxes),
             data.farmSummary.totalBoxes,
           ),
           const Color(0xFF9AA7B2),
@@ -583,11 +579,7 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
   }
 
   Widget _waterAndChart(HomeStateData data) => Column(
-    children: [
-      _waterCard(data),
-      const SizedBox(height: 10),
-      _chartCard(data),
-    ],
+    children: [_waterCard(data), const SizedBox(height: 10), _chartCard(data)],
   );
 
   Widget _chartAndWater(HomeStateData data) => Column(
@@ -612,7 +604,8 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
   }
 
   void _openActivityLog() {
-    final items = ref.read(homeStateProvider).valueOrNull?.recentActivities ??
+    final items =
+        ref.read(homeStateProvider).valueOrNull?.recentActivities ??
         const <RecentActivityItem>[];
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -744,15 +737,21 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
   }
 
   WaterMetricItem? _waterPick(HomeStateData data, String kind) {
-    final matches = data.waterMetrics.where((m) => _waterKind(m, kind)).toList();
+    final matches = data.waterMetrics
+        .where((m) => _waterKind(m, kind))
+        .toList();
     if (matches.isEmpty) return null;
     matches.sort((a, b) => b.lastUpdated.compareTo(a.lastUpdated));
     if (kind == 'temp') {
-      final ok = matches.where((m) => m.currentValue >= 5 && m.currentValue <= 40);
+      final ok = matches.where(
+        (m) => m.currentValue >= 5 && m.currentValue <= 40,
+      );
       return ok.isEmpty ? null : ok.first;
     }
     if (kind == 'ph') {
-      final ok = matches.where((m) => m.currentValue >= 5 && m.currentValue <= 10);
+      final ok = matches.where(
+        (m) => m.currentValue >= 5 && m.currentValue <= 10,
+      );
       if (ok.isNotEmpty) return ok.first;
     }
     return matches.first;
@@ -779,7 +778,9 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
             t.contains('ammon') ||
             n.contains('amoni');
       case 'no2':
-        return t.contains('no2') || t.contains('nitrit') || n.contains('nitrit');
+        return t.contains('no2') ||
+            t.contains('nitrit') ||
+            n.contains('nitrit');
       case 'kh':
         return t == 'kh' || t.contains('alkal') || n.contains('kh');
       case 'ca':
@@ -801,17 +802,17 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
   }
 
   (double?, double?) _waterRefs(String kind) => switch (kind) {
-        'temp' => (24.0, 28.0),
-        'sal' => (10.0, 20.0),
-        'ph' => (7.5, 8.5),
-        'do' => (5.0, null),
-        'nh3' => (null, 0.1),
-        'no2' => (null, 0.2),
-        'kh' => (7.0, 10.0),
-        'ca' => (380.0, 460.0),
-        'mg' => (1200.0, 1400.0),
-        _ => (null, null),
-      };
+    'temp' => (24.0, 28.0),
+    'sal' => (10.0, 20.0),
+    'ph' => (7.5, 8.5),
+    'do' => (5.0, null),
+    'nh3' => (null, 0.1),
+    'no2' => (null, 0.2),
+    'kh' => (7.0, 10.0),
+    'ca' => (380.0, 460.0),
+    'mg' => (1200.0, 1400.0),
+    _ => (null, null),
+  };
 
   _WaterLvl _waterLvl(WaterMetricItem? m, String kind) {
     if (m == null) return _WaterLvl.none;
@@ -845,9 +846,8 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
     return '';
   }
 
-  String _n(double v) => v == v.roundToDouble()
-      ? v.toStringAsFixed(0)
-      : v.toStringAsFixed(1);
+  String _n(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 
   String _legendValue(int value, int total) {
     final percent = total <= 0 ? 0 : (value * 100 / total).round();
@@ -1367,32 +1367,36 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
     ),
   );
 
-  Widget _iconButton(IconData icon, {String? badge}) => Stack(
-    clipBehavior: Clip.none,
-    children: [
-      Container(
-        padding: const EdgeInsets.all(7),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: navy, size: 20),
-      ),
-      if (badge != null)
-        Positioned(
-          right: -2,
-          top: -4,
-          child: CircleAvatar(
-            radius: 7,
-            backgroundColor: Colors.red,
-            child: Text(
-              badge,
-              style: const TextStyle(color: Colors.white, fontSize: 8),
+  Widget _iconButton(IconData icon, {String? badge, VoidCallback? onTap}) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: navy, size: 20),
             ),
-          ),
+            if (badge != null)
+              Positioned(
+                right: -2,
+                top: -4,
+                child: CircleAvatar(
+                  radius: 7,
+                  backgroundColor: Colors.red,
+                  child: Text(
+                    badge,
+                    style: const TextStyle(color: Colors.white, fontSize: 8),
+                  ),
+                ),
+              ),
+          ],
         ),
-    ],
-  );
+      );
 
   Widget _bottomNavigation() => NavigationBar(
     height: 72,
@@ -1484,11 +1488,8 @@ class _OverviewTile extends StatelessWidget {
               width: 18,
               height: 18,
               fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Icon(
-                Icons.inventory_2_outlined,
-                size: 16,
-                color: color,
-              ),
+              errorBuilder: (_, __, ___) =>
+                  Icon(Icons.inventory_2_outlined, size: 16, color: color),
             ),
             FittedBox(
               fit: BoxFit.scaleDown,

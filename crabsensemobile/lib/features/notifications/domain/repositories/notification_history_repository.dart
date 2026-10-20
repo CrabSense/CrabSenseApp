@@ -21,6 +21,9 @@ abstract class NotificationHistoryRepository {
   /// Deletes all stored notification history items.
   Future<Either<Failure, void>> clearAll();
 
+  /// Marks one notification as read on the server.
+  Future<Either<Failure, void>> markRead(String id);
+
   /// Marks every stored item as read.
   Future<Either<Failure, void>> markAllRead();
 }

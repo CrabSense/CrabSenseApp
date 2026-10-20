@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/errors/failures.dart';
 import '../../domain/entities/notification_history_item.dart';
 import '../../domain/repositories/notification_history_repository.dart';
 import '../../domain/usecases/clear_notification_history_usecase.dart';
@@ -17,7 +18,8 @@ import 'notification_history_state.dart';
 /// - [NotificationHistoryClearRequested] → clears store, emits empty list
 ///
 /// Requirements: 14.6
-class NotificationHistoryBloc extends Bloc<NotificationHistoryEvent, NotificationHistoryState> {
+class NotificationHistoryBloc
+    extends Bloc<NotificationHistoryEvent, NotificationHistoryState> {
   NotificationHistoryBloc({
     required this._getHistory,
     required this._clearHistory,
@@ -60,16 +62,24 @@ class NotificationHistoryBloc extends Bloc<NotificationHistoryEvent, Notificatio
     await _repository.addItem(event.item);
   }
 
-  /// Clears all history items and emits an empty loaded state.
+  /// Marks every notification as read (server + local cache) and reloads.
   Future<void> _onClearRequested(
     NotificationHistoryClearRequested event,
     Emitter<NotificationHistoryState> emit,
   ) async {
-    final result = await _clearHistory();
-    await result.fold(
-      (failure) async => emit(NotificationHistoryError(message: failure.message)),
-      (_) async => emit(const NotificationHistoryLoaded(items: [])),
-    );
+    final local = await _clearHistory();
+    final failure = local.fold<Failure?>((f) => f, (_) => null);
+    if (failure != null) {
+      emit(NotificationHistoryError(message: failure.message));
+      return;
+    }
+    final server = await _repository.markAllRead();
+    final serverFailure = server.fold<Failure?>((f) => f, (_) => null);
+    if (serverFailure != null) {
+      emit(NotificationHistoryError(message: serverFailure.message));
+      return;
+    }
+    await _fetchAndEmit(emit);
   }
 
   // ── Private helpers ───────────────────────────────────────────────────────

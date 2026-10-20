@@ -11,7 +11,11 @@ import '../../domain/entities/notification_history_item.dart';
 ///
 /// Requirements: 14.6
 class NotificationHistoryItemWidget extends StatelessWidget {
-  const NotificationHistoryItemWidget({required this.item, super.key, this.onTap});
+  const NotificationHistoryItemWidget({
+    required this.item,
+    super.key,
+    this.onTap,
+  });
 
   final NotificationHistoryItem item;
   final VoidCallback? onTap;
@@ -53,7 +57,9 @@ class NotificationHistoryItemWidget extends StatelessWidget {
                       item.title,
                       style: theme.textTheme.titleSmall?.copyWith(
                         color: CrabSenseColors.textPrimary,
-                        fontWeight: item.isRead ? FontWeight.w400 : FontWeight.w600,
+                        fontWeight: item.isRead
+                            ? FontWeight.w400
+                            : FontWeight.w600,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

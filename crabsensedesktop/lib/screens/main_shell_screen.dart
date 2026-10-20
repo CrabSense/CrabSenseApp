@@ -52,6 +52,8 @@ import '../services/camera_device_service.dart';
 import '../services/gateway_service.dart';
 import '../services/crab_profile_service.dart';
 import '../services/alert_service.dart';
+import '../services/notification_center_service.dart';
+import '../widgets/notifications/notification_center_panel.dart';
 import '../services/farm_management_service.dart';
 import '../services/production_management_service.dart';
 import '../services/farm_log_service.dart';
@@ -115,6 +117,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
   late final GatewayService _gatewayService;
   late final CrabProfileService _crabProfileService;
   late final AlertService _alertService;
+  late final NotificationCenterService _notificationCenter;
   late final FarmLogService _farmLogService;
   late final HarvestSalesService _harvestSalesService;
   late final AiAssistantService _aiAssistantService;
@@ -150,6 +153,10 @@ class _MainShellScreenState extends State<MainShellScreen> {
     _iotDeviceService = IotDeviceService(session: _session);
     _controllerService = ControllerService(session: _session);
     _alertService = AlertService(session: _session);
+    _notificationCenter = NotificationCenterService(session: _session);
+    _notificationCenter.addListener(_onNotificationCenterUpdate);
+    _notificationCenter.load();
+    _notificationCenter.startPolling();
     _farmLogService = FarmLogService(session: _session);
     _harvestSalesService = HarvestSalesService(session: _session);
     _aiAssistantService = AiAssistantService(session: _session);
@@ -186,6 +193,8 @@ class _MainShellScreenState extends State<MainShellScreen> {
     _farmLayoutServiceInstance?.updateSession(_session);
     _gatewayService.updateSession(_session);
     _alertService.updateSession(_session);
+    _notificationCenter.updateSession(_session);
+    _notificationCenter.load();
     _farmLogService.updateSession(_session);
     _harvestSalesService.updateSession(_session);
     _aiAssistantService.updateSession(_session);
@@ -242,7 +251,14 @@ class _MainShellScreenState extends State<MainShellScreen> {
   @override
   void dispose() {
     _connectivityLinkService.removeListener(_onConnectivityUpdate);
+    _notificationCenter.removeListener(_onNotificationCenterUpdate);
+    _notificationCenter.dispose();
     super.dispose();
+  }
+
+  void _onNotificationCenterUpdate() {
+    if (!mounted) return;
+    setState(() {});
   }
 
   void _onConnectivityUpdate() {
@@ -343,7 +359,6 @@ class _MainShellScreenState extends State<MainShellScreen> {
     String? subtitle,
     String searchHint = 'Tìm kiếm...',
     ValueChanged<String>? onSearchChanged,
-    int alertCount = 5,
     Widget? leading,
     Widget? centerTitle,
     bool hideSearch = false,
@@ -354,7 +369,12 @@ class _MainShellScreenState extends State<MainShellScreen> {
       searchHint: searchHint,
       onSearchChanged: onSearchChanged,
       displayName: _session.user.displayName,
-      alertCount: alertCount,
+      alertCount: _notificationCenter.unreadCount,
+      onNotificationsTap: () => showNotificationCenter(
+        context,
+        _notificationCenter,
+        onOpenAlerts: () => _navigate(AppRoute.alerts),
+      ),
       leading: leading,
       centerTitle: centerTitle,
       hideSearch: hideSearch,
@@ -701,7 +721,6 @@ class _MainShellScreenState extends State<MainShellScreen> {
       return _shellTopBar(
         title: 'Bản đồ trại',
         subtitle: 'Tổng quan bố trí khu, dãy và hộp trong trại nuôi',
-        alertCount: _farmDashboardService.alertCount,
         hideSearch: true,
       );
     }
@@ -711,7 +730,6 @@ class _MainShellScreenState extends State<MainShellScreen> {
       return _shellTopBar(
         title: 'Quản lý khu',
         subtitle: 'Quản lý và cấu hình các khu nuôi trong trại',
-        alertCount: _farmDashboardService.alertCount,
         hideSearch: true,
       );
     }
@@ -720,7 +738,6 @@ class _MainShellScreenState extends State<MainShellScreen> {
       return _shellTopBar(
         title: 'Quản lý dãy',
         subtitle: 'Quản lý thông tin các dãy trong khu nuôi',
-        alertCount: _farmDashboardService.alertCount,
         hideSearch: true,
       );
     }
@@ -737,7 +754,6 @@ class _MainShellScreenState extends State<MainShellScreen> {
       return _shellTopBar(
         hideSearch: true,
         centerTitle: const SizedBox.shrink(),
-        alertCount: _farmDashboardService.alertCount,
       );
     }
 
@@ -756,7 +772,6 @@ class _MainShellScreenState extends State<MainShellScreen> {
       return _shellTopBar(
         title: 'Chi tiết khu',
         subtitle: 'Tổng quan theo dõi và quản lý một khu nuôi',
-        alertCount: _farmDashboardService.alertCount,
         hideSearch: true,
         leading: IconButton(
           tooltip: 'Về Quản lý khu',
@@ -856,7 +871,6 @@ class _MainShellScreenState extends State<MainShellScreen> {
     return _shellTopBar(
       title: 'Dashboard Tổng Quan',
       subtitle: 'Giám sát và quản lý trại nuôi cua lột thông minh',
-      alertCount: _farmDashboardService.alertCount,
       hideSearch: true,
     );
   }

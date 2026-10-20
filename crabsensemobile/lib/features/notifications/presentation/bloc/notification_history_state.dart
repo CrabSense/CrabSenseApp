@@ -54,7 +54,11 @@ class NotificationHistoryLoaded extends NotificationHistoryState {
     final result = <String, List<NotificationHistoryItem>>{};
 
     for (final item in items) {
-      final itemDate = DateTime(item.receivedAt.year, item.receivedAt.month, item.receivedAt.day);
+      final itemDate = DateTime(
+        item.receivedAt.year,
+        item.receivedAt.month,
+        item.receivedAt.day,
+      );
 
       final String label;
       if (itemDate == today) {

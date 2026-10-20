@@ -21,7 +21,11 @@ class NotificationDateGroupHeader extends StatelessWidget {
     child: Row(
       children: [
         const Expanded(
-          child: Divider(color: CrabSenseColors.outlineVariant, thickness: 1, endIndent: 8),
+          child: Divider(
+            color: CrabSenseColors.outlineVariant,
+            thickness: 1,
+            endIndent: 8,
+          ),
         ),
         Text(
           label,
@@ -33,7 +37,11 @@ class NotificationDateGroupHeader extends StatelessWidget {
           ),
         ),
         const Expanded(
-          child: Divider(color: CrabSenseColors.outlineVariant, thickness: 1, indent: 8),
+          child: Divider(
+            color: CrabSenseColors.outlineVariant,
+            thickness: 1,
+            indent: 8,
+          ),
         ),
       ],
     ),
