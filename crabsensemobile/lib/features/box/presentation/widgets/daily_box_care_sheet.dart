@@ -48,21 +48,44 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
   final _feedTypeCtrl = TextEditingController();
   final _feedGramCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
+  final _deadWeightCtrl = TextEditingController();
+  final _deadLengthCtrl = TextEditingController();
+  final _deadWidthCtrl = TextEditingController();
 
   String? _endCase;
   String _eat = 'many';
   String _condition = 'normal';
   String _activity = 'active';
+  String _deadCause = 'Unknown';
   XFile? _pelletPhoto;
   XFile? _boxPhoto;
   bool _saving = false;
   bool _uploading = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Prefill số đo hiện tại — người dùng chỉ sửa nếu cân lúc chết khác.
+    _deadWeightCtrl.text = _num(widget.crab.weight);
+    _deadLengthCtrl.text = _num(widget.crab.carapaceLengthMm);
+    _deadWidthCtrl.text = _num(widget.crab.carapaceWidthMm);
+  }
+
+  static String _num(double? value) {
+    if (value == null || value <= 0) return '';
+    return value == value.roundToDouble()
+        ? value.round().toString()
+        : value.toStringAsFixed(1);
+  }
+
+  @override
   void dispose() {
     _feedTypeCtrl.dispose();
     _feedGramCtrl.dispose();
     _notesCtrl.dispose();
+    _deadWeightCtrl.dispose();
+    _deadLengthCtrl.dispose();
+    _deadWidthCtrl.dispose();
     super.dispose();
   }
 
@@ -216,12 +239,19 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
     if (crabId.isEmpty) return;
 
     if (_endCase == 'dead') {
-      try {
-        await _api.post<dynamic>(
-          '/mortality',
-          data: {'crabId': crabId, 'cause': 'Unknown', 'notes': notes},
-        );
-      } catch (_) {}
+      // Không nuốt lỗi: nếu ghi nhận chết thất bại thì phải báo, tránh cua
+      // bị coi là chết mà không có bản ghi cân/kích thước lúc chết.
+      await _api.post<dynamic>(
+        '/mortality',
+        data: {
+          'crabId': crabId,
+          'cause': _deadCause,
+          'notes': notes,
+          'weightGram': _toDouble(_deadWeightCtrl.text),
+          'carapaceLengthMm': _toDouble(_deadLengthCtrl.text),
+          'carapaceWidthMm': _toDouble(_deadWidthCtrl.text),
+        },
+      );
     }
 
     if (_endCase == 'harvested') {
@@ -456,10 +486,49 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
         ],
         if (_isEnding && widget.mode != 'feed') ...[
           const SizedBox(height: 14),
-          const Text(
-            'Không cần ghi ăn / tình trạng.',
-            style: TextStyle(color: kHomeTextSub, fontSize: 13),
-          ),
+          if (_endCase == 'dead') ...[
+            const Text(
+              'Ghi lại số đo lúc chết — không bắt buộc, mặc định lấy số đo hiện tại.',
+              style: TextStyle(color: kHomeTextSub, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _field(_deadWeightCtrl, 'Cân lúc chết (g)'),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _field(_deadLengthCtrl, 'Dài mai (mm)'),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _field(_deadWidthCtrl, 'Rộng mai (mm)'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            _section('Nguyên nhân'),
+            _pillsGrid(
+              value: _deadCause,
+              options: const {
+                'Unknown': 'Không rõ',
+                'Disease': 'Bệnh',
+                'WaterQuality': 'Chất lượng nước',
+                'Cannibalism': 'Cắn nhau',
+                'Temperature': 'Nhiệt độ',
+                'Feeding': 'Cho ăn',
+                'Handling': 'Vận chuyển',
+                'Other': 'Khác',
+              },
+              onChanged: (v) => setState(() => _deadCause = v),
+            ),
+          ] else ...[
+            const Text(
+              'Không cần ghi ăn / tình trạng.',
+              style: TextStyle(color: kHomeTextSub, fontSize: 13),
+            ),
+          ],
           const SizedBox(height: 12),
           _field(_notesCtrl, 'Ghi chú (không bắt buộc)', lines: 2),
         ] else ...[
@@ -674,10 +743,10 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
   }) => TextField(
     controller: controller,
     maxLines: lines,
-    keyboardType: hint.toLowerCase().contains('gam')
+    keyboardType: _isNumericHint(hint)
         ? const TextInputType.numberWithOptions(decimal: true)
         : TextInputType.text,
-    inputFormatters: hint.toLowerCase().contains('gam')
+    inputFormatters: _isNumericHint(hint)
         ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))]
         : null,
     decoration: InputDecoration(
@@ -895,4 +964,15 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
     'corner' => 'chui sâu vào góc hộp',
     _ => 'di chuyển nhiều',
   };
+
+  static double? _toDouble(String raw) {
+    final v = double.tryParse(raw.trim().replaceAll(',', '.'));
+    return (v == null || v <= 0) ? null : v;
+  }
+
+  /// Ô nhập số: gam, (g), (mm)…
+  static bool _isNumericHint(String hint) {
+    final h = hint.toLowerCase();
+    return h.contains('gam') || h.contains('(g)') || h.contains('(mm)');
+  }
 }
