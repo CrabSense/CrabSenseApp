@@ -65,16 +65,6 @@ class BoxActionPanel extends StatelessWidget {
           childAspectRatio: 1.55,
           children: [
             _ActionTile(
-              icon: Icons.videocam_rounded,
-              label: 'Quay video AI',
-              color: kHomeCyan,
-              enabled: canField,
-              disabledMessage: fieldPermMsg,
-              onTap: canField
-                  ? () => context.go(RoutePaths.boxVideo(boxId))
-                  : null,
-            ),
-            _ActionTile(
               icon: Icons.manage_search_rounded,
               label: 'Kiểm tra tay',
               color: kHomeBlueLight,

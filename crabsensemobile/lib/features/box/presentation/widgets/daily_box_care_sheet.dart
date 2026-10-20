@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/routes.dart';
 import '../../../../core/di/injection.dart';
@@ -19,7 +18,7 @@ import 'crab_avatar.dart';
 
 /// Phiếu hộp (1 hộp · 1 cua).
 /// [embedded] = true: hiện luôn trên màn hộp (không sheet).
-/// [mode]: `full` | `monitor` (tình trạng + video) | `feed` (ảnh thức ăn + loại + gam).
+/// [mode]: `full` | `monitor` (tình trạng) | `feed` (ảnh thức ăn + loại + gam).
 class DailyBoxCareSheet extends StatefulWidget {
   const DailyBoxCareSheet({
     super.key,
@@ -54,8 +53,6 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
   String _eat = 'many';
   String _condition = 'normal';
   String _activity = 'active';
-  XFile? _video;
-  bool _videoConfirmed = false;
   XFile? _pelletPhoto;
   XFile? _boxPhoto;
   bool _saving = false;
@@ -85,136 +82,6 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
     );
     if (!mounted) return;
     widget.onResult?.call('molt');
-  }
-
-  Future<void> _recordVideo() async {
-    final picker = ImagePicker();
-    XFile? file;
-    try {
-      file = await picker.pickVideo(
-        source: ImageSource.camera,
-        maxDuration: const Duration(seconds: 20),
-      );
-    } catch (_) {
-      file = null;
-    }
-    // Web / máy không camera → chọn file, vẫn qua bước xác nhận
-    if (file == null && kIsWeb) {
-      file = await picker.pickVideo(
-        source: ImageSource.gallery,
-        maxDuration: const Duration(seconds: 20),
-      );
-    }
-    if (file == null || !mounted) return;
-    await _reviewAndConfirmVideo(file);
-  }
-
-  Future<void> _reviewAndConfirmVideo(XFile file) async {
-    final sizeMb = (await file.length()) / (1024 * 1024);
-    if (!mounted) return;
-
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-        decoration: BoxDecoration(
-          color: kHomeSurface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kHomeBorder),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: kHomeBorder,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            const Text(
-              'Xem lại video',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: kHomeTextMain,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              file.name.isNotEmpty ? file.name : 'Video vừa quay',
-              style: const TextStyle(color: kHomeTextSub, fontSize: 13),
-            ),
-            Text(
-              '${sizeMb.toStringAsFixed(1)} MB · mục tiêu 10–20 giây',
-              style: const TextStyle(color: kHomeTextSub, fontSize: 12),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () async {
-                  final uri = Uri.tryParse(file.path);
-                  if (uri != null && await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  } else if (kIsWeb) {
-                    // Web blob path — mở tab mới nếu có
-                    final blob = Uri.parse(file.path);
-                    await launchUrl(blob, mode: LaunchMode.platformDefault);
-                  }
-                },
-                icon: const Icon(Icons.play_circle_outline_rounded),
-                label: const Text('Xem lại trên máy'),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(ctx, 'retake'),
-                    child: const Text('Quay lại'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => Navigator.pop(ctx, 'confirm'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: kHomePrimaryDark,
-                    ),
-                    child: const Text('Xác nhận lưu'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (!mounted) return;
-    if (action == 'retake') {
-      setState(() {
-        _video = null;
-        _videoConfirmed = false;
-      });
-      await _recordVideo();
-      return;
-    }
-    if (action == 'confirm') {
-      setState(() {
-        _video = file;
-        _videoConfirmed = true;
-      });
-    }
   }
 
   Future<XFile?> _pickPhoto() async {
@@ -265,39 +132,6 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
       return data['url']?.toString();
     }
     return null;
-  }
-
-  Future<String?> _uploadVideoIfAny() async {
-    final file = _video;
-    if (file == null || !_videoConfirmed) return null;
-    setState(() => _uploading = true);
-    try {
-      final bytes = await file.readAsBytes();
-      final name = file.name.isNotEmpty
-          ? file.name
-          : 'box_${widget.boxCode}_${DateTime.now().millisecondsSinceEpoch}.mp4';
-      final form = FormData.fromMap({
-        'category': 'video',
-        'boxId': widget.boxId,
-        'file': MultipartFile.fromBytes(bytes, filename: name),
-      });
-      final res = await _api.dio.post<dynamic>('/media/upload', data: form);
-      final data = res.data;
-      if (data is Map) {
-        final nested = data['data'];
-        if (nested is Map) {
-          return (nested['webViewLink'] ??
-                  nested['shareLink'] ??
-                  nested['url'] ??
-                  nested['storageKey'])
-              ?.toString();
-        }
-        return (data['url'] ?? data['webViewLink'])?.toString();
-      }
-      return null;
-    } finally {
-      if (mounted) setState(() => _uploading = false);
-    }
   }
 
   Future<void> _save() async {
@@ -420,7 +254,6 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
     required String tag,
     required String extraNotes,
   }) async {
-    String? videoUrl;
     String? pelletUrl;
     String? boxUrl;
     try {
@@ -431,14 +264,11 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
       if (_boxPhoto != null) {
         boxUrl = await _uploadFeedPhoto(_boxPhoto!, 'feed_box');
       }
-      if (widget.mode != 'feed') {
-        videoUrl = await _uploadVideoIfAny();
-      }
     } catch (e) {
       if (!mounted) rethrow;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Ảnh/video chưa lên được: $e — vẫn lưu phiếu.'),
+          content: Text('Ảnh chưa lên được: $e — vẫn lưu phiếu.'),
           backgroundColor: kHomeWarning,
           behavior: SnackBarBehavior.floating,
         ),
@@ -459,7 +289,6 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
       'Hoạt động: ${_activityLabel(_activity)}',
       if (pelletUrl != null && pelletUrl.isNotEmpty) 'Ảnh viên thức ăn: $pelletUrl',
       if (boxUrl != null && boxUrl.isNotEmpty) 'Ảnh hộp cho ăn: $boxUrl',
-      if (videoUrl != null && videoUrl.isNotEmpty) 'Video: $videoUrl',
       if (extraNotes.isNotEmpty) 'Ghi chú: $extraNotes',
     ].join('\n');
 
@@ -467,7 +296,6 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
     final photoUrls = [
       if (pelletUrl != null && pelletUrl.isNotEmpty) pelletUrl,
       if (boxUrl != null && boxUrl.isNotEmpty) boxUrl,
-      if (videoUrl != null && videoUrl.isNotEmpty) videoUrl,
     ];
     await _api.post<dynamic>(
       '/operations',
@@ -601,8 +429,8 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
             widget.mode == 'feed'
                 ? 'Ảnh, loại thức ăn và gam — có thì ghi, không có thì vẫn lưu.'
                 : widget.mode == 'monitor'
-                ? 'Tình trạng / video nếu có. Hôm nào không rảnh chụp vẫn lưu được.'
-                : 'Có gì ghi nấy — không bắt ảnh hay video.',
+                ? 'Tình trạng nếu có. Hôm nào không rảnh chụp vẫn lưu được.'
+                : 'Có gì ghi nấy — không bắt ảnh.',
             style: const TextStyle(fontSize: 12, color: kHomeTextSub),
           ),
           const SizedBox(height: 12),
@@ -629,7 +457,7 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
         if (_isEnding && widget.mode != 'feed') ...[
           const SizedBox(height: 14),
           const Text(
-            'Không cần ghi ăn / tình trạng / video.',
+            'Không cần ghi ăn / tình trạng.',
             style: TextStyle(color: kHomeTextSub, fontSize: 13),
           ),
           const SizedBox(height: 12),
@@ -721,38 +549,6 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
               },
               onChanged: (v) => setState(() => _activity = v),
             ),
-            const SizedBox(height: 14),
-            _section('Video 10–20 giây'),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _uploading ? null : _recordVideo,
-                style: FilledButton.styleFrom(
-                  backgroundColor: CrabSenseColors.primary,
-                  foregroundColor: CrabSenseColors.textOnPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                icon: Icon(
-                  _videoConfirmed
-                      ? Icons.check_circle_rounded
-                      : Icons.videocam_rounded,
-                ),
-                label: Text(
-                  _videoConfirmed ? 'Đã có video' : 'Quay video sau khi ăn',
-                ),
-              ),
-            ),
-            if (_videoConfirmed)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: TextButton(
-                  onPressed: _uploading ? null : _recordVideo,
-                  child: const Text('Quay video khác'),
-                ),
-              ),
           ],
           const SizedBox(height: 14),
           _section('Ghi chú'),

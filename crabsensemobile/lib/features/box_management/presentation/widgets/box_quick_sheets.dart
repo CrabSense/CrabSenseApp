@@ -60,24 +60,6 @@ Future<void> showBoxQuickActionsSheet(
                     },
                   ),
                   _Action(
-                    icon: Icons.videocam_rounded,
-                    label: 'Quay video AI',
-                    enabled: canPerformActions,
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      context.push(RoutePaths.boxVideo(box.id));
-                    },
-                  ),
-                  _Action(
-                    icon: Icons.auto_awesome_rounded,
-                    label: 'AI Detection',
-                    enabled: canPerformActions,
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      context.push(RoutePaths.boxVideo(box.id));
-                    },
-                  ),
-                  _Action(
                     icon: Icons.water_drop_rounded,
                     label: 'Kiểm tra nước',
                     enabled: canPerformActions,

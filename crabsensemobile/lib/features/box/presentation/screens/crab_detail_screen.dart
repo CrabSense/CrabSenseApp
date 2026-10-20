@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -494,10 +493,10 @@ class _CrabDetailScreenState extends State<CrabDetailScreen>
               ),
               const SizedBox(width: 8),
               OutlinedButton.icon(
-                onPressed: () => _showMediaCaptureSheet(context),
+                onPressed: _capturePhoto,
                 icon: const Icon(Icons.photo_camera_outlined, size: 14),
                 label: Text(
-                  'Ảnh / video',
+                  'Chụp ảnh',
                   style: GoogleFonts.nunito(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -657,60 +656,26 @@ class _CrabDetailScreenState extends State<CrabDetailScreen>
     );
   }
 
-  Future<void> _showMediaCaptureSheet(BuildContext context) async {
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt_outlined, color: _primary),
-              title: const Text('Chụp ảnh thức ăn / cân'),
-              subtitle: const Text('Lưu vào bộ dữ liệu của con cua này'),
-              onTap: () => Navigator.pop(ctx, 'image'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.videocam_outlined, color: _primary),
-              title: const Text('Quay video tình trạng ăn'),
-              subtitle: const Text('Khuyến nghị quay khoảng 10–20 giây'),
-              onTap: () => Navigator.pop(ctx, 'video'),
-            ),
-          ],
-        ),
-      ),
+  Future<void> _capturePhoto() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.camera,
+      imageQuality: 85,
     );
-    if (choice != null && mounted) await _pickAndUploadMedia(choice);
-  }
-
-  Future<void> _pickAndUploadMedia(String type) async {
-    final picker = ImagePicker();
-    final picked = type == 'image'
-        ? await picker.pickImage(source: ImageSource.camera, imageQuality: 85)
-        : await picker.pickVideo(
-            source: ImageSource.camera,
-            maxDuration: const Duration(seconds: 30),
-          );
     if (picked == null || !mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(
-      SnackBar(content: Text(type == 'image' ? 'Đang tải ảnh...' : 'Đang tải video...')),
+      const SnackBar(content: Text('Đang tải ảnh...')),
     );
     try {
       final api = sl<ApiClient>();
       final form = FormData.fromMap({
         'file': await MultipartFile.fromFile(picked.path, filename: picked.name),
-        'category': type,
+        'category': 'image',
         'crabId': widget.crabId,
         if (widget.boxId != null) 'boxId': widget.boxId,
-        'relatedEntityType': type == 'image' ? 'feeding-event' : 'observation-event',
-        'notes': type == 'image'
-            ? 'Food/scale capture'
-            : 'Feeding observation video',
+        'relatedEntityType': 'feeding-event',
+        'notes': 'Food/scale capture',
       });
       await api.dio.post<dynamic>('/media/upload', data: form);
       if (!mounted) return;

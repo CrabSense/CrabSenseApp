@@ -202,8 +202,6 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
         );
       case ScanQuickAction.aiDetection:
         unawaited(_openAiDetection(boxId));
-      case ScanQuickAction.videoAi:
-        context.push(RoutePaths.boxVideo(boxId));
       case ScanQuickAction.water:
         if (farmId.isNotEmpty) {
           context.push(RoutePaths.waterQualityForFarm(farmId));
@@ -244,7 +242,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
       messenger.showSnackBar(
         SnackBar(content: Text(result.failure!.message)),
       );
-      context.push(RoutePaths.boxVideo(boxId));
+      context.push(RoutePaths.boxDetails(boxId));
       return;
     }
 
@@ -277,10 +275,10 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
 
     messenger.showSnackBar(
       const SnackBar(
-        content: Text('Chưa có AI detection — quay video để phân tích.'),
+        content: Text('Chưa có kết quả AI cho hộp này.'),
       ),
     );
-    context.push(RoutePaths.boxVideo(boxId));
+    context.push(RoutePaths.boxDetails(boxId));
   }
 
   void _onFailure(BoxFetchFailure state) {

@@ -5,7 +5,6 @@ import '../../../home/presentation/widgets/home_palette.dart';
 enum ScanQuickAction {
   details,
   aiDetection,
-  videoAi,
   water,
   harvest,
   cameraLive,
@@ -25,7 +24,6 @@ class QuickActionsGrid extends StatelessWidget {
   static const _items = <(ScanQuickAction, IconData, String)>[
     (ScanQuickAction.details, Icons.set_meal_rounded, 'Theo dõi cua'),
     (ScanQuickAction.aiDetection, Icons.smart_toy_outlined, 'Phát hiện AI'),
-    (ScanQuickAction.videoAi, Icons.videocam_outlined, 'Quay Video AI'),
     (ScanQuickAction.water, Icons.science_outlined, 'Kiểm tra nước'),
     (ScanQuickAction.harvest, Icons.inventory_2_outlined, 'Thu hoạch'),
     (ScanQuickAction.cameraLive, Icons.camera_alt_outlined, 'Camera trực tiếp'),
