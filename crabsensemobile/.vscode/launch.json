@@ -37,6 +37,15 @@
       "program": "lib/main.dart"
     },
     {
+      "name": "Flutter Mobile (Khanh ngrok)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define=API_BASE_URL=https://finlike-lorrie-refreshfully.ngrok-free.dev"
+      ]
+    },
+    {
       "name": "Flutter Mobile (Release)",
       "request": "launch",
       "type": "dart",
