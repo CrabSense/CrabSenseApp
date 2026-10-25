@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../services/cloud_auth_service.dart';
+import '../utils/ascii_input_formatter.dart';
 import 'farm_select_screen.dart';
 
 /// Palette theo UI_Login.png — xanh lá / teal / navy.
@@ -991,6 +992,9 @@ class _AuthTextField extends StatelessWidget {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
+      // Tài khoản/mật khẩu là ASCII: bộ gõ Telex biến `ow` thành `ơ` (owner →
+      // ơner) và đăng nhập sai dù gõ đúng.
+      inputFormatters: const [AsciiTextInputFormatter()],
       validator: validator,
       onChanged: onChanged,
       style: GoogleFonts.beVietnamPro(
