@@ -100,12 +100,13 @@ class HarvestSalesService extends ChangeNotifier {
     return 'SALE-${(max + 1).toString().padLeft(3, '0')}';
   }
 
-  Future<String?> uploadPhoto(String path) =>
-      _api.uploadOperationPhoto(
-        _session.token,
-        path,
-        relatedEntityType: 'HarvestVouchers',
-      );
+  /// Ảnh phiếu chỉ upload được SAU khi phiếu có id — thư mục đích là
+  /// {khu}/ThuHoach/{mã phiếu} do BE sinh mã.
+  Future<List<String>> uploadVoucherPhotos(
+    String voucherId,
+    List<String> paths,
+  ) =>
+      _api.uploadHarvestVoucherPhotos(_session.token, voucherId, paths);
   String get areaName => _session.selectedFarm.name;
   String get areaId => _session.selectedFarm.id;
   String get token => _session.token;
@@ -915,7 +916,7 @@ class HarvestSalesService extends ChangeNotifier {
     await load();
   }
 
-  Future<String> createHarvestFromCrabs({
+  Future<({String id, String code})> createHarvestFromCrabs({
     required DateTime harvestDate,
     required String performedBy,
     String? note,
@@ -970,7 +971,8 @@ class HarvestSalesService extends ChangeNotifier {
             created['Code'] ??
             '')
         .toString();
-    return code.isEmpty ? preview : code;
+    final id = (created['id'] ?? created['Id'] ?? '').toString();
+    return (id: id, code: code.isEmpty ? preview : code);
   }
 
   Future<void> updateHarvestStatus(String id, String status) async {

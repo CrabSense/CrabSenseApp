@@ -1,5 +1,6 @@
 // ignore_for_file: lines_longer_than_80_chars
 
+import 'package:dio/dio.dart' show FormData, MultipartFile;
 import 'package:logger/logger.dart';
 
 import '../../../../core/constants/api_constants.dart';
@@ -63,6 +64,8 @@ class HarvestRemoteDataSourceImpl implements HarvestRemoteDataSource {
   Future<HarvestModel> recordHarvest(HarvestModel model) async {
     logger.d('HarvestRemote: recordHarvest boxId=${model.boxId} weight=${model.totalWeight} count=${model.crabCount}');
 
+    // Tạo phiếu TRƯỚC: mã HAR-xxx do BE sinh, chỉ khi có id mới biết thư mục
+    // {khu}/ThuHoach/{mã phiếu} để đẩy ảnh vào đúng chỗ.
     final result = await apiClient.safePost<Map<String, dynamic>>(
       ApiConstants.recordHarvest,
       data: _voucherBody(model),
@@ -70,14 +73,38 @@ class HarvestRemoteDataSourceImpl implements HarvestRemoteDataSource {
 
     _checkFailure(result.failure, 'record harvest');
 
-    if (result.data.data == null) {
+    final envelope = result.data.data;
+    if (envelope == null) {
       throw const ServerException(
         message: 'Empty response from record harvest endpoint',
         code: 'PARSE_ERROR',
       );
     }
 
-    return model.copyWith(isSynced: true, isDirty: false, syncedAt: DateTime.now());
+    // Response bọc ApiResponse<...>: { success, data: { id, voucherCode, ... } }
+    final payload = envelope['data'];
+    final body = payload is Map ? payload : envelope;
+    final voucherId = (body['id'] ?? body['Id'])?.toString();
+    var photoUrls = const <String>[];
+    if (voucherId != null && voucherId.isNotEmpty) {
+      try {
+        photoUrls = await _uploadLocalPhotos(voucherId, model.photoUrls);
+      } on Exception catch (e) {
+        // Phiếu đã tạo xong; ném lỗi ở đây sẽ khiến lần sync sau tạo TRÙNG phiếu
+        // (và cộng đôi sản lượng). Giữ ảnh local trên máy, ghi log để upload lại
+        // qua POST /harvest-vouchers/{id}/images khi có mạng ổn định.
+        // ponytail: chấp nhận ảnh chưa lên Drive nếu upload lỗi; nâng cấp = lưu
+        // voucherId + hàng đợi retry ảnh trong DB local.
+        logger.w('HarvestRemote: upload ảnh phiếu $voucherId lỗi — $e');
+      }
+    }
+
+    return model.copyWith(
+      photoUrls: photoUrls.isEmpty ? model.photoUrls : photoUrls,
+      isSynced: true,
+      isDirty: false,
+      syncedAt: DateTime.now(),
+    );
   }
 
   @override
@@ -210,6 +237,77 @@ class HarvestRemoteDataSourceImpl implements HarvestRemoteDataSource {
     );
   }
 
+  /// Đẩy các ảnh còn là đường dẫn local lên Drive trong thư mục của phiếu.
+  ///
+  /// BE chỉ tạo MediaAsset từ file thô, không nhận path — nên nếu bỏ qua bước này
+  /// thì ảnh thu hoạch chỉ nằm trong cache điện thoại và mất khi Android dọn.
+  Future<List<String>> _uploadLocalPhotos(
+    String voucherId,
+    List<String> photoRefs,
+  ) async {
+    final urls = <String>[];
+    final localPaths = <String>[];
+    for (final ref in photoRefs) {
+      final value = ref.trim();
+      if (value.isEmpty) continue;
+      if (value.startsWith('http://') || value.startsWith('https://')) {
+        urls.add(value);
+      } else {
+        localPaths.add(value);
+      }
+    }
+    if (localPaths.isEmpty) return urls;
+
+    final form = FormData();
+    for (final path in localPaths) {
+      try {
+        form.files.add(
+          MapEntry(
+            'files',
+            await MultipartFile.fromFile(
+              path,
+              filename: path.split(RegExp(r'[\\/]')).last,
+            ),
+          ),
+        );
+      } on Exception catch (e) {
+        throw ServerException(
+          message: 'Không đọc được ảnh $path: $e',
+          code: 'PHOTO_READ_ERROR',
+        );
+      }
+    }
+
+    final upload = await apiClient.safePost<dynamic>(
+      ApiConstants.harvestVoucherImages(voucherId),
+      data: form,
+    );
+    _checkFailure(upload.failure, 'upload harvest photo');
+
+    final body = upload.data.data;
+    dynamic raw = body is Map ? (body['data'] ?? body) : body;
+    if (raw is Map) raw = raw['items'] ?? raw['data'] ?? raw;
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is! Map) continue;
+        final url = (item['url'] ??
+                item['Url'] ??
+                item['storageKey'] ??
+                item['StorageKey'])
+            ?.toString();
+        if (url != null && url.isNotEmpty) urls.add(url);
+      }
+    }
+
+    if (urls.isEmpty) {
+      throw const ServerException(
+        message: 'Upload ảnh thu hoạch không trả về URL',
+        code: 'PHOTO_UPLOAD_EMPTY',
+      );
+    }
+    return urls;
+  }
+
   Map<String, dynamic> _voucherBody(HarvestModel model) {
     final guid = RegExp(
       r'^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$',
@@ -222,6 +320,12 @@ class HarvestRemoteDataSourceImpl implements HarvestRemoteDataSource {
       QualityGrade.gradeC => 'C',
     };
     final notes = model.notes?.trim();
+    // Chỉ gửi URL thật. Path local được upload SAU khi phiếu có id (xem recordHarvest),
+    // nếu gửi path lên BE sẽ bị lưu thành photoUrls rác.
+    final photoUrls = model.photoUrls
+        .map((u) => u.trim())
+        .where((u) => u.startsWith('http://') || u.startsWith('https://'))
+        .toList(growable: false);
     return {
       'harvestDate': model.harvestDate.toUtc().toIso8601String(),
       'status': 'Completed',
@@ -229,6 +333,7 @@ class HarvestRemoteDataSourceImpl implements HarvestRemoteDataSource {
       if (guid.hasMatch(farmId)) 'farmingAreaId': farmId,
       if (model.operatorName.trim().isNotEmpty)
         'performedByName': model.operatorName.trim(),
+      if (photoUrls.isNotEmpty) 'photoUrls': photoUrls,
       'lines': [
         {
           if (guid.hasMatch(crabId)) 'crabId': crabId,
@@ -236,6 +341,7 @@ class HarvestRemoteDataSourceImpl implements HarvestRemoteDataSource {
           'grade': grade,
           'isSoftshell': model.qualityGrade == QualityGrade.gradeC,
           if (notes != null && notes.isNotEmpty) 'notes': notes,
+          if (photoUrls.isNotEmpty) 'photoUrls': photoUrls,
         },
       ],
     };

@@ -252,6 +252,10 @@ class ApiConstants {
   static const String harvests = '/harvest-vouchers';
   static String harvestDetails(String harvestId) =>
       '/harvest-vouchers/$harvestId';
+
+  /// Upload ảnh vào đúng thư mục {khu}/ThuHoach/{mã phiếu}.
+  static String harvestVoucherImages(String harvestId) =>
+      '/harvest-vouchers/$harvestId/images';
   static const String recordHarvest = '/harvest-vouchers';
   static const String harvestSummary = '/harvest-vouchers/statistics';
   static const String harvestStatistics = '/harvest-vouchers/statistics';

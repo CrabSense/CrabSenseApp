@@ -157,6 +157,49 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
     return null;
   }
 
+  /// Ảnh chụp lúc kết thúc hộp -> {khu}/ThuHoach/{mã phiếu}.
+  /// BE chỉ tạo MediaAsset từ file thô nên path local sẽ bị bỏ mất.
+  Future<List<String>> _uploadEndCasePhotos(String voucherId) async {
+    final picked = <XFile>[
+      if (_boxPhoto != null) _boxPhoto!,
+      if (_pelletPhoto != null) _pelletPhoto!,
+    ];
+    if (picked.isEmpty) return const [];
+
+    final form = FormData.fromMap({
+      'files': [
+        for (final f in picked)
+          MultipartFile.fromBytes(
+            await f.readAsBytes(),
+            filename: f.name.isNotEmpty
+                ? f.name
+                : 'harvest_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          ),
+      ],
+    });
+    final res = await _api.dio.post<dynamic>(
+      '/harvest-vouchers/$voucherId/images',
+      data: form,
+    );
+    final body = res.data;
+    dynamic raw = body is Map ? (body['data'] ?? body) : body;
+    if (raw is Map) raw = raw['items'] ?? raw['data'] ?? raw;
+    final urls = <String>[];
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is! Map) continue;
+        final url = (item['url'] ??
+                item['Url'] ??
+                item['storageKey'] ??
+                item['StorageKey'])
+            ?.toString();
+        if (url != null && url.isNotEmpty) urls.add(url);
+      }
+    }
+    if (urls.isEmpty) throw Exception('Upload ảnh không trả về URL');
+    return urls;
+  }
+
   Future<void> _save() async {
     if (_saving) return;
     setState(() => _saving = true);
@@ -256,7 +299,9 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
 
     if (_endCase == 'harvested') {
       try {
-        await _api.post<dynamic>(
+        // Tạo phiếu TRƯỚC để BE sinh mã HAR-xxx; có id mới biết thư mục
+        // {khu}/ThuHoach/{mã phiếu} mà đẩy ảnh vào.
+        final res = await _api.post<dynamic>(
           '/harvest-vouchers',
           data: {
             'harvestDate': DateTime.now().toUtc().toIso8601String(),
@@ -272,6 +317,12 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
             ],
           },
         );
+        final body = res.data;
+        final data = body is Map ? (body['data'] ?? body) : null;
+        final voucherId = data is Map ? (data['id'] ?? data['Id'])?.toString() : null;
+        if (voucherId != null && voucherId.isNotEmpty) {
+          await _uploadEndCasePhotos(voucherId);
+        }
       } catch (_) {}
     }
 

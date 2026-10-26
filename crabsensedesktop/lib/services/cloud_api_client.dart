@@ -566,6 +566,40 @@ class CloudApiClient {
     return url?.toString();
   }
 
+  /// Upload ảnh vào đúng thư mục {khu}/ThuHoach/{mã phiếu}.
+  /// Phải gọi SAU khi phiếu đã có id (BE sinh mã phiếu).
+  Future<List<String>> uploadHarvestVoucherPhotos(
+    String token,
+    String voucherId,
+    List<String> filePaths,
+  ) async {
+    if (filePaths.isEmpty) return const [];
+    final uri = Uri.parse('$_base/api/harvest-vouchers/$voucherId/images');
+    final req = http.MultipartRequest('POST', uri);
+    req.headers.addAll(authHeaders(token));
+    for (final path in filePaths) {
+      req.files.add(await http.MultipartFile.fromPath('files', path));
+    }
+    final streamed = await _client.send(req);
+    final res = await http.Response.fromStream(streamed);
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không tải ảnh phiếu thu hoạch',
+        statusCode: res.statusCode,
+      );
+    }
+    final data = _dataOf(body);
+    final items = data is List ? data : (data is Map ? data['items'] : null);
+    if (items is! List) return const [];
+    return items
+        .whereType<Map>()
+        .map((i) => (i['url'] ?? i['Url'])?.toString())
+        .whereType<String>()
+        .where((u) => u.isNotEmpty)
+        .toList(growable: false);
+  }
+
   Future<List<Map<String, dynamic>>> fetchHarvestVouchers(
     String token, {
     String? farmingAreaId,

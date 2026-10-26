@@ -334,16 +334,10 @@ class _CreateHarvestModalState extends State<CreateHarvestModal> {
     return 'Loại khác: $extra\n$note';
   }
 
-  Future<List<String>> _uploadPhotos() async {
-    final urls = <String>[];
-    for (final p in _photos) {
-      final path = p.path;
-      if (path == null || path.isEmpty) continue;
-      final url = await _svc.uploadPhoto(path);
-      if (url != null && url.startsWith('http')) urls.add(url);
-    }
-    return urls;
-  }
+  List<String> get _photoPaths => [
+        for (final p in _photos)
+          if (p.path != null && p.path!.isNotEmpty) p.path!,
+      ];
 
   Future<void> _submit({required bool draft}) async {
     if (_saving) return;
@@ -358,8 +352,7 @@ class _CreateHarvestModalState extends State<CreateHarvestModal> {
       _error = null;
     });
     try {
-      final photos = await _uploadPhotos();
-      final code = await _svc.createHarvestFromCrabs(
+      final created = await _svc.createHarvestFromCrabs(
         harvestDate: _when,
         performedBy: _svc.performerName,
         note: _composedNote().isEmpty ? null : _composedNote(),
@@ -380,18 +373,31 @@ class _CreateHarvestModalState extends State<CreateHarvestModal> {
             c.id: (_productById[c.id] ?? _product) ==
                 HarvestProductType.softshell,
         },
-        photoUrls: photos,
         status: draft ? 'Planned' : 'InProgress',
       );
+
+      // Ảnh phải upload SAU khi phiếu có id để rơi đúng {khu}/ThuHoach/{mã phiếu}.
+      var photoFailed = false;
+      final paths = _photoPaths;
+      if (created.id.isNotEmpty && paths.isNotEmpty) {
+        try {
+          await _svc.uploadVoucherPhotos(created.id, paths);
+        } catch (_) {
+          photoFailed = true;
+        }
+      }
+
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            draft
-                ? '✓ Đã lưu $code dưới dạng nháp.'
-                : '✓ Đã tạo phiếu $code thành công.',
+            photoFailed
+                ? '✓ Đã tạo phiếu ${created.code} — ảnh chưa lên được, tải lại sau.'
+                : draft
+                    ? '✓ Đã lưu ${created.code} dưới dạng nháp.'
+                    : '✓ Đã tạo phiếu ${created.code} thành công.',
           ),
         ),
       );
