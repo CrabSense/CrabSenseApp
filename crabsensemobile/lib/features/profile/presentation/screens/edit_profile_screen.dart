@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/utils/app_back.dart';
-import '../../../home/presentation/widgets/crab_hologram_painter.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 import '../providers/profile_provider.dart';
+import '../widgets/profile_hub_scaffold.dart';
 
 /// Màn chỉnh sửa hồ sơ — PUT /auth/me.
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -70,140 +69,88 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kHomeBg,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: IgnorePointer(
-              child: CustomPaint(
-                painter: CrabHologramPainter(
-                  color: kHomeBlueLight.withValues(alpha: 0.05),
-                  trayExtent: 32,
-                ),
-              ),
-            ),
-          ),
-          SafeArea(
+    return ProfileHubScaffold(
+      title: 'Chỉnh sửa hồ sơ',
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        child: HubCard(
+          padding: const EdgeInsets.all(16),
+          child: Form(
+            key: _formKey,
             child: Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 4, 16, 8),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => appBack(context),
-                        icon: const Icon(
-                          Icons.arrow_back_rounded,
-                          color: kHomeBlueLight,
-                        ),
-                      ),
-                      const Expanded(
-                        child: Text(
-                          'CHỈNH SỬA HỒ SƠ',
-                          style: TextStyle(
-                            color: kHomePrimaryDark,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                _field(
+                  controller: _nameCtrl,
+                  label: 'Họ và tên',
+                  icon: Icons.person_outline_rounded,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Nhập họ tên'
+                      : null,
                 ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                    child: Container(
-                      decoration: homeCardDecoration(radius: 18, glowAlpha: 0.12),
-                      clipBehavior: Clip.antiAlias,
-                      child: Stack(
-                        children: [
-                          const HomeCrabWatermark(alpha: 0.05, trayExtent: 24),
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Form(
-                              key: _formKey,
-                              child: Column(
-                                children: [
-                                  _field(
-                                    controller: _nameCtrl,
-                                    label: 'Họ và tên',
-                                    icon: Icons.person_outline_rounded,
-                                    validator: (v) =>
-                                        (v == null || v.trim().isEmpty)
-                                            ? 'Nhập họ tên'
-                                            : null,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _field(
-                                    controller: _emailCtrl,
-                                    label: 'Email',
-                                    icon: Icons.email_outlined,
-                                    keyboardType: TextInputType.emailAddress,
-                                    validator: (v) {
-                                      if (v == null || v.trim().isEmpty) {
-                                        return 'Nhập email';
-                                      }
-                                      if (!v.contains('@')) {
-                                        return 'Email không hợp lệ';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _field(
-                                    controller: _phoneCtrl,
-                                    label: 'Số điện thoại',
-                                    icon: Icons.phone_android_rounded,
-                                    keyboardType: TextInputType.phone,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _field(
-                                    controller: _empCtrl,
-                                    label: 'Mã nhân viên',
-                                    icon: Icons.badge_outlined,
-                                  ),
-                                  const SizedBox(height: 20),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 48,
-                                    child: FilledButton(
-                                      onPressed: _saving ? null : _save,
-                                      style: FilledButton.styleFrom(
-                                        backgroundColor: kHomeCyan,
-                                        foregroundColor: kHomeBg,
-                                      ),
-                                      child: _saving
-                                          ? const SizedBox(
-                                              width: 22,
-                                              height: 22,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                              ),
-                                            )
-                                          : const Text(
-                                              'Lưu thay đổi',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
+                const SizedBox(height: 14),
+                _field(
+                  controller: _emailCtrl,
+                  label: 'Email',
+                  icon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Nhập email';
+                    }
+                    if (!v.contains('@')) {
+                      return 'Email không hợp lệ';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 14),
+                _field(
+                  controller: _phoneCtrl,
+                  label: 'Số điện thoại',
+                  icon: Icons.phone_android_rounded,
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 14),
+                _field(
+                  controller: _empCtrl,
+                  label: 'Mã nhân viên',
+                  icon: Icons.badge_outlined,
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: _saving ? null : _save,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: kHomePrimary,
+                      foregroundColor: kHomePrimaryDark,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
+                    child: _saving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: kHomePrimaryDark,
+                            ),
+                          )
+                        : const Text(
+                            'Lưu thay đổi',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
                   ),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -219,24 +166,30 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
-      style: const TextStyle(color: kHomeTextMain),
+      style: const TextStyle(color: kHomeTextMain, fontSize: 13.5),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Colors.white54),
-        prefixIcon: Icon(icon, color: kHomeCyan, size: 20),
+        labelStyle: const TextStyle(color: kHomeTextSub, fontSize: 13),
+        prefixIcon: Icon(icon, color: kHomePrimaryDark, size: 19),
         filled: true,
-        fillColor: kHomeBg.withValues(alpha: 0.65),
+        fillColor: kHomeBg.withValues(alpha: 0.6),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kHomeBorderBlue.withValues(alpha: 0.45)),
+          borderSide: const BorderSide(color: kHomeBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kHomeBorderBlue.withValues(alpha: 0.45)),
+          borderSide: const BorderSide(color: kHomeBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: kHomeCyan),
+          borderSide: const BorderSide(color: kHomePrimary, width: 1.4),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: kHomeDanger),
         ),
       ),
     );

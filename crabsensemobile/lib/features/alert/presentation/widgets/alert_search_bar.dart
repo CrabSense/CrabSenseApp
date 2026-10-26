@@ -51,10 +51,7 @@ class _AlertSearchBarState extends State<AlertSearchBar> {
       decoration: InputDecoration(
         hintText: 'Tìm cảnh báo, Box hoặc thiết bị',
         hintStyle: const TextStyle(color: Colors.white54),
-        prefixIcon: const Icon(
-          Icons.search_rounded,
-          color: Colors.white54,
-        ),
+        prefixIcon: const Icon(Icons.search_rounded, color: Colors.white54),
         suffixIcon: _controller.text.isEmpty
             ? null
             : IconButton(
@@ -62,10 +59,7 @@ class _AlertSearchBarState extends State<AlertSearchBar> {
                   _controller.clear();
                   widget.onClear();
                 },
-                icon: const Icon(
-                  Icons.close_rounded,
-                  color: Colors.white54,
-                ),
+                icon: const Icon(Icons.close_rounded, color: Colors.white54),
               ),
         filled: true,
         fillColor: kHomeSurface,

@@ -40,9 +40,7 @@ class AlertFilterChips extends StatelessWidget {
                 backgroundColor: kHomeBg,
                 checkmarkColor: kHomeCyan,
                 labelStyle: TextStyle(
-                  color: activeFilters.contains(f)
-                      ? kHomeCyan
-                      : Colors.white70,
+                  color: activeFilters.contains(f) ? kHomeCyan : Colors.white70,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -64,10 +62,7 @@ class AlertFilterChips extends StatelessWidget {
               onPressed: onClear,
               child: const Text(
                 'Xóa bộ lọc',
-                style: TextStyle(
-                  color: kHomeCyan,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(color: kHomeCyan, fontWeight: FontWeight.w700),
               ),
             ),
         ],

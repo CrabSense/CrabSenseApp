@@ -25,7 +25,10 @@ class ProfileRepositoryImpl implements ProfileRepository {
   ProfileStateData? _cachedData;
 
   @override
-  Future<ProfileStateData> getProfileData({bool forceRefresh = false}) async {
+  Future<ProfileStateData> getProfileData({
+    bool forceRefresh = false,
+    String? farmingAreaId,
+  }) async {
     if (_cachedData != null && !forceRefresh) {
       return _cachedData!;
     }
@@ -38,12 +41,14 @@ class ProfileRepositoryImpl implements ProfileRepository {
       final userId = userInfo?['id']?.toString();
 
       // Parallel API calls to Server
-      final results = await Future.wait([
-        _fetchFarms(userId),
-        _fetchDevices(),
-        _fetchBoxes(),
-        _fetchAiSummary(),
-      ].map((p) => p.catchError((_) => null)));
+      final results = await Future.wait(
+        [
+          _fetchFarms(userId),
+          _fetchDevices(farmingAreaId),
+          _fetchBoxes(farmingAreaId),
+          _fetchAiSummary(),
+        ].map((p) => p.catchError((_) => null)),
+      );
 
       final farmsList = results[0] as List<FarmSummaryItem>? ?? const [];
       final deviceSummary = results[1] as DeviceSummary?;
@@ -58,9 +63,29 @@ class ProfileRepositoryImpl implements ProfileRepository {
         userRole = UserRole.admin;
       }
 
-      final fullName = userInfo?['fullName'] as String? ?? userInfo?['name'] as String? ?? userInfo?['username'] as String? ?? 'Chưa cập nhật';
-      final email = userInfo?['email'] as String? ?? userInfo?['username'] as String? ?? '';
-      final currentFarmName = farmsList.isNotEmpty ? farmsList.first.name : 'Chưa có trang trại';
+      final fullName =
+          userInfo?['fullName'] as String? ??
+          userInfo?['name'] as String? ??
+          userInfo?['username'] as String? ??
+          'Chưa cập nhật';
+      final email =
+          userInfo?['email'] as String? ??
+          userInfo?['username'] as String? ??
+          '';
+      // Farm đang điều hành = farm được ghim ở Home/Boxes, không phải "khu đầu tiên"
+      // trong danh sách (trước đây luôn ra Khu A dù đã chọn khu khác).
+      FarmSummaryItem? pinnedFarm;
+      if (farmingAreaId != null && farmingAreaId.isNotEmpty) {
+        for (final farm in farmsList) {
+          if (farm.id == farmingAreaId) {
+            pinnedFarm = farm;
+            break;
+          }
+        }
+      }
+      final currentFarmName =
+          pinnedFarm?.name ??
+          (farmsList.isNotEmpty ? farmsList.first.name : 'Chưa có trang trại');
       DateTime joinedDate = now;
       final createdRaw = userInfo?['createdAt']?.toString();
       if (createdRaw != null && createdRaw.isNotEmpty) {
@@ -77,7 +102,9 @@ class ProfileRepositoryImpl implements ProfileRepository {
         currentFarm: currentFarmName,
         isOnline: true,
         joinedDate: joinedDate,
-        status: userInfo?['isActive'] == false ? 'Ngưng hoạt động' : 'Đang hoạt động',
+        status: userInfo?['isActive'] == false
+            ? 'Ngưng hoạt động'
+            : 'Đang hoạt động',
         avatarUrl: userInfo?['avatarUrl']?.toString(),
       );
 
@@ -99,7 +126,8 @@ class ProfileRepositoryImpl implements ProfileRepository {
         profile: profileSummary,
         farmManagement: farmManagementSummary,
         devices: deviceSummary ?? emptyDeviceSummary,
-        aiSummary: aiSummary ??
+        aiSummary:
+            aiSummary ??
             const AISummary(
               detectionHistoryCount: 0,
               recommendationHistoryCount: 0,
@@ -146,26 +174,26 @@ class ProfileRepositoryImpl implements ProfileRepository {
       return stateData;
     } catch (_) {
       if (_cachedData != null) {
-        return _cachedData!.copyWith(
-          isOnline: false,
-          isOfflineCached: true,
-        );
+        return _cachedData!.copyWith(isOnline: false, isOfflineCached: true);
       }
       return _emptyProfileState();
     }
   }
 
   @override
-  Future<ProfileStateData> refreshSection(ProfileStateData current, ProfileSection section) async {
+  Future<ProfileStateData> refreshSection(
+    ProfileStateData current,
+    ProfileSection section,
+  ) async {
     await Future.delayed(const Duration(milliseconds: 100));
-    return current.copyWith(
-      lastSyncedAt: DateTime.now(),
-      sectionError: null,
-    );
+    return current.copyWith(lastSyncedAt: DateTime.now(), sectionError: null);
   }
 
   @override
-  Future<ProfileStateData> switchFarm(ProfileStateData current, String farmName) async {
+  Future<ProfileStateData> switchFarm(
+    ProfileStateData current,
+    String farmName,
+  ) async {
     final updatedProfile = ProfileSummary(
       userId: current.profile.userId,
       fullName: current.profile.fullName,
@@ -271,9 +299,13 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }
 
   Future<Map<String, dynamic>?> _fetchUserInfo() async {
-    final res = await _api.get('${ApiConstants.apiBaseUrl}${ApiConstants.currentUser}');
+    final res = await _api.get(
+      '${ApiConstants.apiBaseUrl}${ApiConstants.currentUser}',
+    );
     if (res.statusCode == 200 && res.data != null) {
-      final raw = res.data is Map<String, dynamic> ? res.data['data'] ?? res.data : null;
+      final raw = res.data is Map<String, dynamic>
+          ? res.data['data'] ?? res.data
+          : null;
       return raw is Map<String, dynamic> ? raw : null;
     }
     return null;
@@ -300,7 +332,9 @@ class ProfileRepositoryImpl implements ProfileRepository {
     if (res.statusCode != 200 || res.data == null) {
       throw Exception('Không cập nhật được hồ sơ');
     }
-    final raw = res.data is Map<String, dynamic> ? res.data['data'] ?? res.data : null;
+    final raw = res.data is Map<String, dynamic>
+        ? res.data['data'] ?? res.data
+        : null;
     if (raw is! Map<String, dynamic>) {
       throw Exception('Phản hồi hồ sơ không hợp lệ');
     }
@@ -313,7 +347,8 @@ class ProfileRepositoryImpl implements ProfileRepository {
       userRole = UserRole.admin;
     }
 
-    final joined = DateTime.tryParse(raw['createdAt']?.toString() ?? '') ??
+    final joined =
+        DateTime.tryParse(raw['createdAt']?.toString() ?? '') ??
         _cachedData?.profile.joinedDate ??
         DateTime.now();
 
@@ -342,8 +377,13 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }
 
   Future<List<FarmSummaryItem>?> _fetchFarms([String? ownerId]) async {
-    final queryParams = ownerId != null && ownerId.isNotEmpty ? {'ownerId': ownerId} : null;
-    final res = await _api.get('${ApiConstants.apiBaseUrl}${ApiConstants.farmingAreas}', queryParameters: queryParams);
+    final queryParams = ownerId != null && ownerId.isNotEmpty
+        ? {'ownerId': ownerId}
+        : null;
+    final res = await _api.get(
+      '${ApiConstants.apiBaseUrl}${ApiConstants.farmingAreas}',
+      queryParameters: queryParams,
+    );
     if (res.statusCode == 200 && res.data != null) {
       final list = _extractList(res.data);
       if (list != null && list.isNotEmpty) {
@@ -359,15 +399,27 @@ class ProfileRepositoryImpl implements ProfileRepository {
               isCurrent: true,
             );
           }
-          return const FarmSummaryItem(id: '', name: 'Khu nuôi', areaCount: '0 Dãy', boxCount: 'Khu nuôi');
+          return const FarmSummaryItem(
+            id: '',
+            name: 'Khu nuôi',
+            areaCount: '0 Dãy',
+            boxCount: 'Khu nuôi',
+          );
         }).toList();
       }
     }
     return null;
   }
 
-  Future<DeviceSummary?> _fetchDevices() async {
-    final res = await _api.get('${ApiConstants.apiBaseUrl}${ApiConstants.devices}');
+  Future<DeviceSummary?> _fetchDevices([String? farmingAreaId]) async {
+    final query = <String, dynamic>{};
+    if (farmingAreaId != null && farmingAreaId.isNotEmpty) {
+      query['farmingAreaId'] = farmingAreaId;
+    }
+    final res = await _api.get(
+      '${ApiConstants.apiBaseUrl}${ApiConstants.devices}',
+      queryParameters: query.isEmpty ? null : query,
+    );
     if (res.statusCode == 200 && res.data != null) {
       final list = _extractList(res.data);
       if (list != null) {
@@ -381,95 +433,156 @@ class ProfileRepositoryImpl implements ProfileRepository {
         for (final item in list) {
           if (item is Map<String, dynamic>) {
             final type = item['deviceType']?.toString().toLowerCase() ?? '';
-            final isOnline = item['isOnline'] == true || item['status']?.toString().toLowerCase() == 'active';
+            final isOnline =
+                item['isOnline'] == true ||
+                item['status']?.toString().toLowerCase() == 'active';
             if (type.contains('esp')) {
-              if (isOnline) espOnline++; else espOffline++;
+              if (isOnline)
+                espOnline++;
+              else
+                espOffline++;
             } else if (type.contains('cam')) {
-              if (isOnline) camOnline++; else camOffline++;
+              if (isOnline)
+                camOnline++;
+              else
+                camOffline++;
             } else if (type.contains('sensor')) {
-              if (isOnline) sensorOnline++; else sensorOffline++;
+              if (isOnline)
+                sensorOnline++;
+              else
+                sensorOffline++;
             } else if (type.contains('pump')) {
-              if (isOnline) pumpOnline++; else pumpOffline++;
+              if (isOnline)
+                pumpOnline++;
+              else
+                pumpOffline++;
             } else if (type.contains('valve')) {
-              if (isOnline) valveOnline++; else valveOffline++;
+              if (isOnline)
+                valveOnline++;
+              else
+                valveOffline++;
             }
           }
         }
 
         final deviceItems = <DeviceTypeItem>[];
         if (espOnline + espOffline > 0) {
-          deviceItems.add(DeviceTypeItem(
-            id: 'esp32',
-            name: 'Bộ Điều Khiển ESP32',
-            icon: Icons.memory_rounded,
-            onlineCount: espOnline,
-            offlineCount: espOffline,
-            lastUpdated: now,
-            statusBadge: espOffline > 0 ? '$espOffline Cần kiểm tra' : 'Sẵn sàng',
-          ));
+          deviceItems.add(
+            DeviceTypeItem(
+              id: 'esp32',
+              name: 'Bộ Điều Khiển ESP32',
+              icon: Icons.memory_rounded,
+              onlineCount: espOnline,
+              offlineCount: espOffline,
+              lastUpdated: now,
+              statusBadge: espOffline > 0
+                  ? '$espOffline Cần kiểm tra'
+                  : 'Sẵn sàng',
+            ),
+          );
         }
         if (camOnline + camOffline > 0) {
-          deviceItems.add(DeviceTypeItem(
-            id: 'camera',
-            name: 'Camera AI Giám Sát',
-            icon: Icons.videocam_rounded,
-            onlineCount: camOnline,
-            offlineCount: camOffline,
-            lastUpdated: now,
-            statusBadge: 'Trực tiếp',
-          ));
+          deviceItems.add(
+            DeviceTypeItem(
+              id: 'camera',
+              name: 'Camera AI Giám Sát',
+              icon: Icons.videocam_rounded,
+              onlineCount: camOnline,
+              offlineCount: camOffline,
+              lastUpdated: now,
+              statusBadge: 'Trực tiếp',
+            ),
+          );
         }
         if (sensorOnline + sensorOffline > 0) {
-          deviceItems.add(DeviceTypeItem(
-            id: 'sensor',
-            name: 'Cảm Biến Môi Trường',
-            icon: Icons.sensors_rounded,
-            onlineCount: sensorOnline,
-            offlineCount: sensorOffline,
-            lastUpdated: now,
-            statusBadge: 'Đang đo đạc',
-          ));
+          deviceItems.add(
+            DeviceTypeItem(
+              id: 'sensor',
+              name: 'Cảm Biến Môi Trường',
+              icon: Icons.sensors_rounded,
+              onlineCount: sensorOnline,
+              offlineCount: sensorOffline,
+              lastUpdated: now,
+              statusBadge: 'Đang đo đạc',
+            ),
+          );
         }
         if (pumpOnline + pumpOffline > 0) {
-          deviceItems.add(DeviceTypeItem(
-            id: 'pump',
-            name: 'Máy Bơm Nước',
-            icon: Icons.water_drop_rounded,
-            onlineCount: pumpOnline,
-            offlineCount: pumpOffline,
-            lastUpdated: now,
-            statusBadge: 'Sẵn sàng',
-          ));
+          deviceItems.add(
+            DeviceTypeItem(
+              id: 'pump',
+              name: 'Máy Bơm Nước',
+              icon: Icons.water_drop_rounded,
+              onlineCount: pumpOnline,
+              offlineCount: pumpOffline,
+              lastUpdated: now,
+              statusBadge: 'Sẵn sàng',
+            ),
+          );
         }
         if (valveOnline + valveOffline > 0) {
-          deviceItems.add(DeviceTypeItem(
-            id: 'valve',
-            name: 'Van Tự Động',
-            icon: Icons.tune_rounded,
-            onlineCount: valveOnline,
-            offlineCount: valveOffline,
-            lastUpdated: now,
-            statusBadge: 'Tự động',
-          ));
+          deviceItems.add(
+            DeviceTypeItem(
+              id: 'valve',
+              name: 'Van Tự Động',
+              icon: Icons.tune_rounded,
+              onlineCount: valveOnline,
+              offlineCount: valveOffline,
+              lastUpdated: now,
+              statusBadge: 'Tự động',
+            ),
+          );
         }
 
         return DeviceSummary(
           devices: deviceItems,
-          totalOnline: espOnline + camOnline + sensorOnline + pumpOnline + valveOnline,
-          totalOffline: espOffline + camOffline + sensorOffline + pumpOffline + valveOffline,
+          totalOnline:
+              espOnline + camOnline + sensorOnline + pumpOnline + valveOnline,
+          totalOffline:
+              espOffline +
+              camOffline +
+              sensorOffline +
+              pumpOffline +
+              valveOffline,
         );
       }
     }
     return null;
   }
 
-  Future<Map<String, int>?> _fetchBoxes() async {
+  Future<Map<String, int>?> _fetchBoxes([String? farmingAreaId]) async {
+    final query = <String, dynamic>{};
+    if (farmingAreaId != null && farmingAreaId.isNotEmpty) {
+      query['farmingAreaId'] = farmingAreaId;
+    }
     try {
-      final res = await _api.get('${ApiConstants.apiBaseUrl}${ApiConstants.boxes}');
+      // Dùng đúng endpoint tab Hộp nuôi đang dùng để con số khớp với lưới hộp.
+      final res = await _api.get(
+        '${ApiConstants.apiBaseUrl}${ApiConstants.boxesOverview}',
+        queryParameters: query.isEmpty ? null : query,
+      );
       if (res.statusCode == 200 && res.data != null) {
-        final raw = res.data is Map<String, dynamic> ? res.data['data'] ?? res.data : res.data;
+        final raw = res.data is Map<String, dynamic>
+            ? res.data['data'] ?? res.data
+            : res.data;
+        if (raw is Map<String, dynamic> && raw['items'] is List) {
+          return {'total': (raw['items'] as List).length};
+        }
+      }
+    } catch (_) {}
+    try {
+      final res = await _api.get(
+        '${ApiConstants.apiBaseUrl}${ApiConstants.boxes}',
+        queryParameters: query.isEmpty ? null : query,
+      );
+      if (res.statusCode == 200 && res.data != null) {
+        final raw = res.data is Map<String, dynamic>
+            ? res.data['data'] ?? res.data
+            : res.data;
         if (raw is Map<String, dynamic>) {
-          final total = raw['totalCount'] as int? ?? (raw['items'] is List ? (raw['items'] as List).length : 0);
+          final total =
+              raw['totalCount'] as int? ??
+              (raw['items'] is List ? (raw['items'] as List).length : 0);
           return {'total': total};
         } else if (raw is List) {
           return {'total': raw.length};
@@ -517,8 +630,9 @@ class ProfileRepositoryImpl implements ProfileRepository {
         modelStatus: detList.isEmpty ? 'Sẵn sàng' : 'Đang hoạt động',
         feedbackCount: 0,
         trainingInfo: 'Rules engine + tín hiệu trang trại realtime',
-        avgConfidencePercentage:
-            confN == 0 ? 0 : double.parse((confSum / confN).toStringAsFixed(1)),
+        avgConfidencePercentage: confN == 0
+            ? 0
+            : double.parse((confSum / confN).toStringAsFixed(1)),
       );
     } catch (_) {
       return null;
@@ -547,7 +661,11 @@ class ProfileRepositoryImpl implements ProfileRepository {
         totalBoxes: 0,
         activeBatches: 0,
       ),
-      devices: const DeviceSummary(devices: [], totalOnline: 0, totalOffline: 0),
+      devices: const DeviceSummary(
+        devices: [],
+        totalOnline: 0,
+        totalOffline: 0,
+      ),
       aiSummary: const AISummary(
         detectionHistoryCount: 0,
         recommendationHistoryCount: 0,
@@ -561,7 +679,13 @@ class ProfileRepositoryImpl implements ProfileRepository {
         totalReportsAvailable: 0,
         lastGeneratedReport: now,
       ),
-      syncSummary: SyncSummary(syncStatus: 'Chưa đồng bộ', offlineQueueCount: 0, pendingUploadCount: 0, lastSyncedAt: now, conflictCount: 0),
+      syncSummary: SyncSummary(
+        syncStatus: 'Chưa đồng bộ',
+        offlineQueueCount: 0,
+        pendingUploadCount: 0,
+        lastSyncedAt: now,
+        conflictCount: 0,
+      ),
       settings: const SettingsSummary(
         isDarkMode: true,
         language: 'Tiếng Việt',

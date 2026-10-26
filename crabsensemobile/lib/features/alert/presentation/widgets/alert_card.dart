@@ -54,9 +54,7 @@ class AlertCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: kHomeBg.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: kHomeCyan.withValues(alpha: 0.12),
-          ),
+          border: Border.all(color: kHomeCyan.withValues(alpha: 0.12)),
         ),
         clipBehavior: Clip.antiAlias,
         child: IntrinsicHeight(
@@ -397,9 +395,7 @@ class _ActionChip extends StatelessWidget {
     decoration: BoxDecoration(
       color: kHomeCyan.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(6),
-      border: Border.all(
-        color: kHomeCyan.withValues(alpha: 0.25),
-      ),
+      border: Border.all(color: kHomeCyan.withValues(alpha: 0.25)),
     ),
     child: Text(
       label,

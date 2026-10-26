@@ -21,7 +21,7 @@ class OfflineSyncScreen extends ConsumerWidget {
     final fmt = DateFormat('HH:mm:ss dd/MM/yyyy');
 
     return ProfileHubScaffold(
-      title: 'NGOẠI TUYẾN & ĐỒNG BỘ',
+      title: 'Ngoại tuyến & đồng bộ',
       onRefresh: () async {
         context.read<SyncBloc>().add(const SyncPendingCountRefreshed());
         await ref.read(profileStateProvider.notifier).triggerSync();
@@ -47,12 +47,22 @@ class OfflineSyncScreen extends ConsumerWidget {
               HubCard(
                 child: Row(
                   children: [
-                    Icon(
-                      sync.isOffline
-                          ? Icons.cloud_off_rounded
-                          : Icons.cloud_done_rounded,
-                      color: sync.isOffline ? kHomeOrange : kHomeGreen,
-                      size: 28,
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: sync.isOffline ? kHomeWarningBg : kHomePrimaryBg,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        sync.isOffline
+                            ? Icons.cloud_off_rounded
+                            : Icons.cloud_done_rounded,
+                        color: sync.isOffline
+                            ? kHomeWarning
+                            : kHomePrimaryDark,
+                        size: 22,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -63,18 +73,18 @@ class OfflineSyncScreen extends ConsumerWidget {
                             status,
                             style: const TextStyle(
                               color: kHomeTextMain,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 3),
                           Text(
                             sync.isConnected
                                 ? 'Đã kết nối mạng'
                                 : 'Không có kết nối — dữ liệu lưu trên máy',
-                            style: TextStyle(
-                              color: const Color(0xFF5A7184),
-                              fontSize: 12,
+                            style: const TextStyle(
+                              color: kHomeTextSub,
+                              fontSize: 11.5,
                             ),
                           ),
                           if (sync.errorMessage != null) ...[
@@ -82,8 +92,8 @@ class OfflineSyncScreen extends ConsumerWidget {
                             Text(
                               sync.errorMessage!,
                               style: const TextStyle(
-                                color: kHomeOrange,
-                                fontSize: 12,
+                                color: kHomeDanger,
+                                fontSize: 11.5,
                               ),
                             ),
                           ],
@@ -159,8 +169,11 @@ class OfflineSyncScreen extends ConsumerWidget {
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                   style: FilledButton.styleFrom(
-                    backgroundColor: kHomeCyan,
-                    foregroundColor: kHomeBg,
+                    backgroundColor: kHomePrimary,
+                    foregroundColor: kHomePrimaryDark,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),

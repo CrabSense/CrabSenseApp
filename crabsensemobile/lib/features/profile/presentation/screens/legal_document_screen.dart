@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/utils/app_back.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
@@ -64,16 +63,16 @@ class LegalDocumentScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ProfileHubScaffold(
-      title: args.title.toUpperCase(),
+      title: args.title,
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
           HubCard(
             child: Text(
               args.body.trim(),
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.78),
-                height: 1.45,
+              style: const TextStyle(
+                color: kHomeTextMain,
+                height: 1.55,
                 fontSize: 13.5,
               ),
             ),
@@ -81,7 +80,8 @@ class LegalDocumentScreen extends StatelessWidget {
           const SizedBox(height: 12),
           TextButton(
             onPressed: () => appBack(context),
-            child: const Text('Đóng', style: TextStyle(color: kHomeCyan)),
+            style: TextButton.styleFrom(foregroundColor: kHomeSecondary),
+            child: const Text('Đóng'),
           ),
         ],
       ),

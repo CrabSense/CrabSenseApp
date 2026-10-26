@@ -35,7 +35,10 @@ class _NotificationSettingsView extends StatelessWidget {
           if (state is NotificationSettingsLoading ||
               state is NotificationSettingsInitial) {
             return const Center(
-              child: CircularProgressIndicator(color: kHomeCyan),
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: CircularProgressIndicator(color: kHomePrimary),
+              ),
             );
           }
 
@@ -55,7 +58,7 @@ class _NotificationSettingsView extends StatelessWidget {
           }
 
           return const Center(
-            child: CircularProgressIndicator(color: kHomeCyan),
+            child: CircularProgressIndicator(color: kHomePrimary),
           );
         },
       );
@@ -83,7 +86,7 @@ class _SettingsBody extends StatelessWidget {
           subtitle:
               'Khẩn cấp chất lượng nước / thiết bị. Không thể tắt.',
           icon: Icons.warning_amber_rounded,
-          iconColor: Color(0xFFFF6B6B),
+          iconColor: kHomeDanger,
           value: true,
           enabled: false,
           onChanged: null,
@@ -92,7 +95,7 @@ class _SettingsBody extends StatelessWidget {
           title: 'Cảnh báo thường',
           subtitle: 'Thông số gần ngưỡng, bảo trì đến hạn',
           icon: Icons.info_outline_rounded,
-          iconColor: kHomeOrange,
+          iconColor: kHomeWarning,
           value: prefs.warningsEnabled,
           enabled: true,
           onChanged: (value) =>
@@ -102,7 +105,7 @@ class _SettingsBody extends StatelessWidget {
           title: 'Nhắc việc',
           subtitle: 'Lịch giám sát và kiểm tra',
           icon: Icons.task_alt_rounded,
-          iconColor: kHomeCyan,
+          iconColor: kHomePrimaryDark,
           value: prefs.taskRemindersEnabled,
           enabled: true,
           onChanged: (value) =>
@@ -112,17 +115,17 @@ class _SettingsBody extends StatelessWidget {
           title: 'Cập nhật hệ thống',
           subtitle: 'Thông báo nền tảng và firmware',
           icon: Icons.system_update_alt_rounded,
-          iconColor: Colors.white70,
+          iconColor: kHomeSecondary,
           value: prefs.systemUpdatesEnabled,
           enabled: true,
           onChanged: (value) =>
               _toggle(context, (p) => p.copyWith(systemUpdatesEnabled: value)),
         ),
-        Divider(
-          height: 32,
+        const Divider(
+          height: 24,
           indent: 16,
           endIndent: 16,
-          color: kHomeBorderBlue.withValues(alpha: 0.3),
+          color: kHomeBorder,
         ),
         const _SectionHeader(
           title: 'Hiển thị',
@@ -185,7 +188,7 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
         child: Row(
           children: [
             Expanded(
@@ -193,20 +196,20 @@ class _SectionHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
+                    title.toUpperCase(),
                     style: const TextStyle(
-                      color: kHomePrimaryDark,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13,
-                      letterSpacing: 0.6,
+                      color: kHomeTextHint,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10.5,
+                      letterSpacing: 0.8,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      fontSize: 12,
+                    style: const TextStyle(
+                      color: kHomeTextSub,
+                      fontSize: 11.5,
                     ),
                   ),
                 ],
@@ -219,7 +222,7 @@ class _SectionHeader extends StatelessWidget {
                 height: 16,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: kHomeCyan,
+                  color: kHomePrimary,
                 ),
               ),
             ],
@@ -249,29 +252,31 @@ class _CategoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveColor =
-        enabled ? iconColor : Colors.white.withValues(alpha: 0.35);
+    final effectiveColor = enabled ? iconColor : kHomeTextHint;
 
     return SwitchListTile.adaptive(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      secondary: Icon(icon, color: effectiveColor, size: 24),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      secondary: Icon(icon, color: effectiveColor, size: 21),
       title: Text(
         title,
         style: TextStyle(
-          color: enabled ? Colors.white : Colors.white54,
+          color: enabled ? kHomeTextMain : kHomeTextHint,
           fontWeight: FontWeight.w600,
+          fontSize: 13.5,
         ),
       ),
       subtitle: Text(
         subtitle,
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.5),
-          fontSize: 12,
+        style: const TextStyle(
+          color: kHomeTextSub,
+          fontSize: 11.5,
+          height: 1.35,
         ),
       ),
       value: value,
       onChanged: enabled ? onChanged : null,
-      activeTrackColor: kHomeCyan,
+      activeThumbColor: kHomePrimaryDark,
+      activeTrackColor: kHomePrimary,
     );
   }
 }
@@ -295,29 +300,31 @@ class _DisplayOptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveIconColor =
-        enabled ? kHomeCyan : Colors.white.withValues(alpha: 0.35);
+    final effectiveIconColor = enabled ? kHomePrimaryDark : kHomeTextHint;
 
     return SwitchListTile.adaptive(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      secondary: Icon(icon, color: effectiveIconColor, size: 24),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      secondary: Icon(icon, color: effectiveIconColor, size: 21),
       title: Text(
         title,
         style: TextStyle(
-          color: enabled ? Colors.white : Colors.white54,
+          color: enabled ? kHomeTextMain : kHomeTextHint,
           fontWeight: FontWeight.w600,
+          fontSize: 13.5,
         ),
       ),
       subtitle: Text(
         subtitle,
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: enabled ? 0.5 : 0.35),
-          fontSize: 12,
+        style: const TextStyle(
+          color: kHomeTextSub,
+          fontSize: 11.5,
+          height: 1.35,
         ),
       ),
       value: value,
       onChanged: enabled ? onChanged : null,
-      activeTrackColor: kHomeCyan,
+      activeThumbColor: kHomePrimaryDark,
+      activeTrackColor: kHomePrimary,
     );
   }
 }

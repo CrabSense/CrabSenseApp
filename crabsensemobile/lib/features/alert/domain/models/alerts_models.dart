@@ -60,7 +60,7 @@ extension AlertItemSeverityX on AlertItemSeverity {
       case AlertItemSeverity.medium:
         return kHomeBlueLight;
       case AlertItemSeverity.low:
-        return Colors.white54;
+        return kHomeTextHint;
       case AlertItemSeverity.resolved:
         return kHomeGreen;
     }
@@ -155,7 +155,7 @@ extension AlertLifecycleStatusX on AlertLifecycleStatus {
       case AlertLifecycleStatus.reopened:
         return Colors.redAccent;
       case AlertLifecycleStatus.dismissed:
-        return Colors.white54;
+        return kHomeTextHint;
     }
   }
 
@@ -244,7 +244,7 @@ class AlertPriorityScore {
     if (score >= 85) return Colors.redAccent;
     if (score >= 70) return kHomeOrange;
     if (score >= 50) return kHomeBlueLight;
-    return Colors.white54;
+    return kHomeTextHint;
   }
 }
 

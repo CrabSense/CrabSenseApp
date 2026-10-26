@@ -85,6 +85,16 @@ void main() {
 
   const defaultPrefs = NotificationPreferences();
 
+  // `any()` over bloc events/state needs a fallback instance registered once.
+  setUpAll(() {
+    registerFallbackValue(const NotificationSettingsLoadRequested());
+    registerFallbackValue(const NotificationSettingsInitial());
+    registerFallbackValue(const NotificationPreferences());
+    registerFallbackValue(
+      NotificationSettingToggled((p) => p),
+    );
+  });
+
   setUp(() {
     mockRepo = MockNotificationPreferencesRepository();
     mockBloc = MockNotificationSettingsBloc();

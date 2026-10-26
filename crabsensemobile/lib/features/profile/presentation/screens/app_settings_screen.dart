@@ -131,10 +131,11 @@ class AppSettingsScreen extends ConsumerWidget {
     }
 
     return ProfileHubScaffold(
-      title: 'CÀI ĐẶT ỨNG DỤNG',
+      title: 'Cài đặt ứng dụng',
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
+          const HubSectionLabel(label: 'Hiển thị'),
           HubCard(
             child: Column(
               children: [
@@ -144,7 +145,8 @@ class AppSettingsScreen extends ConsumerWidget {
                   value: s.isDarkMode ? 'Tối (Dark Mode)' : 'Sáng',
                   trailing: Switch(
                     value: s.isDarkMode,
-                    activeColor: kHomeCyan,
+                    activeThumbColor: kHomePrimaryDark,
+                    activeTrackColor: kHomePrimary,
                     onChanged: (v) {
                       ref.read(profileStateProvider.notifier).updateSettings(
                             s.copyWith(isDarkMode: v),
@@ -152,7 +154,6 @@ class AppSettingsScreen extends ConsumerWidget {
                       toast(v ? 'Đã bật Dark Mode' : 'Đã tắt Dark Mode');
                     },
                   ),
-                  showDivider: true,
                 ),
                 HubTile(
                   icon: Icons.language_rounded,
@@ -161,26 +162,37 @@ class AppSettingsScreen extends ConsumerWidget {
                   onTap: pickLanguage,
                 ),
                 HubTile(
+                  icon: Icons.straighten_rounded,
+                  title: 'Đơn vị đo lường',
+                  value: s.measurementUnit,
+                  onTap: pickUnits,
+                  showDivider: false,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          const HubSectionLabel(label: 'Vận hành'),
+          HubCard(
+            child: Column(
+              children: [
+                HubTile(
                   icon: Icons.notifications_none_rounded,
                   title: 'Cài đặt thông báo',
                   subtitle: 'Cảnh báo, nhắc việc, âm thanh',
                   onTap: () => context.push(RoutePaths.notificationSettings),
                 ),
                 HubTile(
-                  icon: Icons.straighten_rounded,
-                  title: 'Đơn vị đo lường',
-                  value: s.measurementUnit,
-                  onTap: pickUnits,
-                ),
-                HubTile(
                   icon: Icons.camera_alt_outlined,
                   title: 'Cấu hình Camera AI',
+                  subtitle: 'Độ phân giải khi chụp ảnh box',
                   value: s.cameraResolution,
                   onTap: pickCamera,
                 ),
                 HubTile(
                   icon: Icons.storage_rounded,
                   title: 'Bộ nhớ đệm',
+                  subtitle: 'Dữ liệu tạm trên thiết bị',
                   value: s.cacheSize,
                   onTap: () {
                     ref.read(profileStateProvider.notifier).updateSettings(
@@ -194,7 +206,8 @@ class AppSettingsScreen extends ConsumerWidget {
                   title: 'Tự động đồng bộ',
                   trailing: Switch(
                     value: s.autoSync,
-                    activeColor: kHomeCyan,
+                    activeThumbColor: kHomePrimaryDark,
+                    activeTrackColor: kHomePrimary,
                     onChanged: (v) {
                       ref.read(profileStateProvider.notifier).updateSettings(
                             s.copyWith(autoSync: v),

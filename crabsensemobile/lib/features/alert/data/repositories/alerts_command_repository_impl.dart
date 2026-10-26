@@ -979,7 +979,13 @@ class AlertsCommandRepositoryImpl implements AlertsCommandRepository {
     }
 
     if (groupBy == AlertGroupBy.severity) {
-      const order = ['Nghiêm trọng', 'Cao', 'Trung bình', 'Thấp', 'Đã giải quyết'];
+      const order = [
+        'Nghiêm trọng',
+        'Cao',
+        'Trung bình',
+        'Thấp',
+        'Đã giải quyết',
+      ];
       return order
           .where(map.containsKey)
           .map((k) => AlertGroupedSection(title: k, items: map[k]!))

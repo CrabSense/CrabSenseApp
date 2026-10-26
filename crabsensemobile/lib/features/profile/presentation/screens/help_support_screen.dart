@@ -36,34 +36,26 @@ class HelpSupportScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ProfileHubScaffold(
-      title: 'TRỢ GIÚP & HỖ TRỢ',
+      title: 'Trợ giúp & hỗ trợ',
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
+          const HubSectionLabel(label: 'Câu hỏi thường gặp'),
           HubCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Câu hỏi thường gặp',
-                  style: TextStyle(
-                    color: kHomePrimaryDark,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 8),
                 for (var i = 0; i < _faqs.length; i++)
                   ExpansionTile(
                     tilePadding: EdgeInsets.zero,
                     childrenPadding: const EdgeInsets.only(bottom: 8),
-                    iconColor: kHomeCyan,
-                    collapsedIconColor: Colors.white54,
+                    iconColor: kHomePrimaryDark,
+                    collapsedIconColor: kHomeTextHint,
                     title: Text(
                       _faqs[i].$1,
                       style: const TextStyle(
                         color: kHomeTextMain,
-                        fontSize: 14,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -72,10 +64,10 @@ class HelpSupportScreen extends StatelessWidget {
                         alignment: Alignment.centerLeft,
                         child: Text(
                           _faqs[i].$2,
-                          style: TextStyle(
-                            color: const Color(0xFF5A7184),
-                            height: 1.4,
-                            fontSize: 13,
+                          style: const TextStyle(
+                            color: kHomeTextSub,
+                            height: 1.45,
+                            fontSize: 12.5,
                           ),
                         ),
                       ),
@@ -84,7 +76,8 @@ class HelpSupportScreen extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 18),
+          const HubSectionLabel(label: 'Hỗ trợ'),
           HubCard(
             child: Column(
               children: [
@@ -177,7 +170,7 @@ class HelpSupportScreen extends StatelessWidget {
               '3. Quét QR — mở nhanh chi tiết box.\n'
               '4. Cảnh báo — xử lý sự cố môi trường / thiết bị.\n'
               '5. Tài khoản — thiết bị, AI, báo cáo, đồng bộ, cài đặt.',
-              style: TextStyle(color: Colors.white70, height: 1.45),
+              style: TextStyle(color: kHomeTextSub, height: 1.5, fontSize: 13),
             ),
           ],
         ),
@@ -198,17 +191,17 @@ class HelpSupportScreen extends StatelessWidget {
         content: TextField(
           controller: controller,
           maxLines: 5,
-          style: const TextStyle(color: kHomeTextMain),
+          style: const TextStyle(color: kHomeTextMain, fontSize: 13.5),
           decoration: InputDecoration(
             hintText: isBug
                 ? 'Mô tả lỗi, màn hình, bước tái hiện…'
                 : 'Ý kiến của bạn…',
-            hintStyle: TextStyle(color: const Color(0xFF5A7184)),
-            enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: kHomeBorderBlue.withValues(alpha: 0.5)),
+            hintStyle: const TextStyle(color: kHomeTextHint),
+            enabledBorder: const OutlineInputBorder(
+              borderSide: BorderSide(color: kHomeBorder),
             ),
             focusedBorder: const OutlineInputBorder(
-              borderSide: BorderSide(color: kHomeCyan),
+              borderSide: BorderSide(color: kHomePrimary, width: 1.4),
             ),
           ),
         ),
@@ -220,10 +213,13 @@ class HelpSupportScreen extends StatelessWidget {
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
-              backgroundColor: kHomeCyan,
-              foregroundColor: kHomeBg,
+              backgroundColor: kHomePrimary,
+              foregroundColor: kHomePrimaryDark,
             ),
-            child: const Text('Gửi'),
+            child: const Text(
+              'Gửi',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -259,7 +255,7 @@ class AppInfoScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ProfileHubScaffold(
-      title: 'THÔNG TIN ỨNG DỤNG',
+      title: 'Thông tin ứng dụng',
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [

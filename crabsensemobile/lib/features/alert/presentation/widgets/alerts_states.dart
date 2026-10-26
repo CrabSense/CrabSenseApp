@@ -63,10 +63,7 @@ class AlertsEmptyState extends StatelessWidget {
                 const Text(
                   'Hệ thống đang hoạt động ổn định',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: kHomeTextSub, fontSize: 13),
                 ),
                 const SizedBox(height: 20),
                 Row(
@@ -77,8 +74,8 @@ class AlertsEmptyState extends StatelessWidget {
                       icon: const Icon(Icons.refresh_rounded),
                       label: const Text('Làm mới'),
                       style: FilledButton.styleFrom(
-                        backgroundColor: kHomeCyan,
-                        foregroundColor: kHomeBg,
+                        backgroundColor: kHomePrimaryDark,
+                        foregroundColor: Colors.white,
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -113,7 +110,7 @@ class AlertsFilterEmptyState extends StatelessWidget {
             const Icon(
               Icons.filter_alt_off_rounded,
               size: 48,
-              color: Colors.white54,
+              color: kHomeTextHint,
             ),
             const SizedBox(height: 14),
             const Text(
@@ -157,17 +154,11 @@ class AlertsOfflineBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: kHomeOrange.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: kHomeOrange.withValues(alpha: 0.35),
-        ),
+        border: Border.all(color: kHomeOrange.withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.cloud_off_rounded,
-            color: kHomeOrange,
-            size: 18,
-          ),
+          const Icon(Icons.cloud_off_rounded, color: kHomeOrange, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -185,10 +176,7 @@ class AlertsOfflineBanner extends StatelessWidget {
                   pendingCount > 0
                       ? '$syncLabel · $pendingCount thay đổi chờ sync'
                       : syncLabel,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                  ),
+                  style: const TextStyle(color: kHomeTextSub, fontSize: 11),
                 ),
               ],
             ),
@@ -226,25 +214,16 @@ class SectionErrorCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.redAccent.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Colors.redAccent.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.error_outline,
-            color: Colors.redAccent,
-            size: 18,
-          ),
+          const Icon(Icons.error_outline, color: Colors.redAccent, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: kHomeTextSub, fontSize: 12),
             ),
           ),
           TextButton(onPressed: onRetry, child: const Text('Thử lại')),
@@ -265,11 +244,7 @@ class AlertsNoPermissionState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.lock_outline_rounded,
-              size: 48,
-              color: Colors.white54,
-            ),
+            Icon(Icons.lock_outline_rounded, size: 48, color: kHomeTextHint),
             SizedBox(height: 12),
             Text(
               'Bạn chỉ có quyền xem cảnh báo',
@@ -283,7 +258,7 @@ class AlertsNoPermissionState extends StatelessWidget {
             Text(
               'Liên hệ quản lý nếu cần xử lý hoặc giao việc.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white54, fontSize: 13),
+              style: TextStyle(color: kHomeTextSub, fontSize: 13),
             ),
           ],
         ),

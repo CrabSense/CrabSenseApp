@@ -90,10 +90,7 @@ class PriorityAlertCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     alert.locationLabel,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 13,
-                    ),
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                   if (alert.threshold != null) ...[
                     const SizedBox(height: 10),
@@ -108,7 +105,10 @@ class PriorityAlertCard extends StatelessWidget {
                       value: alert.threshold!.allowedRange ?? '—',
                     ),
                   ],
-                  _MetaRow(label: 'Phát hiện', value: _timeAgo(alert.detectedAt)),
+                  _MetaRow(
+                    label: 'Phát hiện',
+                    value: _timeAgo(alert.detectedAt),
+                  ),
                   if (alert.impactLevel != null)
                     _MetaRow(label: 'Ảnh hưởng', value: alert.impactLevel!),
                   _MetaRow(label: 'Hạn xử lý', value: alert.priority.slaLabel),
@@ -140,7 +140,10 @@ class PriorityAlertCard extends StatelessWidget {
                       ),
                       if (alert.boxId != null)
                         _HeroBtn(label: 'Xem Box', onPressed: onViewBox),
-                      _HeroBtn(label: 'Xác nhận đã xem', onPressed: onAcknowledge),
+                      _HeroBtn(
+                        label: 'Xác nhận đã xem',
+                        onPressed: onAcknowledge,
+                      ),
                       if (onAssign != null)
                         _HeroBtn(label: 'Giao việc', onPressed: onAssign!),
                       _HeroBtn(label: 'Xem chi tiết', onPressed: onViewDetail),
@@ -179,10 +182,7 @@ class _MetaRow extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
             ),
           ),
           Expanded(

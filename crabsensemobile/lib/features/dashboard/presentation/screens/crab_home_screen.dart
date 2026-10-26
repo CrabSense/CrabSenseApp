@@ -12,6 +12,7 @@ import '../../../../core/providers/selected_farm_provider.dart';
 import '../../../../widgets/branded_loading_screen.dart';
 import '../../../home/domain/models/home_models.dart';
 import '../../../home/presentation/providers/home_provider.dart';
+import '../../../home/presentation/widgets/home_palette.dart';
 
 class CrabHomeScreen extends ConsumerStatefulWidget {
   const CrabHomeScreen({super.key});
@@ -23,7 +24,7 @@ class CrabHomeScreen extends ConsumerStatefulWidget {
 class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
   static const navy = Color(0xFF123968);
   static const blue = Color(0xFF168BE5);
-  static const page = Colors.white;
+  static const page = kHomeBg;
   final Set<String> _completedTaskIds = <String>{};
   Timer? _activityPoll;
 

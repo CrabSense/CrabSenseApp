@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/providers/selected_farm_provider.dart';
 import '../../../../shared/services/bidirectional_sync_manager.dart';
 import '../../../../shared/services/sync_service.dart';
 import '../../data/models/profile_models.dart';
@@ -17,20 +18,40 @@ final profileRepositoryProvider = Provider<ProfileRepository>(
 );
 
 /// Provider for Profile Screen Master State
-final profileStateProvider = StateNotifierProvider<ProfileNotifier, AsyncValue<ProfileStateData>>((ref) {
-  final repository = ref.watch(profileRepositoryProvider);
-  return ProfileNotifier(repository);
-});
+///
+/// KPI hộp nuôi / thiết bị được lọc theo khu đang ghim ở `selectedFarmProvider`
+/// (cùng nguồn với Home và tab Hộp nuôi) và tự tải lại khi đổi khu.
+final profileStateProvider =
+    StateNotifierProvider<ProfileNotifier, AsyncValue<ProfileStateData>>((ref) {
+      final repository = ref.watch(profileRepositoryProvider);
+      final notifier = ProfileNotifier(
+        repository,
+        farmingAreaId: ref.read(selectedFarmProvider).id,
+      );
+      ref.listen<SelectedFarm>(selectedFarmProvider, (previous, next) {
+        if (previous?.id != next.id) {
+          notifier.loadData(forceRefresh: true, farmingAreaId: next.id);
+        }
+      });
+      return notifier;
+    });
 
 class ProfileNotifier extends StateNotifier<AsyncValue<ProfileStateData>> {
   final ProfileRepository _repository;
+  String? _farmingAreaId;
 
-  ProfileNotifier(this._repository) : super(const AsyncValue.loading()) {
+  ProfileNotifier(this._repository, {String? farmingAreaId})
+    : _farmingAreaId = farmingAreaId,
+      super(const AsyncValue.loading()) {
     loadData();
   }
 
   /// Initial load or reload of profile data
-  Future<void> loadData({bool forceRefresh = false}) async {
+  Future<void> loadData({
+    bool forceRefresh = false,
+    String? farmingAreaId,
+  }) async {
+    if (farmingAreaId != null) _farmingAreaId = farmingAreaId;
     if (state.hasValue && !forceRefresh) {
       state = AsyncValue.data(state.value!);
     } else {
@@ -38,7 +59,10 @@ class ProfileNotifier extends StateNotifier<AsyncValue<ProfileStateData>> {
     }
 
     try {
-      final data = await _repository.getProfileData(forceRefresh: forceRefresh);
+      final data = await _repository.getProfileData(
+        forceRefresh: forceRefresh,
+        farmingAreaId: _farmingAreaId,
+      );
       state = AsyncValue.data(data);
     } catch (error, stackTrace) {
       state = AsyncValue.error(error, stackTrace);
@@ -48,7 +72,10 @@ class ProfileNotifier extends StateNotifier<AsyncValue<ProfileStateData>> {
   /// Pull-to-refresh
   Future<void> refresh() async {
     try {
-      final data = await _repository.getProfileData(forceRefresh: true);
+      final data = await _repository.getProfileData(
+        forceRefresh: true,
+        farmingAreaId: _farmingAreaId,
+      );
       state = AsyncValue.data(data);
     } catch (error, stackTrace) {
       if (state.hasValue) {
@@ -80,7 +107,9 @@ class ProfileNotifier extends StateNotifier<AsyncValue<ProfileStateData>> {
   Future<void> toggleNotification(bool enabled) async {
     if (!state.hasValue) return;
     final current = state.value!;
-    final updatedSettings = current.settings.copyWith(notificationsEnabled: enabled);
+    final updatedSettings = current.settings.copyWith(
+      notificationsEnabled: enabled,
+    );
     state = AsyncValue.data(current.copyWith(settings: updatedSettings));
   }
 
@@ -88,7 +117,9 @@ class ProfileNotifier extends StateNotifier<AsyncValue<ProfileStateData>> {
   Future<void> toggleBiometric(bool enabled) async {
     if (!state.hasValue) return;
     final current = state.value!;
-    final updatedSecurity = current.security.copyWith(biometricEnabled: enabled);
+    final updatedSecurity = current.security.copyWith(
+      biometricEnabled: enabled,
+    );
     state = AsyncValue.data(current.copyWith(security: updatedSecurity));
   }
 
@@ -105,12 +136,14 @@ class ProfileNotifier extends StateNotifier<AsyncValue<ProfileStateData>> {
     final current = state.value!;
     try {
       final syncResult = await _repository.triggerSync();
-      state = AsyncValue.data(current.copyWith(
-        syncSummary: syncResult,
-        lastSyncedAt: syncResult.lastSyncedAt,
-        isOfflineCached: false,
-        isOnline: true,
-      ));
+      state = AsyncValue.data(
+        current.copyWith(
+          syncSummary: syncResult,
+          lastSyncedAt: syncResult.lastSyncedAt,
+          isOfflineCached: false,
+          isOnline: true,
+        ),
+      );
     } catch (_) {}
   }
 
@@ -122,7 +155,9 @@ class ProfileNotifier extends StateNotifier<AsyncValue<ProfileStateData>> {
       final updated = await _repository.refreshSection(current, section);
       state = AsyncValue.data(updated);
     } catch (e) {
-      state = AsyncValue.data(current.copyWith(sectionError: 'Lỗi tải phần này'));
+      state = AsyncValue.data(
+        current.copyWith(sectionError: 'Lỗi tải phần này'),
+      );
     }
   }
 

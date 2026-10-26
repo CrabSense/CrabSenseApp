@@ -117,32 +117,41 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen>
     await showAlertAssignmentSheet(
       context: context,
       alert: alert,
-      onAssign: ({
-        required String assigneeId,
-        required String assigneeName,
-        required String assigneeRole,
-        String? note,
-      }) {
-        ref.read(alertsStateProvider.notifier).assign(
-          alertId: alert.id,
-          assigneeId: assigneeId,
-          assigneeName: assigneeName,
-          assigneeRole: assigneeRole,
-          note: note,
-        );
-        _snack('Đã giao cho $assigneeName');
-      },
+      onAssign:
+          ({
+            required String assigneeId,
+            required String assigneeName,
+            required String assigneeRole,
+            String? note,
+          }) {
+            ref
+                .read(alertsStateProvider.notifier)
+                .assign(
+                  alertId: alert.id,
+                  assigneeId: assigneeId,
+                  assigneeName: assigneeName,
+                  assigneeRole: assigneeRole,
+                  note: note,
+                );
+            _snack('Đã giao cho $assigneeName');
+          },
     );
   }
 
   List<AlertItem> _filterByTab(List<AlertItem> alerts, int tabIndex) {
     if (tabIndex == 0) return alerts;
     if (tabIndex == 1) {
-      return alerts.where((a) => a.category == AlertCategory.waterQuality).toList();
+      return alerts
+          .where((a) => a.category == AlertCategory.waterQuality)
+          .toList();
     }
-    return alerts.where((a) =>
-        a.category == AlertCategory.device ||
-        a.category == AlertCategory.system).toList();
+    return alerts
+        .where(
+          (a) =>
+              a.category == AlertCategory.device ||
+              a.category == AlertCategory.system,
+        )
+        .toList();
   }
 
   @override
@@ -151,106 +160,248 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen>
     if (authState is Authenticated) _syncPermissions(authState.user);
 
     final async = ref.watch(alertsStateProvider);
-    final totalUnread = async.valueOrNull?.summary.open ?? 0;
+    final data = async.valueOrNull;
 
     return Scaffold(
       backgroundColor: kHomeBg,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(56 + 48),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: kHomeBg,
-            border: Border(bottom: BorderSide(color: kHomeBorder)),
-          ),
-          child: SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Thông báo',
-                          style: TextStyle(
-                            color: kHomeTextMain, fontSize: 18, fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      if (totalUnread > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: kHomePrimaryBg,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            '$totalUnread',
-                            style: const TextStyle(
-                              color: kHomePrimaryDark, fontWeight: FontWeight.w700, fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.refresh_rounded,
-                            color: kHomePrimaryDark),
-                        onPressed: () =>
-                            ref.read(alertsStateProvider.notifier).refresh(),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: _header(data),
+            ),
+            if (data != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                child: _AlertFilterPills(
+                  controller: _tabController,
+                  alerts: data.visibleAlerts,
+                ),
+              ),
+            Expanded(
+              child: async.when(
+                loading: () => const AlertsSkeleton(),
+                error: (e, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: SectionErrorCard(
+                      message: ErrorMapper.userFacingMessage(e),
+                      onRetry: () =>
+                          ref.read(alertsStateProvider.notifier).refresh(),
+                    ),
                   ),
                 ),
-                TabBar(
+                data: (data) => TabBarView(
                   controller: _tabController,
-                  labelColor: kHomePrimaryDark,
-                  unselectedLabelColor: kHomeTextSub,
-                  indicatorColor: kHomePrimaryDark,
-                  indicatorWeight: 3,
-                  dividerColor: Colors.transparent,
-                  labelStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w700),
-                  unselectedLabelStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w500),
-                  tabs: const [
-                    Tab(text: 'Tất cả'),
-                    Tab(text: 'Nước'),
-                    Tab(text: 'Thiết bị & bể'),
-                  ],
+                  children: List.generate(3, (tabIdx) {
+                    final filtered = _filterByTab(data.visibleAlerts, tabIdx);
+                    return _AlertListView(
+                      alerts: filtered,
+                      data: data,
+                      onRefresh: () =>
+                          ref.read(alertsStateProvider.notifier).refresh(),
+                      onTap: (a) => _openDetail(a, data),
+                      onDismiss: (a) {
+                        ref.read(alertsStateProvider.notifier).hideAlert(a.id);
+                        _snack('Đã tạm ẩn cảnh báo');
+                      },
+                    );
+                  }),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Header đồng bộ tab Hộp nuôi / Home: icon phát sáng, tiêu đề in hoa,
+  /// chip trạng thái, nút làm mới dạng ô vuông.
+  Widget _header(AlertsStateData? data) {
+    final open = data?.summary.open ?? 0;
+    final online = data != null && data.isOnline && !data.isOfflineCached;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.notifications_active_rounded,
+              size: 20,
+              color: kHomeBlueLight,
+              shadows: [
+                Shadow(
+                  color: kHomeBlueLight.withValues(alpha: 0.8),
+                  blurRadius: 10,
                 ),
               ],
             ),
-          ),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'CẢNH BÁO',
+                  style: TextStyle(
+                    color: kHomePrimaryDark,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            _OnlineChip(online: online),
+            const SizedBox(width: 6),
+            IconButton(
+              onPressed: () => ref.read(alertsStateProvider.notifier).refresh(),
+              tooltip: 'Làm mới',
+              icon: const Icon(
+                Icons.refresh_rounded,
+                size: 20,
+                color: kHomeBlueLight,
+              ),
+              style: IconButton.styleFrom(
+                minimumSize: const Size(36, 36),
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                backgroundColor: kHomeBg.withValues(alpha: 0.75),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: BorderSide(
+                    color: kHomeBorderBlue.withValues(alpha: 0.55),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
+        const SizedBox(height: 4),
+        Text(
+          data == null
+              ? 'Đang tải cảnh báo…'
+              : '$open cảnh báo chưa xử lý · ${data.selectedFarmName}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: kHomeTextSub, fontSize: 12),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Header chips ─────────────────────────────────────────────────────────────
+
+class _OnlineChip extends StatelessWidget {
+  const _OnlineChip({required this.online});
+
+  final bool online;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = online ? kHomePrimaryDark : kHomeWarning;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.55)),
       ),
-      body: async.when(
-        loading: () => const AlertsSkeleton(),
-        error: (e, _) => Center(
-          child: SectionErrorCard(message: ErrorMapper.userFacingMessage(e),
-            onRetry: () =>
-                ref.read(alertsStateProvider.notifier).refresh(),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            online ? Icons.wifi_rounded : Icons.wifi_off_rounded,
+            size: 14,
+            color: color,
           ),
-        ),
-        data: (data) => TabBarView(
-          controller: _tabController,
-          children: List.generate(3, (tabIdx) {
-            final filtered = _filterByTab(data.visibleAlerts, tabIdx);
-            return _AlertListView(
-              alerts: filtered,
-              data: data,
-              onRefresh: () => ref.read(alertsStateProvider.notifier).refresh(),
-              onTap: (a) => _openDetail(a, data),
-              onDismiss: (a) {
-                ref.read(alertsStateProvider.notifier).hideAlert(a.id);
-                _snack('Đã tạm ẩn cảnh báo');
-              },
-            );
-          }),
-        ),
+          const SizedBox(width: 4),
+          Text(
+            online ? 'Online' : 'Offline',
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+/// Pill lọc theo nhóm cảnh báo — thay [TabBar] gạch chân cũ.
+class _AlertFilterPills extends StatelessWidget {
+  const _AlertFilterPills({required this.controller, required this.alerts});
+
+  final TabController controller;
+  final List<AlertItem> alerts;
+
+  static const _labels = ['Tất cả', 'Nước', 'Thiết bị & bể'];
+  static const _colors = [kHomePrimaryDark, kHomeInfo, kHomeWarning];
+
+  int _countFor(int index) {
+    if (index == 0) return alerts.length;
+    if (index == 1) {
+      return alerts
+          .where((a) => a.category == AlertCategory.waterQuality)
+          .length;
+    }
+    return alerts
+        .where(
+          (a) =>
+              a.category == AlertCategory.device ||
+              a.category == AlertCategory.system,
+        )
+        .length;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final active = controller.index;
+        return Row(
+          children: [
+            for (var i = 0; i < _labels.length; i++)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: GestureDetector(
+                    onTap: () => controller.animateTo(i),
+                    child: Container(
+                      height: 38,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: _colors[i].withValues(
+                          alpha: active == i ? 0.22 : 0.10,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: _colors[i], width: 1.2),
+                      ),
+                      child: Text(
+                        '${_labels[i]} ${_countFor(i)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          height: 1,
+                          color: _colors[i],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -296,7 +447,10 @@ class _AlertListView extends StatelessWidget {
                 color: kHomeDanger.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.delete_outline_rounded, color: kHomeDanger),
+              child: const Icon(
+                Icons.delete_outline_rounded,
+                color: kHomeDanger,
+              ),
             ),
             onDismissed: (_) => onDismiss(alert),
             child: _AlertCard(alert: alert, onTap: () => onTap(alert)),
@@ -321,14 +475,19 @@ class _AlertCard extends StatelessWidget {
         return kHomeWarning;
       case AlertItemSeverity.medium:
         return kHomePrimary;
-      case AlertItemSeverity.low: return kHomeSecondary; case AlertItemSeverity.resolved: return kHomePrimary; }
+      case AlertItemSeverity.low:
+        return kHomeSecondary;
+      case AlertItemSeverity.resolved:
+        return kHomePrimary;
+    }
   }
 
   IconData _icon() {
     final text = '${alert.title} ${alert.description}'.toLowerCase();
     if (text.contains('tràn')) return Icons.water_rounded;
     if (text.contains('cạn')) return Icons.water_drop_outlined;
-    if (text.contains('bật') || text.contains('tắt')) return Icons.power_settings_new_rounded;
+    if (text.contains('bật') || text.contains('tắt'))
+      return Icons.power_settings_new_rounded;
     switch (alert.severity) {
       case AlertItemSeverity.critical:
         return Icons.error_rounded;
@@ -336,7 +495,11 @@ class _AlertCard extends StatelessWidget {
         return Icons.warning_rounded;
       case AlertItemSeverity.medium:
         return Icons.info_rounded;
-      case AlertItemSeverity.low: return Icons.check_circle_rounded; case AlertItemSeverity.resolved: return Icons.check_circle_outline_rounded; }
+      case AlertItemSeverity.low:
+        return Icons.check_circle_rounded;
+      case AlertItemSeverity.resolved:
+        return Icons.check_circle_outline_rounded;
+    }
   }
 
   String _timestamp() {
@@ -350,78 +513,145 @@ class _AlertCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = _accentColor();
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
         decoration: homeCardDecoration(radius: 16),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Left accent border
-              Container(
-                width: 4,
-                decoration: BoxDecoration(
-                  color: accent,
-                  borderRadius:
-                      const BorderRadius.horizontal(left: Radius.circular(12)),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(_icon(), color: accent, size: 20),
                 ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 12),
-                  child: Row(
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: accent.withOpacity(0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(_icon(), color: accent, size: 18),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
                               alert.title,
-                              style: TextStyle(
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
-                                color: accent == kHomeDanger
-                                    ? kHomeDanger
-                                    : kHomeTextMain,
+                                color: kHomeTextMain,
+                                height: 1.25,
                               ),
                             ),
-                            if (alert.description.isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                alert.description,
-                                style: const TextStyle(
-                                    fontSize: 12, color: kHomeTextSub),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ],
-                        ),
+                          ),
+                          const SizedBox(width: 8),
+                          _SeverityPill(
+                            label: alert.severity.labelVi,
+                            color: accent,
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _timestamp(),
-                        style: const TextStyle(
-                            fontSize: 11, color: kHomeTextHint),
+                      if (alert.description.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          alert.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: kHomeTextSub,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.schedule_rounded,
+                            size: 12,
+                            color: kHomeTextHint,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              _timestamp(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: kHomeTextHint,
+                              ),
+                            ),
+                          ),
+                          if (alert.category == AlertCategory.waterQuality) ...[
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.water_drop_rounded,
+                              size: 12,
+                              color: kHomeTextHint,
+                            ),
+                            const SizedBox(width: 3),
+                            const Flexible(
+                              child: Text(
+                                'Môi trường nước',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: kHomeTextHint,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SeverityPill extends StatelessWidget {
+  const _SeverityPill({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.55)),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          color: color,
         ),
       ),
     );
@@ -445,8 +675,11 @@ class _EmptyAlertsState extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: kHomePrimary.withOpacity(0.3)),
             ),
-            child: const Icon(Icons.shield_rounded,
-                color: kHomePrimary, size: 40),
+            child: const Icon(
+              Icons.shield_rounded,
+              color: kHomePrimary,
+              size: 40,
+            ),
           ),
           const SizedBox(height: 16),
           const Text(

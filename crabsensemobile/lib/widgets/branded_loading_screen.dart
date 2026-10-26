@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/theme/app_colors.dart';
+
 /// Splash dùng chung trước khi kiểm tra phiên đăng nhập.
 class BrandedLoadingScreen extends StatelessWidget {
   const BrandedLoadingScreen({
@@ -22,7 +24,7 @@ class BrandedLoadingScreen extends StatelessWidget {
           if (showBackground)
             Image.asset('assets/images/login_splash.png', fit: BoxFit.fill)
           else
-            const ColoredBox(color: Colors.white),
+            const ColoredBox(color: CrabSenseColors.background),
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,

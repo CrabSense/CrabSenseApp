@@ -25,7 +25,7 @@ class SecurityPrivacyScreen extends ConsumerWidget {
     }
 
     return ProfileHubScaffold(
-      title: 'BẢO MẬT & QUYỀN RIÊNG TƯ',
+      title: 'Bảo mật & quyền riêng tư',
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
@@ -45,7 +45,8 @@ class SecurityPrivacyScreen extends ConsumerWidget {
                   subtitle: 'Vân tay / FaceID trên thiết bị này',
                   trailing: Switch(
                     value: sec.biometricEnabled,
-                    activeColor: kHomeCyan,
+                    activeThumbColor: kHomePrimaryDark,
+                    activeTrackColor: kHomePrimary,
                     onChanged: (v) {
                       ref
                           .read(profileStateProvider.notifier)
@@ -117,14 +118,12 @@ class SecurityPrivacyScreen extends ConsumerWidget {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [kHomeSurface, kHomeBg, kHomeBg],
+        decoration: const BoxDecoration(
+          color: kHomeSurface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          border: Border(
+            top: BorderSide(color: kHomeBorder),
           ),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          border: Border.all(color: kHomeBorderBlue.withValues(alpha: 0.5)),
         ),
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         child: Column(
@@ -135,17 +134,17 @@ class SecurityPrivacyScreen extends ConsumerWidget {
               title,
               style: const TextStyle(
                 color: kHomeTextMain,
-                fontWeight: FontWeight.w800,
-                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                fontSize: 15.5,
               ),
             ),
             const SizedBox(height: 10),
             Text(
               body,
-              style: TextStyle(
-                color: const Color(0xFF5A7184),
-                height: 1.4,
-                fontSize: 14,
+              style: const TextStyle(
+                color: kHomeTextSub,
+                height: 1.45,
+                fontSize: 13,
               ),
             ),
             const SizedBox(height: 16),
@@ -154,10 +153,16 @@ class SecurityPrivacyScreen extends ConsumerWidget {
               child: FilledButton(
                 onPressed: () => Navigator.pop(ctx),
                 style: FilledButton.styleFrom(
-                  backgroundColor: kHomeCyan,
-                  foregroundColor: kHomeBg,
+                  backgroundColor: kHomePrimary,
+                  foregroundColor: kHomePrimaryDark,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: const Text('Đóng'),
+                child: const Text(
+                  'Đóng',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
             ),
           ],

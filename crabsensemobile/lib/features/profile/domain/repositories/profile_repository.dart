@@ -16,14 +16,26 @@ enum ProfileSection {
 }
 
 abstract class ProfileRepository {
-  /// Fetch complete profile summary data
-  Future<ProfileStateData> getProfileData({bool forceRefresh = false});
+  /// Fetch complete profile summary data.
+  ///
+  /// [farmingAreaId] scopes the box/device counters to the farm currently
+  /// pinned in `selectedFarmProvider` so the tab matches Boxes/Home.
+  Future<ProfileStateData> getProfileData({
+    bool forceRefresh = false,
+    String? farmingAreaId,
+  });
 
   /// Refresh specific section independently without blocking whole screen
-  Future<ProfileStateData> refreshSection(ProfileStateData current, ProfileSection section);
+  Future<ProfileStateData> refreshSection(
+    ProfileStateData current,
+    ProfileSection section,
+  );
 
   /// Switch active farm
-  Future<ProfileStateData> switchFarm(ProfileStateData current, String farmName);
+  Future<ProfileStateData> switchFarm(
+    ProfileStateData current,
+    String farmName,
+  );
 
   /// Toggle notification setting
   Future<SettingsSummary> updateNotificationSetting(bool enabled);

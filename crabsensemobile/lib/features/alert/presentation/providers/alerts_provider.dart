@@ -60,9 +60,9 @@ class AlertsPermissionFlags {
 
 final alertsStateProvider =
     StateNotifierProvider<AlertsNotifier, AsyncValue<AlertsStateData>>((ref) {
-  final repository = ref.watch(alertsRepositoryProvider);
-  return AlertsNotifier(repository, ref);
-});
+      final repository = ref.watch(alertsRepositoryProvider);
+      return AlertsNotifier(repository, ref);
+    });
 
 /// Unread/open badge for Bottom Navigation (99+ capped in UI).
 final alertsBadgeCountProvider = Provider<int>((ref) {
@@ -74,7 +74,8 @@ final alertsBadgeCountProvider = Provider<int>((ref) {
 });
 
 class AlertsNotifier extends StateNotifier<AsyncValue<AlertsStateData>> {
-  AlertsNotifier(this._repository, this._ref) : super(const AsyncValue.loading()) {
+  AlertsNotifier(this._repository, this._ref)
+    : super(const AsyncValue.loading()) {
     _ref.listen<SelectedFarm>(selectedFarmProvider, (prev, next) {
       if (next.id == null || next.id!.isEmpty) return;
       if (!state.hasValue) return;
@@ -147,14 +148,17 @@ class AlertsNotifier extends StateNotifier<AsyncValue<AlertsStateData>> {
           selectedFarmId: (lockId != null && lockId.isNotEmpty)
               ? lockId
               : data.selectedFarmId,
-          selectedFarmName: (lockId != null &&
+          selectedFarmName:
+              (lockId != null &&
                   lockId.isNotEmpty &&
                   lockId != data.selectedFarmId)
               ? (current?.selectedFarmName ?? data.selectedFarmName)
               : data.selectedFarmName,
         ),
       );
-      await _ref.read(selectedFarmProvider.notifier).syncFromLoaded(
+      await _ref
+          .read(selectedFarmProvider.notifier)
+          .syncFromLoaded(
             id: lockId ?? data.selectedFarmId,
             name: data.selectedFarmName,
           );
@@ -195,10 +199,9 @@ class AlertsNotifier extends StateNotifier<AsyncValue<AlertsStateData>> {
       ),
     );
 
-    await _ref.read(selectedFarmProvider.notifier).select(
-          farmId,
-          name: farmName,
-        );
+    await _ref
+        .read(selectedFarmProvider.notifier)
+        .select(farmId, name: farmName);
 
     try {
       final updated = await _repository.switchFarm(farmId);
@@ -215,10 +218,9 @@ class AlertsNotifier extends StateNotifier<AsyncValue<AlertsStateData>> {
           isRefreshing: false,
         ),
       );
-      await _ref.read(selectedFarmProvider.notifier).select(
-            farmId,
-            name: farmName ?? updated.selectedFarmName,
-          );
+      await _ref
+          .read(selectedFarmProvider.notifier)
+          .select(farmId, name: farmName ?? updated.selectedFarmName);
     } catch (_) {
       state = AsyncValue.data(
         current.copyWith(

@@ -114,7 +114,9 @@ class AlertsHeader extends StatelessWidget {
                                   border: Border.all(
                                     color: selected
                                         ? kHomeCyan.withValues(alpha: 0.7)
-                                        : kHomeBorderBlue.withValues(alpha: 0.4),
+                                        : kHomeBorderBlue.withValues(
+                                            alpha: 0.4,
+                                          ),
                                   ),
                                 ),
                                 child: Row(
@@ -122,7 +124,9 @@ class AlertsHeader extends StatelessWidget {
                                     Icon(
                                       Icons.location_on_rounded,
                                       size: 18,
-                                      color: selected ? kHomeCyan : Colors.white54,
+                                      color: selected
+                                          ? kHomeCyan
+                                          : Colors.white54,
                                     ),
                                     const SizedBox(width: 10),
                                     Expanded(
@@ -324,10 +328,7 @@ class AlertsHeader extends StatelessWidget {
 enum _OverflowAction { markAllRead, notificationSettings }
 
 class _FarmSelectorBar extends StatelessWidget {
-  const _FarmSelectorBar({
-    required this.farmName,
-    required this.onTap,
-  });
+  const _FarmSelectorBar({required this.farmName, required this.onTap});
 
   final String farmName;
   final VoidCallback onTap;
@@ -348,9 +349,7 @@ class _FarmSelectorBar extends StatelessWidget {
               colors: [kHomeSurface, kHomeBg, kHomeBg],
             ),
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: kHomeBlueLight.withValues(alpha: 0.55),
-            ),
+            border: Border.all(color: kHomeBlueLight.withValues(alpha: 0.55)),
             boxShadow: [
               BoxShadow(
                 color: kHomeBlue.withValues(alpha: 0.28),

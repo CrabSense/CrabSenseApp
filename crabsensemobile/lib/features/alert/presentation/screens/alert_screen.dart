@@ -335,9 +335,7 @@ class _FilterChip extends StatelessWidget {
       duration: const Duration(milliseconds: 150),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: selected
-            ? color.withValues(alpha: 0.2)
-            : kHomeSurface,
+        color: selected ? color.withValues(alpha: 0.2) : kHomeSurface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: selected ? color : kHomeBorderBlue,
@@ -467,9 +465,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'No alerts',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: Colors.white,
-              ),
+              style: theme.textTheme.titleMedium?.copyWith(color: Colors.white),
             ),
             const SizedBox(height: 8),
             Text(

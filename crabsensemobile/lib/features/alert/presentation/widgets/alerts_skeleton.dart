@@ -294,11 +294,7 @@ class _ShimmerBlockState extends State<_ShimmerBlock>
             gradient: LinearGradient(
               begin: Alignment(_animation.value - 1, 0),
               end: Alignment(_animation.value, 0),
-              colors: const [
-                kHomeBg,
-                kHomeBg,
-                kHomeBg,
-              ],
+              colors: const [kHomeBg, kHomeBg, kHomeBg],
             ),
           ),
         );

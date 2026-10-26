@@ -27,7 +27,11 @@ class AIRecommendedActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      decoration: homeCardDecoration(accent: kHomePurple, radius: 14, glowAlpha: 0.12),
+      decoration: homeCardDecoration(
+        accent: kHomePurple,
+        radius: 14,
+        glowAlpha: 0.12,
+      ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
@@ -58,7 +62,7 @@ class AIRecommendedActionCard extends StatelessWidget {
                     Text(
                       '${recommendation.confidence}%',
                       style: const TextStyle(
-                        color: kHomeCyan,
+                        color: kHomePrimaryDark,
                         fontWeight: FontWeight.w700,
                         fontSize: 11,
                       ),
@@ -91,8 +95,8 @@ class AIRecommendedActionCard extends StatelessWidget {
                           FilledButton(
                             onPressed: onExecute,
                             style: FilledButton.styleFrom(
-                              backgroundColor: kHomeCyan,
-                              foregroundColor: kHomeBg,
+                              backgroundColor: kHomePrimaryDark,
+                              foregroundColor: Colors.white,
                               minimumSize: const Size(48, 40),
                             ),
                             child: const Text('Thực hiện ngay'),
@@ -108,7 +112,10 @@ class AIRecommendedActionCard extends StatelessWidget {
                             child: const Text('Giao nhân viên'),
                           ),
                         if (onSkip != null)
-                          TextButton(onPressed: onSkip, child: const Text('Bỏ qua')),
+                          TextButton(
+                            onPressed: onSkip,
+                            child: const Text('Bỏ qua'),
+                          ),
                         if (onSnooze != null)
                           TextButton(
                             onPressed: onSnooze,
@@ -134,17 +141,11 @@ class AIRecommendedActionCard extends StatelessWidget {
           children: [
             TextSpan(
               text: '$label: ',
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: kHomeTextHint, fontSize: 12),
             ),
             TextSpan(
               text: value,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: kHomeTextSub, fontSize: 12),
             ),
           ],
         ),

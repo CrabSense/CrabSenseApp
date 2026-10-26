@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/utils/app_back.dart';
-import '../../../home/presentation/widgets/crab_hologram_painter.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 
-/// Shared hologram shell for Profile child hubs (settings, help, sync, …).
+/// Shell chung cho các màn con của Tài khoản (cài đặt, bảo mật, trợ giúp, …).
 class ProfileHubScaffold extends StatelessWidget {
   const ProfileHubScaffold({
     super.key,
@@ -25,88 +23,137 @@ class ProfileHubScaffold extends StatelessWidget {
     final content = body;
     return Scaffold(
       backgroundColor: kHomeBg,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: IgnorePointer(
-              child: CustomPaint(
-                painter: CrabHologramPainter(
-                  color: kHomeBlueLight.withValues(alpha: 0.05),
-                  trayExtent: 32,
-                ),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+              child: Row(
+                children: [
+                  _BackCircle(onTap: () => appBack(context)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: kHomeTextMain,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ),
+                  ...?actions,
+                ],
               ),
             ),
-          ),
-          SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 4, 12, 8),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => appBack(context),
-                        icon: const Icon(
-                          Icons.arrow_back_rounded,
-                          color: kHomeBlueLight,
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            color: kHomePrimaryDark,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                      ...?actions,
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: onRefresh == null
-                      ? content
-                      : RefreshIndicator(
-                          color: kHomeCyan,
-                          backgroundColor: kHomeSurface,
-                          onRefresh: onRefresh!,
-                          child: content,
-                        ),
-                ),
-              ],
+            Expanded(
+              child: onRefresh == null
+                  ? content
+                  : RefreshIndicator(
+                      color: kHomePrimary,
+                      backgroundColor: kHomeSurface,
+                      onRefresh: onRefresh!,
+                      child: content,
+                    ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Card block used inside hub screens.
+class _BackCircle extends StatelessWidget {
+  const _BackCircle({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: kHomeSurface,
+      shape: const CircleBorder(side: BorderSide(color: kHomeBorder)),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: const SizedBox(
+          width: 38,
+          height: 38,
+          child: Icon(Icons.arrow_back_rounded, color: kHomeTextMain, size: 20),
+        ),
+      ),
+    );
+  }
+}
+
+/// Card block dùng trong các màn con.
+///
+/// Bọc `Material` ở trong (thay vì chỉ `Container` có màu nền) để `ListTile`,
+/// `SwitchListTile`, `ExpansionTile` bên trong vẫn vẽ được ink splash — nếu
+/// không Flutter assert "ListTile background color or ink splashes may be
+/// invisible" và hiệu ứng chạm bị che.
 class HubCard extends StatelessWidget {
   const HubCard({super.key, required this.child, this.padding});
 
   final Widget child;
   final EdgeInsetsGeometry? padding;
 
+  static const double _radius = 16;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      decoration: homeCardDecoration(radius: 16, glowAlpha: 0.1),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          const HomeCrabWatermark(alpha: 0.05, trayExtent: 18),
-          Padding(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(_radius),
+          boxShadow: [
+            BoxShadow(
+              color: kHomeShadow,
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Material(
+          color: kHomeSurface,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_radius),
+            side: const BorderSide(color: kHomeBorder),
+          ),
+          child: Padding(
             padding: padding ?? const EdgeInsets.all(14),
             child: child,
           ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Nhãn nhóm nhỏ phía trên một [HubCard].
+class HubSectionLabel extends StatelessWidget {
+  const HubSectionLabel({super.key, required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+      child: Text(
+        label.toUpperCase(),
+        style: const TextStyle(
+          color: kHomeTextHint,
+          fontWeight: FontWeight.w700,
+          fontSize: 10.5,
+          letterSpacing: 0.8,
+        ),
       ),
     );
   }
@@ -141,67 +188,77 @@ class HubTile extends StatelessWidget {
           child: InkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(icon, color: kHomeCyan, size: 22),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            color: kHomeTextMain,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        if (subtitle != null) ...[
-                          const SizedBox(height: 2),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 56),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: kHomePrimaryBg,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(icon, color: kHomePrimaryDark, size: 18),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
                           Text(
-                            subtitle!,
-                            style: TextStyle(
-                              color: const Color(0xFF5A7184),
-                              fontSize: 12,
-                              height: 1.3,
-                            ),
-                          ),
-                        ],
-                        if (value != null) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            value!,
+                            title,
                             style: const TextStyle(
-                              color: kHomeCyan,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
+                              color: kHomeTextMain,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13.5,
                             ),
                           ),
+                          if (subtitle != null) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              subtitle!,
+                              style: const TextStyle(
+                                color: kHomeTextSub,
+                                fontSize: 11.5,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                          if (value != null) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              value!,
+                              style: const TextStyle(
+                                color: kHomeSecondary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  if (trailing != null)
-                    trailing!
-                  else if (onTap != null)
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      color: const Color(0xFF5A7184),
-                    ),
-                ],
+                    const SizedBox(width: 8),
+                    if (trailing != null)
+                      trailing!
+                    else if (onTap != null)
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: kHomeTextHint,
+                        size: 18,
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
         if (showDivider)
-          Divider(
-            height: 1,
-            color: kHomeBorderBlue.withValues(alpha: 0.35),
-          ),
+          const Divider(height: 1, indent: 46, color: kHomeBorder),
       ],
     );
   }

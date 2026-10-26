@@ -5,7 +5,10 @@ import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_event.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 
-/// Nút đăng xuất hologram + dialog xác nhận.
+/// Đỏ đậm hơn `kHomeDanger` để chữ 14px trên nền card sáng đủ tương phản.
+const Color _kLogoutInk = Color(0xFFB4342A);
+
+/// Nút đăng xuất + dialog xác nhận — outlined cho đúng pattern destructive.
 class LogoutButton extends StatelessWidget {
   const LogoutButton({
     super.key,
@@ -19,29 +22,29 @@ class LogoutButton extends StatelessWidget {
     showDialog<void>(
       context: context,
       useRootNavigator: true,
-      barrierColor: Colors.black.withValues(alpha: 0.65),
+      barrierColor: Colors.black.withValues(alpha: 0.35),
       builder: (dialogContext) => AlertDialog(
         backgroundColor: kHomeSurface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: BorderSide(color: kHomeBorderBlue.withValues(alpha: 0.55)),
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: kHomeBorder),
         ),
         title: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFFF6B6B).withValues(alpha: 0.14),
+                color: kHomeDangerBg,
                 border: Border.all(
-                  color: const Color(0xFFFF6B6B).withValues(alpha: 0.5),
+                  color: kHomeDanger.withValues(alpha: 0.45),
                 ),
               ),
               child: const Icon(
                 Icons.logout_rounded,
-                color: Color(0xFFFF6B6B),
-                size: 18,
+                color: _kLogoutInk,
+                size: 17,
               ),
             ),
             const SizedBox(width: 12),
@@ -50,31 +53,31 @@ class LogoutButton extends StatelessWidget {
                 'Xác nhận đăng xuất',
                 style: TextStyle(
                   color: kHomeTextMain,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
           ],
         ),
-        content: Text(
+        content: const Text(
           'Bạn có chắc muốn đăng xuất? Dữ liệu ngoại tuyến chưa đồng bộ vẫn được lưu trên máy.',
           style: TextStyle(
-            color: const Color(0xFF5A7184),
-            fontSize: 13.5,
-            height: 1.4,
+            color: kHomeTextSub,
+            fontSize: 13,
+            height: 1.45,
           ),
         ),
-        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
         actions: [
           OutlinedButton(
             onPressed: () =>
                 Navigator.of(dialogContext, rootNavigator: true).pop(),
             style: OutlinedButton.styleFrom(
-              foregroundColor: kHomeBlueLight,
-              side: BorderSide(color: kHomeBorderBlue.withValues(alpha: 0.55)),
+              foregroundColor: kHomeTextMain,
+              side: const BorderSide(color: kHomeBorder),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
             child: const Text('Hủy'),
@@ -91,15 +94,15 @@ class LogoutButton extends StatelessWidget {
               });
             },
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFE85D5D),
+              backgroundColor: kHomeDanger,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
             child: const Text(
               'Đăng xuất',
-              style: TextStyle(fontWeight: FontWeight.w800),
+              style: TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -109,52 +112,26 @@ class LogoutButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      height: 52,
-      margin: const EdgeInsets.only(top: 8, bottom: 32),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF3A1520),
-            kHomeBg,
-            const Color(0xFF2A1018),
-          ],
-        ),
-        border: Border.all(
-          color: const Color(0xFFFF6B6B).withValues(alpha: 0.55),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFF6B6B).withValues(alpha: 0.22),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+      height: 48,
+      child: OutlinedButton.icon(
+        onPressed: () => _showLogoutConfirmation(context),
+        icon: const Icon(Icons.logout_rounded, size: 18),
+        label: const Text(
+          'Đăng xuất',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+            letterSpacing: 0.1,
           ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _showLogoutConfirmation(context),
-          borderRadius: BorderRadius.circular(16),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.logout_rounded, color: Color(0xFFFF8A8A), size: 20),
-              SizedBox(width: 10),
-              Text(
-                'ĐĂNG XUẤT',
-                style: TextStyle(
-                  color: kHomeTextMain,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                  letterSpacing: 0.6,
-                ),
-              ),
-            ],
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _kLogoutInk,
+          backgroundColor: kHomeSurface,
+          side: const BorderSide(color: kHomeBorder),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
       ),
