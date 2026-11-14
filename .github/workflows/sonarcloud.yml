@@ -30,6 +30,10 @@ jobs:
         working-directory: crabsensemobile
         run: flutter pub get
 
+      - name: Desktop pub get
+        working-directory: crabsensedesktop
+        run: flutter pub get
+
       - name: Analyze (dart)
         working-directory: crabsensemobile
         run: dart analyze || true
