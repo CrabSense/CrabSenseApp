@@ -1300,8 +1300,6 @@ class CloudApiClient {
     String? sensorType,
     String? unit,
     bool? isActive,
-    double? minThreshold,
-    double? maxThreshold,
   }) async {
     final uri = Uri.parse('$_base/api/sensors/$id');
     final res = await _client.put(
@@ -1311,8 +1309,6 @@ class CloudApiClient {
         if (sensorType != null) 'sensorType': sensorType,
         if (unit != null) 'unit': unit,
         if (isActive != null) 'isActive': isActive,
-        if (minThreshold != null) 'minThreshold': minThreshold,
-        if (maxThreshold != null) 'maxThreshold': maxThreshold,
       }),
     );
     final body = _decode(res);
@@ -1323,6 +1319,29 @@ class CloudApiClient {
       );
     }
     return _asMap(_dataOf(body) ?? body);
+  }
+
+  Future<void> recordSensorCalibration(String token,String id,Map<String,dynamic> payload) async {
+    final res=await _client.post(Uri.parse('$_base/api/sensors/$id/calibrations'),
+      headers:{...authHeaders(token),'Content-Type':'application/json'},body:jsonEncode(payload));
+    final body=_decode(res);
+    if(_isApiFailure(res,body)) throw CloudApiException(_errorMessage(body)??'Không lưu được hiệu chuẩn',statusCode:res.statusCode);
+  }
+
+  Future<void> setSensorActive(String token,String id,bool active) async {
+    final res=await _client.post(Uri.parse('$_base/api/sensors/$id/${active ? 'enable':'disable'}'),headers:authHeaders(token));
+    final body=_decode(res);
+    if(_isApiFailure(res,body)) throw CloudApiException(_errorMessage(body)??'Không đổi được trạng thái Sensor',statusCode:res.statusCode);
+  }
+
+  Future<List<Map<String,dynamic>>> fetchDiscoveredSensors(String token,String deviceId) =>
+    _getDataList(token,'/api/sensors/discovered',extraQuery:{'deviceId':deviceId});
+
+  Future<void> registerSensorFromPort(String token,Map<String,dynamic> payload) async {
+    final res=await _client.post(Uri.parse('$_base/api/sensors/register-from-port'),
+      headers:{...authHeaders(token),'Content-Type':'application/json'},body:jsonEncode(payload));
+    final body=_decode(res);
+    if(_isApiFailure(res,body)) throw CloudApiException(_errorMessage(body)??'Không đăng ký được Sensor',statusCode:res.statusCode);
   }
 
   Future<void> deleteSensor(String token, String id) async {

@@ -454,18 +454,14 @@ class ControllerService extends ChangeNotifier {
     String? sensorType,
     String? unit,
     bool? isActive,
-    double? minThreshold,
-    double? maxThreshold,
   }) async {
     try {
-      await _api.updateSensor(
+      if(isActive!=null) await _api.setSensorActive(_session.token,sensorId,isActive);
+      if(sensorType!=null||unit!=null) await _api.updateSensor(
         _session.token,
         sensorId,
         sensorType: sensorType,
         unit: unit,
-        isActive: isActive,
-        minThreshold: minThreshold,
-        maxThreshold: maxThreshold,
       );
       if (_selectedId != null) await _loadDetail(_selectedId!, silent: true);
       return true;
@@ -473,6 +469,15 @@ class ControllerService extends ChangeNotifier {
       _detailError = e.message;
       notifyListeners();
       return false;
+    }
+  }
+
+  Future<bool> recordCalibration(String sensorId,Map<String,dynamic> payload) async {
+    try {
+      await _api.recordSensorCalibration(_session.token,sensorId,payload);
+      return true;
+    } catch(e) {
+      _detailError='$e';notifyListeners();return false;
     }
   }
 
@@ -611,8 +616,9 @@ class ControllerService extends ChangeNotifier {
     if (deviceId.isEmpty) return;
     try {
       await _registerRealtimeSensors(deviceId, deviceCode, firmwareSensors);
-    } on CloudApiException {
-      // Sensors may already be linked to this controller.
+    } on CloudApiException catch(e) {
+      _detailError=e.message;
+      notifyListeners();
     }
   }
 
@@ -662,48 +668,20 @@ class ControllerService extends ChangeNotifier {
     String deviceCode,
     List<EspSensorPin> firmwareSensors,
   ) async {
-    final specs = <(String, String, String)>[
-      if (firmwareSensors.isNotEmpty)
-        for (final s in firmwareSensors)
-          (
-            s.suffix.isNotEmpty
-                ? s.suffix
-                : (s.sensorCode.startsWith(deviceCode)
-                    ? s.sensorCode.substring(deviceCode.length)
-                    : '-${s.sensorType.toLowerCase()}'),
-            s.sensorType,
-            s.unit,
-          )
-      else
-        ...const [
-          ('-temp', 'Temperature', 'C'),
-          ('-ph', 'pH', 'pH'),
-          ('-tds', 'Salinity', 'ppt'),
-        ],
-      ...const [
-        ('meter_v', 'Voltage', 'V'),
-        ('meter_a', 'Current', 'A'),
-        ('meter_w', 'Power', 'W'),
-        ('meter_va', 'ApparentPower', 'VA'),
-        ('meter_kwh', 'Energy', 'kWh'),
-        ('meter_hz', 'Frequency', 'Hz'),
-        ('meter_pf', 'PowerFactor', '%'),
-      ],
-    ];
-    for (final spec in specs) {
-      try {
-        await _api.createSensor(
-          _session.token,
-          deviceId: deviceId,
-          sensorCode: spec.$1.startsWith('-')
-              ? '$deviceCode${spec.$1}'
-              : spec.$1,
-          sensorType: spec.$2,
-          unit: spec.$3,
-        );
-      } on CloudApiException {
-        // Already registered from a previous attempt — keep going.
-      }
+    // Only BE-verified manifest ports. Never invent sensor records from default pin lists.
+    final ports=await _api.fetchDiscoveredSensors(_session.token,deviceId);
+    for(final port in ports) {
+      final code=(port['sensorCode']??'').toString();
+      final type=(port['portType']??port['type']??'').toString();
+      if(code.isEmpty || !['DIGITAL_INPUT','ANALOG_INPUT'].contains(type))continue;
+      final matches=firmwareSensors.where((s)=>s.sensorCode==code).toList();
+      if(matches.length!=1)continue;
+      final sensor=matches.single;
+      if(sensor.sensorType.isEmpty||sensor.unit.isEmpty)continue;
+      await _api.registerSensorFromPort(_session.token,{
+        'controllerId':deviceId,'portId':port['id']??port['portId'],
+        'sensorCode':code,'sensorType':sensor.sensorType,'unit':sensor.unit,
+      });
     }
   }
 

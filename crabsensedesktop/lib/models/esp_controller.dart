@@ -50,7 +50,7 @@ class ControllerChild {
     return ControllerChild(
       id: (json['id'] ?? json['Id'] ?? '').toString(),
       code: (json['sensorCode'] ?? json['SensorCode'] ?? '').toString(),
-      name: (json['sensorType'] ?? json['SensorType'] ?? 'Sensor').toString(),
+      name: (json['name'] ?? json['Name'] ?? json['sensorType'] ?? json['SensorType'] ?? 'Sensor').toString(),
       kind: 'sensor',
       type: (json['sensorType'] ?? json['SensorType'])?.toString(),
       unit: (json['unit'] ?? json['Unit'])?.toString(),

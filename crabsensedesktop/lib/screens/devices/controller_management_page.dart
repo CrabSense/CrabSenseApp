@@ -1035,8 +1035,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                                 value: 'cal', child: Text('Hiệu chuẩn')),
                             const PopupMenuItem(
                                 value: 'delete', child: Text('Xóa sensor')),
-                            const PopupMenuItem(
-                                value: 'off', child: Text('Tắt sensor')),
+                            PopupMenuItem(
+                                value: 'off', child: Text(s.isActive?'Tắt sensor':'Bật sensor')),
                           ],
                         ),
                       ],
@@ -1461,6 +1461,7 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
   }
 
   Future<void> _addSensor(IoTDevice d) async {
+    if(!_svc.session.user.isSystemAdmin){_toast('Chỉ System Administrator đăng ký Sensor.');return;}
     final code = TextEditingController(text: '${d.deviceCode}-');
     final type = TextEditingController(text: 'pH');
     final unit = TextEditingController(text: 'pH');
@@ -1510,6 +1511,7 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
   }
 
   Future<void> _onSensorMenu(String a, ControllerChild s, IoTDevice d) async {
+    if(a!='hist'&&a!='detail'&&!_svc.session.user.isSystemAdmin){_toast('Chỉ System Administrator quản lý Sensor.');return;}
     switch (a) {
       case 'detail':
         _tabs.animateTo(1);
@@ -1518,8 +1520,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
       case 'delete':
         await _deleteSensor(s);
       case 'off':
-        await _svc.updateSensor(sensorId: s.id, isActive: false);
-        if (mounted) _toast('Đã tắt sensor ${s.code}.');
+        final saved=await _svc.updateSensor(sensorId:s.id,isActive:!s.isActive);
+        if(mounted) _toast(saved?'Đã cập nhật trạng thái ${s.code}.':(_svc.detailError??'Không cập nhật được Sensor.'));
       case 'hist':
         await _showSensorHistory(s);
       case 'cal':
@@ -1600,6 +1602,7 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
   }
 
   Future<void> _editSensor(ControllerChild s) async {
+    if(!_svc.session.user.isSystemAdmin){_toast('Chỉ System Administrator sửa Sensor.');return;}
     final type = TextEditingController(text: s.type ?? s.name);
     final unit = TextEditingController(text: s.unit ?? '');
     final ok = await showDialog<bool>(
@@ -1675,49 +1678,29 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
   }
 
   Future<void> _calibrate(ControllerChild s) async {
-    final min = TextEditingController(text: s.minThreshold?.toString() ?? '');
-    final max = TextEditingController(text: s.maxThreshold?.toString() ?? '');
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        title: Text('Hiệu chuẩn ${_sensorTitle(s)}',
-            style: bvText(fontWeight: FontWeight.w800)),
-        content: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Ngưỡng lấy từ backend. UI không tự nhân/chia giá trị đo.',
-                  style: bvText(color: DashboardColors.textMuted)),
-              TextField(
-                  controller: min,
-                  decoration:
-                      const InputDecoration(labelText: 'Min threshold')),
-              TextField(
-                  controller: max,
-                  decoration:
-                      const InputDecoration(labelText: 'Max threshold')),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Hủy')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Lưu')),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    await _svc.updateSensor(
-      sensorId: s.id,
-      minThreshold: double.tryParse(min.text.trim()),
-      maxThreshold: double.tryParse(max.text.trim()),
-    );
+    if(!_svc.session.user.isSystemAdmin)return;
+    final reference=TextEditingController(), observed=TextEditingController(), method=TextEditingController();
+    var passed=false;
+    final ok=await showDialog<bool>(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,setState)=>AlertDialog(
+      title:Text('Ghi nhận hiệu chuẩn ${s.code}'),
+      content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+        const Text('Chỉ lưu kết quả hiệu chuẩn vật lý đã thực hiện; không thay đổi ngưỡng nuôi.'),
+        TextField(controller:reference,keyboardType:const TextInputType.numberWithOptions(decimal:true,signed:true),decoration:InputDecoration(labelText:'Giá trị chuẩn (${s.unit??"—"})')),
+        TextField(controller:observed,keyboardType:const TextInputType.numberWithOptions(decimal:true,signed:true),decoration:const InputDecoration(labelText:'Giá trị quan sát')),
+        TextField(controller:method,decoration:const InputDecoration(labelText:'Phương pháp')),
+        CheckboxListTile(value:passed,onChanged:(v)=>setState(()=>passed=v??false),title:const Text('Đã hiệu chuẩn đạt')),
+      ])),
+      actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Hủy')),
+        FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Lưu kết quả'))],
+    )));
+    final ref=double.tryParse(reference.text.trim()),obs=double.tryParse(observed.text.trim()), technique=method.text.trim();
+    reference.dispose();observed.dispose();method.dispose();
+    if(ok!=true||!mounted)return;
+    if(ref==null||obs==null||!ref.isFinite||!obs.isFinite||technique.isEmpty||s.unit==null||s.unit!.isEmpty){_toast('Nhập giá trị hữu hạn, phương pháp và đơn vị Sensor.');return;}
+    final saved=await _svc.recordCalibration(s.id,{'referenceValue':ref,'observedValue':obs,'unit':s.unit,'method':technique,'result':passed?'Passed':'Failed','performedAt':DateTime.now().toUtc().toIso8601String()});
+    if(mounted)_toast(saved?'Đã lưu bản ghi hiệu chuẩn.':(_svc.detailError??'Không lưu được.'));
   }
+
 }
 
 class _ControllerCard extends StatelessWidget {

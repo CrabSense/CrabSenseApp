@@ -285,8 +285,8 @@ class WaterQualityService extends ChangeNotifier {
       final alarm = (m['alarm'] ?? m['Alarm'])?.toString();
       final deviceStatus =
           (m['deviceStatus'] ?? m['DeviceStatus'] ?? '').toString();
-      final offline = (m['isActive'] == false) ||
-          deviceStatus.toLowerCase() == 'offline';
+      final sensorStatus=(m['status']??m['Status']??'').toString().toLowerCase();
+      final offline = (m['isActive'] == false) || (sensorStatus.isNotEmpty ? sensorStatus!='online' : deviceStatus.toLowerCase() == 'offline');
       final min = (m['minThreshold'] ?? m['MinThreshold'] as num?)?.toDouble();
       final max = (m['maxThreshold'] ?? m['MaxThreshold'] as num?)?.toDouble();
       final fallback = WaterQualityEvaluator.thresholdFor(type);
