@@ -363,7 +363,13 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      _DetailRow('Loại', detail.deviceType.isEmpty ? '—' : detail.deviceType),
+                      _DetailRow('Loại', detail.sensorType ?? (detail.deviceType.isEmpty ? '—' : detail.deviceType)),
+                      if(detail.isSensor) ...[
+                        _DetailRow('Controller',detail.controllerCode??'—'),
+                        _DetailRow('Giá trị gần nhất',detail.latestValue==null?'—':'${detail.latestValue} ${detail.sensorUnit??''}'),
+                        _DetailRow('Thời điểm đo',detail.measuredAt==null?'—':fmt.format(detail.measuredAt!.toLocal())),
+                        _DetailRow('Chất lượng',detail.dataQuality??'Unknown'),
+                      ] else ...[
                       _DetailRow(
                         'Firmware',
                         detail.firmwareVersion?.isNotEmpty == true
@@ -383,6 +389,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                             : '—',
                       ),
                       _DetailRow('Số cảm biến', '${detail.sensorCount}'),
+                      ],
                       _DetailRow(
                         'Last seen',
                         detail.lastSeenAt != null

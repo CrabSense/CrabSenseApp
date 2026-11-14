@@ -10,6 +10,12 @@ class IotDevice {
     this.rssiDbm,
     this.lastSeenAt,
     this.sensorCount = 0,
+    this.sensorType,
+    this.sensorUnit,
+    this.latestValue,
+    this.measuredAt,
+    this.dataQuality,
+    this.controllerCode,
   });
 
   final String id;
@@ -21,6 +27,14 @@ class IotDevice {
   final double? rssiDbm;
   final DateTime? lastSeenAt;
   final int sensorCount;
+  final String? sensorType;
+  final String? sensorUnit;
+  final double? latestValue;
+  final DateTime? measuredAt;
+  final String? dataQuality;
+  final String? controllerCode;
+  bool get isSensor => sensorType != null;
+  bool get isOffline => ['offline','disconnected'].contains(status.toLowerCase());
 
   bool get isOnline {
     final s = status.toLowerCase();
@@ -45,8 +59,24 @@ class IotDevice {
     final s = status.toLowerCase();
     if (s.contains('offline') || s.contains('disconnect')) return 'Offline';
     if (s.contains('maintain')) return 'Bảo trì';
+    if(s=='disabled') return 'Đã tắt';
+    if(s=='unknown') return 'Chưa xác định';
+    if(s=='error') return 'Lỗi';
     if (status.trim().isEmpty) return 'Không rõ';
     return status;
+  }
+
+  factory IotDevice.fromSensor(Map<String,dynamic> json) {
+    final raw=json['latestValue'];
+    final id=(json['sensorId']??'').toString();
+    return IotDevice(
+      id:id.isEmpty?'':'sensor:$id',deviceCode:(json['sensorCode']??'').toString(),
+      deviceType:'sensor',status:(json['status']??'Unknown').toString(),
+      sensorType:(json['sensorType']??'Sensor').toString(),sensorUnit:json['unit']?.toString(),
+      latestValue:raw is num?raw.toDouble():null,
+      measuredAt:DateTime.tryParse((json['latestMeasuredAt']??'').toString()),
+      lastSeenAt:DateTime.tryParse((json['sensorLastSeenAt']??'').toString()),
+      dataQuality:json['dataQuality']?.toString(),controllerCode:json['deviceCode']?.toString());
   }
 
   factory IotDevice.fromJson(Map<String, dynamic> json) {

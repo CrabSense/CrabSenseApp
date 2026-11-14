@@ -25,7 +25,7 @@ class DevicesState {
   final String? error;
 
   int get onlineCount => devices.where((d) => d.isOnline).length;
-  int get offlineCount => devices.length - onlineCount;
+  int get offlineCount => devices.where((d)=>d.isOffline).length;
 
   List<IotDevice> get filtered {
     var list = devices;
@@ -33,7 +33,7 @@ class DevicesState {
       case DevicesFilter.online:
         list = list.where((d) => d.isOnline).toList();
       case DevicesFilter.offline:
-        list = list.where((d) => !d.isOnline).toList();
+        list = list.where((d) => d.isOffline).toList();
       case DevicesFilter.all:
         break;
     }
