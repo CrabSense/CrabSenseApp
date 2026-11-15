@@ -8,6 +8,7 @@ import '../../../home/presentation/widgets/crab_hologram_painter.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 import '../../data/models/ai_center_models.dart';
 import '../providers/ai_center_provider.dart';
+import 'ai_inference_jobs_dialog.dart';
 
 /// Hub Trung tâm AI — detections + recommendations + model info.
 class AiCenterScreen extends ConsumerWidget {
@@ -69,6 +70,17 @@ class AiCenterScreen extends ConsumerWidget {
                         ),
                       ),
                       IconButton(
+                        tooltip: 'Yêu cầu phân tích AI',
+                        onPressed: () async {
+                          await showDialog<void>(
+                            context: context,
+                            builder: (_) => const AiInferenceJobsDialog(),
+                          );
+                          if (context.mounted) notifier.load();
+                        },
+                        icon: const Icon(Icons.psychology_outlined, color: kHomeCyan),
+                      ),
+                      IconButton(
                         tooltip: 'Làm mới',
                         onPressed: notifier.load,
                         icon: const Icon(Icons.refresh_rounded, color: kHomeCyan),
@@ -101,7 +113,7 @@ class AiCenterScreen extends ConsumerWidget {
                               ),
                               _MiniStat(
                                 label: 'Độ tin cậy',
-                                value: state.detections.isEmpty
+                                value: state.modelDetectionCount == 0
                                     ? '—'
                                     : '${state.avgConfidence.toStringAsFixed(0)}%',
                                 color: kHomeCyan,
@@ -360,9 +372,9 @@ class _OverviewTab extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      state.detections.isEmpty
-                          ? 'Chưa có phát hiện — mô hình sẵn sàng khi có video/kiểm tra.'
-                          : 'Đang hoạt động · ${state.detections.length} phát hiện gần đây · độ tin cậy TB ${state.avgConfidence.toStringAsFixed(1)}%.',
+                      state.modelDetectionCount == 0
+                          ? 'Chưa có kết quả mô hình được xác minh. Lịch sử quy tắc không xác nhận trạng thái worker.'
+                          : 'Lịch sử: ${state.modelDetectionCount} kết quả mô hình · độ tin cậy TB ${state.avgConfidence.toStringAsFixed(1)}%. Không phản ánh trạng thái worker hiện tại.',
                       style: TextStyle(
                         color: const Color(0xFF5A7184),
                         height: 1.4,
@@ -526,7 +538,7 @@ class _DetectionsTab extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '${d.confidencePct}%',
+                          d.isModelInference ? '${d.confidencePct}%' : d.sourceLabel,
                           style: const TextStyle(
                             color: kHomeCyan,
                             fontWeight: FontWeight.w800,
