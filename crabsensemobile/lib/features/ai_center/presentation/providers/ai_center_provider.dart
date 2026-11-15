@@ -26,17 +26,21 @@ class AiCenterState {
   final String? error;
   final String? feedbackMessage;
 
+  Iterable<AiDetectionItem> get modelDetections =>
+      detections.where((d) => d.isModelInference);
+  int get modelDetectionCount => modelDetections.length;
+
   String get modelVersion {
-    if (detections.isNotEmpty && detections.first.modelVersion.isNotEmpty) {
-      return detections.first.modelVersion;
+    for (final detection in modelDetections) {
+      if (detection.modelVersion.isNotEmpty) return detection.modelVersion;
     }
-    return 'crabsense-ai-v1';
+    return 'Chưa xác minh';
   }
 
   double get avgConfidence {
-    if (detections.isEmpty) return 0;
-    final sum = detections.fold<double>(0, (a, d) => a + d.confidencePct);
-    return sum / detections.length;
+    if (modelDetectionCount == 0) return 0;
+    final sum = modelDetections.fold<double>(0, (a, d) => a + d.confidencePct);
+    return sum / modelDetectionCount;
   }
 
   int get activeRecCount =>

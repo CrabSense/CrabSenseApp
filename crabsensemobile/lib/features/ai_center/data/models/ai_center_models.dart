@@ -10,6 +10,7 @@ class AiDetectionItem {
     this.boxId,
     this.mediaId,
     this.resultJson,
+    this.analysisSource = 'unknown',
   });
 
   final String id;
@@ -21,6 +22,10 @@ class AiDetectionItem {
   final String? boxId;
   final String? mediaId;
   final String? resultJson;
+  final String analysisSource;
+
+  bool get isModelInference => analysisSource.toLowerCase() == 'model';
+  String get sourceLabel => isModelInference ? 'Mô hình AI' : analysisSource.toLowerCase() == 'rules' ? 'Quy tắc' : 'Chưa xác minh';
 
   int get confidencePct => (confidence <= 1 ? confidence * 100 : confidence).round();
 
@@ -57,6 +62,7 @@ class AiDetectionItem {
       boxId: json['boxId']?.toString(),
       mediaId: json['mediaId']?.toString(),
       resultJson: json['resultJson']?.toString(),
+      analysisSource: json['analysisSource']?.toString() ?? 'unknown',
     );
   }
 }
