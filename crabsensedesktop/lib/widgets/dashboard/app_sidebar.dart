@@ -52,6 +52,7 @@ class _AppSidebarState extends State<AppSidebar> {
     AppRoute.environment,
     AppRoute.waterAnalysis,
     AppRoute.alerts,
+    AppRoute.harvestAssignments,
   ];
 
   bool _collapsed = false;
@@ -89,6 +90,7 @@ class _AppSidebarState extends State<AppSidebar> {
         AppRoute.aiInsight => Icons.auto_awesome_outlined,
         AppRoute.sensorUpgrade => Icons.upgrade,
         AppRoute.deviceSetup => Icons.tune,
+        AppRoute.harvestAssignments => Icons.assignment_outlined,
       };
 
   static String? _imageAsset(AppRoute r) => switch (r) {

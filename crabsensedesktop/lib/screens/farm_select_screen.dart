@@ -64,14 +64,15 @@ class _FarmSelectScreenState extends State<FarmSelectScreen> {
     });
     try {
       final me = await _auth.fetchMe(widget.token);
-      if (!me.isFarmOwner) {
+      // Dùng cùng chính sách role với bước đăng nhập.
+      if (!UserRoles.canUseDesktop(me.user.role)) {
         setState(() {
           _loading = false;
-          _error =
-              'Desktop chỉ dành cho chủ trại (FarmOwner). Role hiện tại: ${me.user.role}.';
+          _error = 'Desktop chỉ dành cho chủ trại và Manager.';
         });
         return;
       }
+
       final farms = me.farms;
       final selected =
           _auth.resolveDefaultFarm(farms, me) ?? FarmSummary.unassigned;
@@ -365,7 +366,8 @@ class _FarmSelectCard extends StatelessWidget {
                   ),
                   child: Text(
                     'Quay lại',
-                    style: GoogleFonts.beVietnamPro(fontWeight: FontWeight.w600),
+                    style:
+                        GoogleFonts.beVietnamPro(fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -384,9 +386,8 @@ class _FarmSelectCard extends StatelessWidget {
 
     final payload = me!;
     final farms = payload.farms;
-    final greeting = user.displayName.trim().isEmpty
-        ? 'Chủ trại'
-        : user.displayName;
+    final greeting =
+        user.displayName.trim().isEmpty ? 'Chủ trại' : user.displayName;
     final selectedFarm = selected;
     final ctaLabel = selectedFarm == null || selectedFarm.isUnassigned
         ? 'Tiếp tục'
@@ -840,10 +841,26 @@ class _KnockoutBlackImage extends StatelessWidget {
   final double? height;
 
   static const _knockout = ColorFilter.matrix(<double>[
-    1, 0, 0, 0, 0,
-    0, 1, 0, 0, 0,
-    0, 0, 1, 0, 0,
-    0.33, 0.5, 0.17, 0, 0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0.33,
+    0.5,
+    0.17,
+    0,
+    0,
   ]);
 
   @override

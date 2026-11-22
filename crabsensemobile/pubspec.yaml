@@ -157,7 +157,7 @@ flutter:
   assets:
     - assets/images/
     - assets/images/desktop/
-    - assets/icons/
+    # - assets/icons/
     
   # Fonts - Inter font family for Material Design 3
   # TODO: Add Inter font files to assets/fonts/ directory

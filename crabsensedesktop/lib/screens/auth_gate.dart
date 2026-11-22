@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/cloud_auth_service.dart';
 import 'login_screen.dart';
 import 'main_shell_screen.dart';
-
+import '../models/auth_models.dart';
 /// Mở app: có session đã lưu thì vào thẳng trang chủ, không bắt login lại.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
@@ -24,7 +24,16 @@ class _AuthGateState extends State<AuthGate> {
 
   Future<void> _restore() async {
     final session = await CloudAuthService().restorePersistedSession();
+
     if (!mounted) return;
+    // Xóa session staff cũ để lần mở app sau không vào thẳng MainShell.
+    if (session != null && !UserRoles.canUseDesktop(session.user.role)) {
+      await CloudAuthService().clearSession();
+      if (!mounted) return;
+
+      setState(() => _child = const LoginScreen());
+      return;
+    }
     setState(() {
       _child = session == null
           ? const LoginScreen()
