@@ -311,7 +311,7 @@ class BoxFilterToolbar extends StatelessWidget {
   final ValueChanged<BoxStatusFilter> onStatus;
   final ValueChanged<BoxHealthFilter> onHealth;
   final VoidCallback onClear;
-  final VoidCallback onAdd;
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -375,7 +375,7 @@ class BoxFilterToolbar extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
-              children: [areaDd, rowDd, statusDd, healthDd, clear, add],
+              children: [areaDd, rowDd, statusDd, healthDd, clear, if (onAdd != null) add],
             ),
           ],
         );
@@ -396,7 +396,7 @@ class BoxFilterToolbar extends StatelessWidget {
               const Spacer(),
               clear,
               const SizedBox(width: 8),
-              add,
+              if (onAdd != null) add,
             ],
           ),
         ],
@@ -597,7 +597,7 @@ class BoxGridCard extends StatelessWidget {
         spacing: 8,
         runSpacing: 8,
         children: [
-          MgmtPrimaryButton(icon: Icons.add_rounded, label: 'Thêm cua', height: 34, onTap: onAddCrab),
+          if (onAddCrab != null) MgmtPrimaryButton(icon: Icons.add_rounded, label: 'Thêm cua', height: 34, onTap: onAddCrab),
           MgmtOutlineButton(label: 'Chi tiết', height: 34, onTap: onOpen),
         ],
       );
@@ -619,7 +619,6 @@ class BoxActionMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final locked = item.uiStatus == BoxUiStatus.locked || item.uiStatus == BoxUiStatus.maintenance;
     return PopupMenuButton<BoxCardAction>(
       tooltip: 'Thao tác hộp',
       padding: EdgeInsets.zero,
@@ -627,16 +626,8 @@ class BoxActionMenu extends StatelessWidget {
       onSelected: onAction,
       itemBuilder: (_) => [
         const PopupMenuItem(value: BoxCardAction.detail, child: Text('Xem chi tiết')),
-        const PopupMenuItem(value: BoxCardAction.edit, child: Text('Chỉnh sửa hộp')),
         const PopupMenuItem(value: BoxCardAction.qr, child: Text('Xem QR')),
         const PopupMenuItem(value: BoxCardAction.print, child: Text('In mã hộp')),
-        PopupMenuItem(value: locked ? BoxCardAction.unlock : BoxCardAction.lock, child: Text(locked ? 'Mở khóa' : 'Khóa hộp')),
-        if (item.uiStatus != BoxUiStatus.maintenance)
-          const PopupMenuItem(value: BoxCardAction.maintenance, child: Text('Đánh dấu bảo trì')),
-        if (item.hasCrab) const PopupMenuItem(value: BoxCardAction.transfer, child: Text('Chuyển cua')),
-        if (item.canAddCrab) const PopupMenuItem(value: BoxCardAction.addCrab, child: Text('Thêm cua')),
-        const PopupMenuDivider(),
-        const PopupMenuItem(value: BoxCardAction.delete, child: Text('Lưu trữ / gỡ hộp')),
       ],
     );
   }
@@ -687,7 +678,7 @@ class BoxMgmtGrid extends StatelessWidget {
   final ValueChanged<BoxListItem> onOpen;
   final void Function(BoxListItem item, BoxCardAction action) onAction;
   final ValueChanged<BoxListItem> onAlerts;
-  final ValueChanged<BoxListItem> onAddCrab;
+  final ValueChanged<BoxListItem>? onAddCrab;
 
   @override
   Widget build(BuildContext context) {
@@ -707,7 +698,7 @@ class BoxMgmtGrid extends StatelessWidget {
                 onOpen: () => onOpen(item),
                 onAction: (a) => onAction(item, a),
                 onAlerts: () => onAlerts(item),
-                onAddCrab: () => onAddCrab(item),
+                onAddCrab: onAddCrab == null ? null : () => onAddCrab!(item),
               ),
             ),
         ],
@@ -732,7 +723,7 @@ class BoxListTable extends StatelessWidget {
   final ValueChanged<BoxListItem> onOpen;
   final void Function(BoxListItem item, BoxCardAction action) onAction;
   final ValueChanged<BoxListItem> onAlerts;
-  final ValueChanged<BoxListItem> onAddCrab;
+  final ValueChanged<BoxListItem>? onAddCrab;
 
   @override
   Widget build(BuildContext context) {

@@ -116,10 +116,13 @@ class _AreaManagementPageState extends State<AreaManagementPage> {
     return out;
   }
 
-  Future<void> _edit(AreaRecord a) =>
-      showAreaFormDialog(context, widget.service, existing: a);
+  Future<void> _edit(AreaRecord a) async {
+    if (!widget.service.session.isFarmOwner) return;
+    await showAreaFormDialog(context, widget.service, existing: a);
+  }
 
   Future<void> _delete(AreaRecord a) async {
+    if (!widget.service.session.isFarmOwner) return;
     final svc = widget.service;
     if (!await confirmDelete(
       context,
@@ -238,7 +241,7 @@ class _AreaManagementPageState extends State<AreaManagementPage> {
                     onSelected: svc.setStatusFilter,
                   ),
                   const SizedBox(width: 12),
-                  _PrimaryButton(
+                  if (svc.session.isFarmOwner) _PrimaryButton(
                     icon: Icons.add_rounded,
                     label: 'Thêm khu',
                     onTap: svc.loading
@@ -333,7 +336,7 @@ class _AreaManagementPageState extends State<AreaManagementPage> {
             )
           else if (items.isEmpty)
             _EmptyState(
-              onAdd: () => showAreaFormDialog(
+              onAdd: !svc.session.isFarmOwner ? null : () => showAreaFormDialog(
                 context,
                 svc,
                 onAfterCreate: (area, {required setupRows}) {
@@ -349,8 +352,8 @@ class _AreaManagementPageState extends State<AreaManagementPage> {
                 onViewRows: widget.onViewRows == null
                     ? null
                     : () => widget.onViewRows!(items[i]),
-                onEdit: () => _edit(items[i]),
-                onDelete: () => _delete(items[i]),
+                onEdit: svc.session.isFarmOwner ? () => _edit(items[i]) : null,
+                onDelete: svc.session.isFarmOwner ? () => _delete(items[i]) : null,
               ),
               if (i != items.length - 1) const SizedBox(height: 16),
             ],
@@ -746,8 +749,8 @@ class _AreaCard extends StatelessWidget {
   final AreaRecord area;
   final VoidCallback onDetail;
   final VoidCallback? onViewRows;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   String get _title {
     final n = area.areaName.trim();
@@ -1039,7 +1042,7 @@ class _AreaCard extends StatelessWidget {
                   onTap: onViewRows,
                 ),
                 const SizedBox(width: 8),
-                _OutlineButton(
+                if (onEdit != null) _OutlineButton(
                   icon: Icons.edit_outlined,
                   color: DashboardColors.textPrimary,
                   borderColor: DashboardColors.cardBorder,
@@ -1047,7 +1050,7 @@ class _AreaCard extends StatelessWidget {
                   onTap: onEdit,
                 ),
                 const SizedBox(width: 8),
-                _OutlineButton(
+                if (onDelete != null) _OutlineButton(
                   icon: Icons.delete_outline_rounded,
                   color: DashboardColors.risk,
                   borderColor: DashboardColors.risk.withValues(alpha: 0.35),
@@ -1314,7 +1317,7 @@ class _MiniStat extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.onAdd});
 
-  final VoidCallback onAdd;
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -1345,11 +1348,11 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Thử đổi từ khóa / trạng thái, hoặc tạo khu nuôi mới.',
+            'Thử đổi bộ lọc. Farm Admin quản lý cấu trúc khu nuôi trên Web.',
             style: _bv(fontSize: 12.5, color: DashboardColors.textMuted),
           ),
           const SizedBox(height: 14),
-          _PrimaryButton(icon: Icons.add_rounded, label: 'Thêm khu', onTap: onAdd),
+          if (onAdd != null) _PrimaryButton(icon: Icons.add_rounded, label: 'Thêm khu', onTap: onAdd),
         ],
       ),
     );

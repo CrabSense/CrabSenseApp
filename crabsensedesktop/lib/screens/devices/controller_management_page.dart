@@ -182,6 +182,7 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
   }
 
   Future<void> _add() async {
+    if (!_svc.session.user.isSystemAdmin) return;
     final result = await showAddControllerDialog(
       context,
       service: _svc,
@@ -272,13 +273,13 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
             ],
           ),
         ),
-        MgmtPrimaryButton(
+        if (_svc.session.user.isSystemAdmin) MgmtPrimaryButton(
           label: 'Thêm Kiosk',
           icon: Icons.dns_outlined,
           onTap: () => _kiosks.currentState?.create(),
         ),
         const SizedBox(width: 8),
-        MgmtPrimaryButton(
+        if (_svc.session.user.isSystemAdmin) MgmtPrimaryButton(
           label: 'Thêm Controller',
           icon: Icons.add,
           onTap: _add,
@@ -366,8 +367,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
       return MgmtEmptyState(
         icon: Icons.memory_outlined,
         title: 'Chưa có Controller',
-        message: 'Thêm Controller đầu tiên để kết nối sensor và thiết bị RAS.',
-        action: MgmtPrimaryButton(
+        message: 'System Admin đăng ký Controller trên Web. Kiểm tra thiết bị được gán cho khu này.',
+        action: !_svc.session.user.isSystemAdmin ? null : MgmtPrimaryButton(
             label: 'Thêm Controller', icon: Icons.add, onTap: _add),
       );
     }
@@ -640,7 +641,7 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                   icon: Icons.wifi_tethering,
                   label: _checking ? 'Đang kiểm tra...' : 'Kiểm tra kết nối',
                 ),
-                MgmtOutlineButton(
+                if (_svc.session.user.isSystemAdmin) MgmtOutlineButton(
                   onTap:
                       !canRestart || _svc.restarting ? null : () => _restart(d),
                   icon: Icons.restart_alt,
@@ -654,10 +655,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                   itemBuilder: (_) => [
                     const PopupMenuItem(
                         value: 'detail', child: Text('Xem chi tiết')),
-                    const PopupMenuItem(
-                        value: 'edit', child: Text('Chỉnh sửa Controller')),
-                    const PopupMenuItem(
-                        value: 'wifi', child: Text('Cấu hình WiFi')),
+                    if (_svc.session.user.isSystemAdmin) const PopupMenuItem(value: 'edit', child: Text('Chỉnh sửa Controller')),
+                    if (_svc.session.user.isSystemAdmin) const PopupMenuItem(value: 'wifi', child: Text('Cấu hình WiFi')),
                     const PopupMenuItem(
                         value: 'sensors', child: Text('Quản lý Sensor')),
                     const PopupMenuItem(
@@ -666,11 +665,9 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                         value: 'alerts', child: Text('Xem cảnh báo')),
                     const PopupMenuItem(
                         value: 'history', child: Text('Xem lịch sử')),
-                    const PopupMenuItem(
-                        value: 'disable',
+                    if (_svc.session.user.isSystemAdmin) const PopupMenuItem(value: 'disable',
                         child: Text('Vô hiệu hóa Controller')),
-                    const PopupMenuItem(
-                        value: 'delete', child: Text('Xóa Controller')),
+                    if (_svc.session.user.isSystemAdmin) const PopupMenuItem(value: 'delete', child: Text('Xóa Controller')),
                   ],
                 ),
               ],
@@ -883,8 +880,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
           MgmtEmptyState(
             icon: Icons.sensors,
             title: 'Controller chưa có Sensor.',
-            message: 'Thêm cảm biến để Controller bắt đầu thu thập dữ liệu.',
-            action: MgmtPrimaryButton(
+            message: 'System Admin đăng ký sensor trên Web.',
+            action: !_svc.session.user.isSystemAdmin ? null : MgmtPrimaryButton(
               label: 'Thêm Sensor',
               icon: Icons.add,
               onTap: () => _addSensor(detail.controller),
@@ -895,8 +892,8 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
             'Sensors (${detail.sensors.length})',
             Icons.sensors,
             [_sensorTable(detail, compact: false)],
-            action: '+ Thêm Sensor',
-            onAction: () => _addSensor(detail.controller),
+            action: _svc.session.user.isSystemAdmin ? '+ Thêm Sensor' : null,
+            onAction: _svc.session.user.isSystemAdmin ? () => _addSensor(detail.controller) : null,
           ),
       ],
     );
@@ -1015,7 +1012,7 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                               minWidth: 28, minHeight: 28),
                           onPressed: () => _showSensorHistory(s),
                         ),
-                        IconButton(
+                        if (_svc.session.user.isSystemAdmin) IconButton(
                           tooltip: 'Cập nhật sensor',
                           icon: const Icon(Icons.edit_outlined, size: 18),
                           padding: EdgeInsets.zero,
@@ -1031,11 +1028,10 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
                           itemBuilder: (_) => [
                             const PopupMenuItem(
                                 value: 'hist', child: Text('Lịch sử')),
-                            const PopupMenuItem(
+                            if (_svc.session.user.isSystemAdmin) const PopupMenuItem(
                                 value: 'cal', child: Text('Hiệu chuẩn')),
-                            const PopupMenuItem(
-                                value: 'delete', child: Text('Xóa sensor')),
-                            PopupMenuItem(
+                            if (_svc.session.user.isSystemAdmin) const PopupMenuItem(value: 'delete', child: Text('Xóa sensor')),
+                            if (_svc.session.user.isSystemAdmin) PopupMenuItem(
                                 value: 'off', child: Text(s.isActive?'Tắt sensor':'Bật sensor')),
                           ],
                         ),
@@ -1373,6 +1369,7 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
   }
 
   void _onMenu(String action, IoTDevice d, ControllerDetail detail) {
+    if (!_svc.session.user.isSystemAdmin && const {'edit', 'wifi', 'disable', 'delete'}.contains(action)) return;
     switch (action) {
       case 'detail':
         _tabs.animateTo(0);

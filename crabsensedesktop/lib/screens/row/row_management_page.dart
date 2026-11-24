@@ -77,6 +77,7 @@ class _RowManagementPageState extends State<RowManagementPage> {
   // ── Actions ──────────────────────────────────────────────────────────────
 
   Future<void> _onAdd() async {
+    if (!widget.service.session.isFarmOwner) return;
     final svc = widget.service;
     if (svc.areas.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -89,11 +90,13 @@ class _RowManagementPageState extends State<RowManagementPage> {
   }
 
   Future<void> _onEdit(RowListItem item) async {
+    if (!widget.service.session.isFarmOwner) return;
     await showEditRowDialog(context, widget.service, item);
     if (mounted) await widget.service.load();
   }
 
   Future<void> _onDelete(RowListItem item) async {
+    if (!widget.service.session.isFarmOwner) return;
     final ok = await confirmDelete(
       context,
       title: 'Xóa dãy?',
@@ -104,6 +107,7 @@ class _RowManagementPageState extends State<RowManagementPage> {
   }
 
   Future<void> _performDelete(RowListItem item) async {
+    if (!widget.service.session.isFarmOwner) return;
     try {
       await widget.service.deleteRow(item);
       if (mounted) {
@@ -129,9 +133,9 @@ class _RowManagementPageState extends State<RowManagementPage> {
         item: item,
         rowService: widget.service,
         productionService: widget.productionService,
-        onEdit: () => _onEdit(item),
+        onEdit: widget.service.session.isFarmOwner ? () => _onEdit(item) : null,
         onViewBoxes: () => _onViewBoxes(item),
-        onDelete: () => _performDelete(item),
+        onDelete: widget.service.session.isFarmOwner ? () => _performDelete(item) : null,
       );
 
   void _onViewBoxes(RowListItem item) {
@@ -317,7 +321,7 @@ class _RowManagementPageState extends State<RowManagementPage> {
                         const SizedBox(width: 10),
                         Expanded(child: statusDd),
                         const SizedBox(width: 10),
-                        add,
+                        if (svc.session.isFarmOwner) add,
                       ],
                     ),
                   ],
@@ -331,7 +335,7 @@ class _RowManagementPageState extends State<RowManagementPage> {
                   const SizedBox(width: 12),
                   Expanded(child: search),
                   const SizedBox(width: 12),
-                  add,
+                  if (svc.session.isFarmOwner) add,
                 ],
               );
             },
@@ -399,8 +403,8 @@ class _RowManagementPageState extends State<RowManagementPage> {
             MgmtEmptyState(
               icon: Icons.view_week_outlined,
               title: 'Chưa có dãy phù hợp bộ lọc',
-              message: 'Thử đổi khu / trạng thái / từ khóa, hoặc tạo dãy mới.',
-              action: MgmtPrimaryButton(
+              message: 'Thử đổi bộ lọc. Farm Admin tạo dãy trên Web.',
+              action: !svc.session.isFarmOwner ? null : MgmtPrimaryButton(
                 icon: Icons.add_rounded,
                 label: 'Thêm dãy',
                 onTap: _onAdd,
@@ -412,8 +416,8 @@ class _RowManagementPageState extends State<RowManagementPage> {
               placeOf: _placeOf,
               onDetail: _onDetail,
               onViewBoxes: _onViewBoxes,
-              onEdit: _onEdit,
-              onDelete: _onDelete,
+              onEdit: svc.session.isFarmOwner ? _onEdit : null,
+              onDelete: svc.session.isFarmOwner ? _onDelete : null,
             )
           else
             Column(
@@ -424,8 +428,8 @@ class _RowManagementPageState extends State<RowManagementPage> {
                     place: _placeOf(paged[i]),
                     onDetail: () => _onDetail(paged[i]),
                     onViewBoxes: () => _onViewBoxes(paged[i]),
-                    onEdit: () => _onEdit(paged[i]),
-                    onDelete: () => _onDelete(paged[i]),
+                    onEdit: svc.session.isFarmOwner ? () => _onEdit(paged[i]) : null,
+                    onDelete: svc.session.isFarmOwner ? () => _onDelete(paged[i]) : null,
                   ),
                   if (i != paged.length - 1) const SizedBox(height: 10),
                 ],
@@ -499,8 +503,8 @@ class _RowGrid extends StatelessWidget {
   final String? Function(RowListItem) placeOf;
   final void Function(RowListItem) onDetail;
   final void Function(RowListItem) onViewBoxes;
-  final void Function(RowListItem) onEdit;
-  final void Function(RowListItem) onDelete;
+  final void Function(RowListItem)? onEdit;
+  final void Function(RowListItem)? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -530,8 +534,8 @@ class _RowGrid extends StatelessWidget {
                         place: placeOf(slice[j]),
                         onDetail: () => onDetail(slice[j]),
                         onViewBoxes: () => onViewBoxes(slice[j]),
-                        onEdit: () => onEdit(slice[j]),
-                        onDelete: () => onDelete(slice[j]),
+                        onEdit: onEdit == null ? null : () => onEdit!(slice[j]),
+                        onDelete: onDelete == null ? null : () => onDelete!(slice[j]),
                       ),
                     ),
                     if (j != cols - 1) const SizedBox(width: gap),
@@ -614,8 +618,8 @@ class _RowCard extends StatelessWidget {
   final String? place;
   final VoidCallback onDetail;
   final VoidCallback onViewBoxes;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -818,8 +822,8 @@ class _RowActions extends StatelessWidget {
 
   final VoidCallback onDetail;
   final VoidCallback onViewBoxes;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
   final bool compact;
 
   @override
@@ -841,7 +845,7 @@ class _RowActions extends StatelessWidget {
           onTap: onViewBoxes,
         ),
         const Spacer(),
-        MgmtOutlineButton(
+        if (onEdit != null) MgmtOutlineButton(
           icon: Icons.edit_outlined,
           color: DashboardColors.textPrimary,
           borderColor: DashboardColors.cardBorder,
@@ -850,7 +854,7 @@ class _RowActions extends StatelessWidget {
           onTap: onEdit,
         ),
         const SizedBox(width: 8),
-        MgmtOutlineButton(
+        if (onDelete != null) MgmtOutlineButton(
           icon: Icons.delete_outline_rounded,
           color: DashboardColors.risk,
           borderColor: DashboardColors.risk.withValues(alpha: 0.35),
@@ -879,8 +883,8 @@ class _RowListTile extends StatelessWidget {
   final String? place;
   final VoidCallback onDetail;
   final VoidCallback onViewBoxes;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
