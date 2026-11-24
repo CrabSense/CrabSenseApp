@@ -133,8 +133,7 @@ class _MainContentState extends ConsumerState<_MainContent> {
         // ── Page header ──────────────────────────────────────────────────────
         _PageHeader(
           onAddCrab: () => context.push(RoutePaths.addCrab),
-          onAddMultiple: _showAddMultiple,
-          onImportBatch: () => _showImportBatch(context),
+
         ),
 
         Expanded(
@@ -184,9 +183,7 @@ class _MainContentState extends ConsumerState<_MainContent> {
                   if (state.selectedIds.isNotEmpty) ...[
                     CrabBulkActionBar(
                       count: state.selectedIds.length,
-                      onTransfer: () => _showBulkTransfer(context, state),
-                      onUpdateHealth: () => _showBulkHealth(context),
-                      onExport: () => _showExport(context, state),
+
                       onClear: notifier.clearSelection,
                     ),
                     const SizedBox(height: 10),
@@ -205,7 +202,7 @@ class _MainContentState extends ConsumerState<_MainContent> {
                       if (page.total == 0 && state.filter.isEmpty) {
                         return CrabEmptyState(
                           onAddCrab: () => context.push(RoutePaths.addCrab),
-                          onImportBatch: () => _showImportBatch(context),
+
                         );
                       }
                       if (page.items.isEmpty) {
@@ -333,8 +330,7 @@ class _MainContentState extends ConsumerState<_MainContent> {
       onViewBox: () => context.push(RoutePaths.boxDetails(crab.location.boxId)),
       onTransfer: () => _showTransfer(context, crab, notifier),
       onMarkMolting: () => _handleMarkMolting(context, crab, notifier),
-      onMarkReadyToHarvest: () =>
-          _handleMarkReadyToHarvest(context, crab, notifier),
+
       onMarkDead: () => _handleMarkDead(context, crab, notifier),
     );
   }
@@ -433,78 +429,7 @@ class _MainContentState extends ConsumerState<_MainContent> {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(_successSnack('✓ Đã đánh dấu ${crab.id} đang lột xác.'));
-      }
-    } on Exception catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(_errorSnack('Lỗi: $e'));
-      }
-    }
-  }
-
-  // ── Mark Ready to Harvest ─────────────────────────────────────────────────
-
-  Future<void> _handleMarkReadyToHarvest(
-    BuildContext context,
-    CrabRecord crab,
-    CrabManagementNotifier notifier,
-  ) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        backgroundColor: kCmSurface,
-        title: Text(
-          'Đánh dấu sắp thu hoạch?',
-          style: GoogleFonts.nunito(
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            color: kCmTextPrimary,
-          ),
-        ),
-        content: Text(
-          '${crab.id} sẽ được chuyển sang trạng thái Sắp thu hoạch.',
-          style: GoogleFonts.nunito(fontSize: 13, color: kCmTextSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              'Hủy',
-              style: GoogleFonts.nunito(
-                color: kCmTextSecondary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kCmTeal,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: Text(
-              'Xác nhận',
-              style: GoogleFonts.nunito(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !context.mounted) return;
-    try {
-      await ref
-          .read(crabManagementDataSourceProvider)
-          .markReadyToHarvest(crab.id);
-      await notifier.refresh();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          _successSnack('✓ Đã đánh dấu ${crab.id} sắp thu hoạch.'),
-        );
+        ).showSnackBar(_successSnack('✓ Đã ghi nhận ${crab.id} lột xác thành công.'));
       }
     } on Exception catch (e) {
       if (context.mounted) {
@@ -572,38 +497,6 @@ class _MainContentState extends ConsumerState<_MainContent> {
     }
   }
 
-  // ── Bulk actions ──────────────────────────────────────────────────────────────
-
-  void _showBulkTransfer(BuildContext context, CrabManagementState state) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      _infoSnack('Chức năng chuyển hộp hàng loạt đang phát triển.'),
-    );
-  }
-
-  void _showBulkHealth(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      _infoSnack('Chức năng cập nhật sức khỏe hàng loạt đang phát triển.'),
-    );
-  }
-
-  void _showExport(BuildContext context, CrabManagementState state) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(_infoSnack('Đang xuất ${state.selectedIds.length} cua...'));
-  }
-
-  void _showAddMultiple() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(_infoSnack('Thêm nhiều cua đang phát triển.'));
-  }
-
-  void _showImportBatch(BuildContext context) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(_infoSnack('Mở luồng nhập lô...'));
-  }
-
   // ── Snack helpers ─────────────────────────────────────────────────────────────
 
   static SnackBar _successSnack(String msg) => SnackBar(
@@ -621,12 +514,6 @@ class _MainContentState extends ConsumerState<_MainContent> {
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
   );
 
-  static SnackBar _infoSnack(String msg) => SnackBar(
-    content: Text(msg, style: GoogleFonts.nunito(fontWeight: FontWeight.w600)),
-    backgroundColor: kCmPrimaryDark,
-    behavior: SnackBarBehavior.floating,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-  );
 }
 
 // ── Page header ───────────────────────────────────────────────────────────────
@@ -634,12 +521,8 @@ class _MainContentState extends ConsumerState<_MainContent> {
 class _PageHeader extends StatelessWidget {
   const _PageHeader({
     required this.onAddCrab,
-    required this.onAddMultiple,
-    required this.onImportBatch,
   });
   final VoidCallback onAddCrab;
-  final VoidCallback onAddMultiple;
-  final VoidCallback onImportBatch;
 
   @override
   Widget build(BuildContext context) {
@@ -722,56 +605,6 @@ class _PageHeader extends StatelessWidget {
               Wrap(
                 spacing: 8,
                 children: [
-                  // Nhập lô
-                  OutlinedButton.icon(
-                    onPressed: onImportBatch,
-                    icon: const Icon(Icons.upload_file_rounded, size: 14),
-                    label: Text(
-                      'Nhập lô',
-                      style: GoogleFonts.nunito(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: kCmPrimaryDark,
-                      side: const BorderSide(color: kCmPrimaryDark),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-                  // Thêm nhiều
-                  OutlinedButton.icon(
-                    onPressed: onAddMultiple,
-                    icon: const Icon(Icons.playlist_add_rounded, size: 14),
-                    label: Text(
-                      'Thêm nhiều',
-                      style: GoogleFonts.nunito(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: kCmPrimaryDark,
-                      side: const BorderSide(color: kCmPrimaryDark),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
                   // + Thêm Cua (primary)
                   ElevatedButton.icon(
                     onPressed: onAddCrab,

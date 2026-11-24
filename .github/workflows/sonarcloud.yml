@@ -44,7 +44,7 @@ jobs:
 
       - name: Mobile role contract and authentication tests
         working-directory: crabsensemobile
-        run: flutter test test/features/authentication/domain/user_role_contract_test.dart test/features/authentication/data/models/user_model_test.dart test/features/authentication/data/integration_test.dart
+        run: flutter test test/features/authentication/domain/user_role_contract_test.dart test/features/authentication/data/models/user_model_test.dart test/features/authentication/data/integration_test.dart test/features/crab_management/p0_2_contract_test.dart
 
       - name: Prepare Desktop test environment
         working-directory: crabsensedesktop
