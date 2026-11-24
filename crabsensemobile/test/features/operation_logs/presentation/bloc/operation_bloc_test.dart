@@ -116,7 +116,7 @@ void main() {
         bloc.add(const SubmitOperationLog(
           operatorId: 'op-1',
           operatorName: 'Operator One',
-          userRole: UserRole.fieldOperator,
+          userRole: UserRole.farmStaff,
         ));
       },
       expect: () => [
@@ -139,7 +139,7 @@ void main() {
         bloc.add(const SubmitOperationLog(
           operatorId: 'op-1',
           operatorName: 'Operator One',
-          userRole: UserRole.fieldOperator,
+          userRole: UserRole.farmStaff,
         ));
       },
       expect: () => [
@@ -161,7 +161,7 @@ void main() {
         bloc.add(const SubmitOperationLog(
           operatorId: 'op-1',
           operatorName: 'Operator One',
-          userRole: UserRole.viewer,
+          userRole: UserRole.unknown,
         ));
       },
       expect: () => [

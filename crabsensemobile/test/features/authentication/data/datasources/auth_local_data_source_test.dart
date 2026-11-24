@@ -125,7 +125,7 @@ void main() {
       id: '123',
       email: 'test@example.com',
       name: 'Test User',
-      role: UserRole.fieldOperator,
+      role: UserRole.farmStaff,
       assignedFarmIds: const ['farm1'],
       createdAt: DateTime.parse('2024-01-01T00:00:00.000Z'),
     );
@@ -143,7 +143,7 @@ void main() {
       id: '123',
       email: 'test@example.com',
       name: 'Test User',
-      role: UserRole.fieldOperator,
+      role: UserRole.farmStaff,
       assignedFarmIds: const ['farm1'],
       createdAt: DateTime.parse('2024-01-01T00:00:00.000Z'),
     );
@@ -230,7 +230,7 @@ void main() {
         id: '123',
         email: 'test@example.com',
         name: 'Test User',
-        role: UserRole.fieldOperator,
+        role: UserRole.farmStaff,
         assignedFarmIds: const ['farm1'],
         createdAt: DateTime.parse('2024-01-01T00:00:00.000Z'),
       );

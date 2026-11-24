@@ -64,6 +64,9 @@ class _StubLocalDataSource implements AuthLocalDataSource {
   Future<void> clearAuthData() async {}
 
   @override
+  Future<bool> purgeMockSessionIfPresent() async => false;
+
+  @override
   Future<void> setBiometricEnabled(bool enabled) async {}
 
   @override

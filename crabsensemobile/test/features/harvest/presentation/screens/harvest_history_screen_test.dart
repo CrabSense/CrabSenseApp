@@ -54,7 +54,7 @@ class _MockHarvestRepository implements HarvestRepository {
   Future<Either<Failure, Harvest>> recordHarvest(Harvest harvest) async => throw UnimplementedError();
 
   @override
-  Future<Either<Failure, Harvest?>> getHarvestById(String id) async => throw UnimplementedError();
+  Future<Either<Failure, Harvest>> getHarvestById(String id) async => throw UnimplementedError();
 
   @override
   Future<Either<Failure, List<Harvest>>> getPendingSyncHarvests() async => throw UnimplementedError();

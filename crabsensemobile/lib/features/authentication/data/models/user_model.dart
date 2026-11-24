@@ -52,7 +52,10 @@ class UserModel extends User {
   );
 
   /// Converts this [UserModel] to JSON format.
-  Map<String, dynamic> toJson() => _$UserModelToJson(this);
+  Map<String, dynamic> toJson() => {
+    ..._$UserModelToJson(this),
+    'role': role.apiValue,
+  };
 
   /// Converts this [UserModel] to a domain [User] entity.
   User toEntity() => User(

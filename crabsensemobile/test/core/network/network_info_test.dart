@@ -5,20 +5,20 @@ import 'package:crabsensemobile/core/network/network_info.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class FakeConnectivity implements Connectivity {
-  dynamic checkConnectivityResult = <ConnectivityResult>[ConnectivityResult.none];
-  final _controller = StreamController<dynamic>.broadcast();
+  ConnectivityResult checkConnectivityResult = ConnectivityResult.none;
+  final _controller = StreamController<ConnectivityResult>.broadcast();
 
-  void emit(dynamic result) {
+  void emit(ConnectivityResult result) {
     _controller.add(result);
   }
 
   @override
-  Future<dynamic> checkConnectivity() async {
+  Future<ConnectivityResult> checkConnectivity() async {
     return checkConnectivityResult;
   }
 
   @override
-  Stream<dynamic> get onConnectivityChanged => _controller.stream;
+  Stream<ConnectivityResult> get onConnectivityChanged => _controller.stream;
 
   void dispose() {
     _controller.close();
@@ -40,7 +40,7 @@ void main() {
 
   group('isConnected', () {
     test('returns true when ConnectivityResult.wifi is present', () async {
-      fakeConnectivity.checkConnectivityResult = [ConnectivityResult.wifi];
+      fakeConnectivity.checkConnectivityResult = ConnectivityResult.wifi;
 
       final result = await networkInfo.isConnected;
 
@@ -48,7 +48,7 @@ void main() {
     });
 
     test('returns true when ConnectivityResult.mobile is present', () async {
-      fakeConnectivity.checkConnectivityResult = [ConnectivityResult.mobile];
+      fakeConnectivity.checkConnectivityResult = ConnectivityResult.mobile;
 
       final result = await networkInfo.isConnected;
 
@@ -56,7 +56,7 @@ void main() {
     });
 
     test('returns true when ConnectivityResult.ethernet is present', () async {
-      fakeConnectivity.checkConnectivityResult = [ConnectivityResult.ethernet];
+      fakeConnectivity.checkConnectivityResult = ConnectivityResult.ethernet;
 
       final result = await networkInfo.isConnected;
 
@@ -64,7 +64,7 @@ void main() {
     });
 
     test('returns false when ConnectivityResult.none is returned', () async {
-      fakeConnectivity.checkConnectivityResult = [ConnectivityResult.none];
+      fakeConnectivity.checkConnectivityResult = ConnectivityResult.none;
 
       final result = await networkInfo.isConnected;
 
@@ -81,21 +81,18 @@ void main() {
   });
 
   group('currentNetworkTypes & primaryNetworkType', () {
-    test('detects wifi, mobile, and ethernet connection types', () async {
-      fakeConnectivity.checkConnectivityResult = [
-        ConnectivityResult.wifi,
-        ConnectivityResult.mobile,
-      ];
+    test('detects the active wifi connection type', () async {
+      fakeConnectivity.checkConnectivityResult = ConnectivityResult.wifi;
 
       final types = await networkInfo.currentNetworkTypes;
       final primary = await networkInfo.primaryNetworkType;
 
-      expect(types, containsAll([NetworkType.wifi, NetworkType.mobile]));
+      expect(types, equals([NetworkType.wifi]));
       expect(primary, equals(NetworkType.wifi));
     });
 
     test('returns none when disconnected', () async {
-      fakeConnectivity.checkConnectivityResult = [ConnectivityResult.none];
+      fakeConnectivity.checkConnectivityResult = ConnectivityResult.none;
 
       final types = await networkInfo.currentNetworkTypes;
       final primary = await networkInfo.primaryNetworkType;
@@ -112,9 +109,9 @@ void main() {
         emitsInOrder([true, false, true]),
       );
 
-      fakeConnectivity.emit([ConnectivityResult.wifi]);
-      fakeConnectivity.emit([ConnectivityResult.none]);
-      fakeConnectivity.emit([ConnectivityResult.mobile]);
+      fakeConnectivity.emit(ConnectivityResult.wifi);
+      fakeConnectivity.emit(ConnectivityResult.none);
+      fakeConnectivity.emit(ConnectivityResult.mobile);
     });
 
     test('onNetworkTypesChanged emits updated network types', () async {
@@ -127,9 +124,9 @@ void main() {
         ]),
       );
 
-      fakeConnectivity.emit([ConnectivityResult.wifi]);
-      fakeConnectivity.emit([ConnectivityResult.none]);
-      fakeConnectivity.emit([ConnectivityResult.ethernet]);
+      fakeConnectivity.emit(ConnectivityResult.wifi);
+      fakeConnectivity.emit(ConnectivityResult.none);
+      fakeConnectivity.emit(ConnectivityResult.ethernet);
     });
   });
 }

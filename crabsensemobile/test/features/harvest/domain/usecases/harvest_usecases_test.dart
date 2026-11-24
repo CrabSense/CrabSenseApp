@@ -125,7 +125,7 @@ void main() {
     test('succeeds when harvest input is valid and user has FieldOperator role', () async {
       final params = RecordHarvestParams(
         harvest: validHarvest,
-        userRole: UserRole.fieldOperator,
+        userRole: UserRole.farmStaff,
       );
 
       final result = await recordHarvestUseCase(params);
@@ -138,7 +138,7 @@ void main() {
       final invalidHarvest = validHarvest.copyWith(totalWeight: 0.0);
       final params = RecordHarvestParams(
         harvest: invalidHarvest,
-        userRole: UserRole.fieldOperator,
+        userRole: UserRole.farmStaff,
       );
 
       final result = await recordHarvestUseCase(params);
@@ -154,7 +154,7 @@ void main() {
       final invalidHarvest = validHarvest.copyWith(crabCount: 0);
       final params = RecordHarvestParams(
         harvest: invalidHarvest,
-        userRole: UserRole.fieldOperator,
+        userRole: UserRole.farmStaff,
       );
 
       final result = await recordHarvestUseCase(params);
@@ -166,7 +166,7 @@ void main() {
       final invalidHarvest = validHarvest.copyWith(boxId: '');
       final params = RecordHarvestParams(
         harvest: invalidHarvest,
-        userRole: UserRole.fieldOperator,
+        userRole: UserRole.farmStaff,
       );
 
       final result = await recordHarvestUseCase(params);
@@ -180,7 +180,7 @@ void main() {
       );
       final params = RecordHarvestParams(
         harvest: futureHarvest,
-        userRole: UserRole.fieldOperator,
+        userRole: UserRole.farmStaff,
       );
 
       final result = await recordHarvestUseCase(params);
@@ -191,7 +191,7 @@ void main() {
     test('fails when user role is Viewer (unauthorized)', () async {
       final params = RecordHarvestParams(
         harvest: validHarvest,
-        userRole: UserRole.viewer,
+        userRole: UserRole.unknown,
       );
 
       final result = await recordHarvestUseCase(params);
