@@ -1,0 +1,27 @@
+# Dedicated HTTPS virtual host. Install only after DNS and TLS are ready.
+# Change the hostname and certificate paths to match the configured origin.
+server {
+    listen 443 ssl;
+    server_name mobile-preview.khanhtn45.id.vn;
+    ssl_certificate /etc/letsencrypt/live/mobile-preview.khanhtn45.id.vn/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/mobile-preview.khanhtn45.id.vn/privkey.pem;
+
+    root /var/www/crabsense-mobile-preview/current;
+    index index.html;
+    auth_basic "CrabSense Mobile Preview";
+    auth_basic_user_file /etc/nginx/crabsense-mobile-preview.htpasswd;
+    add_header Cache-Control "no-store" always;
+    add_header X-Robots-Tag "noindex, nofollow" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+    location = /version.json {
+        try_files $uri =404;
+    }
+}
+server {
+    listen 80;
+    server_name mobile-preview.khanhtn45.id.vn;
+    return 301 https://mobile-preview.khanhtn45.id.vn$request_uri;
+}

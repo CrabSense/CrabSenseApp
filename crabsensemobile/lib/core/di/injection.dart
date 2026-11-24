@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -223,9 +224,11 @@ Future<void> init() async {
     dio.interceptors.add(
       TokenRefreshInterceptor(localDataSource: sl(), dio: dio, logger: sl()),
     );
-    dio.interceptors.add(
-      LogInterceptor(requestBody: true, responseBody: true, logPrint: (obj) => sl<Logger>().d(obj)),
-    );
+    if (kDebugMode) {
+      dio.interceptors.add(
+        LogInterceptor(requestHeader: false, requestBody: false, responseHeader: false, responseBody: false, logPrint: (obj) => sl<Logger>().d(obj)),
+      );
+    }
 
     return dio;
   });
