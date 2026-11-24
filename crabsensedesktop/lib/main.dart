@@ -4,23 +4,33 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:media_kit/media_kit.dart';
 
 import 'config/app_env.dart';
+import 'config/preview_policy.dart';
 import 'screens/auth_gate.dart';
 import 'services/theme_mode_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Browser target exists solely for local UI development. Do not deploy it
-  // as the administrator web app or use it to bypass platform roles.
-  if (kIsWeb && (!kDebugMode ||
-      !const bool.fromEnvironment('CRABSENSE_DESKTOP_PREVIEW') ||
-      !const {'localhost', '127.0.0.1', '::1'}.contains(Uri.base.host))) {
+  if (kIsWeb && !PreviewPolicy.allows(
+    uri: Uri.base,
+    debug: kDebugMode,
+    localEnabled: const bool.fromEnvironment('CRABSENSE_DESKTOP_PREVIEW'),
+    hostedEnabled: const bool.fromEnvironment('CRABSENSE_DESKTOP_HOSTED_PREVIEW'),
+    hostedOrigin: const String.fromEnvironment('CRABSENSE_PREVIEW_ORIGIN'),
+  )) {
     runApp(const MaterialApp(home: Scaffold(body: Center(
-      child: Text('CrabSense Desktop Web Preview is local debug only.'),
+      child: Text('CrabSense Desktop Preview is not enabled for this origin.'),
+    ))));
+    return;
+  }
+  await AppEnv.load();
+  if (kIsWeb && !kDebugMode &&
+      !PreviewPolicy.validHostedApi(AppEnv.cloudApiUrl)) {
+    runApp(const MaterialApp(home: Scaffold(body: Center(
+      child: Text('Preview API configuration is invalid.'),
     ))));
     return;
   }
   MediaKit.ensureInitialized();
-  await AppEnv.load();
   GoogleFonts.notoSans();
   runApp(const CrabFarmMonitorApp());
 }
@@ -35,6 +45,10 @@ class CrabFarmMonitorApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: appThemeMode.materialTheme,
       home: const AuthGate(),
+      builder: (context, child) => kIsWeb && !kDebugMode
+          ? Banner(message: 'PREVIEW', location: BannerLocation.topEnd,
+              color: Colors.deepOrange, child: child ?? const SizedBox.shrink())
+          : child ?? const SizedBox.shrink(),
     );
   }
 }

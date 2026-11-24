@@ -23,5 +23,7 @@ jobs:
       - name: Prepare non-secret preview config
         run: printf 'CLOUD_API_URL=http://localhost:5080\n' > .env
       - run: flutter pub get
+      - name: Test preview origin policy
+        run: flutter test test/preview_policy_test.dart
       - name: Compile Desktop for local browser preview
         run: flutter build web --debug --dart-define=CRABSENSE_DESKTOP_PREVIEW=true
