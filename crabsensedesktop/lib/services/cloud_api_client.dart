@@ -16,6 +16,7 @@ import '../models/crab_growth_molt.dart';
 import '../models/crab_lifecycle_event.dart';
 import '../models/crab_profile.dart';
 import '../models/production_models.dart';
+import '../models/harvest_assignment.dart';
 
 part 'production_cloud_api.dart';
 
@@ -1321,27 +1322,46 @@ class CloudApiClient {
     return _asMap(_dataOf(body) ?? body);
   }
 
-  Future<void> recordSensorCalibration(String token,String id,Map<String,dynamic> payload) async {
-    final res=await _client.post(Uri.parse('$_base/api/sensors/$id/calibrations'),
-      headers:{...authHeaders(token),'Content-Type':'application/json'},body:jsonEncode(payload));
-    final body=_decode(res);
-    if(_isApiFailure(res,body)) throw CloudApiException(_errorMessage(body)??'Không lưu được hiệu chuẩn',statusCode:res.statusCode);
+  Future<void> recordSensorCalibration(
+      String token, String id, Map<String, dynamic> payload) async {
+    final res = await _client.post(
+        Uri.parse('$_base/api/sensors/$id/calibrations'),
+        headers: {...authHeaders(token), 'Content-Type': 'application/json'},
+        body: jsonEncode(payload));
+    final body = _decode(res);
+    if (_isApiFailure(res, body))
+      throw CloudApiException(
+          _errorMessage(body) ?? 'Không lưu được hiệu chuẩn',
+          statusCode: res.statusCode);
   }
 
-  Future<void> setSensorActive(String token,String id,bool active) async {
-    final res=await _client.post(Uri.parse('$_base/api/sensors/$id/${active ? 'enable':'disable'}'),headers:authHeaders(token));
-    final body=_decode(res);
-    if(_isApiFailure(res,body)) throw CloudApiException(_errorMessage(body)??'Không đổi được trạng thái Sensor',statusCode:res.statusCode);
+  Future<void> setSensorActive(String token, String id, bool active) async {
+    final res = await _client.post(
+        Uri.parse('$_base/api/sensors/$id/${active ? 'enable' : 'disable'}'),
+        headers: authHeaders(token));
+    final body = _decode(res);
+    if (_isApiFailure(res, body))
+      throw CloudApiException(
+          _errorMessage(body) ?? 'Không đổi được trạng thái Sensor',
+          statusCode: res.statusCode);
   }
 
-  Future<List<Map<String,dynamic>>> fetchDiscoveredSensors(String token,String deviceId) =>
-    _getDataList(token,'/api/sensors/discovered',extraQuery:{'deviceId':deviceId});
+  Future<List<Map<String, dynamic>>> fetchDiscoveredSensors(
+          String token, String deviceId) =>
+      _getDataList(token, '/api/sensors/discovered',
+          extraQuery: {'deviceId': deviceId});
 
-  Future<void> registerSensorFromPort(String token,Map<String,dynamic> payload) async {
-    final res=await _client.post(Uri.parse('$_base/api/sensors/register-from-port'),
-      headers:{...authHeaders(token),'Content-Type':'application/json'},body:jsonEncode(payload));
-    final body=_decode(res);
-    if(_isApiFailure(res,body)) throw CloudApiException(_errorMessage(body)??'Không đăng ký được Sensor',statusCode:res.statusCode);
+  Future<void> registerSensorFromPort(
+      String token, Map<String, dynamic> payload) async {
+    final res = await _client.post(
+        Uri.parse('$_base/api/sensors/register-from-port'),
+        headers: {...authHeaders(token), 'Content-Type': 'application/json'},
+        body: jsonEncode(payload));
+    final body = _decode(res);
+    if (_isApiFailure(res, body))
+      throw CloudApiException(
+          _errorMessage(body) ?? 'Không đăng ký được Sensor',
+          statusCode: res.statusCode);
   }
 
   Future<void> deleteSensor(String token, String id) async {
@@ -1524,7 +1544,8 @@ class CloudApiClient {
     return _asMap(_dataOf(body));
   }
 
-  Future<Map<String, dynamic>> issueKioskCode(String token, String kioskId) async {
+  Future<Map<String, dynamic>> issueKioskCode(
+      String token, String kioskId) async {
     final res = await _client.post(
       Uri.parse('$_base/api/kiosks/$kioskId/provisioning-codes'),
       headers: authHeaders(token),
@@ -1583,7 +1604,8 @@ class CloudApiClient {
     _throwIfFailed(res, body, '/api/controllers/$deviceId/reject');
   }
 
-  void _throwIfFailed(http.Response res, Map<String, dynamic> body, String path) {
+  void _throwIfFailed(
+      http.Response res, Map<String, dynamic> body, String path) {
     if (res.statusCode == 401) {
       throw CloudApiException('Phiên đăng nhập hết hạn', statusCode: 401);
     }
@@ -1645,5 +1667,59 @@ class CloudApiClient {
       });
     }
     return readings;
+  }
+
+  /// Lấy nhân viên đang hoạt động thuộc khu mà Manager được phép quản lý.
+  Future<List<HarvestAssignmentStaff>> fetchHarvestAssignmentStaff(
+    String token, {
+    required String farmingAreaId,
+  }) async {
+    final items = await _getDataList(
+      token,
+      '/api/harvest-assignments/staff',
+      farmingAreaId: farmingAreaId,
+    );
+
+    return items
+        .map(HarvestAssignmentStaff.fromJson)
+        .where((staff) => staff.id.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  /// Gửi yêu cầu tạo task thu hoạch đến BE.
+  Future<Map<String, dynamic>> createHarvestAssignment(
+    String token, {
+    required String farmingAreaId,
+    required String assignedToUserId,
+    required List<String> crabIds,
+    String? notes,
+  }) async {
+    final uri = Uri.parse('$_base/api/harvest-assignments');
+
+    final response = await _client.post(
+      uri,
+      headers: {
+        ...authHeaders(token, farmId: farmingAreaId),
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'farmingAreaId': farmingAreaId,
+        'assignedToUserId': assignedToUserId,
+        'crabIds': crabIds,
+        if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+      }),
+    );
+
+    final body = _decode(response);
+
+    // Ném lỗi của BE để giao diện hiển thị đúng lý do không giao được task.
+    if (_isApiFailure(response, body)) {
+      throw CloudApiException(
+        _errorMessage(body) ?? 'Không tạo được nhiệm vụ thu hoạch',
+        statusCode: response.statusCode,
+      );
+    }
+
+    return _asMap(_dataOf(body) ?? body);
   }
 }

@@ -65,6 +65,8 @@ import '../services/cloud_auth_service.dart';
 import '../services/connectivity_link_service.dart';
 import '../services/farm_dashboard_service.dart';
 import 'login_screen.dart';
+import '../services/harvest_assignment_service.dart';
+import 'harvest/harvest_assignment_page.dart';
 
 class MainShellScreen extends StatefulWidget {
   const MainShellScreen({
@@ -97,13 +99,13 @@ class _MainShellScreenState extends State<MainShellScreen> {
   late final IotDeviceService _iotDeviceService;
   late final ControllerService _controllerService;
   late final CameraDeviceService _cameraDeviceService;
+  late final HarvestAssignmentService _harvestAssignmentService;
   AreaEnvironmentService? _areaEnvironmentServiceInstance;
   RasFlowService? _rasFlowServiceInstance;
   FarmLayoutService? _farmLayoutServiceInstance;
 
   WaterAnalysisService get _waterAnalysisService =>
-      _waterAnalysisServiceInstance ??=
-          WaterAnalysisService(session: _session);
+      _waterAnalysisServiceInstance ??= WaterAnalysisService(session: _session);
 
   AreaEnvironmentService get _areaEnvironmentService =>
       _areaEnvironmentServiceInstance ??=
@@ -140,8 +142,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
     _crabService = CrabService(session: _session);
     _inboundLotService = CrabLotInboundService(session: _session);
     _farmDashboardService = FarmDashboardService(session: _session);
-    _connectivityLinkService =
-        ConnectivityLinkService(session: _session);
+    _connectivityLinkService = ConnectivityLinkService(session: _session);
     _waterQualityService = WaterQualityService(session: _session);
     _waterAnalysisServiceInstance = WaterAnalysisService(session: _session);
     _farmManagementService = FarmManagementService(session: _session);
@@ -161,8 +162,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
     _harvestSalesService = HarvestSalesService(session: _session);
     _aiAssistantService = AiAssistantService(session: _session);
     _cameraDeviceService = CameraDeviceService(session: _session);
-    _areaEnvironmentServiceInstance =
-        AreaEnvironmentService(session: _session);
+    _areaEnvironmentServiceInstance = AreaEnvironmentService(session: _session);
     _rasFlowServiceInstance = RasFlowService(session: _session);
     _farmLayoutServiceInstance = FarmLayoutService(session: _session);
     _gatewayService = GatewayService(session: _session);
@@ -174,6 +174,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
     if (_session.isOrgAdmin || _session.isFarmOwner) {
       _refreshAdminFarms();
     }
+    _harvestAssignmentService = HarvestAssignmentService(session: _session);
   }
 
   void _applySessionToServices() {
@@ -205,6 +206,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
     _farmDashboardService.updateSession(_session);
     _rowManagementService.updateSession(_session);
     _boxManagementService.updateSession(_session);
+    _harvestAssignmentService.updateSession(_session);
   }
 
   Future<void> _refreshAdminFarms() async {
@@ -412,8 +414,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
       _productionManagementService.setTab(ProductionTab.crab);
       _productionManagementService.loadCurrentTab();
     }
-    if (route == AppRoute.areaManagement ||
-        route == AppRoute.farmManagement) {
+    if (route == AppRoute.areaManagement || route == AppRoute.farmManagement) {
       _areaManagementService.load();
     }
     if (route == AppRoute.rowManagement) {
@@ -632,7 +633,9 @@ class _MainShellScreenState extends State<MainShellScreen> {
   Widget _buildShell(BuildContext context) {
     final sidebarRoute = switch (_route) {
       AppRoute.batchDetail => AppRoute.batches,
-      AppRoute.individualDetail || AppRoute.individualHealth => AppRoute.individuals,
+      AppRoute.individualDetail ||
+      AppRoute.individualHealth =>
+        AppRoute.individuals,
       AppRoute.areaDetail => AppRoute.areaManagement,
       AppRoute.inboundLotDetail => AppRoute.inboundLots,
       _ => _route,
@@ -1030,8 +1033,11 @@ class _MainShellScreenState extends State<MainShellScreen> {
               _navigate(_boxDetailBack);
             },
             onNavigate: _navigate,
-            onOpenArea: item.areaId.isEmpty ? null : () => _openAreaDetail(item.areaId),
-            onOpenRow: item.areaId.isEmpty ? null : () => _openBoxes(areaId: item.areaId, rowId: item.rowId),
+            onOpenArea:
+                item.areaId.isEmpty ? null : () => _openAreaDetail(item.areaId),
+            onOpenRow: item.areaId.isEmpty
+                ? null
+                : () => _openBoxes(areaId: item.areaId, rowId: item.rowId),
             onOpenCrab: (id, {target = BoxOpenCrabTarget.overview}) {
               _openCrabManagementById(
                 id,
@@ -1067,7 +1073,9 @@ class _MainShellScreenState extends State<MainShellScreen> {
         );
       case AppRoute.inboundLotDetail:
         final lotId = _selectedLotId ??
-            (_inboundLotService.lots.isNotEmpty ? _inboundLotService.lots.first.id : null);
+            (_inboundLotService.lots.isNotEmpty
+                ? _inboundLotService.lots.first.id
+                : null);
         if (lotId == null) {
           return CrabLotInboundPage(
             service: _inboundLotService,
@@ -1233,6 +1241,13 @@ class _MainShellScreenState extends State<MainShellScreen> {
         );
       case AppRoute.aiInsight:
         return AiInsightPage(service: _aiAssistantService);
+      case AppRoute.harvestAssignments:
+        return HarvestAssignmentPage(
+          service: _harvestAssignmentService,
+          areaId: _session.selectedFarm.id,
+          areaLabel: _harvestAssignmentService.selectedAreaLabel,
+          isManager: _session.user.role == UserRoles.farmManager,
+        );
     }
   }
 }

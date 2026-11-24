@@ -31,6 +31,7 @@ enum AppRoute {
   aiInsight,
   sensorUpgrade,
   deviceSetup,
+  harvestAssignments,
 }
 
 extension AppRouteX on AppRoute {
@@ -67,6 +68,7 @@ extension AppRouteX on AppRoute {
         AppRoute.aiInsight => 'AI Insight',
         AppRoute.sensorUpgrade => 'Nâng cấp Sensor',
         AppRoute.deviceSetup => 'Device Setup',
+        AppRoute.harvestAssignments => 'Phân công thu hoạch',
       };
 
   bool get isProductionRoute => switch (this) {
@@ -94,5 +96,6 @@ extension AppRouteX on AppRoute {
       this == AppRoute.alerts ||
       this == AppRoute.farmLogs ||
       this == AppRoute.harvestSales ||
-      this == AppRoute.aiInsight;
+      this == AppRoute.aiInsight ||
+      this == AppRoute.harvestAssignments;
 }
