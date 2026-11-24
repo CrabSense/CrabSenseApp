@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../domain/entities/user.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/errors/failures.dart';
@@ -43,6 +44,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<BiometricAuthenticationRequested>(_onBiometricAuthenticationRequested);
   }
 
+  static const _pages = bool.fromEnvironment('CRABSENSE_MOBILE_PAGES_PREVIEW');
+  static const _apiConfigured = bool.fromEnvironment('CRABSENSE_MOBILE_PAGES_TEST_API_CONFIGURED');
+  bool get _previewLoginDisabled => kIsWeb && _pages && !_apiConfigured;
+  static const _previewError = AuthError('Mobile Web Preview: test API is not configured.');
+
   final LoginUseCase loginUseCase;
   final LogoutUseCase logoutUseCase;
   final RefreshTokenUseCase refreshTokenUseCase;
@@ -58,6 +64,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ///
   /// Requirements: 1.1, 1.2, 1.5
   Future<void> _onLoginRequested(LoginRequested event, Emitter<AuthState> emit) async {
+    if (_previewLoginDisabled) {
+      emit(_previewError);
+      return;
+    }
     emit(const AuthLoading());
 
     final result = await loginUseCase(email: event.email, password: event.password);
@@ -73,6 +83,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     GoogleLoginRequested event,
     Emitter<AuthState> emit,
   ) async {
+    if (_previewLoginDisabled) {
+      emit(_previewError);
+      return;
+    }
     emit(const AuthLoading());
 
     final result = await authRepository.loginWithGoogle(idToken: event.idToken);
@@ -113,6 +127,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthenticationStatusRequested event,
     Emitter<AuthState> emit,
   ) async {
+    if (_previewLoginDisabled) {
+      emit(const Unauthenticated());
+      return;
+    }
     final isAuthResult = await authRepository.isAuthenticated();
 
     await isAuthResult.fold((_) async => emit(const Unauthenticated()), (isAuthenticated) async {
@@ -149,6 +167,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     TokenRefreshRequested event,
     Emitter<AuthState> emit,
   ) async {
+    if (_previewLoginDisabled) {
+      emit(const Unauthenticated());
+      return;
+    }
     final result = await refreshTokenUseCase();
 
     result.fold((failure) {
@@ -174,6 +196,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     BiometricAuthenticationRequested event,
     Emitter<AuthState> emit,
   ) async {
+    if (_previewLoginDisabled) {
+      emit(_previewError);
+      return;
+    }
     emit(const AuthLoading());
 
     final result = await authRepository.loginWithBiometric();

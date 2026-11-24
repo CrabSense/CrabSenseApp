@@ -98,8 +98,8 @@ inspection, but it will only run on the configured HTTPS origin.
    instance's effective AllowedOrigins configuration, preserving existing
    entries, and restart only the test API if required. The workflow checks
    /health and login CORS preflight before publishing a configured build.
-4. Run Actions → Desktop GitHub Pages on main. Subsequent main pushes build
-   and deploy automatically; pull requests only compile and run tests.
+4. Run Actions → App GitHub Pages on main. Subsequent main pushes build
+   and deploy Desktop and Mobile together automatically; pull requests only compile and run tests.
 5. Open the deployed URL. Verify /CrabSenseApp/version.json for commit SHA.
    If an API is configured, verify Manager login, reject other roles, and
    check dashboard and menu routes using only test data.
@@ -110,3 +110,6 @@ only. Do not store secrets in variables or .env; build assets are public.
 The normal API still enforces authentication/role/area authorization.
 Use Local Preview or the protected VPS option for non-public datasets.
 No DNS, SSH keys or separate Nginx setup are required for the Pages UI.
+
+Mobile is published in the same Pages artifact at /CrabSenseApp/mobile/.
+See [Mobile preview](MOBILE_PREVIEW_DEPLOY.md). Desktop root remains unchanged.
