@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../config/app_env.dart';
@@ -156,6 +157,7 @@ class _CrabAuthImageState extends State<CrabAuthImage> {
   }
 
   static File? _localFile(String? url) {
+    if (kIsWeb) return null;
     final raw = url?.trim() ?? '';
     if (raw.isEmpty) return null;
     if (raw.startsWith('file:')) {
