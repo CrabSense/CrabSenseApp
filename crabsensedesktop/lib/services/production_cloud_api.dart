@@ -485,6 +485,7 @@ extension ProductionCloudApi on CloudApiClient {
 
   Future<FarmingBatchRecord> createCrabLot(
     String token, {
+    String? farmingAreaId,
     required String name,
     required DateTime importDate,
     required int quantity,
@@ -506,6 +507,7 @@ extension ProductionCloudApi on CloudApiClient {
       headers: {...authHeaders(token), 'Content-Type': 'application/json'},
       body: jsonEncode({
         'name': name,
+        if (farmingAreaId != null && farmingAreaId.isNotEmpty) 'farmingAreaId': farmingAreaId,
         'importDate': importDate.toUtc().toIso8601String(),
         'quantity': quantity,
         if (lotCode != null && lotCode.isNotEmpty) 'lotCode': lotCode,

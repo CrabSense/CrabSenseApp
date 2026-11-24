@@ -99,34 +99,37 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
     if (mounted) setState(() => _detailLoading = false);
   }
 
+  bool _releasing = false;
+
   Future<void> _onAction(CrabIndividual crab, CrabManagementAction action) async {
-    if (!const {CrabManagementAction.view, CrabManagementAction.history, CrabManagementAction.viewBox}.contains(action)) return;
     switch (action) {
       case CrabManagementAction.view:
-        widget.onOpenDetail?.call(crab);
-      case CrabManagementAction.edit:
-        await showCrabManagementFormDialog(context, _svc, existing: crab);
       case CrabManagementAction.history:
         widget.onOpenDetail?.call(crab);
       case CrabManagementAction.viewBox:
         _openBoxes(crab);
-      case CrabManagementAction.move:
-        await showMoveCrabModal(context, _svc, crab);
-      case CrabManagementAction.molt:
-        await showMarkMoltingModal(context, _svc, crab);
-      case CrabManagementAction.readyHarvest:
-        final ok = await _svc.markReadyHarvest(crab.id);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                ok ? 'Đã đánh dấu ${crab.code} sắp thu hoạch' : (_svc.error ?? 'Lỗi'),
-              ),
-            ),
-          );
+      case CrabManagementAction.releaseTerminal:
+        if (_releasing || !_svc.canReleaseTerminalCrab(crab)) return;
+        final area = _svc.farmId;
+        final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+          title: const Text('Giải phóng hộp của cua đã kết thúc?'),
+          content: Text('Xử lý bản ghi ${crab.code}. Backend giữ lịch sử, chỉ giải phóng hộp nếu hợp lệ. Không dùng để xóa cua đang sống.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Xác nhận')),
+          ],
+        ));
+        if (!mounted || confirmed != true || _svc.farmId != area || _releasing) return;
+        setState(() => _releasing = true);
+        try {
+          final ok = await _svc.deleteCrab(crab.id);
+          if (mounted && _svc.farmId == area) ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(ok ? 'Đã xử lý bản ghi, lịch sử được giữ lại.' : (_svc.error ?? 'Không thể xử lý.'))));
+        } finally {
+          if (mounted) setState(() => _releasing = false);
         }
-      case CrabManagementAction.dead:
-        await showMarkDeadModal(context, _svc, crab);
+      default:
+        return;
     }
   }
 
@@ -708,6 +711,7 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
       onSelectRow: _select,
       onOpenCode: widget.onOpenDetail,
       onAction: _onAction,
+        canReleaseTerminal: (crab) => !_releasing && _svc.canReleaseTerminalCrab(crab),
       onSort: (col, asc) {
         _svc.setSort(switch (col) {
           1 => CrabListSort.code,

@@ -90,7 +90,8 @@ class _CrabLotInboundDetailPageState extends State<CrabLotInboundDetailPage> {
 
   Future<void> _cancel() async {
     final lot = widget.service.findById(widget.lotId);
-    if (lot == null) return;
+    if (lot == null || !widget.service.canManageLot(lot)) return;
+    final area = widget.service.areaId;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -110,7 +111,7 @@ class _CrabLotInboundDetailPageState extends State<CrabLotInboundDetailPage> {
         ],
       ),
     );
-    if (ok != true) return;
+    if (ok != true || !mounted || widget.service.areaId != area) return;
     await widget.service.cancel(widget.lotId);
   }
 
@@ -129,7 +130,7 @@ class _CrabLotInboundDetailPageState extends State<CrabLotInboundDetailPage> {
     final qty = lot.initialQuantity <= 0 ? 1 : lot.initialQuantity;
     final progress = (placed / qty).clamp(0.0, 1.0);
     final crabs = widget.crabService.crabsInLot(lotId: lot.id, lotCode: lot.batchCode);
-    final canAct = lot.workflowStatus != CrabLotWorkflowStatus.cancelled &&
+    final canAct = widget.service.canManageLot(lot) && lot.workflowStatus != CrabLotWorkflowStatus.cancelled &&
         lot.workflowStatus != CrabLotWorkflowStatus.completed;
 
     return SingleChildScrollView(
@@ -187,12 +188,7 @@ class _CrabLotInboundDetailPageState extends State<CrabLotInboundDetailPage> {
                   child: const Text('Hủy lô'),
                 ),
                 const SizedBox(width: 8),
-                FilledButton.icon(
-                  onPressed: _place,
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Phân cua vào hộp'),
-                  style: FilledButton.styleFrom(backgroundColor: DashboardColors.oceanBlue),
-                ),
+                const Text('Farm Staff phân hộp trên Mobile'),
               ],
             ],
           ),

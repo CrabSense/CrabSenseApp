@@ -74,6 +74,7 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
     crabId: widget.crabId,
     api: widget.service.api,
     tokenProvider: () => widget.service.token,
+    canCorrect: () => widget.service.canCorrectCrab(widget.crabId),
   );
   late final CrabLifecycleController _history = CrabLifecycleController(
     crabId: widget.crabId,
@@ -113,7 +114,9 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
 
   Future<void> _loadDetail() async {
     setState(() => _detailLoading = true);
+    final area = _svc.farmId;
     await _svc.loadDetail(widget.crabId);
+    if (!mounted || _svc.farmId != area) return;
     final crab = _svc.getById(widget.crabId);
     if (mounted) setState(() => _detailLoading = false);
     if (crab != null && crab.boxId.isNotEmpty) {
@@ -417,7 +420,7 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
 
   Future<void> _retry() async {
     await _svc.load();
-    await _loadDetail();
+    if (mounted) await _loadDetail();
   }
 
   Widget _tabBody(CrabIndividual crab, CrabProfile? profile, bool initialLoading) {

@@ -1134,7 +1134,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
           );
         }
         return CrabManagementDetailPage(
-          key: ValueKey('crab-detail-$crabId-${_crabDetailInitialTab.name}'),
+          key: ValueKey('crab-detail-${_session.selectedFarm.id}-$crabId-${_crabDetailInitialTab.name}'),
           crabId: crabId,
           service: _crabService,
           cameraService: _cameraDeviceService,
