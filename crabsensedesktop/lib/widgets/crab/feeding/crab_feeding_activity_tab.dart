@@ -136,7 +136,7 @@ class _CrabFeedingActivityTabState extends State<CrabFeedingActivityTab> {
       token: widget.token,
       cameraLabel: _cameraLabel(e.cameraId),
       thresholds: _th,
-      onEditNote: () => _editNote(e),
+      onEditNote: widget.canRecord ? () => _editNote(e) : null,
       onViewCamera: widget.onViewCamera,
     ).then((_) {
       if (mounted) setState(() => _selectedEventId = null);
@@ -350,6 +350,7 @@ class _CrabFeedingActivityTabState extends State<CrabFeedingActivityTab> {
               onSort: _c.setSort,
               onRowTap: _openDetail,
               onAction: _onAction,
+              canEditNote: widget.canRecord,
               thresholds: _th,
               selectedId: _selectedEventId,
             ),

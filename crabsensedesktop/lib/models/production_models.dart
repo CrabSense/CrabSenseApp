@@ -568,6 +568,8 @@ class BoxRecord {
 
 class FarmingBatchRecord {
   const FarmingBatchRecord({
+    this.farmingAreaIds = const [],
+    this.isPartialScope = false,
     required this.id,
     required this.boxId,
     required this.batchCode,
@@ -595,6 +597,8 @@ class FarmingBatchRecord {
     this.imageUrls = const [],
   });
 
+  final List<String> farmingAreaIds;
+  final bool isPartialScope;
   final String id;
   final String boxId;
   final String batchCode;
@@ -699,7 +703,10 @@ class FarmingBatchRecord {
                 json['currentQuantity'] ??
                 json['CurrentQuantity']) as num?)
             ?.toInt();
+    final linkedAreas = json['farmingAreaIds'] ?? json['FarmingAreaIds'];
     return FarmingBatchRecord(
+      farmingAreaIds: linkedAreas is List ? linkedAreas.map((v) => v.toString()).toList() : const [],
+      isPartialScope: (json['isPartialScope'] ?? json['IsPartialScope']) == true,
       id: (json['id'] ?? json['Id']).toString(),
       boxId: (json['boxId'] ?? json['BoxId'] ?? '').toString(),
       boxCode: (json['boxCode'] ?? json['BoxCode'])?.toString(),

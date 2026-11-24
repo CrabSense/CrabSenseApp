@@ -50,6 +50,15 @@ class CrabService extends ChangeNotifier {
 
   AuthSession _session;
   final CloudApiClient _api;
+  int _scopeGeneration = 0;
+  int _listVersion = 0;
+  bool _disposed = false;
+  bool _current(int generation) => !_disposed && generation == _scopeGeneration;
+  bool get canManageCurrentArea => !_disposed && _session.user.role == UserRoles.farmManager &&
+      farmId.isNotEmpty && _session.farms.any((f) => f.id == farmId);
+  bool canCorrectCrab(String id) => canManageCurrentArea && getById(id)?.areaId == farmId;
+  bool canReleaseTerminalCrab(CrabIndividual crab) => canCorrectCrab(crab.id) &&
+      crab.areaId == farmId && const {CrabLifeStatus.dead, CrabLifeStatus.sold, CrabLifeStatus.readyForSale}.contains(crab.lifeStatus);
 
   List<CrabIndividual> _crabs = [];
   List<AreaRecord> _areas = [];
@@ -124,6 +133,10 @@ class CrabService extends ChangeNotifier {
       _statusFilter != CrabManagementStatusFilter.all;
 
   void updateSession(AuthSession session) {
+    ++_scopeGeneration;
+    _loading = false;
+    _error = null;
+    _lastListItems = [];
     _session = session;
     _crabs = [];
     _areas = [];
@@ -347,56 +360,74 @@ class CrabService extends ChangeNotifier {
   int get totalPages => (filteredCount / _pageSize).ceil().clamp(1, 999);
 
   Future<void> load() async {
+    if (_disposed) return;
+    final generation = _scopeGeneration;
+    final version = ++_listVersion;
+    bool active() => _current(generation) && version == _listVersion;
+    final area = farmId;
+    final auth = token;
+    if (area.isEmpty || !_session.farms.any((f) => f.id == area)) {
+      _error = 'Chưa được phân công khu nuôi.';
+      _loading = false;
+      notifyListeners();
+      return;
+    }
     _loading = true;
     _error = null;
     notifyListeners();
     try {
-      final result = await _api.fetchFarmCrabs(token, farmId);
-      try {
-        _lots = await _api.fetchCrabLots(token);
-      } catch (_) {
-        _lots = [];
-      }
-      try {
-        _rowsInArea = farmId.isEmpty
-            ? []
-            : await _api.fetchAllRows(token, areaId: farmId);
-      } catch (_) {
-        _rowsInArea = [];
-      }
+      final result = await _api.fetchFarmCrabs(auth, area);
+      if (!active()) return;
+      List<FarmingBatchRecord> lots = [];
+      List<RowRecord> rows = [];
+      List<AreaRecord> areas = [];
+      List<BoxRecord> boxes = [];
+      try { lots = await _api.fetchCrabLots(auth); } catch (_) {}
+      if (!active()) return;
+      try { rows = await _api.fetchAllRows(auth, areaId: area); } catch (_) {}
+      if (!active()) return;
+      try { areas = await _api.fetchAreas(auth, ''); } catch (_) {}
+      if (!active()) return;
+      try { boxes = await _api.fetchAllBoxes(auth, areaId: area); } catch (_) {}
+      if (!active()) return;
+      _lots = lots.where((l) => l.farmingAreaIds.contains(area)).toList();
+      _rowsInArea = rows;
+      _areas = areas.where((a) => a.id == area).toList();
+      _boxes = boxes;
       _lastListItems = result.crabs;
-      _crabs = result.crabs.map(crabFromListItem).toList();
+      _crabs = result.crabs.map(crabFromListItem).where((c) => c.areaId == area).toList();
       _summary = summarizeCrabs(_crabs);
-      try {
-        _areas = await _api.fetchAreas(token, '');
-      } catch (_) {
-        _areas = [];
-      }
-      try {
-        _boxes = await _api.fetchAllBoxes(
-          token,
-          areaId: farmId.isEmpty ? null : farmId,
-        );
-      } catch (_) {
-        _boxes = [];
-      }
       _error = null;
-    } on CloudApiException catch (e) {
-      _error = e.message;
     } catch (e) {
-      _error = '$e';
+      if (active()) _error = e is CloudApiException ? e.message : '$e';
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (active()) {
+        _loading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<void> loadDetail(String crabId) async {
+    if (_disposed || farmId.isEmpty || !_session.farms.any((f) => f.id == farmId)) return;
+    final generation = _scopeGeneration;
+    final area = farmId;
+    final auth = token;
     try {
-      try {
-        _profiles[crabId] = await _api.fetchCrabProfile(token, crabId);
-      } catch (_) {}
-      final body = await _api.fetchCrabDetail(token, crabId);
+      CrabProfile? fetchedProfile;
+      try { fetchedProfile = await _api.fetchCrabProfile(auth, crabId); } catch (_) {}
+      if (!_current(generation)) return;
+      final body = await _api.fetchCrabDetail(auth, crabId);
+      if (!_current(generation)) return;
+      final actualArea = (body['farmingAreaId'] ?? body['FarmingAreaId'] ?? '').toString();
+      if (actualArea != area) {
+        _profiles.remove(crabId);
+        _crabs = _crabs.where((c) => c.id != crabId).toList();
+        _error = 'Cua không thuộc khu nuôi hiện tại.';
+        notifyListeners();
+        return;
+      }
+      if (fetchedProfile != null) _profiles[crabId] = fetchedProfile;
       final urls = parseCrabImageUrls(body['imageUrls'] ?? body['ImageUrls']);
       final existingProfile = _profiles[crabId];
       if (existingProfile == null) {
@@ -452,9 +483,11 @@ class CrabService extends ChangeNotifier {
         _crabs = [..._crabs, merged];
       }
       notifyListeners();
-    } on CloudApiException catch (e) {
-      _error = e.message;
-      notifyListeners();
+    } catch (e) {
+      if (_current(generation)) {
+        _error = e is CloudApiException ? e.message : '$e';
+        notifyListeners();
+      }
     }
   }
 
@@ -591,34 +624,23 @@ class CrabService extends ChangeNotifier {
   }
 
   Future<void> refreshLots() async {
+    if (_disposed || farmId.isEmpty) return;
+    final generation = _scopeGeneration;
+    final area = farmId;
     try {
-      _lots = await _api.fetchCrabLots(token);
-      notifyListeners();
-    } on CloudApiException catch (e) {
-      _error = e.message;
+      final lots = await _api.fetchCrabLots(token);
+      if (!_current(generation)) return;
+      _lots = lots.where((l) => l.farmingAreaIds.contains(area)).toList();
       notifyListeners();
     } catch (e) {
-      _error = '$e';
-      notifyListeners();
+      if (_current(generation)) { _error = e is CloudApiException ? e.message : '$e'; notifyListeners(); }
     }
   }
 
   Future<FarmingBatchRecord?> ensureDefaultLot() async {
-    try {
-      if (_lots.isEmpty) {
-        _lots = await _api.fetchCrabLots(token);
-        notifyListeners();
-      }
-      return _lots.isEmpty ? null : _lots.first;
-    } on CloudApiException catch (e) {
-      _error = e.message;
-      notifyListeners();
-      return null;
-    } catch (e) {
-      _error = '$e';
-      notifyListeners();
-      return null;
-    }
+    if (_disposed || farmId.isEmpty) return null;
+    if (_lots.isEmpty) await refreshLots();
+    return _lots.isEmpty ? null : _lots.first;
   }
 
   Future<String> peekNextLotCode({DateTime? importDate}) async {
@@ -642,9 +664,14 @@ class CrabService extends ChangeNotifier {
     String? notes,
     List<String> imagePaths = const [],
   }) async {
+    if (!canManageCurrentArea) { _error = 'Chỉ Manager trong khu được phân công được tạo lô.'; if (!_disposed) notifyListeners(); return null; }
+    final generation = _scopeGeneration;
+    final auth = token;
+    final area = farmId;
     try {
       var lot = await _api.createCrabLot(
-        token,
+        auth,
+        farmingAreaId: area,
         name: name,
         importDate: importDate,
         quantity: quantity,
@@ -660,14 +687,17 @@ class CrabService extends ChangeNotifier {
         deadOnArrival: deadOnArrival,
         notes: notes,
       );
+      if (!_current(generation)) return lot;
       if (imagePaths.isNotEmpty) {
-        final urls = await _api.uploadLotImages(token, lot.id, imagePaths);
+        final urls = await _api.uploadLotImages(auth, lot.id, imagePaths);
         if (urls.isNotEmpty) {
-          lot = await _api.fetchCrabLot(token, lot.id);
+          lot = await _api.fetchCrabLot(auth, lot.id);
         }
       }
-      _lots = [lot, ..._lots.where((l) => l.id != lot.id)];
-      notifyListeners();
+      if (_current(generation)) {
+        _lots = [lot, ..._lots.where((l) => l.id != lot.id)];
+        notifyListeners();
+      }
       return lot;
     } on CloudApiException catch (e) {
       _error = e.message;
@@ -946,13 +976,22 @@ class CrabService extends ChangeNotifier {
   }
 
   Future<bool> deleteCrab(String id) async {
+    final crab = getById(id);
+    if (crab == null || !canReleaseTerminalCrab(crab)) {
+      _error = 'Chỉ Manager được xử lý bản ghi cua đã kết thúc trong khu hiện tại. Không xóa cua đang sống.';
+      if (!_disposed) notifyListeners();
+      return false;
+    }
+    final generation = _scopeGeneration;
     try {
       await _api.deleteBatchCrab(token, id);
-      await load();
+      if (_current(generation)) await load();
       return true;
-    } on CloudApiException catch (e) {
-      _error = e.message;
-      notifyListeners();
+    } catch (e) {
+      if (_current(generation)) {
+        _error = e is CloudApiException ? e.message : '$e';
+        notifyListeners();
+      }
       return false;
     }
   }
@@ -1258,6 +1297,9 @@ class CrabService extends ChangeNotifier {
       ),
     );
   }
+
+  @override
+  void dispose() { _disposed = true; ++_scopeGeneration; super.dispose(); }
 
   @Deprecated('Dùng generateNextCodeForBatch')
   String generateDisplayCode() => 'CR-${1000 + _crabs.length}';

@@ -10,11 +10,16 @@ class CrabGrowthMoltController extends ChangeNotifier {
     required this.crabId,
     required this.api,
     required this.tokenProvider,
+    this.canCorrect,
+    this.canRecord = false,
   });
 
   final String crabId;
   final CloudApiClient api;
   final String Function() tokenProvider;
+  final bool Function()? canCorrect;
+  final bool canRecord;
+  bool _disposed = false;
 
   GrowthPeriod _period = GrowthPeriod.d30;
   CrabGrowthMoltData? _data;
@@ -38,6 +43,7 @@ class CrabGrowthMoltController extends ChangeNotifier {
   DateTime? get to => _period.duration == null ? null : DateTime.now();
 
   Future<void> load() async {
+    if (_disposed) return;
     final gen = ++_gen;
     _loading = true;
     _error = null;
@@ -73,6 +79,7 @@ class CrabGrowthMoltController extends ChangeNotifier {
   }
 
   Future<String?> record(NewGrowthInput input, {required CrabIndividual crab, String? operatorName}) async {
+    if (_disposed || !canRecord) return 'Ghi nhận mới thuộc Farm Staff.';
     try {
       if (input.isMolt) {
         final prev = _data?.latest;
@@ -120,6 +127,7 @@ class CrabGrowthMoltController extends ChangeNotifier {
   }
 
   Future<String?> updateNote(GrowthMeasurement m, String note) async {
+    if (_disposed || canCorrect?.call() != true || m.id.isEmpty || !(_data?.measurements.any((v) => v.id == m.id) ?? false)) return 'Không có quyền sửa ghi chú lần đo này.';
     try {
       await api.updateCrabWeightNote(tokenProvider(), crabId, m.id, note);
       await load();
@@ -130,4 +138,6 @@ class CrabGrowthMoltController extends ChangeNotifier {
       return '$e';
     }
   }
+  @override
+  void dispose() { _disposed = true; ++_gen; super.dispose(); }
 }

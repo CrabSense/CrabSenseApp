@@ -259,10 +259,10 @@ class _CrabGrowthMoltTabState extends State<CrabGrowthMoltTab> {
       builder: (context, c) {
         final a = loading
             ? const ChartSkeleton(height: 240)
-            : WeightTrendChart(points: data?.measurements ?? const [], onAdd: _add);
+            : WeightTrendChart(points: data?.measurements ?? const [], onAdd: widget.canRecord ? _add : null);
         final b = loading
             ? const ChartSkeleton(height: 240)
-            : ShellSizeTrendChart(points: data?.measurements ?? const [], onAdd: _add);
+            : ShellSizeTrendChart(points: data?.measurements ?? const [], onAdd: widget.canRecord ? _add : null);
         if (c.maxWidth >= 900) {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
