@@ -90,3 +90,14 @@ and server setup). See [deployment setup](../docs/DESKTOP_PREVIEW_DEPLOY.md).
 Do not connect hosted preview to production data or physical devices.
 Manager authentication remains mandatory. Browser-specific limitations
 from local mode still apply.
+
+## Hosted preview without VPS (GitHub Pages)
+
+Use https://crabsense.github.io/CrabSenseApp/ after the first successful
+Pages deployment. Enable Settings → Pages → Source: GitHub Actions once.
+The Desktop GitHub Pages workflow builds and publishes on main pushes.
+The site is public; use only synthetic/test data and test Manager accounts.
+Without repository variable DESKTOP_PAGES_TEST_API_URL, the login UI is
+viewable, but authentication is deliberately disabled. See the deployment
+guide for the test API origin and CORS preflight. Local F5 and protected VPS
+modes remain unchanged.

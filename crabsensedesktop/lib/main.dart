@@ -16,6 +16,7 @@ Future<void> main() async {
     localEnabled: const bool.fromEnvironment('CRABSENSE_DESKTOP_PREVIEW'),
     hostedEnabled: const bool.fromEnvironment('CRABSENSE_DESKTOP_HOSTED_PREVIEW'),
     hostedOrigin: const String.fromEnvironment('CRABSENSE_PREVIEW_ORIGIN'),
+    hostedBasePath: const String.fromEnvironment('CRABSENSE_PREVIEW_BASE_PATH', defaultValue: '/'),
   )) {
     runApp(const MaterialApp(home: Scaffold(body: Center(
       child: Text('CrabSense Desktop Preview is not enabled for this origin.'),
@@ -46,7 +47,7 @@ class CrabFarmMonitorApp extends StatelessWidget {
       theme: appThemeMode.materialTheme,
       home: const AuthGate(),
       builder: (context, child) => kIsWeb && !kDebugMode
-          ? Banner(message: 'PREVIEW', location: BannerLocation.topEnd,
+          ? Banner(message: PreviewPolicy.pagesBuild && !PreviewPolicy.pagesTestApiConfigured ? 'NO TEST API' : 'PREVIEW', location: BannerLocation.topEnd,
               color: Colors.deepOrange, child: child ?? const SizedBox.shrink())
           : child ?? const SizedBox.shrink(),
     );

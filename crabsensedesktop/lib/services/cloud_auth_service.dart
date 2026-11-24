@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../config/app_env.dart';
+import '../config/preview_policy.dart';
 import '../models/auth_models.dart';
 import 'auth_session_store.dart';
 import 'cloud_api_client.dart';
@@ -57,6 +58,9 @@ class CloudAuthService {
     required String username,
     required String password,
   }) async {
+    if (kIsWeb && PreviewPolicy.pagesBuild && !PreviewPolicy.pagesTestApiConfigured) {
+      return CloudAuthResult.failure('Chưa cấu hình Backend test cho GitHub Pages. Chỉ xem được giao diện đăng nhập.');
+    }
     final userTrim = username.trim();
     if (userTrim.isEmpty) {
       return CloudAuthResult.failure('Vui lòng nhập tên đăng nhập.');

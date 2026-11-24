@@ -19,6 +19,16 @@ void main() {
     expect(allowed('https://desktop-preview.example.invalid/', hosted: false), isFalse);
     expect(allowed('http://localhost:5500', local: true), isFalse);
   });
+  test('Pages project path is isolated from other projects on shared origin', () {
+    bool pages(String url) => PreviewPolicy.allows(uri: Uri.parse(url), debug: false,
+      localEnabled: false, hostedEnabled: true, hostedOrigin: 'https://crabsense.github.io',
+      hostedBasePath: '/CrabSenseApp/');
+    expect(pages('https://crabsense.github.io/CrabSenseApp/'), isTrue);
+    expect(pages('https://crabsense.github.io/CrabSenseApp/#/dashboard'), isTrue);
+    expect(pages('https://crabsense.github.io/CrabSenseFE/'), isFalse);
+    expect(pages('https://crabsense.github.io/CrabSenseApp-other/'), isFalse);
+    expect(pages('https://crabsense.github.io/'), isFalse);
+  });
   test('hosted API must be a non-loopback HTTPS origin', () {
     expect(PreviewPolicy.validHostedApi('https://api-staging.example.invalid'), isTrue);
     expect(PreviewPolicy.validHostedApi('http://localhost:5080'), isFalse);

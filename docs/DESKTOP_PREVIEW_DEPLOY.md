@@ -83,3 +83,30 @@ Check exact deployed revision at /version.json after login to the site.
 The hosted workflow refreshes after push, not on Ctrl+S; local mode is
 the hot-reload option. With deploy disabled, download the CI artifact for
 inspection, but it will only run on the configured HTTPS origin.
+
+## GitHub Pages — no VPS for the preview frontend
+
+1. In CrabSenseApp Settings → Pages, select GitHub Actions as the source.
+   The public project-site URL is https://crabsense.github.io/CrabSenseApp/.
+2. Optionally configure repository Actions variable DESKTOP_PAGES_TEST_API_URL
+   with the HTTPS origin of an isolated test API (no /api suffix). The
+   Pages workflow refuses the known production site and Pages origin. An
+   unset variable publishes the login UI only; no login or session restore.
+3. Configure CORS on the isolated test API: add https://crabsense.github.io
+   (origin only, no /CrabSenseApp/ path). Production repo defaults already
+   include this origin; Development defaults do not. Change the test
+   instance's effective AllowedOrigins configuration, preserving existing
+   entries, and restart only the test API if required. The workflow checks
+   /health and login CORS preflight before publishing a configured build.
+4. Run Actions → Desktop GitHub Pages on main. Subsequent main pushes build
+   and deploy automatically; pull requests only compile and run tests.
+5. Open the deployed URL. Verify /CrabSenseApp/version.json for commit SHA.
+   If an API is configured, verify Manager login, reject other roles, and
+   check dashboard and menu routes using only test data.
+
+GitHub Pages is public and not an access-controlled internal preview. All
+projects under crabsense.github.io share an origin; use test credentials
+only. Do not store secrets in variables or .env; build assets are public.
+The normal API still enforces authentication/role/area authorization.
+Use Local Preview or the protected VPS option for non-public datasets.
+No DNS, SSH keys or separate Nginx setup are required for the Pages UI.

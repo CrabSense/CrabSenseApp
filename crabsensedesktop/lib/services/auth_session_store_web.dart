@@ -6,7 +6,8 @@ import 'dart:html' as html;
 import '../models/auth_models.dart';
 
 class AuthSessionStore {
-  static const _key = 'crabsense.desktop.preview.session';
+  static final _key = Uri.base.path.startsWith('/CrabSenseApp/')
+      ? 'crabsense.desktop.pages.test.session' : 'crabsense.desktop.preview.session';
 
   Map<String, dynamic>? _read() {
     try {
