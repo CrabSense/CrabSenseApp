@@ -1,3 +1,4 @@
+import '../../domain/entities/user.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/errors/failures.dart';
 import '../../domain/usecases/login_usecase.dart';
@@ -63,7 +64,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     result.fold(
       (failure) => emit(AuthError(failure.message, code: failure.code)),
-      (user) => emit(Authenticated(user)),
+      (user) => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()),
     );
   }
 
@@ -78,7 +79,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     result.fold(
       (failure) => emit(AuthError(failure.message, code: failure.code)),
-      (user) => emit(Authenticated(user)),
+      (user) => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()),
     );
   }
 
@@ -117,7 +118,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     await isAuthResult.fold((_) async => emit(const Unauthenticated()), (isAuthenticated) async {
       if (isAuthenticated) {
         final userResult = await authRepository.getCurrentUser();
-        userResult.fold((_) => emit(const Unauthenticated()), (user) => emit(Authenticated(user)));
+        userResult.fold((_) => emit(const Unauthenticated()), (user) => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()));
         return;
       }
       // Access token is one hour. A still-valid refresh token (7 days)
@@ -129,8 +130,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           return;
         }
         final cached = await authRepository.getCurrentUser();
-        cached.fold((_) => emit(const Unauthenticated()), (user) => emit(Authenticated(user)));
-      }, (user) async => emit(Authenticated(user)));
+        cached.fold((_) => emit(const Unauthenticated()), (user) => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()));
+      }, (user) async => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()));
     });
   }
 
@@ -157,7 +158,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       } else {
         emit(AuthError(failure.message, code: failure.code));
       }
-    }, (user) => emit(Authenticated(user)));
+    }, (user) => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()));
   }
 
   /// Handles the biometric authentication request event.
@@ -179,7 +180,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     result.fold(
       (failure) => emit(AuthError(failure.message, code: failure.code)),
-      (user) => emit(Authenticated(user)),
+      (user) => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()),
     );
   }
 }

@@ -1,3 +1,5 @@
+import '../../../features/authentication/domain/entities/user.dart';
+import '../../../features/authentication/data/models/user_model.dart';
 import 'dart:async';
 
 import 'package:dio/dio.dart';
@@ -192,6 +194,25 @@ class TokenRefreshInterceptor extends Interceptor {
           message: 'Missing accessToken in refresh response',
         );
       }
+
+      final rawUser = payload['user'];
+      final user = rawUser is Map
+          ? UserModel.fromJson(Map<String, dynamic>.from(rawUser))
+          : null;
+      if (user == null || !user.role.canUseMobile) {
+        await _localDataSource.clearAuthData();
+        _dio.options.headers.remove('Authorization');
+        throw DioException(
+          requestOptions: RequestOptions(path: ApiConstants.refreshToken),
+          message: 'Mobile is only available to Farm Staff.',
+          type: DioExceptionType.badResponse,
+          response: Response(
+            requestOptions: RequestOptions(path: ApiConstants.refreshToken),
+            statusCode: 403,
+          ),
+        );
+      }
+      await _localDataSource.cacheUser(user);
 
       // Persist to Keychain / Keystore — never log the value (req 23.5).
       await _localDataSource.saveAccessToken(newAccess);
