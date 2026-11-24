@@ -735,6 +735,7 @@ class CrabService extends ChangeNotifier {
     DateTime? stockedAt,
     List<String>? imagePaths,
   }) async {
+    if (!_session.user.isStaff) throw CloudApiException('Thao tác này thuộc Farm Staff trên Mobile.');
     final imageUrls = (imagePaths == null || imagePaths.isEmpty)
         ? const <String>[]
         : await _api.uploadCrabImages(token, imagePaths);
@@ -781,6 +782,7 @@ class CrabService extends ChangeNotifier {
       List<String>? imagePaths,
     })> rows,
   ) async {
+    if (!_session.user.isStaff) throw CloudApiException('Thao tác này thuộc Farm Staff trên Mobile.');
     if (rows.isEmpty) return (saved: 0, errors: const ['Không có dòng nào để lưu.']);
     final first = rows.first;
     try {
@@ -884,6 +886,10 @@ class CrabService extends ChangeNotifier {
   }
 
   Future<bool> updateCrabProfile(CrabIndividual crab) async {
+    if (!_session.user.isStaff) {
+      _error = 'Thao tác này thuộc Farm Staff trên Mobile.';
+      return false;
+    }
     try {
       await _api.updateCrabProfile(
         token,
@@ -911,6 +917,10 @@ class CrabService extends ChangeNotifier {
   }
 
   Future<bool> updateCrab(CrabIndividual crab) async {
+    if (!_session.user.isStaff) {
+      _error = 'Thao tác này thuộc Farm Staff trên Mobile.';
+      return false;
+    }
     try {
       await _api.updateBatchCrabExtended(
         token,
@@ -956,6 +966,10 @@ class CrabService extends ChangeNotifier {
     String? note,
     required DateTime recordedAt,
   }) async {
+    if (!_session.user.isStaff) {
+      _error = 'Thao tác này thuộc Farm Staff trên Mobile.';
+      return false;
+    }
     try {
       await _api.recordCrabHealth(
         token,
@@ -984,6 +998,10 @@ class CrabService extends ChangeNotifier {
     String? note,
     List<String> imagePaths = const [],
   }) async {
+    if (!_session.user.isStaff) {
+      _error = 'Thao tác này thuộc Farm Staff trên Mobile.';
+      return false;
+    }
     try {
       final y = date.year.toString().padLeft(4, '0');
       final m = date.month.toString().padLeft(2, '0');
@@ -1071,6 +1089,10 @@ class CrabService extends ChangeNotifier {
   }
 
   Future<bool> markDead(String id, {required String cause, required DateTime date}) async {
+    if (!_session.user.isStaff) {
+      _error = 'Thao tác này thuộc Farm Staff trên Mobile.';
+      return false;
+    }
     final crab = getById(id);
     if (crab == null) return false;
     return updateCrab(
@@ -1090,6 +1112,10 @@ class CrabService extends ChangeNotifier {
     required DateTime date,
     String? note,
   }) async {
+    if (!_session.user.isStaff) {
+      _error = 'Thao tác này thuộc Farm Staff trên Mobile.';
+      return false;
+    }
     final crab = getById(id);
     if (crab == null) return false;
     final ok = await recordMolt(
@@ -1111,6 +1137,10 @@ class CrabService extends ChangeNotifier {
   }
 
   Future<bool> markReadyHarvest(String id) async {
+    if (!_session.user.isStaff) {
+      _error = 'Thao tác này thuộc Farm Staff trên Mobile.';
+      return false;
+    }
     final crab = getById(id);
     if (crab == null) return false;
     return updateCrab(
@@ -1132,6 +1162,7 @@ class CrabService extends ChangeNotifier {
     String? reasonText,
     String? note,
   }) async {
+    if (!_session.user.isStaff) throw CloudApiException('Thao tác này thuộc Farm Staff trên Mobile.');
     final crab = getById(id);
     await _api.transferCrab(
       token,
@@ -1153,6 +1184,10 @@ class CrabService extends ChangeNotifier {
     Iterable<String> ids,
     CrabDisplayHealth health,
   ) async {
+    if (!_session.user.isStaff) {
+      _error = 'Thao tác này thuộc Farm Staff trên Mobile.';
+      return false;
+    }
     final mapped = switch (health) {
       CrabDisplayHealth.healthy => CrabHealthStatus.healthy,
       CrabDisplayHealth.monitoring => CrabHealthStatus.monitoring,

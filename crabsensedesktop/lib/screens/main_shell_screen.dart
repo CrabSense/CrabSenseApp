@@ -21,6 +21,7 @@ import 'lot/crab_lot_inbound_page.dart';
 import 'lot/crab_lot_inbound_detail_page.dart';
 import '../services/crab_lot_inbound_service.dart';
 import 'dashboard_screen.dart';
+import 'reports/manager_reports_page.dart';
 import 'farm/farm_layout_page.dart';
 import '../services/farm_layout_service.dart';
 import 'area/area_detail_page.dart';
@@ -393,6 +394,9 @@ class _MainShellScreenState extends State<MainShellScreen> {
   }
 
   void _navigate(AppRoute route) {
+    if (route == AppRoute.cameraAi) route = AppRoute.farmAreas;
+    if (route == AppRoute.feed) route = AppRoute.productionCrabManagement;
+    if (route == AppRoute.farmingBatchManagement || route == AppRoute.farmingBatchDetail) route = AppRoute.inboundLots;
     if (route == AppRoute.deviceSetup || route == AppRoute.sensorUpgrade) {
       route = AppRoute.controllers;
     }
@@ -1179,9 +1183,10 @@ class _MainShellScreenState extends State<MainShellScreen> {
           onBack: _backToCrabDetail,
           onOpenHistory: _backToCrabDetail,
         );
+      case AppRoute.reports:
+        return ManagerReportsPage(key: ValueKey(_session.selectedFarm.id), session: _session, api: _cloudApi);
       case AppRoute.cameraAi:
       case AppRoute.feed:
-      case AppRoute.reports:
       case AppRoute.sensorUpgrade:
       case AppRoute.deviceSetup:
         return Center(

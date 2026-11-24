@@ -11,7 +11,6 @@ import '../../services/crab_service.dart';
 import '../../theme/dashboard_theme.dart';
 import '../../utils/app_formatters.dart';
 import '../../widgets/crab/crab_action_modals.dart';
-import '../../widgets/crab/crab_bulk_add_dialog.dart';
 import '../../widgets/crab/crab_management_dialogs.dart';
 import '../../widgets/crab/crab_management_table.dart';
 import '../../widgets/crab/crab_quick_detail.dart';
@@ -101,6 +100,7 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
   }
 
   Future<void> _onAction(CrabIndividual crab, CrabManagementAction action) async {
+    if (!const {CrabManagementAction.view, CrabManagementAction.history, CrabManagementAction.viewBox}.contains(action)) return;
     switch (action) {
       case CrabManagementAction.view:
         widget.onOpenDetail?.call(crab);
@@ -301,25 +301,6 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
               label: 'Nhập lô',
               onTap: () => widget.onNavigate?.call(AppRoute.inboundLots),
               height: 42,
-            ),
-            MgmtOutlineButton(
-              icon: Icons.playlist_add_rounded,
-              label: 'Thêm nhiều',
-              onTap: () => showCrabBulkAddDialog(
-                context,
-                _svc,
-                onManageLots: () => widget.onNavigate?.call(AppRoute.inboundLots),
-              ),
-              height: 42,
-            ),
-            MgmtPrimaryButton(
-              icon: Icons.add_rounded,
-              label: 'Thêm Cua',
-              onTap: () => showCrabManagementFormDialog(
-                context,
-                _svc,
-                onManageLots: () => widget.onNavigate?.call(AppRoute.inboundLots),
-              ),
             ),
           ],
         ),
@@ -671,7 +652,7 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
           icon: Icons.set_meal_outlined,
           title: 'Chưa có cua trong hệ thống',
           message:
-              'Các cá thể cua sau khi nhập lô hoặc thêm thủ công sẽ xuất hiện tại đây.',
+              'Farm Staff đăng ký cá thể cua trên Mobile sau khi Manager tạo lô nhập.',
           action: Wrap(
             alignment: WrapAlignment.center,
             spacing: 8,
@@ -680,15 +661,6 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
               MgmtOutlineButton(
                 label: 'Nhập lô',
                 onTap: () => widget.onNavigate?.call(AppRoute.inboundLots),
-              ),
-              MgmtPrimaryButton(
-                icon: Icons.add_rounded,
-                label: 'Thêm cua',
-                onTap: () => showCrabManagementFormDialog(
-                  context,
-                  _svc,
-                  onManageLots: () => widget.onNavigate?.call(AppRoute.inboundLots),
-                ),
               ),
             ],
           ),
@@ -785,27 +757,7 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
               ),
             ),
             const SizedBox(width: 8),
-            MgmtOutlineButton(
-              label: 'Chuyển hộp',
-              onTap: () {
-                if (n != 1) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Chọn 1 cua để chuyển hộp (1 hộp = 1 cua).'),
-                    ),
-                  );
-                  return;
-                }
-                showMoveCrabModal(context, _svc, selected.first);
-              },
-              height: 34,
-            ),
             const SizedBox(width: 6),
-            MgmtOutlineButton(
-              label: 'Cập nhật sức khỏe',
-              onTap: () => showBulkHealthModal(context, _svc, selected),
-              height: 34,
-            ),
             const SizedBox(width: 6),
             MgmtOutlineButton(
               icon: Icons.download_outlined,

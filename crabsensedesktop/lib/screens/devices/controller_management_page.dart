@@ -217,7 +217,7 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
               _errorBanner(_svc.error!, () => _svc.load()),
             ],
             const SizedBox(height: 14),
-            KioskSection(key: _kiosks, service: _svc),
+            if (_svc.session.user.isSystemAdmin) KioskSection(key: _kiosks, service: _svc),
             const SizedBox(height: 14),
           ];
           if (compactHeight) {
@@ -1067,34 +1067,6 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
     );
   }
 
-  Future<void> _setSsr(IoTDevice device, int channel, bool on) async {
-    final ip = device.ipLan;
-    if (ip == null || ip.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Controller chưa có IP')));
-      return;
-    }
-    setState(() => _ssrBusy = channel);
-    _svc.stopLiveRefresh();
-    try {
-      final state = await ControllerProvisioningService().commandEsp(
-        ip: ip,
-        command: on ? 'on' : 'off',
-        channel: channel,
-      );
-      if (!mounted || state == null) return;
-      setState(() => _ssrOn.addAll(state));
-      final echoed = state[channel];
-      if (echoed == on) {
-        widget.service.reportRelay(device.deviceCode, channel, on);
-      }
-    } catch (_) {
-    } finally {
-      if (mounted) setState(() => _ssrBusy = null);
-      _svc.startLiveRefresh();
-    }
-  }
-
   String _actuatorName(ControllerDetail detail, int channel) {
     for (final a in detail.actuators) {
       if (a.relayChannel == '$channel') {
@@ -1143,11 +1115,9 @@ class _ControllerManagementPageState extends State<ControllerManagementPage>
               DataCell(Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Switch(
-                    value: _ssrOn[pin.channel] ?? false,
-                    onChanged: _ssrBusy != null
-                        ? null
-                        : (v) => _setSsr(detail.controller, pin.channel, v),
+                  TextButton(
+                    onPressed: () => widget.onNavigate?.call(AppRoute.devices),
+                    child: const Text('Điều khiển RAS'),
                   ),
                   IconButton(
                     tooltip: 'Biểu đồ bật tắt',

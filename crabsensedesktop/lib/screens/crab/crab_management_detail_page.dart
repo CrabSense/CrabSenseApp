@@ -311,6 +311,7 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
   }
 
   Future<void> _moreAction(_HeaderAction a, CrabIndividual crab) async {
+    if (!const {_HeaderAction.history, _HeaderAction.cameras}.contains(a)) return;
     final messenger = ScaffoldMessenger.of(context);
     switch (a) {
       case _HeaderAction.edit:
@@ -397,12 +398,7 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
                   loading: _detailLoading,
                   onBack: widget.onBack,
                   onRefresh: _loadDetail,
-                  onMove: () async {
-                    final ok = await showMoveCrabModal(context, _svc, crab);
-                    if (!mounted || !ok) return;
-                    await _loadDetail();
-                    _history.load();
-                  },
+                  onMove: null,
                   onMore: (a) => _moreAction(a, crab),
                   onOpenArea: crab.areaId.isEmpty ? null : () => widget.onOpenArea?.call(crab.areaId),
                   onOpenRow: crab.areaId.isEmpty ? null : () => _openBoxes(crab),
@@ -436,9 +432,9 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
           boxLoading: _boxLoading,
           onOpenFeeding: () => setState(() => _tab = CrabDetailTab.feeding),
           onOpenHistory: () => setState(() => _tab = CrabDetailTab.history),
-          onEdit: () => _editCrab(crab),
-          onEditNote: () => _editNote(crab),
-          onAddFeeding: () => _addFeeding(crab),
+          onEdit: null,
+          onEditNote: null,
+          onAddFeeding: null,
           onOpenArea: crab.areaId.isEmpty ? null : () => widget.onOpenArea?.call(crab.areaId),
           onOpenRow: crab.areaId.isEmpty ? null : () => _openBoxes(crab),
           onOpenBox: crab.boxId.isEmpty ? null : () => _openBoxDetail(crab),
@@ -446,6 +442,7 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
         );
       case CrabDetailTab.growth:
         return CrabGrowthMoltTab(
+          canRecord: false,
           crab: crab,
           controller: _growth,
           token: _svc.token,
@@ -459,6 +456,7 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
         );
       case CrabDetailTab.feeding:
         return CrabFeedingActivityTab(
+          canRecord: false,
           crab: crab,
           controller: _feeding,
           token: _svc.token,
@@ -571,7 +569,7 @@ class _CrabDetailHeader extends StatelessWidget {
   final bool loading;
   final VoidCallback onBack;
   final VoidCallback onRefresh;
-  final VoidCallback onMove;
+  final VoidCallback? onMove;
   final ValueChanged<_HeaderAction> onMore;
   final VoidCallback? onOpenArea;
   final VoidCallback? onOpenRow;
@@ -652,7 +650,7 @@ class _CrabDetailHeader extends StatelessWidget {
                 color: DashboardColors.textPrimary,
                 borderColor: DashboardColors.cardBorder,
               ),
-              MgmtOutlineButton(icon: Icons.swap_horiz_rounded, label: 'Chuyển hộp', onTap: alive ? onMove : null),
+              if (onMove != null) MgmtOutlineButton(icon: Icons.swap_horiz_rounded, label: 'Chuyển hộp', onTap: alive ? onMove : null),
               PopupMenuButton<_HeaderAction>(
                 tooltip: 'Thao tác khác',
                 offset: const Offset(0, 42),
@@ -660,16 +658,8 @@ class _CrabDetailHeader extends StatelessWidget {
                 color: Colors.white,
                 onSelected: onMore,
                 itemBuilder: (_) => [
-                  _item(_HeaderAction.edit, Icons.edit_outlined, 'Chỉnh sửa thông tin'),
                   _item(_HeaderAction.history, Icons.history_rounded, 'Xem lịch sử'),
-                  if (alive) _item(_HeaderAction.markMolting, Icons.autorenew_rounded, 'Đánh dấu lột xác'),
-                  if (alive) _item(_HeaderAction.readyHarvest, Icons.flag_outlined, 'Đánh dấu sắp thu hoạch'),
-                  _item(_HeaderAction.recordMolt, Icons.history_edu_outlined, 'Ghi nhận lần lột xác'),
                   _item(_HeaderAction.cameras, Icons.videocam_outlined, 'Camera hộp'),
-                  if (crab.lifeStatus == CrabLifeStatus.raising)
-                    _item(_HeaderAction.exportSoftshell, Icons.outbox_outlined, 'Xuất cua lột'),
-                  if (alive) const PopupMenuDivider(height: 8),
-                  if (alive) _item(_HeaderAction.markDead, Icons.dangerous_outlined, 'Đánh dấu chết', danger: true),
                 ],
                 child: Container(
                   width: 38,
@@ -951,9 +941,9 @@ class _OverviewTab extends StatelessWidget {
   final bool boxLoading;
   final VoidCallback onOpenFeeding;
   final VoidCallback onOpenHistory;
-  final VoidCallback onEdit;
-  final VoidCallback onEditNote;
-  final VoidCallback onAddFeeding;
+  final VoidCallback? onEdit;
+  final VoidCallback? onEditNote;
+  final VoidCallback? onAddFeeding;
   final ValueChanged<CrabActivityItem> onTapActivity;
   final VoidCallback? onOpenArea;
   final VoidCallback? onOpenRow;

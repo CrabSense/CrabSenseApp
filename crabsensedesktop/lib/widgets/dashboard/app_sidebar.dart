@@ -55,6 +55,7 @@ class _AppSidebarState extends State<AppSidebar> {
     AppRoute.harvestAssignments,
     AppRoute.farmLogs,
     AppRoute.aiInsight,
+    AppRoute.reports,
   ];
 
   bool _collapsed = false;
