@@ -10,7 +10,7 @@ class WeightTrendChart extends StatelessWidget {
   const WeightTrendChart({super.key, required this.points, required this.onAdd});
 
   final List<GrowthMeasurement> points;
-  final VoidCallback onAdd;
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +57,7 @@ class ShellSizeTrendChart extends StatelessWidget {
   const ShellSizeTrendChart({super.key, required this.points, required this.onAdd});
 
   final List<GrowthMeasurement> points;
-  final VoidCallback onAdd;
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -162,7 +162,7 @@ class _LegendDot extends StatelessWidget {
 class _ChartNeedData extends StatelessWidget {
   const _ChartNeedData({required this.needTwo, required this.onAdd});
   final bool needTwo;
-  final VoidCallback onAdd;
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -185,7 +185,7 @@ class _ChartNeedData extends StatelessWidget {
               style: bvText(fontSize: 12, color: DashboardColors.textMuted),
             ),
             const SizedBox(height: 10),
-            MgmtOutlineButton(icon: Icons.add_rounded, label: 'Ghi nhận lần đo đầu tiên', onTap: onAdd, height: 32),
+            if (onAdd != null) MgmtOutlineButton(icon: Icons.add_rounded, label: 'Ghi nhận lần đo đầu tiên', onTap: onAdd, height: 32),
           ],
         ],
       ),

@@ -25,6 +25,7 @@ class CrabGrowthMoltTab extends StatefulWidget {
     this.cameras = const [],
     this.operatorName,
     this.onRecorded,
+    this.canRecord = true,
   });
 
   final CrabIndividual crab;
@@ -34,6 +35,7 @@ class CrabGrowthMoltTab extends StatefulWidget {
   final List<CameraDevice> cameras;
   final String? operatorName;
   final VoidCallback? onRecorded;
+  final bool canRecord;
 
   @override
   State<CrabGrowthMoltTab> createState() => _CrabGrowthMoltTabState();
@@ -60,6 +62,7 @@ class _CrabGrowthMoltTabState extends State<CrabGrowthMoltTab> {
   }
 
   Future<void> _add() async {
+    if (!widget.canRecord) return;
     final input = await showGrowthRecordModal(
       context,
       crabCode: widget.crab.code,
@@ -190,7 +193,7 @@ class _CrabGrowthMoltTabState extends State<CrabGrowthMoltTab> {
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            MgmtPrimaryButton(icon: Icons.add_rounded, label: 'Ghi nhận', onTap: _add, height: 36),
+            if (widget.canRecord) MgmtPrimaryButton(icon: Icons.add_rounded, label: 'Ghi nhận', onTap: _add, height: 36),
             _PeriodChips(value: _c.period, onChanged: _c.setPeriod),
           ],
         ),

@@ -475,6 +475,35 @@ class CloudApiClient {
         .toList();
   }
 
+  Future<Object?> fetchManagerReport(String token, String report, {
+    required String areaId,
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    const allowed = {'harvest', 'harvest/period', 'inventory/filtered',
+      'survival-rate', 'molting/filtered', 'operational-efficiency', 'crab-lots/compare'};
+    if (!allowed.contains(report) || areaId.isEmpty) {
+      throw CloudApiException('Báo cáo hoặc khu nuôi không hợp lệ.');
+    }
+    final query = <String, String>{
+      'farmingAreaId': areaId,
+      if (report == 'survival-rate' || report == 'molting/filtered') 'areaId': areaId,
+      if (report == 'harvest/period') 'period': 'Day',
+      if (from != null && report != 'inventory/filtered' && report != 'crab-lots/compare')
+        'fromDate': from.toUtc().toIso8601String(),
+      if (to != null && report != 'inventory/filtered' && report != 'crab-lots/compare')
+        'toDate': to.toUtc().toIso8601String(),
+      if (to != null && report == 'inventory/filtered') 'asOfDate': to.toUtc().toIso8601String(),
+    };
+    final uri = Uri.parse('$_base/api/reports/$report').replace(queryParameters: query);
+    final res = await _client.get(uri, headers: authHeaders(token, farmId: areaId));
+    final body = _decode(res);
+    if (_isApiFailure(res, body)) {
+      throw CloudApiException(_errorMessage(body) ?? 'Không tải được báo cáo', statusCode: res.statusCode);
+    }
+    return _dataOf(body) ?? body;
+  }
+
   Future<List<Map<String, dynamic>>> fetchOperations(
     String token, {
     String? farmingAreaId,

@@ -229,42 +229,26 @@ class _RasControlPageState extends State<RasControlPage> {
   }
 
   Future<void> _driveRelay(RasFlowNodeLive node, bool on) async {
-    final channel = int.tryParse(node.relayChannel ?? '');
-    final deviceId = node.relayDeviceId ?? '';
-    if (channel == null || deviceId.isEmpty) {
-      _toast('Chưa gán actuator cho ${_deviceTitle(node)}.');
+    if (_pending.containsKey(node.id)) return;
+    if (node.relayDeviceId == null || node.relayDeviceId!.isEmpty ||
+        (node.relayChannel ?? '').isEmpty) {
+      _toast('Thiết bị chưa được gán actuator.');
       return;
     }
-    final ip = _controllerIp[deviceId];
-    if (ip == null || ip.isEmpty) {
-      _toast('Controller đã gán chưa có IP, không bật tắt được.');
+    if (node.isOnline == false) {
+      _toast('Controller mất kết nối. Không xác nhận được lệnh.');
       return;
     }
     setState(() => _pending[node.id] = on ? 'on' : 'off');
     try {
-      final state = await ControllerProvisioningService().commandEsp(
-        ip: ip,
-        command: on ? 'on' : 'off',
-        channel: channel,
+      final ok = await _svc.sendCommand(
+        areaId: widget.areaId, nodeId: node.id, command: on ? 'on' : 'off',
       );
       if (!mounted) return;
-      if (state == null) {
-        _toast('Không điều khiển được actuator trên Controller.');
-        return;
-      }
-      final echoed = state[channel];
-      if (echoed == null) {
-        _toast('Không điều khiển được actuator trên Controller.');
-        return;
-      }
-      setState(() => _relayOn[_relayKey(deviceId, channel)] = echoed);
-      _toast('✓ ${_deviceTitle(node)} ${echoed ? 'đã bật' : 'đã tắt'}.');
-      final code = _controllerCode[deviceId];
-      if (code != null && echoed == on) {
-        await _svc.reportRelay(deviceCode: code, channel: channel, on: on);
-      }
+      _toast(ok ? 'Backend đã tiếp nhận lệnh; chờ thiết bị xác nhận.'
+          : (_svc.error ?? 'Backend từ chối lệnh.'));
     } catch (_) {
-      if (mounted) _toast('Không nối được Controller.');
+      if (mounted) _toast('Không gửi được lệnh tới Backend.');
     } finally {
       if (mounted) setState(() => _pending.remove(node.id));
     }
@@ -400,7 +384,7 @@ class _RasControlPageState extends State<RasControlPage> {
     }
     if (mounted) {
       setState(() => _systemBusy = false);
-      _toast('Đã gửi lệnh dừng khẩn cấp.');
+      _toast('Đã kết thúc gửi yêu cầu dừng; kiểm tra trạng thái từng thiết bị.');
     }
   }
 
@@ -797,6 +781,10 @@ class _RasControlPageState extends State<RasControlPage> {
   }
 
   void _onDeviceMenu(RasFlowNodeLive n, String action) {
+    if (const {'relay', 'delete', 'edit', 'auto', 'schedule'}.contains(action)) {
+      _toast('Cấu hình RAS thực hiện trên Web.');
+      return;
+    }
     switch (action) {
       case 'history':
         _openActivityDetail(_lastEvent(n), n);
@@ -822,6 +810,9 @@ class _RasControlPageState extends State<RasControlPage> {
   }
 
   Future<void> _addDevice() async {
+    _toast('Farm Admin cấu hình sơ đồ RAS trên Web.');
+    return;
+    // ignore: dead_code
     final picked = await _pickDevice(title: 'Thêm thiết bị', submit: 'Thêm');
     if (picked == null || !mounted) return;
     final code = '${picked.icon}_${DateTime.now().millisecondsSinceEpoch}';
@@ -1185,6 +1176,9 @@ class _RasControlPageState extends State<RasControlPage> {
       ),
     );
     if (!mounted || action == null) return;
+    _toast('Cấu hình RAS thực hiện trên Web.');
+    return;
+    // ignore: dead_code
     if (action == 'edit') {
       await _editDevice(node);
     } else if (action == 'assign') {

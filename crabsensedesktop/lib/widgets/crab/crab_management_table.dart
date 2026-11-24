@@ -213,22 +213,8 @@ class CrabManagementDataTable extends StatelessWidget {
           onSelected: (a) => onAction(c, a),
           itemBuilder: (_) => [
             _item(CrabManagementAction.view, Icons.visibility_outlined, 'Xem chi tiết'),
-            _item(CrabManagementAction.edit, Icons.edit_outlined, 'Cập nhật thông tin'),
             _item(CrabManagementAction.history, Icons.history_rounded, 'Xem lịch sử'),
             _item(CrabManagementAction.viewBox, Icons.inventory_2_outlined, 'Xem hộp hiện tại'),
-            _item(CrabManagementAction.move, Icons.swap_horiz_rounded, 'Chuyển hộp'),
-            _item(CrabManagementAction.molt, Icons.sync_outlined, 'Đánh dấu lột xác'),
-            _item(
-              CrabManagementAction.readyHarvest,
-              Icons.shopping_basket_outlined,
-              'Đánh dấu sắp thu hoạch',
-            ),
-            _item(
-              CrabManagementAction.dead,
-              Icons.heart_broken_outlined,
-              'Đánh dấu chết',
-              danger: true,
-            ),
           ],
         ),
       ],

@@ -18,6 +18,9 @@ class RasFlowService extends ChangeNotifier {
 
   AuthSession _session;
 
+  bool get canManageStructure => _session.user.isFarmOwner;
+  bool get canConfigureRelay => _session.user.isSystemAdmin;
+
   void updateSession(AuthSession session) {
     _session = session;
     stopLiveRefresh(notify: false);
@@ -27,7 +30,15 @@ class RasFlowService extends ChangeNotifier {
     _notifyDeferred();
   }
 
-  void _notifyDeferred() => Future.microtask(notifyListeners);
+  bool _disposed = false;
+
+  void _notifyDeferred() {
+    if (_disposed) return;
+    Future.microtask(() {
+      // A screen may leave while a refresh or HTTP request is still pending.
+      if (!_disposed) notifyListeners();
+    });
+  }
 
   var _loading = false;
   var _refreshInFlight = false;
@@ -53,7 +64,7 @@ class RasFlowService extends ChangeNotifier {
     String areaId, {
     Duration interval = livePollInterval,
   }) {
-    if (areaId.trim().isEmpty) return;
+    if (_disposed || areaId.trim().isEmpty) return;
     if (_liveAreaId == areaId && _liveTimer != null) return;
 
     stopLiveRefresh();
@@ -172,6 +183,10 @@ class RasFlowService extends ChangeNotifier {
     required String fromId,
     required String toId,
   }) {
+    if (!canManageStructure) {
+      _error = 'Cấu hình RAS thuộc quyền quản trị trên Web.';
+      return Future.value(false);
+    }
     return _mutate(
       () => http.post(
         Uri.parse('${AppEnv.cloudApiUrl}/api/areas/$areaId/ras-flow/flows'),
@@ -189,6 +204,10 @@ class RasFlowService extends ChangeNotifier {
     required String areaId,
     required String flowId,
   }) {
+    if (!canManageStructure) {
+      _error = 'Cấu hình RAS thuộc quyền quản trị trên Web.';
+      return Future.value(false);
+    }
     return _mutate(
       () => http.delete(
         Uri.parse('${AppEnv.cloudApiUrl}/api/areas/$areaId/ras-flow/flows/$flowId'),
@@ -202,6 +221,10 @@ class RasFlowService extends ChangeNotifier {
     required String areaId,
     required List<String> nodeIdsInOrder,
   }) async {
+    if (!canManageStructure) {
+      _error = 'Cấu hình RAS thuộc quyền quản trị trên Web.';
+      return false;
+    }
     return _mutate(
       () => http.post(
         Uri.parse('${AppEnv.cloudApiUrl}/api/areas/$areaId/ras-flow/reorder'),
@@ -223,6 +246,10 @@ class RasFlowService extends ChangeNotifier {
     String? type,
     String? paramDefaults,
   }) async {
+    if (!canManageStructure) {
+      _error = 'Cấu hình RAS thuộc quyền quản trị trên Web.';
+      return false;
+    }
     return _mutate(
       () => http.post(
         Uri.parse('${AppEnv.cloudApiUrl}/api/areas/$areaId/ras-flow/nodes'),
@@ -253,6 +280,10 @@ class RasFlowService extends ChangeNotifier {
     String? relayChannel,
     String? paramDefaultsJson,
   }) async {
+    if (!canConfigureRelay) {
+      _error = 'Cấu hình RAS thuộc quyền quản trị trên Web.';
+      return false;
+    }
     return _mutate(
       () => http.put(
         Uri.parse(
@@ -274,6 +305,10 @@ class RasFlowService extends ChangeNotifier {
     required String areaId,
     required String nodeId,
   }) async {
+    if (!canManageStructure) {
+      _error = 'Cấu hình RAS thuộc quyền quản trị trên Web.';
+      return false;
+    }
     return _mutate(
       () => http.delete(
         Uri.parse(
@@ -476,7 +511,8 @@ class RasFlowService extends ChangeNotifier {
 
   @override
   void dispose() {
-    stopLiveRefresh();
+    _disposed = true;
+    stopLiveRefresh(notify: false);
     super.dispose();
   }
 }
