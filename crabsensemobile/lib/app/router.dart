@@ -1,4 +1,3 @@
-import '../features/authentication/domain/entities/user.dart' show UserRoleExtension;
 /// GoRouter configuration for the CrabSense mobile application.
 ///
 /// Defines the complete route tree, authentication guards, deep-link
@@ -9,6 +8,8 @@ import '../features/authentication/domain/entities/user.dart' show UserRoleExten
 ///               1.7 (offline auth error),
 ///               17.1 (traceability public access, ≤ 500 ms QR decode)
 library;
+
+import '../features/authentication/domain/entities/user.dart' show UserRoleExtension;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';

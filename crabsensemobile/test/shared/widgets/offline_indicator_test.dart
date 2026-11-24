@@ -93,6 +93,9 @@ class WidgetTestSyncService implements SyncService {
   Future<int> getPendingCount() async => count;
 
   @override
+  Stream<int> watchPendingCount() => Stream.value(count);
+
+  @override
   Future<void> markProcessing(String id) async {}
 
   @override

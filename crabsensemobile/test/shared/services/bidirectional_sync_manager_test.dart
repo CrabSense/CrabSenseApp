@@ -179,7 +179,7 @@ void main() {
     fakeRemoteDataSource = FakeSyncRemoteDataSource();
     fakeNetworkInfo = FakeNetworkInfo();
     fakeSecureStorage = FakeSecureStorage();
-    logger = Logger(printer: PrettyPrinter(enabled: false));
+    logger = Logger(level: Level.off);
 
     syncManager = BidirectionalSyncManagerImpl(
       syncService: fakeSyncService,

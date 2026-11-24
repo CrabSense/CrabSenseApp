@@ -86,7 +86,7 @@ void main() {
   testWidgets('renders SalesScreen with form fields and submit button', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: SalesScreen(userRole: UserRole.sales),
+        home: SalesScreen(userRole: UserRole.farmManager),
       ),
     );
 
@@ -102,7 +102,7 @@ void main() {
   testWidgets('displays permission warning banner and disables button when user role is Viewer or FieldOperator', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: SalesScreen(userRole: UserRole.fieldOperator),
+        home: SalesScreen(userRole: UserRole.farmStaff),
       ),
     );
 
@@ -117,7 +117,7 @@ void main() {
   testWidgets('allows inputting buyer name, quantity, unit price and updates total amount', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: SalesScreen(userRole: UserRole.sales),
+        home: SalesScreen(userRole: UserRole.farmManager),
       ),
     );
 

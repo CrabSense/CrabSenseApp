@@ -19,12 +19,12 @@ import 'package:crabsensemobile/features/box/data/models/crab_model.dart';
 // Network stubs
 // ---------------------------------------------------------------------------
 
-class _FakeNetworkOnline implements NetworkInfo {
+class _FakeNetworkOnline extends NetworkInfo {
   @override
   Future<bool> get isConnected async => true;
 }
 
-class _FakeNetworkOffline implements NetworkInfo {
+class _FakeNetworkOffline extends NetworkInfo {
   @override
   Future<bool> get isConnected async => false;
 }
@@ -78,6 +78,10 @@ class _StubRemoteSuccess implements BoxRemoteDataSource {
   Future<List<CrabModel>> getCrabsByBox(String boxId) async => [];
 
   @override
+  Future<CrabModel> getCrabById(String crabId) async =>
+      throw const ServerException(message: 'Crab not found', statusCode: 404);
+
+  @override
   Future<void> deleteCrab(String crabId) async {}
 }
 
@@ -111,6 +115,10 @@ class _StubRemoteServerError implements BoxRemoteDataSource {
       throw const ServerException(message: 'Internal error', statusCode: 500);
 
   @override
+  Future<CrabModel> getCrabById(String crabId) async =>
+      throw const ServerException(message: 'Crab not found', statusCode: 404);
+
+  @override
   Future<void> deleteCrab(String crabId) async =>
       throw const ServerException(message: 'Internal error', statusCode: 500);
 }
@@ -120,7 +128,7 @@ class _StubRemoteServerError implements BoxRemoteDataSource {
 // ---------------------------------------------------------------------------
 
 /// Records which boxes/QR codes were cached for assertion.
-class _StubLocalCapturing implements BoxLocalDataSource {
+class _StubLocalCapturing extends BoxLocalDataSource {
   BoxModel? _cachedBox;
   final Map<String, BoxModel> _byId = {};
   final Map<String, BoxModel> _byQr = {};
@@ -178,7 +186,7 @@ class _StubLocalCapturing implements BoxLocalDataSource {
 }
 
 /// Local source that always throws [CacheException] on reads.
-class _StubLocalEmpty implements BoxLocalDataSource {
+class _StubLocalEmpty extends BoxLocalDataSource {
   @override
   Future<BoxModel> getCachedBox(String boxId) async =>
       throw CacheException(message: 'No cached box: $boxId', code: 'BOX_NOT_FOUND');

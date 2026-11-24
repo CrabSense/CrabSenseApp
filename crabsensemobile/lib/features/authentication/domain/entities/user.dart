@@ -127,11 +127,6 @@ enum UserRole {
     orElse: () => unknown,
   );
 
-  // Transitional source aliases only; never accepted as wire values.
-  static const admin = systemAdministrator;
-  static const fieldOperator = farmStaff;
-  static const viewer = unknown;
-  static const sales = farmManager;
 }
 
 extension UserRoleExtension on UserRole {

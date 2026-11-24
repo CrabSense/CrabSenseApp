@@ -168,7 +168,7 @@ void main() {
     test('succeeds when input is valid and user has Sales role', () async {
       final params = CreateSaleParams(
         sale: validSale,
-        userRole: UserRole.sales,
+        userRole: UserRole.farmManager,
       );
 
       final result = await createSaleUseCase(params);
@@ -180,7 +180,7 @@ void main() {
     test('fails when user role is Viewer (unauthorized)', () async {
       final params = CreateSaleParams(
         sale: validSale,
-        userRole: UserRole.viewer,
+        userRole: UserRole.unknown,
       );
 
       final result = await createSaleUseCase(params);
@@ -195,7 +195,7 @@ void main() {
     test('fails when user role is FieldOperator (permission denied)', () async {
       final params = CreateSaleParams(
         sale: validSale,
-        userRole: UserRole.fieldOperator,
+        userRole: UserRole.farmStaff,
       );
 
       final result = await createSaleUseCase(params);
@@ -217,7 +217,7 @@ void main() {
       );
       final paramsAdmin = CreateSaleParams(
         sale: validSale,
-        userRole: UserRole.admin,
+        userRole: UserRole.systemAdministrator,
       );
 
       final resultManager = await createSaleUseCase(paramsManager);
@@ -231,7 +231,7 @@ void main() {
       final invalidSale = validSale.copyWith(buyerName: '');
       final params = CreateSaleParams(
         sale: invalidSale,
-        userRole: UserRole.sales,
+        userRole: UserRole.farmManager,
       );
 
       final result = await createSaleUseCase(params);
@@ -243,7 +243,7 @@ void main() {
       final invalidSale = validSale.copyWith(quantity: 0.0);
       final params = CreateSaleParams(
         sale: invalidSale,
-        userRole: UserRole.sales,
+        userRole: UserRole.farmManager,
       );
 
       final result = await createSaleUseCase(params);
@@ -255,7 +255,7 @@ void main() {
       final invalidSale = validSale.copyWith(unitPrice: -5.0);
       final params = CreateSaleParams(
         sale: invalidSale,
-        userRole: UserRole.sales,
+        userRole: UserRole.farmManager,
       );
 
       final result = await createSaleUseCase(params);
@@ -267,7 +267,7 @@ void main() {
       mockRepo.getInventoryResult = const Right(15.0); // Only 15kg available, sale demands 20kg
       final params = CreateSaleParams(
         sale: validSale,
-        userRole: UserRole.sales,
+        userRole: UserRole.farmManager,
       );
 
       final result = await createSaleUseCase(params);
