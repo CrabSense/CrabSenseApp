@@ -715,6 +715,16 @@ class CloudApiClient {
     return _asMap(_dataOf(body) ?? body);
   }
 
+  Future<Map<String,dynamic>> fetchHarvestAdjustmentSource(String token,String id,{required String areaId}) =>
+    _getDataMap(token,'/api/harvest-vouchers/$id',farmingAreaId:areaId);
+
+  Future<void> requestHarvestAdjustment(String token,String id,{required String areaId,required String reason,required List<Map<String,dynamic>> lines}) async {
+    if(id.isEmpty||areaId.isEmpty||reason.trim().isEmpty||lines.isEmpty)throw CloudApiException('Thiếu dữ liệu điều chỉnh.');
+    final uri=Uri.parse('$_base/api/harvest-vouchers/$id/adjustment-request');
+    final res=await _client.post(uri,headers:{...authHeaders(token,farmId:areaId),'Content-Type':'application/json'},body:jsonEncode({'reason':reason.trim(),'lines':lines}));
+    _throwIfFailed(res,_decode(res),uri.path);
+  }
+
   Future<List<Map<String, dynamic>>> fetchHarvestAssignments(String token, {
     required String farmingAreaId,
   }) => _getDataList(token, '/api/harvest-assignments', farmingAreaId: farmingAreaId);
