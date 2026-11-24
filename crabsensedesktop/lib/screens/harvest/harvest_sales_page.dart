@@ -327,6 +327,26 @@ class _HarvestTabState extends State<HarvestTab> {
     );
   }
 
+  Future<void> _adjust(HarvestSlipDetail slip)async{
+    if(!service.canAdjustHarvest(slip))return;
+    final generation=service.scopeGeneration;
+    final selected=slip.lines.map((l)=>l.crabId).whereType<String>().where((id)=>id.isNotEmpty).toSet();
+    final labels=<String,String>{for(final line in slip.lines)if(line.crabId!=null&&line.crabId!.isNotEmpty)line.crabId!:'${line.crabCode} · ${line.boxCode} (đã duyệt)',for(final c in service.harvestableCrabs)if(c.canSelect&&c.areaId==service.areaId)c.id:'${c.code} · ${c.boxCode}'};
+    String reason='',query='';
+    final ok=await showDialog<bool>(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,update)=>AlertDialog(
+      title:Text('Điều chỉnh ${slip.code}'),
+      content:SizedBox(width:520,child:Column(mainAxisSize:MainAxisSize.min,children:[
+        const Text('Bỏ hoặc thêm cá thể. Phiếu sẽ trở về chờ duyệt; người gửi điều chỉnh không được tự duyệt.'),
+        TextField(onChanged:(v)=>update(()=>query=v.toLowerCase()),decoration:const InputDecoration(labelText:'Tìm cua / hộp')),
+        SizedBox(height:280,child:ListView(children:[for(final item in labels.entries)if(item.value.toLowerCase().contains(query))CheckboxListTile(title:Text(item.value),value:selected.contains(item.key),onChanged:(v)=>update((){if(v==true){selected.add(item.key);}else{selected.remove(item.key);}}))])),
+        TextField(onChanged:(v)=>update(()=>reason=v),decoration:const InputDecoration(labelText:'Lý do điều chỉnh (bắt buộc)'),maxLength:500),
+      ])),
+      actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Hủy')),FilledButton(onPressed:selected.isEmpty||reason.trim().isEmpty?null:()=>Navigator.pop(ctx,true),child:const Text('Gửi duyệt lại'))],
+    )));
+    if(ok!=true||!mounted||generation!=service.scopeGeneration)return;
+    try{await service.requestAdjustment(slip.id,selected,reason,generation);if(mounted&&generation==service.scopeGeneration)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Đã gửi điều chỉnh chờ duyệt.')));}
+    catch(e){if(mounted&&generation==service.scopeGeneration)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));}
+  }
   void _onRowAction(HarvestSlipDetail slip, HarvestRowAction action) {
     setState(() => _detail = slip);
     switch (action) {
@@ -346,6 +366,8 @@ class _HarvestTabState extends State<HarvestTab> {
         _complete(slip);
       case HarvestRowAction.delete:
         _delete(slip);
+      case HarvestRowAction.adjust:
+        _adjust(slip);
     }
   }
 

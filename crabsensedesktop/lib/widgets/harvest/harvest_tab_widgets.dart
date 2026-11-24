@@ -842,6 +842,7 @@ class HarvestSlipTable extends StatelessWidget {
                                   const PopupMenuItem(value: HarvestRowAction.edit, child: Text('Duyệt phiếu')),
                                   const PopupMenuItem(value: HarvestRowAction.cancel, child: Text('Từ chối phiếu')),
                                 ],
+                                if (service.canAdjustHarvest(slip)) const PopupMenuItem(value:HarvestRowAction.adjust,child:Text('Yêu cầu điều chỉnh')),
                                 if (service.canDeleteHarvest(slip)) const PopupMenuItem(value: HarvestRowAction.delete,child:Text('Xóa phiếu chưa thực hiện')),
                                 if (slip.canTransferToSale)
                                   const PopupMenuItem(
@@ -895,7 +896,7 @@ class HarvestSlipTable extends StatelessWidget {
   }
 }
 
-enum HarvestRowAction { detail, print, pdf, edit, cancel, sale, complete, delete }
+enum HarvestRowAction { detail, print, pdf, edit, cancel, sale, complete, delete, adjust }
 
 class HarvestDetailPanel extends StatelessWidget {
   const HarvestDetailPanel({

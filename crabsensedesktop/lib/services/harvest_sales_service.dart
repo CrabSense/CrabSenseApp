@@ -27,6 +27,45 @@ class HarvestSalesService extends ChangeNotifier {
   bool canDecide(HarvestSlipDetail slip) => canManageHarvest && !harvestsLoading && harvestsError == null && slip.farmingAreaId == areaId && slip.canApprove && slip.createdBy != null && slip.createdBy != _session.user.id && slip.adjustmentRequestedByUserId != _session.user.id && !_pendingWrites.contains(slip.id);
   bool canConfirm(HarvestSlipDetail slip) => canManageHarvest && !harvestsLoading && harvestsError == null && slip.farmingAreaId == areaId && slip.canComplete && !_pendingWrites.contains(slip.id);
   bool canDeleteHarvest(HarvestSlipDetail slip) => canManageHarvest && !harvestsLoading && harvestsError == null && slip.farmingAreaId == areaId && slip.canDelete && !_pendingWrites.contains(slip.id);
+  bool canAdjustHarvest(HarvestSlipDetail slip) => canManageHarvest && !harvestsLoading && !readyLoading && harvestsError==null && readyError==null && slip.farmingAreaId==areaId && slip.status.toLowerCase()=='approved' && slip.executionCompletedAt==null && !_pendingWrites.contains(slip.id);
+  Future<void> requestAdjustment(String id,Set<String> selectedIds,String reason,int generation) async {
+    _requireHarvestArea();
+    final slip=_harvests.where((v)=>v.id==id).firstOrNull;
+    if(slip==null||!canAdjustHarvest(slip)||!_current(generation)||selectedIds.isEmpty||reason.trim().isEmpty)throw CloudApiException('Phiếu hoặc yêu cầu điều chỉnh không hợp lệ.');
+    final oldIds=slip.lines.map((l)=>l.crabId).whereType<String>().toSet();
+    final candidates={for(final c in _harvestable)if(c.areaId==areaId&&c.canSelect)c.id:c};
+    if(!selectedIds.every((id)=>oldIds.contains(id)||candidates.containsKey(id)))throw CloudApiException('Danh sách cua đã thay đổi.');
+    final area=areaId;
+    final capturedToken=token;
+    _pendingWrites.add(id);notifyListeners();
+    try{
+      final source=await _api.fetchHarvestAdjustmentSource(capturedToken,id,areaId:area);
+      if(!_current(generation)||frozenText(source,'farmingAreaId')!=area||frozenText(source,'status').toLowerCase()!='approved'||frozenField(source,'executionCompletedAt')!=null)throw CloudApiException('Phiếu đã thay đổi; hãy tải lại.');
+      final raw=frozenField(source,'lines');
+      if(raw is! List)throw CloudApiException('Không đọc được dòng phiếu.');
+      final originals=<String,Map<String,dynamic>>{};
+      for(final row in raw.whereType<Map>()){
+        final m=Map<String,dynamic>.from(row);
+        final crab=frozenText(m,'crabId');
+        if(crab.isEmpty||originals.containsKey(crab))throw CloudApiException('Phiếu có dòng legacy cần đối soát.');
+        originals[crab]=m;
+      }
+      if(originals.keys.toSet().difference(oldIds).isNotEmpty||oldIds.difference(originals.keys.toSet()).isNotEmpty)throw CloudApiException('Danh sách phiếu đã thay đổi.');
+      final lines=<Map<String,dynamic>>[];
+      for(final crab in selectedIds){
+        final old=originals[crab];
+        if(old!=null){
+          lines.add({'crabId':crab,for(final key in ['weightGram','grade','isSoftshell','notes','conditionLabel','photoUrls','result'])if(frozenField(old,key)!=null)key:frozenField(old,key)});
+        }else{
+          final c=candidates[crab]!;
+          lines.add({'crabId':crab,'weightGram':0,'grade':'A','isSoftshell':c.isSoftshell,'conditionLabel':c.condition});
+        }
+      }
+      if(!_current(generation))throw CloudApiException('Khu đã thay đổi.');
+      await _api.requestHarvestAdjustment(capturedToken,id,areaId:area,reason:reason,lines:lines);
+      if(_current(generation))await load();
+    }finally{if(_current(generation)){_pendingWrites.remove(id);notifyListeners();}}
+  }
   void _requireHarvestArea() { if (!canManageHarvest) throw CloudApiException('Chỉ Manager trong khu được phân công.'); }
   bool _assignedArea(String id) => id.isNotEmpty && _session.farms.any((f) => f.id == id);
 
