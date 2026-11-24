@@ -1000,22 +1000,160 @@ class HarvestSalesService extends ChangeNotifier {
     throw CloudApiException('Vui lòng từ chối phiếu chờ duyệt và nhập lý do.');
   }
 
+  bool get canManageFrozen => _session.user.role == UserRoles.farmManager &&
+      areaId.isNotEmpty && _session.farms.any((f) => f.id == areaId);
+
+  void _requireFrozenArea(String expectedArea) {
+    if (!canManageFrozen || expectedArea != areaId) {
+      throw CloudApiException('Khu nuôi hoặc quyền Manager không hợp lệ.');
+    }
+  }
+
+  static Object? frozenField(Map<String, dynamic> row, String key) =>
+      row[key] ?? row[key[0].toUpperCase() + key.substring(1)];
+  static String frozenText(Map<String, dynamic> row, String key) =>
+      frozenField(row, key)?.toString() ?? '';
+  static num? frozenNumber(Map<String, dynamic> row, String key) =>
+      num.tryParse(frozenText(row, key));
+
+  String _requireFrozenRow(Map<String, dynamic> row) {
+    _requireFrozenArea(frozenText(row, 'farmingAreaId'));
+    final id = frozenText(row, 'id');
+    if (id.trim().isEmpty) throw CloudApiException('Thiếu mã định danh.');
+    return id;
+  }
+
+  void _validateFrozenMetadata(DateTime frozen, DateTime expiry, String? grade) {
+    if (!expiry.isAfter(frozen) || (grade != null && grade.isNotEmpty && !const {'S','M','L'}.contains(grade))) {
+      throw CloudApiException('Ngày hết hạn phải sau ngày cấp đông; phân loại chỉ S/M/L.');
+    }
+  }
+
+  Future<void> createFrozenLot({required String expectedArea, required String code,
+    required DateTime frozenDate, required DateTime expiryDate,
+    String? grade, String? location, String? voucherId,
+  }) async {
+    _requireFrozenArea(expectedArea);
+    _validateFrozenMetadata(frozenDate, expiryDate, grade);
+    if (code.trim().isEmpty) throw CloudApiException('Nhập mã lô cấp đông.');
+    if (voucherId != null && voucherId.isNotEmpty &&
+        !_harvests.any((v) => v.id == voucherId && v.farmingAreaId == expectedArea && v.isCompleted)) {
+      throw CloudApiException('Phiếu thu hoạch chưa hoàn tất hoặc không thuộc khu hiện tại.');
+    }
+    await _api.createFrozenLot(token, farmingAreaId: expectedArea,
+      lotCode: code.trim(), harvestVoucherId: voucherId,
+      frozenDate: frozenDate, expiryDate: expiryDate, grade: grade, storageLocation: location);
+  }
+
+  Future<void> editFrozenLot(Map<String, dynamic> lot, {
+    required DateTime frozenDate, required DateTime expiryDate, String? grade, String? location,
+  }) async {
+    final id = _requireFrozenRow(lot);
+    _validateFrozenMetadata(frozenDate, expiryDate, grade);
+    final quantity = frozenNumber(lot, 'quantity');
+    final weight = frozenNumber(lot, 'weightKg');
+    final status = frozenText(lot, 'status');
+    if (quantity == null || quantity < 0 || quantity != quantity.toInt() ||
+        weight == null || !weight.isFinite || weight < 0 || status.isEmpty) {
+      throw CloudApiException('Thiếu dữ liệu tồn kho hiện tại. Hãy tải lại lô.');
+    }
+    await _api.updateFrozenLot(token, id, farmingAreaId: areaId,
+      frozenDate: frozenDate, expiryDate: expiryDate, grade: grade,
+      storageLocation: location, quantity: quantity.toInt(), weightKg: weight, status: status);
+  }
+
+  static bool isEmptyDeletableFrozenLot(Map<String, dynamic> lot) =>
+      frozenNumber(lot, 'quantity') == 0 && frozenNumber(lot, 'weightKg') == 0 &&
+      !const {'reserved','shipped'}.contains(frozenText(lot, 'status').toLowerCase());
+
+  Future<void> deleteFrozenLot(Map<String, dynamic> lot) async {
+    final id = _requireFrozenRow(lot);
+    if (!isEmptyDeletableFrozenLot(lot)) throw CloudApiException('Không thể xóa lô còn tồn hoặc đã xuất/đặt trước.');
+    await _api.deleteFrozenLot(token, id, farmingAreaId: areaId);
+  }
+
+  Future<List<Map<String, dynamic>>> loadFrozenItems(Map<String, dynamic> lot) async {
+    final id = _requireFrozenRow(lot);
+    final area = areaId;
+    final rows = await _api.fetchFrozenCrabItems(token, id, farmingAreaId: area);
+    _requireFrozenArea(area);
+    return rows;
+  }
+
+  Future<List<Map<String, dynamic>>> loadFrozenAdjustments(Map<String, dynamic> lot) async {
+    final id = _requireFrozenRow(lot);
+    final area = areaId;
+    final rows = await _api.fetchFrozenAdjustments(token, id, farmingAreaId: area);
+    _requireFrozenArea(area);
+    return rows.where((r) => frozenText(r, 'farmingAreaId') == area &&
+      frozenText(r, 'frozenLotId') == id).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> loadFrozenOpeningBalances() async {
+    final area = areaId;
+    _requireFrozenArea(area);
+    final rows = await _api.fetchFrozenOpeningBalances(token, farmingAreaId: area);
+    _requireFrozenArea(area);
+    return rows.where((r) => frozenText(r, 'farmingAreaId') == area).toList();
+  }
+
+  Future<void> reconcileFrozenLot(Map<String, dynamic> lot, List<String> available, String reason) async {
+    final id = _requireFrozenRow(lot);
+    final area = areaId;
+    if (reason.trim().isEmpty || reason.trim().length > 1000 || available.toSet().length != available.length) {
+      throw CloudApiException('Nhập lý do đối soát và danh sách barcode không trùng.');
+    }
+    final items = await loadFrozenItems(lot);
+    final picked = items.where((r) => available.contains(frozenText(r, 'id'))).toList();
+    if (items.isEmpty || items.any((r) => frozenText(r, 'stockState').toLowerCase() != 'unverified') ||
+        picked.length != available.length || picked.length != frozenNumber(lot, 'quantity') ||
+        picked.any((r) => frozenNumber(r, 'weightGram') == null) ||
+        (picked.fold<num>(0, (sum, r) => sum + frozenNumber(r, 'weightGram')!) / 1000 * 1000).round() !=
+          ((frozenNumber(lot, 'weightKg') ?? -1) * 1000).round()) {
+      throw CloudApiException('Barcode chưa xác minh phải khớp tồn thực tế của lô.');
+    }
+    _requireFrozenArea(area);
+    await _api.reconcileFrozenCrabItems(token, id, farmingAreaId: area, availableItemIds: available, reason: reason.trim());
+  }
+
+  Future<void> verifyFrozenOpeningBalance(Map<String, dynamic> row, int quantity, num weight, String reason) async {
+    final id = _requireFrozenRow(row);
+    if (frozenText(row, 'verificationStatus').toLowerCase() == 'verified' ||
+        quantity < 0 || !weight.isFinite || weight < 0 ||
+        (quantity == 0) != (weight == 0) || reason.trim().isEmpty) {
+      throw CloudApiException('Số dư hoặc lý do xác nhận không hợp lệ.');
+    }
+    final qDelta = frozenNumber(row, 'recordedQuantityDelta');
+    final wDelta = frozenNumber(row, 'recordedWeightDeltaKg');
+    final actualQ = frozenNumber(row, 'actualCurrentQuantity');
+    final actualW = frozenNumber(row, 'actualCurrentWeightKg');
+    if (qDelta == null || wDelta == null || actualQ == null || actualW == null ||
+        quantity + qDelta != actualQ ||
+        ((weight + wDelta) * 1000).round() != (actualW * 1000).round()) {
+      throw CloudApiException('Số dư đầu kỳ và biến động phải khớp tồn hiện tại.');
+    }
+    await _api.verifyFrozenOpeningBalance(token, id, farmingAreaId: areaId,
+      quantity: quantity, weightKg: weight, reason: reason.trim());
+  }
+
   Future<List<Map<String, dynamic>>> loadFrozenLots() async {
     final area = areaId;
-    if (area.isEmpty) return [];
+    _requireFrozenArea(area);
     final rows = await _api.fetchFrozenLots(_session.token, farmingAreaId: area);
+    _requireFrozenArea(area);
     return rows.where((r) => (r['farmingAreaId'] ?? r['FarmingAreaId']).toString() == area).toList();
   }
 
   Future<List<Map<String, dynamic>>> loadFrozenTransactions() async {
     final area = areaId;
-    if (area.isEmpty) return [];
+    _requireFrozenArea(area);
     final rows = await _api.fetchFrozenTransactions(_session.token, farmingAreaId: area);
+    _requireFrozenArea(area);
     return rows.where((r) => (r['farmingAreaId'] ?? r['FarmingAreaId']).toString() == area).toList();
   }
 
   Future<void> decideFrozen(Map<String, dynamic> row, {required bool approve, String? reason}) async {
-    if (_session.user.role != UserRoles.farmManager || areaId.isEmpty ||
+    if (!canManageFrozen ||
         (row['farmingAreaId'] ?? row['FarmingAreaId']).toString() != areaId ||
         (row['status'] ?? row['Status']).toString().toLowerCase() != 'pendingapproval') {
       throw CloudApiException('Không có quyền hoặc phiếu không còn chờ duyệt.');

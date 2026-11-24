@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/harvest_sales_service.dart';
+import 'frozen_lot_tools.dart';
 
 class FrozenManagerTab extends StatefulWidget {
   const FrozenManagerTab({super.key, required this.service});
@@ -15,6 +16,7 @@ class _FrozenManagerTabState extends State<FrozenManagerTab> {
   Future<List<List<Map<String, dynamic>>>> _fetch() => Future.wait([
     widget.service.loadFrozenLots(),
     widget.service.loadFrozenTransactions(),
+    widget.service.loadFrozenOpeningBalances(),
   ]);
   @override
   void initState() { super.initState(); _data = _fetch(); }
@@ -54,12 +56,15 @@ class _FrozenManagerTabState extends State<FrozenManagerTab> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.service.areaId.isEmpty) return const Center(child: Text('Chưa được phân công khu nuôi.'));
+    if (!widget.service.canManageFrozen) return const Center(child: Text('Chưa được phân công khu nuôi.'));
     return Padding(padding: const EdgeInsets.all(24), child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
           Expanded(child: Text('Kho đông lạnh — ${widget.service.areaName}',
             style: Theme.of(context).textTheme.titleLarge)),
+          FilledButton.icon(onPressed: _busy ? null : () => editFrozenLotDialog(context, widget.service, onChanged: () { if (mounted) _reload(); }),
+            icon: const Icon(Icons.add), label: const Text('Tạo lô')),
+          const SizedBox(width: 8),
           IconButton(onPressed: _busy ? null : _reload, icon: const Icon(Icons.refresh), tooltip: 'Tải lại'),
         ]),
         const Text('Farm Manager duyệt yêu cầu. Farm Staff ghi nhận số lượng và khối lượng thực tế.'),
@@ -72,14 +77,25 @@ class _FrozenManagerTabState extends State<FrozenManagerTab> {
           ]));
           final lots = snap.data?[0] ?? [];
           final transactions = snap.data?[1] ?? [];
+          final balances = snap.data?[2] ?? [];
+          final lotCodes = {for (final lot in lots) _value(lot, 'id'): _value(lot, 'lotCode')};
           return ListView(children: [
             Text('Lô cấp đông (${lots.length})', style: Theme.of(context).textTheme.titleMedium),
             if (lots.isEmpty) const Padding(padding: EdgeInsets.all(12), child: Text('Chưa có lô cấp đông.')),
-            for (final lot in lots) Card(child: ListTile(
-              title: Text(_value(lot, 'lotCode')),
-              subtitle: Text('Số lượng: ${_value(lot, 'quantity')} · Khối lượng: ${_value(lot, 'weightKg')} kg'),
-              trailing: Text(_value(lot, 'status')),
-            )),
+            for (final lot in lots) FrozenLotCard(
+              key: ValueKey(_value(lot, 'id')),
+              service: widget.service, lot: lot,
+              hasTransactions: transactions.any((r) => _value(r, 'frozenLotId') == _value(lot, 'id')),
+              onChanged: _reload,
+            ),
+            const SizedBox(height: 20),
+            Text('Số dư đầu kỳ (${balances.length})', style: Theme.of(context).textTheme.titleMedium),
+            if (balances.isEmpty) const Padding(padding: EdgeInsets.all(12), child: Text('Chưa có số dư đầu kỳ cần rà soát trong khu.')),
+            for (final row in balances) FrozenOpeningBalanceCard(
+              key: ValueKey(_value(row, 'id')), service: widget.service, row: row,
+              lotCode: lotCodes[_value(row, 'frozenLotId')] ?? _value(row, 'frozenLotId'),
+              onChanged: _reload,
+            ),
             const SizedBox(height: 20),
             Text('Phiếu nhập/xuất (${transactions.length})', style: Theme.of(context).textTheme.titleMedium),
             if (transactions.isEmpty) const Padding(padding: EdgeInsets.all(12), child: Text('Chưa có phiếu nhập/xuất.')),
