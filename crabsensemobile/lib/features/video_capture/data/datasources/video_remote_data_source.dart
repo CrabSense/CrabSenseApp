@@ -2,7 +2,7 @@
 
 import 'package:crabsensemobile/core/platform/io_export.dart';
 
-import 'package:dio/dio.dart' show DioException, FormData, MultipartFile;
+import 'package:dio/dio.dart' show DioException, DioMediaType, FormData, MultipartFile;
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' show basename;
 
@@ -107,7 +107,7 @@ class VideoRemoteDataSourceImpl implements VideoRemoteDataSource {
     _checkFailure(result.failure, 'video details');
 
     final data = _extractData(result.data.data, 'getVideoById');
-    return VideoModel.fromJson(data);
+    return _videoFromMediaJson(data, fallbackLocalPath: '');
   }
 
   @override
@@ -141,7 +141,9 @@ class VideoRemoteDataSourceImpl implements VideoRemoteDataSource {
     try {
       final formData = FormData.fromMap({
         'category': 'video',
-        'file': await MultipartFile.fromFile(localPath, filename: basename(localPath)),
+        'sharePublic': false,
+        'file': await MultipartFile.fromFile(localPath,
+          filename: basename(localPath), contentType: _videoContentType(localPath)),
       });
 
       final response = await _apiClient.dio.post<Map<String, dynamic>>(
@@ -205,7 +207,9 @@ class VideoRemoteDataSourceImpl implements VideoRemoteDataSource {
       final formData = FormData.fromMap({
         'category': 'video',
         'boxId': boxId,
-        'file': await MultipartFile.fromFile(localPath, filename: basename(localPath)),
+        'sharePublic': false,
+        'file': await MultipartFile.fromFile(localPath,
+          filename: basename(localPath), contentType: _videoContentType(localPath)),
       });
 
       final response = await _apiClient.dio.post<Map<String, dynamic>>(
@@ -338,6 +342,13 @@ class VideoRemoteDataSourceImpl implements VideoRemoteDataSource {
     }
   }
 
+  static DioMediaType _videoContentType(String path) {
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.mp4')) return DioMediaType('video', 'mp4');
+    if (lower.endsWith('.webm')) return DioMediaType('video', 'webm');
+    throw const ServerException(message: 'Unsupported video format', code: 'INVALID_VIDEO_TYPE');
+  }
+
   VideoModel _videoFromMediaJson(
     Map<String, dynamic> data, {
     required String fallbackLocalPath,
@@ -350,11 +361,9 @@ class VideoRemoteDataSourceImpl implements VideoRemoteDataSource {
 
     final id = data['id']?.toString() ?? '';
     final resolvedBoxId = data['boxId']?.toString() ?? boxId ?? '';
-    final path =
-        data['webViewLink']?.toString() ??
-        data['shareLink']?.toString() ??
-        data['storageKey']?.toString() ??
-        fallbackLocalPath;
+    // A storage key or Drive viewer URL is not a local file path.
+    // Private remote bytes must be read using the authenticated content API.
+    final path = fallbackLocalPath;
 
     return VideoModel.fromJson({
       'id': id,

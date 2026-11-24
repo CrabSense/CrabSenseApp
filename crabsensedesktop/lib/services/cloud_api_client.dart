@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import '../config/app_env.dart';
 import '../models/auth_models.dart';
@@ -1356,6 +1357,40 @@ class CloudApiClient {
         statusCode: res.statusCode,
       );
     }
+  }
+
+  /// Upload a private sample to a server-selected batch/channel folder.
+  /// The caller must separately confirm capture using the returned media ID.
+  Future<String> uploadWaterBatchSample(
+    String token, String areaId, String batchId, String analyte,
+    {required List<int> bytes, required String filename, required String mimeType}
+  ) async {
+    final chemical = analyte.trim().toUpperCase();
+    if (!const {'NO2', 'NO3', 'NH3', 'PH'}.contains(chemical)) {
+      throw CloudApiException('Chỉ tiêu phân tích không hợp lệ.');
+    }
+    if (bytes.isEmpty || bytes.length > 5 * 1024 * 1024 ||
+        !const {'image/jpeg', 'image/png', 'image/webp'}.contains(mimeType)) {
+      throw CloudApiException('Ảnh mẫu không hợp lệ hoặc vượt 5 MiB.');
+    }
+    final uri = Uri.parse('$_base/api/areas/${Uri.encodeComponent(areaId)}'
+        '/water-analysis/batches/${Uri.encodeComponent(batchId)}/channels/$chemical/sample');
+    final request = http.MultipartRequest('POST', uri)
+      ..headers.addAll(authHeaders(token, farmId: areaId))
+      ..files.add(http.MultipartFile.fromBytes('file', bytes,
+          filename: filename, contentType: MediaType.parse(mimeType)));
+    final response = await http.Response.fromStream(await _client.send(request));
+    final body = _decode(response);
+    if (_isApiFailure(response, body)) {
+      throw CloudApiException(_errorMessage(body) ?? 'Không tải được ảnh mẫu.',
+          statusCode: response.statusCode);
+    }
+    final data = _asMap(_dataOf(body) ?? body);
+    final id = (data['id'] ?? data['Id'])?.toString();
+    if (id == null || id.isEmpty) {
+      throw CloudApiException('API không trả về MediaAssetId.');
+    }
+    return id;
   }
 
   Future<Map<String, dynamic>> fetchWaterAnalysisDetail(
