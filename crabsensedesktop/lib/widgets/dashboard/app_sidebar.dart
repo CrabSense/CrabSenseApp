@@ -53,6 +53,8 @@ class _AppSidebarState extends State<AppSidebar> {
     AppRoute.waterAnalysis,
     AppRoute.alerts,
     AppRoute.harvestAssignments,
+    AppRoute.farmLogs,
+    AppRoute.aiInsight,
   ];
 
   bool _collapsed = false;
@@ -242,7 +244,7 @@ class _AppSidebarState extends State<AppSidebar> {
                           ),
                           _SidebarTile(
                             icon: Icons.settings_outlined,
-                            label: 'Cài đặt',
+                            label: 'Điều khiển RAS',
                             active: widget.selected == AppRoute.deviceSetup ||
                                 widget.selected == AppRoute.devices,
                             collapsed: narrow,

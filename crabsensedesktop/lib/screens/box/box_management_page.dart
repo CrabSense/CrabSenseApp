@@ -111,6 +111,7 @@ class _BoxManagementPageState extends State<BoxManagementPage> {
   }
 
   Future<void> _onAddBox() async {
+    if (!widget.service.session.isFarmOwner) return;
     final svc = widget.service;
     if (svc.areas.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Chưa có khu — thêm khu trước')));
@@ -137,6 +138,7 @@ class _BoxManagementPageState extends State<BoxManagementPage> {
   }
 
   Future<void> _addCrab(BoxListItem item) async {
+    if (!widget.service.session.user.isStaff) return;
     final crabSvc = widget.crabService;
     if (crabSvc == null) {
       _open(item);
@@ -166,6 +168,7 @@ class _BoxManagementPageState extends State<BoxManagementPage> {
   }
 
   Future<void> _edit(BoxListItem item) async {
+    if (!widget.service.session.isFarmOwner) return;
     widget.productionService.selectArea(item.areaId);
     widget.productionService.selectRow(item.rowId);
     await showBoxFormDialog(context, widget.productionService, existing: item.box);
@@ -248,6 +251,7 @@ class _BoxManagementPageState extends State<BoxManagementPage> {
   }
 
   Future<void> _delete(BoxListItem item) async {
+    if (!widget.service.session.isFarmOwner) return;
     final hadHistory = item.box.crabInBoxSince != null || item.box.emptySince != null || item.hasAlert || item.hasCrab;
     if (hadHistory) {
       final ok = await showDialog<bool>(
@@ -283,6 +287,7 @@ class _BoxManagementPageState extends State<BoxManagementPage> {
   }
 
   Future<void> _onAction(BoxListItem item, BoxCardAction action) async {
+    if (!const {BoxCardAction.detail, BoxCardAction.qr, BoxCardAction.print}.contains(action)) return;
     switch (action) {
       case BoxCardAction.detail:
         _open(item);
@@ -352,7 +357,7 @@ class _BoxManagementPageState extends State<BoxManagementPage> {
                   ],
                 ),
               ),
-              MgmtPrimaryButton(icon: Icons.add_rounded, label: 'Thêm hộp', onTap: svc.loading ? null : _onAddBox),
+              if (svc.session.isFarmOwner) MgmtPrimaryButton(icon: Icons.add_rounded, label: 'Thêm hộp', onTap: svc.loading ? null : _onAddBox),
             ],
           ),
           const SizedBox(height: 16),
@@ -388,7 +393,7 @@ class _BoxManagementPageState extends State<BoxManagementPage> {
               _searchCtrl.clear();
               svc.clearFilters();
             },
-            onAdd: _onAddBox,
+            onAdd: svc.session.isFarmOwner ? _onAddBox : null,
           ),
           const SizedBox(height: 16),
           Row(
@@ -437,8 +442,8 @@ class _BoxManagementPageState extends State<BoxManagementPage> {
             MgmtEmptyState(
               icon: Icons.inventory_2_outlined,
               title: 'Chưa có hộp nuôi',
-              message: 'Hãy thêm hộp đầu tiên để bắt đầu quản lý cua.',
-              action: MgmtPrimaryButton(icon: Icons.add_rounded, label: 'Thêm hộp', onTap: _onAddBox),
+              message: 'Farm Admin tạo hộp nuôi trên Web. Hãy tải lại sau khi được cấu hình.',
+              action: svc.session.isFarmOwner ? MgmtPrimaryButton(icon: Icons.add_rounded, label: 'Thêm hộp', onTap: _onAddBox) : null,
             )
           else if (paged.isEmpty)
             MgmtEmptyState(
@@ -460,7 +465,7 @@ class _BoxManagementPageState extends State<BoxManagementPage> {
               onOpen: _open,
               onAction: _onAction,
               onAlerts: (i) => _open(i, tab: 4),
-              onAddCrab: _addCrab,
+              onAddCrab: null,
             )
           else
             BoxListTable(
@@ -469,7 +474,7 @@ class _BoxManagementPageState extends State<BoxManagementPage> {
               onOpen: _open,
               onAction: _onAction,
               onAlerts: (i) => _open(i, tab: 4),
-              onAddCrab: _addCrab,
+              onAddCrab: null,
             ),
           const SizedBox(height: 16),
           Row(

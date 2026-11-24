@@ -231,6 +231,9 @@ class ProductionManagementService extends ChangeNotifier {
     required String rowId,
     required int count,
   }) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     if (count <= 0) return const [];
     final created = await _api.createBoxesQuantity(token, rowId, count);
     if (created.isEmpty && count > 0) {
@@ -327,6 +330,9 @@ class ProductionManagementService extends ChangeNotifier {
     required String areaName,
     String? description,
   }) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     final a = await _api.createArea(token, farmId,
         areaName: areaName, description: description);
     areas = [...areas, a]..sort((x, y) => x.areaCode.compareTo(y.areaCode));
@@ -338,6 +344,9 @@ class ProductionManagementService extends ChangeNotifier {
       {required String areaCode,
       required String areaName,
       String? description}) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     final a = await _api.updateArea(token, item.id,
         areaCode: areaCode, areaName: areaName, description: description);
     areas = areas.map((x) => x.id == a.id ? a : x).toList()
@@ -347,6 +356,9 @@ class ProductionManagementService extends ChangeNotifier {
   }
 
   Future<void> deleteArea(AreaRecord item, {bool cascade = false}) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     await _api.deleteArea(token, item.id, cascade: cascade);
     areas = areas.where((x) => x.id != item.id).toList();
     if (selectedAreaId == item.id) selectArea(null);
@@ -361,6 +373,9 @@ class ProductionManagementService extends ChangeNotifier {
     String? description,
     FarmStatus status = FarmStatus.active,
   }) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     final areaId = selectedAreaId!;
     final r = await _api.createRow(
       token,
@@ -384,6 +399,9 @@ class ProductionManagementService extends ChangeNotifier {
     String? description,
     FarmStatus status = FarmStatus.active,
   }) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     final r = await _api.updateRow(
       token,
       item.id,
@@ -400,6 +418,9 @@ class ProductionManagementService extends ChangeNotifier {
   }
 
   Future<void> deleteRow(RowRecord item) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     await _api.deleteRow(token, item.id);
     rows = rows.where((x) => x.id != item.id).toList();
     if (selectedRowId == item.id) selectRow(null);
@@ -412,6 +433,9 @@ class ProductionManagementService extends ChangeNotifier {
     double? volume,
     String status = 'empty',
   }) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     final list = await createBoxes(
       count: 1,
       positionPrefix: position,
@@ -427,6 +451,9 @@ class ProductionManagementService extends ChangeNotifier {
     double? volume,
     String status = 'empty',
   }) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     final rowId = selectedRowId!;
     final created = count <= 1
         ? [await _api.createBox(token, rowId)]
@@ -441,6 +468,9 @@ class ProductionManagementService extends ChangeNotifier {
       String? position,
       double? volume,
       required String status}) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     final r = await _api.updateBox(token, item.id,
         boxCode: boxCode, position: position, volume: volume, status: status);
     boxes = boxes.map((x) => x.id == r.id ? r : x).toList()
@@ -450,6 +480,9 @@ class ProductionManagementService extends ChangeNotifier {
   }
 
   Future<void> deleteBox(BoxRecord item) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     await _api.deleteBox(token, item.id);
     boxes = boxes.where((x) => x.id != item.id).toList();
     if (selectedBoxId == item.id) selectBox(null);

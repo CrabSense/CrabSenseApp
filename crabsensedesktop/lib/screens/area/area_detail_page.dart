@@ -232,7 +232,7 @@ class _AreaDetailPageState extends State<AreaDetailPage> {
       context,
       item: RowListItem(row: r, areaCode: d?.areaCode ?? ''),
       productionService: widget.productionService,
-      onEdit: () => widget.onNavigate?.call(AppRoute.rowManagement),
+      onEdit: null,
       onViewBoxes: () => widget.onViewBoxesOfRow?.call(r),
     );
   }
@@ -366,7 +366,7 @@ class _AreaDetailPageState extends State<AreaDetailPage> {
             onAreaList: widget.onBack,
           ),
           const SizedBox(height: 10),
-          _Header(area: d, onEdit: () => _editArea(d)),
+          _Header(area: d, onEdit: widget.service.session.isFarmOwner ? () => _editArea(d) : null),
           const SizedBox(height: 16),
 
           // 7 KPI
@@ -417,7 +417,7 @@ class _AreaDetailPageState extends State<AreaDetailPage> {
                 rows: _rows,
                 search: _rowSearch,
                 onSearch: () => setState(() {}),
-                onAdd: _addRow,
+                onAdd: widget.service.session.isFarmOwner ? _addRow : null,
                 onView: _openRow,
                 onViewBoxes: widget.onViewBoxesOfRow,
               ),
@@ -426,10 +426,9 @@ class _AreaDetailPageState extends State<AreaDetailPage> {
                 rows: _rows,
                 onOpenBox: widget.onOpenBox,
                 onOpenCrab: widget.onOpenCrab,
-                onEditBox: widget.productionService == null ? null : _editBox,
-                onDeleteBoxes:
-                    widget.productionService == null ? null : _deleteBoxes,
-                onAddBox: widget.productionService == null ? null : _addBox,
+                onEditBox: null,
+                onDeleteBoxes: null,
+                onAddBox: null,
                 onRefresh: _load,
               ),
             _Tab.environment => AreaEnvironmentTab(
@@ -450,9 +449,7 @@ class _AreaDetailPageState extends State<AreaDetailPage> {
                 onOpenBox: widget.onOpenBox,
                 onOpenCrab: widget.onOpenCrab,
                 onOpenAlerts: () => widget.onNavigate?.call(AppRoute.alerts),
-                onAddCamera: widget.onNavigate == null
-                    ? null
-                    : () => widget.onNavigate!(AppRoute.deviceSetup),
+                onAddCamera: null,
               ),
             _Tab.history => AreaHistoryTab(
                 key: ValueKey('hist-${widget.areaId}'),
@@ -486,13 +483,9 @@ class _AreaDetailPageState extends State<AreaDetailPage> {
                 cameras: _cameras,
                 index: _camIndex,
                 onIndex: (i) => setState(() => _camIndex = i),
-                onAdd: _addCamera,
-                onEdit: _cameras.isEmpty
-                    ? null
-                    : () => _editCamera(_cameras[_camIndex.clamp(0, _cameras.length - 1)]),
-                onDelete: _cameras.isEmpty
-                    ? null
-                    : () => _deleteCamera(_cameras[_camIndex.clamp(0, _cameras.length - 1)]),
+                onAdd: null,
+                onEdit: null,
+                onDelete: null,
               );
               if (c.maxWidth < 1000) {
                 return Column(
@@ -567,7 +560,7 @@ class _Header extends StatelessWidget {
   const _Header({required this.area, required this.onEdit});
 
   final AreaRecord area;
-  final VoidCallback onEdit;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -656,7 +649,7 @@ class _Header extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 16),
-        MgmtOutlineButton(
+        if (onEdit != null) MgmtOutlineButton(
           icon: Icons.edit_outlined,
           label: 'Chỉnh sửa khu',
           color: DashboardColors.textPrimary,
@@ -863,7 +856,7 @@ class _RowsCard extends StatelessWidget {
   final List<RowRecord> rows;
   final TextEditingController search;
   final VoidCallback onSearch;
-  final VoidCallback onAdd;
+  final VoidCallback? onAdd;
   final void Function(RowRecord) onView;
   final void Function(RowRecord)? onViewBoxes;
 
@@ -893,7 +886,7 @@ class _RowsCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          MgmtPrimaryButton(
+          if (onAdd != null) MgmtPrimaryButton(
             icon: Icons.add_rounded,
             label: 'Thêm dãy',
             height: 40,
@@ -1605,7 +1598,7 @@ class _CameraCard extends StatelessWidget {
   final List<CameraDevice> cameras;
   final int index;
   final ValueChanged<int> onIndex;
-  final VoidCallback onAdd;
+  final VoidCallback? onAdd;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
@@ -1649,14 +1642,14 @@ class _CameraCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              MgmtOutlineButton(
+              if (onEdit != null) MgmtOutlineButton(
                 icon: Icons.edit_outlined,
                 tooltip: 'Sửa camera',
                 height: 28,
                 onTap: onEdit,
               ),
               const SizedBox(width: 6),
-              MgmtOutlineButton(
+              if (onDelete != null) MgmtOutlineButton(
                 icon: Icons.delete_outline_rounded,
                 tooltip: 'Xóa camera',
                 height: 28,
@@ -1664,7 +1657,7 @@ class _CameraCard extends StatelessWidget {
                 onTap: onDelete,
               ),
               const SizedBox(width: 6),
-              MgmtPrimaryButton(
+              if (onAdd != null) MgmtPrimaryButton(
                 icon: Icons.add_rounded,
                 label: 'Thêm',
                 height: 28,

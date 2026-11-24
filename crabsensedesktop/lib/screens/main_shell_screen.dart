@@ -393,6 +393,9 @@ class _MainShellScreenState extends State<MainShellScreen> {
   }
 
   void _navigate(AppRoute route) {
+    if (route == AppRoute.deviceSetup || route == AppRoute.sensorUpgrade) {
+      route = AppRoute.controllers;
+    }
     setState(() {
       _route = route;
       if (route != AppRoute.batchDetail) {

@@ -496,6 +496,7 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
   }
 
   Future<void> _more(BoxHeaderAction a) async {
+    if (!const {BoxHeaderAction.qr, BoxHeaderAction.print, BoxHeaderAction.history}.contains(a)) return;
     switch (a) {
       case BoxHeaderAction.qr:
       case BoxHeaderAction.print:
@@ -640,8 +641,8 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
                     hasCrab: _box.hasCrab || _crab != null,
                     locked: isBoxLocked(_box.status),
                     locking: _locking,
-                    onEdit: widget.productionService == null ? null : _editBox,
-                    onLock: widget.productionService == null ? null : _toggleLock,
+                    onEdit: null,
+                    onLock: null,
                     onMore: _more,
                   ),
                   const SizedBox(height: 12),
@@ -693,7 +694,7 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
           activitiesLoading: _activityLoading,
           onOpenCrab: () => _openCrab(),
           onOpenCrabGrowth: () => _openCrab(target: BoxOpenCrabTarget.growth),
-          onAddCrab: _addCrab,
+          onAddCrab: null,
           onManageLots: () => widget.onNavigate?.call(AppRoute.inboundLots),
           onOpenCamera: () => _tabs.animateTo(3),
           onOpenSensors: () => _tabs.animateTo(2),
@@ -712,10 +713,10 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
           cameraLoading: widget.cameraService.loading && widget.cameraService.cameras.isEmpty,
           alerts: _alerts,
           onOpenCrab: (id, {target = BoxOpenCrabTarget.overview}) => _openCrab(target: target),
-          onTransferCrab: _transferCrab,
-          onAddCrab: _addCrab,
+          onTransferCrab: null,
+          onAddCrab: null,
           onManageLots: () => widget.onNavigate?.call(AppRoute.inboundLots),
-          onAddFeeding: _addFeeding,
+          onAddFeeding: null,
           onOpenCamera: () => _tabs.animateTo(3),
           onOpenHistory: () => _tabs.animateTo(5),
           onRetryCrab: _reload,

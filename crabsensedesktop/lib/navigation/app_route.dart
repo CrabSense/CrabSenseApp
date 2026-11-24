@@ -58,7 +58,7 @@ extension AppRouteX on AppRoute {
         AppRoute.feed => 'Thức ăn',
         AppRoute.cameraAi => 'Camera AI',
         AppRoute.devices => 'Điều khiển RAS',
-        AppRoute.controllers => 'Quản lý Controller',
+        AppRoute.controllers => 'Giám sát Controller',
         AppRoute.environment => 'Giám sát thời gian thực',
         AppRoute.waterAnalysis => 'Phân tích nước',
         AppRoute.alerts => 'Hệ thống cảnh báo',
