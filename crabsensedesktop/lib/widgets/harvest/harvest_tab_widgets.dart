@@ -838,16 +838,17 @@ class HarvestSlipTable extends StatelessWidget {
                               onSelected: (a) => onAction(slip, a),
                               itemBuilder: (_) => [
                                 const PopupMenuItem(value: HarvestRowAction.detail, child: Text('Xem chi tiết')),
-                                if (slip.canApprove) ...[
+                                if (service.canDecide(slip)) ...[
                                   const PopupMenuItem(value: HarvestRowAction.edit, child: Text('Duyệt phiếu')),
                                   const PopupMenuItem(value: HarvestRowAction.cancel, child: Text('Từ chối phiếu')),
                                 ],
+                                if (service.canDeleteHarvest(slip)) const PopupMenuItem(value: HarvestRowAction.delete,child:Text('Xóa phiếu chưa thực hiện')),
                                 if (slip.canTransferToSale)
                                   const PopupMenuItem(
                                     value: HarvestRowAction.sale,
                                     child: Text('Chuyển sang bán hàng'),
                                   ),
-                                if (slip.canComplete)
+                                if (service.canConfirm(slip))
                                   const PopupMenuItem(
                                     value: HarvestRowAction.complete,
                                     child: Text('Xác nhận kết quả'),
@@ -894,7 +895,7 @@ class HarvestSlipTable extends StatelessWidget {
   }
 }
 
-enum HarvestRowAction { detail, print, pdf, edit, cancel, sale, complete }
+enum HarvestRowAction { detail, print, pdf, edit, cancel, sale, complete, delete }
 
 class HarvestDetailPanel extends StatelessWidget {
   const HarvestDetailPanel({
@@ -1044,6 +1045,9 @@ class HarvestDetailPanel extends StatelessWidget {
                 ],
                 const SizedBox(height: 10),
                 if (s.rejectionReason?.isNotEmpty == true) Text('Lý do từ chối: ${s.rejectionReason}'),
+                if (s.adjustmentReason?.isNotEmpty == true) Text('Lý do điều chỉnh: ${s.adjustmentReason}'),
+                if (s.approvedQuantity != null) Text('Số cua đã duyệt: ${s.approvedQuantity}'),
+                if ((s.executionShortfallCount ?? 0)>0) Text('Thiếu so với duyệt: ${s.executionShortfallCount} · ${s.executionShortfallReason ?? "—"}'),
               ],
             ),
           ),

@@ -80,6 +80,7 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
   Future<void> _loadData() async {
     final version = ++_loadVersion;
     final area = widget.areaId;
+    final generation = widget.service.scopeGeneration;
     setState(() {
       _loading = true;
       _error = null;
@@ -94,7 +95,7 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
       );
 
       final assignments = await widget.service.loadAssignments(area);
-      if (!mounted || version != _loadVersion || area != widget.areaId) return;
+      if (!mounted || version != _loadVersion || area != widget.areaId || generation != widget.service.scopeGeneration) return;
       setState(() {
         _assignments = assignments;
         _staff = staff;
@@ -128,6 +129,8 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
     final area = widget.areaId;
     final version = ++_submitVersion;
     final submittedIds = _selectedCrabIds.toList(growable: false);
+    final generation = widget.service.scopeGeneration;
+    if (!_staff.any((s)=>s.id==_selectedStaffId) || !submittedIds.every((id)=>_crabs.any((c)=>c.id==id && c.areaId==area))) return;
 
     setState(() {
       _submitting = true;
@@ -147,7 +150,7 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
               'Nhiệm vụ mới')
           .toString();
 
-      if (!mounted || area != widget.areaId || version != _submitVersion) return;
+      if (!mounted || area != widget.areaId || version != _submitVersion || generation != widget.service.scopeGeneration) return;
 
       // Bỏ cua vừa giao khỏi danh sách hiện tại để tránh chọn lại ngay.
       setState(() {

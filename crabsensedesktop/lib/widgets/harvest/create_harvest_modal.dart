@@ -108,6 +108,7 @@ class _CreateHarvestModalState extends State<CreateHarvestModal> {
   @override
   void initState() {
     super.initState();
+    _openedGeneration = _svc.scopeGeneration;
     _when = DateTime.now();
     _note = TextEditingController();
     _otherProduct = TextEditingController();
@@ -339,7 +340,10 @@ class _CreateHarvestModalState extends State<CreateHarvestModal> {
           if (p.path != null && p.path!.isNotEmpty) p.path!,
       ];
 
+  late final int _openedGeneration;
+
   Future<void> _submit({required bool draft}) async {
+    if (_openedGeneration != _svc.scopeGeneration) { setState(()=>_error='Khu nuôi đã thay đổi. Đóng và mở lại phiếu.'); return; }
     if (_saving) return;
     final err = draft ? _validateDraft() : _validateCreate();
     if (err != null) {
@@ -377,9 +381,10 @@ class _CreateHarvestModalState extends State<CreateHarvestModal> {
       );
 
       if (!mounted) return;
+      if (_openedGeneration != _svc.scopeGeneration) { Navigator.pop(context); return; }
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
-      messenger.showSnackBar(SnackBar(content: Text('Đã gửi phiếu ${created.code} chờ duyệt.')));
+      messenger.showSnackBar(SnackBar(content: Text('Đã gửi phiếu ${created.code} chờ Manager khác duyệt.')));
     } on CloudApiException catch (e) {
       if (!mounted) return;
       setState(() {

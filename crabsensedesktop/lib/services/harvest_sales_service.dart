@@ -18,6 +18,17 @@ class HarvestSalesService extends ChangeNotifier {
 
   AuthSession _session;
   final CloudApiClient _api;
+  int _generation = 0, _harvestRead = 0, _readyRead = 0, _salesRead = 0;
+  bool _disposed = false;
+  final Set<String> _pendingWrites = {};
+  int get scopeGeneration => _generation;
+  bool _current(int generation) => !_disposed && generation == _generation;
+  bool get canManageHarvest => !_disposed && _session.user.role == UserRoles.farmManager && areaId.isNotEmpty && _session.farms.any((f) => f.id == areaId);
+  bool canDecide(HarvestSlipDetail slip) => canManageHarvest && !harvestsLoading && harvestsError == null && slip.farmingAreaId == areaId && slip.canApprove && slip.createdBy != null && slip.createdBy != _session.user.id && slip.adjustmentRequestedByUserId != _session.user.id && !_pendingWrites.contains(slip.id);
+  bool canConfirm(HarvestSlipDetail slip) => canManageHarvest && !harvestsLoading && harvestsError == null && slip.farmingAreaId == areaId && slip.canComplete && !_pendingWrites.contains(slip.id);
+  bool canDeleteHarvest(HarvestSlipDetail slip) => canManageHarvest && !harvestsLoading && harvestsError == null && slip.farmingAreaId == areaId && slip.canDelete && !_pendingWrites.contains(slip.id);
+  void _requireHarvestArea() { if (!canManageHarvest) throw CloudApiException('Chỉ Manager trong khu được phân công.'); }
+  bool _assignedArea(String id) => id.isNotEmpty && _session.farms.any((f) => f.id == id);
 
   List<HarvestableCrab> _harvestable = [];
   List<InventoryCrab> _inventory = [];
@@ -421,13 +432,24 @@ class HarvestSalesService extends ChangeNotifier {
   }
 
   void updateSession(AuthSession session) {
+    ++_generation;
+    loading = harvestsLoading = readyLoading = salesLoading = false;
+    error = harvestsError = readyError = salesError = null;
+    _pendingWrites.clear();
+    _areaFilterId = null; _page = 0; _salesPage = 0;
+    _harvestKpi = const HarvestKpi(harvestable:0,softshellWaiting:0,harvestedToday:0,waitingSale:0,totalWeightKg:0);
+    _salesKpi = const SalesKpi(revenueTodayVnd:0,soldToday:0,inventory:0);
     _session = session;
     _harvestable = [];
     _inventory = [];
     _harvests = [];
     _orders = [];
     _customers = [];
+    if (!_disposed) notifyListeners();
   }
+
+  @override
+  void dispose() { _disposed = true; ++_generation; super.dispose(); }
 
   void setSearch(String v) {
     _search = v;
@@ -606,61 +628,61 @@ class HarvestSalesService extends ChangeNotifier {
   }
 
   Future<void> load() async {
+    if (_disposed || !_assignedArea(areaId)) return;
+    final generation = _generation;
     loading = true;
-    harvestsLoading = true;
-    readyLoading = true;
     error = null;
-    harvestsError = null;
-    readyError = null;
     notifyListeners();
     try {
-      final farmId = _session.selectedFarm.id;
-      await Future.wait([
-        _loadHarvests(farmId),
-        _loadSales(farmId),
-        _loadReady(farmId),
-      ]);
-      error = harvestsError ?? readyError;
+      await Future.wait([reloadHarvests(),reloadSales()]);
+      if (!_current(generation)) return;
+      await reloadReady();
+      if (_current(generation)) error = harvestsError ?? readyError;
     } finally {
-      loading = false;
-      harvestsLoading = false;
-      readyLoading = false;
-      notifyListeners();
+      if (_current(generation)) { loading = false; notifyListeners(); }
     }
   }
 
   Future<void> reloadHarvests() async {
+    if (_disposed || !_assignedArea(areaId)) return;
+    final generation = _generation;
+    final version = ++_harvestRead;
     harvestsLoading = true;
     harvestsError = null;
     notifyListeners();
     try {
-      await _loadHarvests(_session.selectedFarm.id);
+      await _loadHarvests(areaId,generation,version);
     } finally {
-      harvestsLoading = false;
-      notifyListeners();
+      if (_current(generation) && version == _harvestRead) {
+        harvestsLoading = false; notifyListeners();
+      }
     }
   }
 
   Future<void> reloadReady() async {
+    if (_disposed || !_assignedArea(areaId)) return;
+    final generation = _generation;
+    final version = ++_readyRead;
     readyLoading = true;
     readyError = null;
     notifyListeners();
     try {
-      await _loadReady(_session.selectedFarm.id);
+      await _loadReady(areaId,generation,version);
     } finally {
-      readyLoading = false;
-      notifyListeners();
+      if (_current(generation) && version == _readyRead) { readyLoading = false; notifyListeners(); }
     }
   }
 
-  Future<void> _loadHarvests(String farmId) async {
+  Future<void> _loadHarvests(String farmId,int generation,int version) async {
+    bool active() => _current(generation) && version == _harvestRead;
     try {
       final results = await Future.wait([
         _api.fetchHarvestVouchers(_session.token, farmingAreaId: farmId),
         _api.fetchHarvestOverview(_session.token, farmingAreaId: farmId),
         _api.fetchSalesInventory(_session.token, farmingAreaId: farmId),
       ]);
-      final vouchers = results[0] as List<Map<String, dynamic>>;
+      if (!active()) return;
+      final vouchers = (results[0] as List<Map<String, dynamic>>).where((v) => (v['farmingAreaId'] ?? v['FarmingAreaId']).toString() == farmId).toList();
       final harvestOverview = results[1] as Map<String, dynamic>;
       final inventory = results[2] as List<Map<String, dynamic>>;
       _inventory = inventory.map(_inventoryFromJson).toList();
@@ -695,32 +717,35 @@ class HarvestSalesService extends ChangeNotifier {
       );
       harvestsError = null;
     } on CloudApiException catch (e) {
-      harvestsError = e.message;
+      if (active()) harvestsError = e.message;
     } catch (e) {
-      harvestsError = '$e';
+      if (active()) harvestsError = '$e';
     }
   }
 
   Future<void> reloadSales() async {
+    if (_disposed || !_assignedArea(areaId)) return;
+    final generation = _generation;
+    final version = ++_salesRead;
     salesLoading = true;
     salesError = null;
     notifyListeners();
     try {
-      await _loadSales(_session.selectedFarm.id);
+      await _loadSales(areaId,generation,version);
     } finally {
-      salesLoading = false;
-      notifyListeners();
+      if (_current(generation) && version == _salesRead) { salesLoading = false; notifyListeners(); }
     }
   }
 
-  Future<void> _loadSales(String farmId) async {
-    salesLoading = true;
+  Future<void> _loadSales(String farmId,int generation,int version) async {
+    bool active() => _current(generation) && version == _salesRead;
     try {
       final results = await Future.wait([
         _api.fetchSalesOrders(_session.token, farmingAreaId: farmId),
         _api.fetchSalesOrderOverview(_session.token, farmingAreaId: farmId),
         _api.fetchCustomers(_session.token),
       ]);
+      if (!active()) return;
       _orders = (results[0] as List<Map<String, dynamic>>)
           .map(_orderFromJson)
           .toList();
@@ -772,46 +797,35 @@ class HarvestSalesService extends ChangeNotifier {
       );
       salesError = null;
     } on CloudApiException catch (e) {
-      salesError = e.message;
+      if (active()) salesError = e.message;
     } catch (e) {
-      salesError = '$e';
-    } finally {
-      salesLoading = false;
+      if (active()) salesError = '$e';
     }
   }
 
-  Future<void> _loadReady(String farmId) async {
+  Future<void> _loadReady(String farmId,int generation,int version) async {
+    bool active() => _current(generation) && version == _readyRead;
     try {
       final farmCrabs = await _api.fetchFarmCrabs(_session.token, farmId);
+      if (!active()) return;
       final busy = _busyCrabIds();
+      if (_session.user.role == UserRoles.farmManager) {
+        busy.addAll(await _api.fetchOpenHarvestAssignmentCrabIds(token,farmingAreaId:farmId));
+        if (!active()) return;
+      }
+      if (harvestsError != null) { _harvestable = []; readyError = 'Không xác minh được phiếu đang mở.'; return; }
       _harvestable = farmCrabs.crabs
           .where((c) {
             final s = c.status.toLowerCase();
-            return s != 'dead' &&
-                s != 'harvested' &&
-                s != 'sold' &&
-                s != 'missing';
+            return c.areaId == farmId && c.boxId.isNotEmpty && (s == 'alive' || s == 'molting');
           })
           .map((c) => _mapReadyCrab(c, busy.contains(c.id)))
           .toList();
-      if (_harvestKpi.harvestable == 0 && _harvestable.isNotEmpty) {
-        _harvestKpi = HarvestKpi(
-          harvestable: _harvestable
-              .where((c) => c.eligibility != HarvestEligibility.notEligible)
-              .length,
-          softshellWaiting: _harvestKpi.softshellWaiting != 0
-              ? _harvestKpi.softshellWaiting
-              : _harvestable.where((c) => c.readyForSoftshellExport).length,
-          harvestedToday: _harvestKpi.harvestedToday,
-          waitingSale: _harvestKpi.waitingSale,
-          totalWeightKg: _harvestKpi.totalWeightKg,
-        );
-      }
       readyError = null;
     } on CloudApiException catch (e) {
-      readyError = e.message;
+      if (active()) { _harvestable = []; readyError = e.message; }
     } catch (e) {
-      readyError = '$e';
+      if (active()) { _harvestable = []; readyError = '$e'; }
     }
   }
 
@@ -903,17 +917,7 @@ class HarvestSalesService extends ChangeNotifier {
     required String performedBy,
     String? note,
   }) async {
-    final parsed = DateTime.tryParse(harvestDate) ?? DateTime.now();
-    await _api.createHarvestVoucher(
-      _session.token,
-      harvestDate: parsed,
-      notes: note,
-      quantity: quantity,
-      totalWeightKg: totalWeightKg,
-      farmingAreaId: _session.selectedFarm.id,
-      performedByName: performedBy,
-    );
-    await load();
+    throw CloudApiException('Cần chọn cá thể cua cụ thể để tạo phiếu thu hoạch.');
   }
 
   Future<({String id, String code})> createHarvestFromCrabs({
@@ -929,15 +933,20 @@ class HarvestSalesService extends ChangeNotifier {
     List<String> photoUrls = const [],
     String status = 'InProgress',
   }) async {
-    if (crabs.isEmpty) {
-      throw CloudApiException('Chọn ít nhất một con cua');
+    _requireHarvestArea();
+    final generation = _generation;
+    final selectedArea = areaId;
+    if (crabs.isEmpty || crabs.map((c)=>c.id).toSet().length != crabs.length || harvestDate.isAfter(DateTime.now().add(const Duration(minutes:5)))) {
+      throw CloudApiException('Danh sách cua hoặc ngày thu hoạch không hợp lệ.');
     }
-    final preview = nextVoucherPreview;
+    if (harvestsLoading || readyLoading || harvestsError != null || readyError != null || _pendingWrites.contains('create')) throw CloudApiException('Vui lòng tải lại danh sách trước khi tạo phiếu.');
     for (final c in crabs) {
-      if (!c.canSelect) {
-        throw CloudApiException(c.disableReason);
+      if (c.areaId != selectedArea || !_harvestable.any((v)=>v.id==c.id && v.canSelect && v.areaId==selectedArea) || !c.canSelect || (weights[c.id] ?? 0)<0) {
+        throw CloudApiException('Cua không còn đủ điều kiện hoặc không thuộc khu hiện tại.');
       }
     }
+    _pendingWrites.add('create');
+    try {
     final created = await _api.createHarvestVoucher(
       _session.token,
       harvestDate: harvestDate,
@@ -963,7 +972,7 @@ class HarvestSalesService extends ChangeNotifier {
           },
       ],
     );
-    await load();
+    if (_current(generation)) await load();
     final code = (created['voucherCode'] ??
             created['VoucherCode'] ??
             created['code'] ??
@@ -971,24 +980,29 @@ class HarvestSalesService extends ChangeNotifier {
             '')
         .toString();
     final id = (created['id'] ?? created['Id'] ?? '').toString();
-    return (id: id, code: code.isEmpty ? preview : code);
+    if (id.isEmpty || code.isEmpty) throw CloudApiException('Backend không trả mã phiếu; hãy tải lại trước khi thử lại.');
+    return (id: id, code: code);
+    } finally { if (_current(generation)) _pendingWrites.remove('create'); }
   }
 
   Future<void> _decideHarvest(String id, String action, {String? reason}) async {
-    if (_session.user.role != UserRoles.farmManager || areaId.isEmpty) {
-      throw CloudApiException('Chỉ Farm Manager trong khu được phân công mới được quyết định.');
-    }
+    _requireHarvestArea();
     final slip = _harvests.where((v) => v.id == id).firstOrNull;
-    if (slip == null || (slip.farmingAreaId != null && slip.farmingAreaId != areaId)) {
+    if (slip == null || slip.farmingAreaId != areaId) {
       throw CloudApiException('Phiếu không thuộc danh sách khu hiện tại.');
     }
-    if ((action == 'confirm' && !slip.canComplete) ||
-        (action != 'confirm' && !slip.canApprove)) {
-      throw CloudApiException('Trạng thái phiếu không cho phép thao tác này.');
+    if (!const {'approve','reject','confirm'}.contains(action) ||
+        (action == 'confirm' ? !canConfirm(slip) : !canDecide(slip)) ||
+        (action == 'approve' && slip.lines.isEmpty) ||
+        (action == 'reject' && (reason ?? '').trim().isEmpty)) {
+      throw CloudApiException('Không có quyền, đang xử lý hoặc trạng thái phiếu không hợp lệ. Người tạo không được tự duyệt.');
     }
-    await _api.decideHarvestVoucher(_session.token, id,
-      action: action, reason: reason, farmingAreaId: areaId);
-    await load();
+    final generation = _generation;
+    _pendingWrites.add(id); notifyListeners();
+    try {
+      await _api.decideHarvestVoucher(token,id,action:action,reason:reason,farmingAreaId:areaId);
+      if (_current(generation)) await load();
+    } finally { if (_current(generation)) { _pendingWrites.remove(id); notifyListeners(); } }
   }
 
   Future<void> approveHarvest(String id) => _decideHarvest(id, 'approve');
@@ -1164,8 +1178,13 @@ class HarvestSalesService extends ChangeNotifier {
   }
 
   Future<void> deleteHarvest(String id) async {
-    await _api.deleteHarvestVoucher(_session.token, id);
-    await load();
+    _requireHarvestArea();
+    final slip = _harvests.where((v)=>v.id==id).firstOrNull;
+    if (slip==null || !canDeleteHarvest(slip)) throw CloudApiException('Phiếu không được phép xóa.');
+    final generation=_generation;
+    _pendingWrites.add(id); notifyListeners();
+    try { await _api.deleteHarvestVoucher(token,id); if (_current(generation)) await load(); }
+    finally { if (_current(generation)) { _pendingWrites.remove(id); notifyListeners(); } }
   }
 
   Future<Customer> upsertCustomer({
@@ -1396,6 +1415,12 @@ class HarvestSalesService extends ChangeNotifier {
           (json['performedByName'] ?? json['PerformedByName'] ?? '').toString(),
       note: (json['notes'] ?? json['Notes'])?.toString(),
       status: rawStatus,
+      createdBy: (json['createdBy'] ?? json['CreatedBy'])?.toString(),
+      adjustmentRequestedByUserId: (json['adjustmentRequestedByUserId'] ?? json['AdjustmentRequestedByUserId'])?.toString(),
+      adjustmentReason: (json['adjustmentReason'] ?? json['AdjustmentReason'])?.toString(),
+      approvedQuantity: _num(json,const ['approvedQuantity','ApprovedQuantity'])?.toInt(),
+      executionShortfallCount: _num(json,const ['executionShortfallCount','ExecutionShortfallCount'])?.toInt(),
+      executionShortfallReason: (json['executionShortfallReason'] ?? json['ExecutionShortfallReason'])?.toString(),
       executionCompletedAt: DateTime.tryParse((json['executionCompletedAt'] ?? json['ExecutionCompletedAt'] ?? '').toString()),
       rejectionReason: (json['rejectionReason'] ?? json['RejectionReason'])?.toString(),
       lines: lines,
