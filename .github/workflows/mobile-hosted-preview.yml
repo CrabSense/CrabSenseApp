@@ -1,0 +1,116 @@
+name: Mobile Hosted Preview
+on:
+  pull_request:
+    paths:
+      - 'crabsensemobile/**'
+      - '.github/workflows/mobile-hosted-preview.yml'
+      - 'docs/MOBILE_PREVIEW_DEPLOY.md'
+      - 'deploy/mobile-preview/**'
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crabsensemobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Configure public preview values
+        env:
+          ENABLED: ${{ vars.MOBILE_PREVIEW_DEPLOY_ENABLED }}
+          ORIGIN: ${{ vars.MOBILE_PREVIEW_ORIGIN }}
+          API: ${{ vars.MOBILE_PREVIEW_API_URL }}
+        run: |
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          from urllib.parse import urlsplit
+          enabled = os.environ.get('ENABLED') == 'true'
+          origin = os.environ.get('ORIGIN') or 'https://mobile-preview.example.invalid'
+          api = os.environ.get('API') or 'https://api-staging.example.invalid'
+          def valid(url):
+              return bool(re.fullmatch(r'https://[a-z0-9][a-z0-9.-]*[a-z0-9](?::[0-9]{1,5})?', url)) and '.' in (urlsplit(url).hostname or '')
+          if not valid(origin) or not valid(api) or origin == api:
+              raise SystemExit('Preview and staging API must be distinct HTTPS origins without paths or credentials.')
+          if enabled and (not os.environ.get('ORIGIN') or not os.environ.get('API') or origin.endswith('.invalid') or api.endswith('.invalid')):
+              raise SystemExit('Configure real preview and staging API origins before enabling deployment.')
+          if api in ('https://crabsense.khanhtn45.id.vn', 'https://crabsense.github.io'):
+              raise SystemExit('Do not point preview at the production Web site.')
+          
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as f:
+              f.write('PREVIEW_ORIGIN=' + origin + '\n')
+              f.write('PREVIEW_API=' + api + '\n')
+          PY
+      - run: flutter pub get
+      - name: Compile hosted release
+        run: |
+          flutter build web --release \
+            --dart-define="API_BASE_URL=$PREVIEW_API" \
+            --dart-define=CRABSENSE_MOBILE_HOSTED_PREVIEW=true \
+            --dart-define="CRABSENSE_PREVIEW_ORIGIN=$PREVIEW_ORIGIN"
+          test -s build/web/main.dart.js
+          printf '{"commit":"%s"}\n' "$GITHUB_SHA" > build/web/version.json
+          tar -C build/web -czf "$RUNNER_TEMP/mobile-preview.tar.gz" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-preview-${{ github.sha }}
+          path: ${{ runner.temp }}/mobile-preview.tar.gz
+          retention-days: 7
+          if-no-files-found: error
+
+  deploy:
+    name: Deploy protected Mobile Preview
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.MOBILE_PREVIEW_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: mobile-preview
+    concurrency:
+      group: mobile-preview-vps
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: mobile-preview-${{ github.sha }}
+          path: ${{ runner.temp }}/preview-package
+      - name: Validate SSH and protected site
+        env:
+          SSH_HOST: ${{ vars.MOBILE_PREVIEW_SSH_HOST }}
+          SSH_USER: ${{ vars.MOBILE_PREVIEW_SSH_USER }}
+          SSH_KEY: ${{ secrets.MOBILE_PREVIEW_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.MOBILE_PREVIEW_SSH_KNOWN_HOSTS }}
+          ORIGIN: ${{ vars.MOBILE_PREVIEW_ORIGIN }}
+          SMOKE_USER: ${{ secrets.MOBILE_PREVIEW_HTTP_USER }}
+          SMOKE_PASSWORD: ${{ secrets.MOBILE_PREVIEW_HTTP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSH_KEY" && test -n "$SSH_KNOWN_HOSTS" && test -n "$SMOKE_USER" && test -n "$SMOKE_PASSWORD"
+          [[ "$SSH_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]
+          [[ "$SSH_USER" =~ ^[a-z_][a-z0-9_-]*$ && "$SSH_USER" != root ]]
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_KEY" > "$HOME/.ssh/mobile-preview-key"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/mobile-preview-known-hosts"
+          chmod 600 "$HOME/.ssh/mobile-preview-key" "$HOME/.ssh/mobile-preview-known-hosts"
+          status=$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' "$ORIGIN/")
+          test "$status" = 401
+      - name: Publish only the current main revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SSH_HOST: ${{ vars.MOBILE_PREVIEW_SSH_HOST }}
+          SSH_USER: ${{ vars.MOBILE_PREVIEW_SSH_USER }}
+          ORIGIN: ${{ vars.MOBILE_PREVIEW_ORIGIN }}
+          SMOKE_USER: ${{ secrets.MOBILE_PREVIEW_HTTP_USER }}
+          SMOKE_PASSWORD: ${{ secrets.MOBILE_PREVIEW_HTTP_PASSWORD }}
+        run: |
+          bash deploy/mobile-preview/publish.sh
+      - name: Remove temporary SSH credentials
+        if: always()
+        run: rm -f "$HOME/.ssh/mobile-preview-key" "$HOME/.ssh/mobile-preview-known-hosts"
