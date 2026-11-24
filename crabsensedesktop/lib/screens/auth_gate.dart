@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import '../config/preview_policy.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../services/cloud_auth_service.dart';
@@ -23,6 +25,10 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _restore() async {
+    if (kIsWeb && PreviewPolicy.pagesBuild && !PreviewPolicy.pagesTestApiConfigured) {
+      if (mounted) setState(() => _child = const LoginScreen());
+      return;
+    }
     final session = await CloudAuthService().restorePersistedSession();
 
     if (!mounted) return;
