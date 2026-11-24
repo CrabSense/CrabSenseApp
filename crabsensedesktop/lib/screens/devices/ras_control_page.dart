@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../models/area_environment_metric.dart';
 import '../../models/ras_flow.dart';
@@ -67,8 +68,10 @@ class _RasControlPageState extends State<RasControlPage> {
     _env?.addListener(_onUpdate);
     _svc.startLiveRefresh(widget.areaId);
     _env?.startLiveRefresh(widget.areaId);
-    _relayTimer = Timer.periodic(_relayPollInterval, (_) => _pollRelays());
-    _pollRelays();
+    if (!kIsWeb) {
+      _relayTimer = Timer.periodic(_relayPollInterval, (_) => _pollRelays());
+      _pollRelays();
+    }
   }
 
   @override
@@ -105,7 +108,7 @@ class _RasControlPageState extends State<RasControlPage> {
   }
 
   Future<void> _pollRelays() async {
-    if (_relayPolling) return;
+    if (kIsWeb || _relayPolling) return;
     _relayPolling = true;
     try {
       final controllers = await _svc.areaControllers(widget.areaId);
@@ -3386,6 +3389,7 @@ class RasLayoutStore {
   }
 
   static Map<String, Offset> load(String areaId) {
+    if (kIsWeb) return {};
     try {
       final raw = jsonDecode(_file().readAsStringSync());
       final area = raw is Map ? raw[areaId] : null;
@@ -3406,6 +3410,7 @@ class RasLayoutStore {
   }
 
   static void save(String areaId, Map<String, Offset> points) {
+    if (kIsWeb) return;
     Map<String, dynamic> all = {};
     try {
       final raw = jsonDecode(_file().readAsStringSync());

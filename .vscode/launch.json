@@ -1,0 +1,28 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Desktop Preview (Chrome)",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/crabsensedesktop",
+      "program": "lib/main.dart",
+      "deviceId": "chrome",
+      "toolArgs": [
+        "--web-hostname",
+        "localhost",
+        "--web-port",
+        "5500",
+        "--dart-define=CRABSENSE_DESKTOP_PREVIEW=true"
+      ]
+    },
+    {
+      "name": "Desktop (Windows)",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/crabsensedesktop",
+      "program": "lib/main.dart",
+      "deviceId": "windows"
+    }
+  ]
+}

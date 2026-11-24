@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 
 /// Talks to the ESP32 on the provisioning AP or the farm LAN.
 /// Wi-Fi password stays on this PC → ESP32 NVS. It is never sent to CrabSenseBE.
@@ -272,6 +273,7 @@ class ControllerProvisioningService {
 
   /// Quét toàn LAN, trả mọi board phản hồi `/api/info`.
   Future<List<EspProvisionInfo>> discoverAllNearby() async {
+    if (kIsWeb) return const [];
     final found = <String, EspProvisionInfo>{};
     void keep(EspProvisionInfo? info) {
       if (info == null) return;
@@ -416,6 +418,7 @@ class ControllerProvisioningService {
   }
 
   Future<String?> currentSsid() async {
+    if (kIsWeb) return null;
     try {
       final result = await Process.run(
         'netsh',
@@ -433,6 +436,7 @@ class ControllerProvisioningService {
 
   /// Join the board's open setup network so 192.168.4.1 is reachable.
   Future<void> joinSetupAp() async {
+    if (kIsWeb) throw UnsupportedError('Cấu hình WiFi cần ứng dụng Windows.');
     if (await currentSsid() == setupSsid) {
       await _waitForSetupAp();
       return;
@@ -478,6 +482,7 @@ class ControllerProvisioningService {
   }
 
   Future<void> joinSaved(String profile) async {
+    if (kIsWeb) throw UnsupportedError('Cấu hình WiFi cần ứng dụng Windows.');
     final name = profile.trim();
     if (name.isEmpty) return;
     await Process.run(
