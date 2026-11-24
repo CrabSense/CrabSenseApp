@@ -25,7 +25,13 @@ class AreaEnvironmentService extends ChangeNotifier {
     _notifyDeferred();
   }
 
-  void _notifyDeferred() => Future.microtask(notifyListeners);
+  bool _disposed = false;
+  int _generation = 0;
+  int _version = 0;
+  bool _current(int generation, int version) => !_disposed && generation == _generation && version == _version;
+  void _notifyDeferred() {
+    if (!_disposed) Future.microtask(() { if (!_disposed) notifyListeners(); });
+  }
 
   var _loading = false;
   var _refreshInFlight = false;
@@ -49,10 +55,12 @@ class AreaEnvironmentService extends ChangeNotifier {
     String areaId, {
     Duration interval = livePollInterval,
   }) {
-    if (areaId.trim().isEmpty) return;
+    if (_disposed || areaId.trim().isEmpty) return;
     if (_liveAreaId == areaId && _liveTimer != null) return;
 
     stopLiveRefresh(notify: false);
+    _data = null;
+    _lastRefreshedAt = null;
     _liveAreaId = areaId;
     _liveBoxId = null;
     unawaited(loadByArea(areaId));
@@ -68,10 +76,12 @@ class AreaEnvironmentService extends ChangeNotifier {
     String boxId, {
     Duration interval = livePollInterval,
   }) {
-    if (boxId.trim().isEmpty) return;
+    if (_disposed || boxId.trim().isEmpty) return;
     if (_liveBoxId == boxId && _liveTimer != null) return;
 
     stopLiveRefresh(notify: false);
+    _data = null;
+    _lastRefreshedAt = null;
     _liveBoxId = boxId;
     _liveAreaId = null;
     unawaited(loadByBox(boxId));
@@ -84,6 +94,9 @@ class AreaEnvironmentService extends ChangeNotifier {
   }
 
   void stopLiveRefresh({bool notify = true}) {
+    ++_generation;
+    _loading = false;
+    _refreshInFlight = false;
     _liveTimer?.cancel();
     _liveTimer = null;
     _liveAreaId = null;
@@ -92,7 +105,7 @@ class AreaEnvironmentService extends ChangeNotifier {
   }
 
   Future<void> loadByArea(String areaId, {bool silent = false}) async {
-    if (areaId.trim().isEmpty) return;
+    if (_disposed || areaId.trim().isEmpty) return;
     await _fetchLive(
       areaId,
       liveKey: areaId,
@@ -103,7 +116,7 @@ class AreaEnvironmentService extends ChangeNotifier {
 
   /// Chỉ số bể chung khu — hộp kế thừa từ `/api/iot/live`.
   Future<void> loadByBox(String boxId, {bool silent = false}) async {
-    if (boxId.trim().isEmpty) return;
+    if (_disposed || boxId.trim().isEmpty) return;
     await _fetchLive(
       _session.selectedFarm.id,
       liveKey: boxId,
@@ -120,7 +133,9 @@ class AreaEnvironmentService extends ChangeNotifier {
     required String emptyMessage,
     String? boxId,
   }) async {
-    if (silent && _refreshInFlight) return;
+    if (_disposed || (silent && (_refreshInFlight || _loading))) return;
+    final generation = _generation;
+    final version = ++_version;
 
     if (!silent) {
       _loading = true;
@@ -134,6 +149,7 @@ class AreaEnvironmentService extends ChangeNotifier {
     try {
       final live =
           await _api.fetchIotLive(_session.token, farmingAreaId: areaId);
+      if (!_current(generation, version)) return;
       var data = AreaSensorLatestData.fromIotLive(areaId: areaId, live: live);
       if (boxId != null) {
         data = AreaSensorLatestData(
@@ -156,24 +172,24 @@ class AreaEnvironmentService extends ChangeNotifier {
         _lastRefreshedAt = DateTime.now();
       }
     } catch (e) {
+      if (!_current(generation, version)) return;
       if (e is CloudApiException && e.statusCode == 401) {
         // Token hết hạn: dừng poll, nếu không Timer 2s sẽ gọi 401 mãi mãi.
         _error = 'Phiên đăng nhập hết hạn';
         stopLiveRefresh(notify: false);
+        _data = null;
+        _lastRefreshedAt = null;
+        _notifyDeferred();
       } else if (!silent) {
         _data = null;
         _error = '$e';
       }
     } finally {
-      if (silent) {
+      if (_current(generation, version)) {
         _refreshInFlight = false;
-      } else {
         _loading = false;
+        _notifyDeferred();
       }
-      if (silent && liveKey != null) {
-        if (_liveAreaId != liveKey && _liveBoxId != liveKey) return;
-      }
-      _notifyDeferred();
     }
   }
 
@@ -218,6 +234,9 @@ class AreaEnvironmentService extends ChangeNotifier {
   }
 
   void clear() {
+    ++_generation;
+    _refreshInFlight = false;
+    _lastRefreshedAt = null;
     _data = null;
     _error = null;
     _loading = false;
@@ -226,6 +245,7 @@ class AreaEnvironmentService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     stopLiveRefresh(notify: false);
     super.dispose();
   }

@@ -47,16 +47,9 @@ class RasControlPage extends StatefulWidget {
 
 class _RasControlPageState extends State<RasControlPage> {
   final _pending = <String, String>{};
-  final _relayOn = <String, bool>{};
-  final _controllerIp = <String, String>{};
-  final _controllerCode = <String, String>{};
   var _systemBusy = false;
-  var _relayPolling = false;
-  Timer? _relayTimer;
-
-  /// Relay state poll. Each tick also does a LAN discovery per controller,
-  /// which can take longer than the tick, so keep it slow and single-flight.
-  static const _relayPollInterval = Duration(seconds: 5);
+  int _areaVersion = 0;
+  bool _sameArea(int version) => mounted && version == _areaVersion;
 
   RasFlowService get _svc => widget.service;
   AreaEnvironmentService? get _env => widget.environment;
@@ -68,16 +61,16 @@ class _RasControlPageState extends State<RasControlPage> {
     _env?.addListener(_onUpdate);
     _svc.startLiveRefresh(widget.areaId);
     _env?.startLiveRefresh(widget.areaId);
-    if (!kIsWeb) {
-      _relayTimer = Timer.periodic(_relayPollInterval, (_) => _pollRelays());
-      _pollRelays();
-    }
+
   }
 
   @override
   void didUpdateWidget(RasControlPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.areaId != widget.areaId) {
+      ++_areaVersion;
+      _pending.clear();
+      _systemBusy = false;
       _svc.startLiveRefresh(widget.areaId);
       _env?.startLiveRefresh(widget.areaId);
     }
@@ -85,84 +78,27 @@ class _RasControlPageState extends State<RasControlPage> {
 
   @override
   void dispose() {
-    _relayTimer?.cancel();
+    ++_areaVersion;
     _svc.removeListener(_onUpdate);
     _env?.removeListener(_onUpdate);
     super.dispose();
   }
 
-  String _relayKey(String deviceId, int channel) => '$deviceId:$channel';
-
-  bool? _liveOn(RasFlowNodeLive n) {
-    final channel = int.tryParse(n.relayChannel ?? '');
-    if (channel == null) return null;
-    final deviceId = n.relayDeviceId ?? '';
-    final exact = _relayOn[_relayKey(deviceId, channel)];
-    if (exact != null) return exact;
-    final sameChannel = [
-      for (final entry in _relayOn.entries)
-        if (entry.key.endsWith(':$channel')) entry.value,
-    ];
-    if (sameChannel.length == 1) return sameChannel.first;
-    return null;
-  }
-
-  Future<void> _pollRelays() async {
-    if (kIsWeb || _relayPolling) return;
-    _relayPolling = true;
-    try {
-      final controllers = await _svc.areaControllers(widget.areaId);
-      if (!mounted) return;
-      final next = <String, bool>{};
-      for (final controller in controllers) {
-        try {
-          final ip = controller.ip.trim();
-          if (controller.id.isEmpty || ip.isEmpty) continue;
-          _controllerIp[controller.id] = ip;
-          _controllerCode[controller.id] = controller.code;
-          final info = await ControllerProvisioningService().discover(
-            baseUrl: 'http://$ip',
-          );
-          for (final pin in info.outputs) {
-            if (pin.on != null) {
-              next[_relayKey(controller.id, pin.channel)] = pin.on!;
-            }
-          }
-        } catch (_) {}
-      }
-      if (!mounted) return;
-      setState(() {
-        _relayOn
-          ..clear()
-          ..addAll(next);
-      });
-    } catch (_) {
-    } finally {
-      _relayPolling = false;
-    }
-  }
+  // Use Backend observations and command acknowledgements, never substitute a
+  // same-numbered relay on another Controller or locally inferred state.
+  bool? _liveOn(RasFlowNodeLive n) => _stale ? null : n.observedOn;
 
   void _onUpdate() {
-    if (!mounted) return;
-    final nodes = _svc.diagram?.nodes ?? const <RasFlowNodeLive>[];
-    for (final n in nodes) {
-      final cmd = _pending[n.id];
-      if (cmd == null) continue;
-      if (_acked(n, cmd)) _pending.remove(n.id);
-    }
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
-  bool _acked(RasFlowNodeLive n, String cmd) {
-    final c = cmd.toLowerCase();
-    if (c == 'auto') return n.isAuto;
-    if (c == 'manual') return !n.isAuto;
-    if (c == 'on' || c == 'start') return n.isOn == true && !n.isAuto;
-    if (c == 'off' || c == 'stop') return n.isOn != true;
-    return true;
-  }
+  RasFlowDiagram? get _diagram => _svc.diagram?.areaId == widget.areaId ? _svc.diagram : null;
+  bool get _canOperate => _diagram != null && _svc.canOperate && !_systemBusy;
+  bool _nodeReady(RasFlowNodeLive n) => n.hasRelay && n.isOnline == true &&
+      n.relayDeviceId != null && n.relayDeviceId!.isNotEmpty &&
+      (n.relayChannel ?? '').isNotEmpty && n.portPresent != false && !n.commandPending;
 
-  List<RasFlowNodeLive> get _nodes => _svc.diagram?.nodes ?? const [];
+  List<RasFlowNodeLive> get _nodes => _diagram?.nodes ?? const [];
   List<RasFlowNodeLive> get _devices => _nodes.where((n) => n.hasRelay).toList();
   List<RasFlowNodeLive> get _managed =>
       _nodes.where((n) => n.nodeType != 'source').toList();
@@ -172,16 +108,16 @@ class _RasControlPageState extends State<RasControlPage> {
 
   bool get _controllerOnline =>
       _devices.isEmpty
-          ? _nodes.any((n) => n.isOnline != false)
-          : _devices.any((n) => n.isOnline != false);
+          ? _nodes.any((n) => n.isOnline == true)
+          : _devices.any((n) => n.isOnline == true);
 
-  bool _shownOn(RasFlowNodeLive n) => _liveOn(n) ?? n.isOn == true;
+  bool _shownOn(RasFlowNodeLive n) => _liveOn(n) == true;
 
   int get _running => _devices
-      .where((n) => _shownOn(n) && !_isError(n) && n.isOnline != false)
+      .where((n) => _shownOn(n) && !_isError(n) && n.isOnline == true)
       .length;
   int get _off =>
-      _devices.where((n) => !_shownOn(n) && !_isError(n)).length;
+      _devices.where((n) => _liveOn(n) == false && !_isError(n)).length;
   int get _errors => _nodes.where(_isError).length;
   bool _isError(RasFlowNodeLive n) {
     final s = n.status.toLowerCase();
@@ -190,7 +126,7 @@ class _RasControlPageState extends State<RasControlPage> {
 
   bool get _stale {
     final at = _svc.lastRefreshedAt;
-    if (at == null) return false;
+    if (at == null) return true;
     return DateTime.now().difference(at) > _kStale;
   }
 
@@ -203,57 +139,24 @@ class _RasControlPageState extends State<RasControlPage> {
   }
 
   Future<void> _cmd(RasFlowNodeLive node, String command) async {
-    if (_pending.containsKey(node.id) || _systemBusy) return;
-    final lowered = command.toLowerCase();
-    if (lowered == 'on' || lowered == 'off' || lowered == 'start' || lowered == 'stop') {
-      await _driveRelay(node, lowered == 'on' || lowered == 'start');
+    if (!_canOperate || !_nodeReady(node) || _pending.isNotEmpty) {
+      _toast('Không thể gửi lệnh: kiểm tra kết nối, khu và trạng thái lệnh trước.');
       return;
     }
-    if (node.isOnline == false) {
-      _toast('⚠ Không thể gửi lệnh. Controller / thiết bị mất kết nối.');
-      return;
-    }
+    final version = _areaVersion;
+    final area = widget.areaId;
     setState(() => _pending[node.id] = command);
-    final ok = await _svc.sendCommand(
-      areaId: widget.areaId,
-      nodeId: node.id,
-      command: command,
-    );
-    if (!mounted) return;
-    if (!ok) {
-      setState(() => _pending.remove(node.id));
-      _toast(
-        '⚠ Không thể ${_cmdVerb(command)} ${_deviceTitle(node)}.\n'
-        '${_svc.error ?? 'Controller không phản hồi.'}',
-      );
-      return;
-    }
-    _toast('✓ ${_deviceTitle(node)} ${_cmdDone(command)}.');
-  }
-
-  Future<void> _driveRelay(RasFlowNodeLive node, bool on) async {
-    if (_pending.containsKey(node.id)) return;
-    if (node.relayDeviceId == null || node.relayDeviceId!.isEmpty ||
-        (node.relayChannel ?? '').isEmpty) {
-      _toast('Thiết bị chưa được gán actuator.');
-      return;
-    }
-    if (node.isOnline == false) {
-      _toast('Controller mất kết nối. Không xác nhận được lệnh.');
-      return;
-    }
-    setState(() => _pending[node.id] = on ? 'on' : 'off');
     try {
-      final ok = await _svc.sendCommand(
-        areaId: widget.areaId, nodeId: node.id, command: on ? 'on' : 'off',
-      );
-      if (!mounted) return;
-      _toast(ok ? 'Backend đã tiếp nhận lệnh; chờ thiết bị xác nhận.'
+      final ok = await _svc.sendCommand(areaId: area, nodeId: node.id, command: command);
+      if (!_sameArea(version)) return;
+      _toast(ok
+          ? (const {'auto','manual'}.contains(command)
+              ? 'Backend đã cập nhật chế độ.' : 'Backend đã nhận yêu cầu; chờ xác nhận từ thiết bị.')
           : (_svc.error ?? 'Backend từ chối lệnh.'));
-    } catch (_) {
-      if (mounted) _toast('Không gửi được lệnh tới Backend.');
+    } catch (e) {
+      if (_sameArea(version)) _toast('Không gửi được lệnh: $e');
     } finally {
-      if (mounted) setState(() => _pending.remove(node.id));
+      if (_sameArea(version)) setState(() => _pending.remove(node.id));
     }
   }
 
@@ -281,9 +184,9 @@ class _RasControlPageState extends State<RasControlPage> {
         break;
       }
     }
-    if (other == null) return null;
-    if (other.isOn == true) return null;
-    return '${_deviceTitle(other)} đang OFF.';
+    if (other == null) return 'Không xác định được thiết bị liên động.';
+    if (_liveOn(other) == true) return null;
+    return '${_deviceTitle(other)} chưa xác nhận đang bật.';
   }
 
   String _cmdVerb(String c) => switch (c) {
@@ -303,6 +206,9 @@ class _RasControlPageState extends State<RasControlPage> {
       };
 
   Future<void> _setSystemMode(bool auto) async {
+    if (!_canOperate || _pending.isNotEmpty) return;
+    final version = _areaVersion;
+    final area = widget.areaId;
     final ok = await showDialog<bool>(
       context: context,
       barrierColor: const Color.fromRGBO(15, 35, 30, 0.45),
@@ -329,16 +235,14 @@ class _RasControlPageState extends State<RasControlPage> {
         ],
       ),
     );
-    if (ok != true || !mounted) return;
-    setState(() => _systemBusy = true);
-    final cmd = auto ? 'auto' : 'manual';
-    for (final n in _devices) {
-      await _svc.sendCommand(areaId: widget.areaId, nodeId: n.id, command: cmd);
-    }
-    if (mounted) setState(() => _systemBusy = false);
+    if (ok != true || !_sameArea(version) || !_canOperate) return;
+    await _batchCommand(area, version, auto ? 'auto' : 'manual');
   }
 
   Future<void> _emergencyStop() async {
+    if (!_canOperate || _pending.isNotEmpty) return;
+    final version = _areaVersion;
+    final area = widget.areaId;
     var typed = false;
     final ok = await showDialog<bool>(
       context: context,
@@ -378,16 +282,22 @@ class _RasControlPageState extends State<RasControlPage> {
         ),
       ),
     );
-    if (ok != true || !mounted) return;
+    if (ok != true || !_sameArea(version) || !_canOperate) return;
+    await _batchCommand(area, version, 'off');
+  }
+
+  Future<void> _batchCommand(String area, int version, String command) async {
+    final targets = _devices.map((n) => n.id).toList(growable: false);
     setState(() => _systemBusy = true);
-    for (final n in _devices) {
-      final channel = int.tryParse(n.relayChannel ?? '');
-      if (channel == null) continue;
-      await _driveRelay(n, false);
-    }
-    if (mounted) {
-      setState(() => _systemBusy = false);
-      _toast('Đã kết thúc gửi yêu cầu dừng; kiểm tra trạng thái từng thiết bị.');
+    var accepted = 0;
+    try {
+      for (final id in targets) {
+        if (!_sameArea(version)) return;
+        if (await _svc.sendCommand(areaId: area, nodeId: id, command: command)) accepted++;
+      }
+      if (_sameArea(version)) _toast('Backend tiếp nhận $accepted/${targets.length} yêu cầu. Kiểm tra các thiết bị còn lại và xác nhận thực tế.');
+    } finally {
+      if (_sameArea(version)) setState(() => _systemBusy = false);
     }
   }
 
@@ -397,7 +307,7 @@ class _RasControlPageState extends State<RasControlPage> {
 
   @override
   Widget build(BuildContext context) {
-    final diagram = _svc.diagram;
+    final diagram = _diagram;
     final loading = _svc.loading && diagram == null;
     final areaLabel = [
       if ((widget.areaName ?? diagram?.areaName ?? '').isNotEmpty)
@@ -417,12 +327,17 @@ class _RasControlPageState extends State<RasControlPage> {
               _header(areaLabel),
               const SizedBox(height: 12),
               if (loading) _chipSkeleton() else _summaryChips(),
-              if (_svc.error != null && diagram == null) ...[
+              if (_svc.hardwareDisabled) ...[
+                const SizedBox(height: 12),
+                const Text('Điều khiển phần cứng đang bị vô hiệu hóa hoặc chưa xác minh; chỉ giám sát.'),
+              ],
+              if (_svc.error != null) ...[
                 const SizedBox(height: 14),
                 _errorBanner(),
               ],
               const SizedBox(height: 16),
               _EspMonitor(
+                key: ValueKey(widget.areaId),
                 power: _svc.power,
                 loadHistory: (id, range) => _svc.powerHistory(id, range: range),
               ),
@@ -490,7 +405,7 @@ class _RasControlPageState extends State<RasControlPage> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: _devices.isEmpty || _systemBusy ? null : () => _setSystemMode(!auto),
+        onTap: _devices.isEmpty || !_canOperate || _pending.isNotEmpty ? null : () => _setSystemMode(!auto),
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -618,7 +533,7 @@ class _RasControlPageState extends State<RasControlPage> {
               pipes: _topologyPipes(),
               titleOf: _flowTitle,
               onOpen: _openTopologyNode,
-              onAdd: _addDevice,
+              onAdd: null,
               meterOf: _ratedLine,
               levelOf: _tankLevel,
               kindOf: (n) => _savedGroup(n, _paramMap(n.paramDefaultsJson)),
@@ -686,27 +601,13 @@ class _RasControlPageState extends State<RasControlPage> {
           runSpacing: 8,
           alignment: WrapAlignment.end,
           children: [
-            MgmtOutlineButton(
-              onTap: _addDevice,
-              icon: Icons.add,
-              label: 'Thêm thiết bị',
-            ),
-            MgmtOutlineButton(
-              onTap: _devices.isEmpty ? null : () => _openAutoConfig(),
-              icon: Icons.settings_outlined,
-              label: 'Cấu hình AUTO',
-            ),
-            MgmtOutlineButton(
-              onTap: _devices.isEmpty ? null : () => _openSchedule(),
-              icon: Icons.calendar_month_outlined,
-              label: 'Lịch chạy',
-            ),
+            const Text('Cấu hình thiết bị trên Web quản trị'),
             const SizedBox(width: 8),
             Semantics(
               button: true,
               label: 'Dừng khẩn cấp hệ thống RAS',
               child: MgmtOutlineButton(
-                onTap: _devices.isEmpty || _systemBusy ? null : _emergencyStop,
+                onTap: _devices.isEmpty || !_canOperate || _pending.isNotEmpty ? null : _emergencyStop,
                 icon: Icons.warning_amber_rounded,
                 label: 'Dừng khẩn cấp hệ thống',
                 color: _kRed,
@@ -735,6 +636,7 @@ class _RasControlPageState extends State<RasControlPage> {
                   node: n,
                   title: _deviceTitle(n),
                   pending: _pending[n.id],
+                  controlsEnabled: _canOperate && _pending.isEmpty && _nodeReady(n),
                   commandSource: _commandSource(n),
                   level: _tankLevel(n),
                   lowFloat: _floatLine(n, 'lowFloat', 'lowWhen'),
@@ -750,7 +652,7 @@ class _RasControlPageState extends State<RasControlPage> {
                   onOpenController: () => widget.onNavigate?.call(AppRoute.controllers),
                   power: _isElectrical(n) ? _svc.power : null,
                   onPower: _isElectrical(n) ? () => _openPowerHistory() : null,
-                  assignable: _isElectrical(n),
+                  assignable: false,
                 ),
               ),
           ],
@@ -772,7 +674,7 @@ class _RasControlPageState extends State<RasControlPage> {
   }
 
   RasControlEvent? _lastEvent(RasFlowNodeLive n) {
-    final events = _svc.diagram?.activity ?? const <RasControlEvent>[];
+    final events = _diagram?.activity ?? const <RasControlEvent>[];
     for (final e in events) {
       if (e.title.toLowerCase().contains(n.displayLabel.toLowerCase()) ||
           e.title.toLowerCase().contains(_deviceTitle(n).toLowerCase()) ||
@@ -848,7 +750,7 @@ class _RasControlPageState extends State<RasControlPage> {
     }
     if (created == null) return;
     final incoming = [
-      for (final pipe in _svc.diagram?.flows ?? const <RasPipe>[])
+      for (final pipe in _diagram?.flows ?? const <RasPipe>[])
         if (pipe.toId == created.id) pipe.id,
     ];
     if (incoming.isEmpty) return;
@@ -1122,7 +1024,7 @@ class _RasControlPageState extends State<RasControlPage> {
     final pipes = _topologyPipes();
     final outgoing = pipes.where((p) => p.fromId == node.id).toList();
     final electrical = _isElectrical(node);
-    final action = await showDialog<String>(
+    await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(_deviceTitle(node)),
@@ -1158,41 +1060,17 @@ class _RasControlPageState extends State<RasControlPage> {
                 Row(
                   children: [
                     Expanded(child: Text(_pipeTarget(pipe.toId))),
-                    IconButton(
-                      tooltip: 'Gỡ ống',
-                      onPressed: () => Navigator.pop(ctx, 'cut:${pipe.id}'),
-                      icon: const Icon(Icons.link_off, size: 18),
-                    ),
+
                   ],
                 ),
             ],
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, 'edit'), child: const Text('Sửa thông tin')),
-          TextButton(onPressed: () => Navigator.pop(ctx, 'connect'), child: const Text('Nối tới')),
-          if (electrical)
-            TextButton(onPressed: () => Navigator.pop(ctx, 'assign'), child: const Text('Gán actuator')),
-          TextButton(onPressed: () => Navigator.pop(ctx, 'delete'), child: const Text('Xóa')),
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng')),
         ],
       ),
     );
-    if (!mounted || action == null) return;
-    _toast('Cấu hình RAS thực hiện trên Web.');
-    return;
-    // ignore: dead_code
-    if (action == 'edit') {
-      await _editDevice(node);
-    } else if (action == 'assign') {
-      await _assignActuator(node);
-    } else if (action == 'delete') {
-      await _deleteDevice(node);
-    } else if (action == 'connect') {
-      await _connectNode(node);
-    } else if (action.startsWith('cut:')) {
-      await _dropPipe(node, action.substring(4));
-    }
   }
 
   String _pipeTarget(String id) {
@@ -1260,7 +1138,7 @@ class _RasControlPageState extends State<RasControlPage> {
     }
     final seen = <String>{};
     final pipes = <RasPipe>[];
-    for (final pipe in [...?_svc.diagram?.flows, ...extra]) {
+    for (final pipe in [...?_diagram?.flows, ...extra]) {
       if (hidden.contains(pipe.id)) continue;
       final key = '${pipe.fromId}>${pipe.toId}';
       if (!seen.add(key)) continue;
@@ -1468,11 +1346,7 @@ class _RasControlPageState extends State<RasControlPage> {
           const SizedBox(height: 10),
           Text('Chưa có thiết bị điều khiển.', style: bvText(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          MgmtOutlineButton(
-            onTap: _addDevice,
-            icon: Icons.add,
-            label: 'Thêm thiết bị',
-          ),
+          const Text('Liên hệ quản trị viên để cấu hình trên Web.'),
         ],
       ),
     );
@@ -1480,7 +1354,7 @@ class _RasControlPageState extends State<RasControlPage> {
 
   Widget _bottomPanels() {
     final alerts = _alerts();
-    final events = _svc.diagram?.activity ?? const <RasControlEvent>[];
+    final events = _diagram?.activity ?? const <RasControlEvent>[];
     return LayoutBuilder(
       builder: (context, c) {
         final wide = c.maxWidth > 1000;
@@ -2133,7 +2007,7 @@ const _espRanges = [
 ];
 
 class _EspMonitor extends StatefulWidget {
-  const _EspMonitor({required this.power, required this.loadHistory});
+  const _EspMonitor({super.key, required this.power, required this.loadHistory});
 
   final PowerSnapshot power;
   final Future<List<Map<String, dynamic>>> Function(String sensorId, Duration range) loadHistory;
@@ -2553,6 +2427,7 @@ class _DeviceCard extends StatelessWidget {
     required this.node,
     required this.title,
     required this.pending,
+    required this.controlsEnabled,
     required this.commandSource,
     required this.level,
     required this.lowFloat,
@@ -2574,6 +2449,7 @@ class _DeviceCard extends StatelessWidget {
   final RasFlowNodeLive node;
   final String title;
   final String? pending;
+  final bool controlsEnabled;
   final String commandSource;
   final String? level;
   final String lowFloat;
@@ -2593,21 +2469,21 @@ class _DeviceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final offline = node.isOnline == false;
+    final offline = node.isOnline != true;
     final error = node.status.toLowerCase() == 'alarm' || node.status.toLowerCase() == 'error';
-    final on = liveOn ?? node.isOn;
+    final on = liveOn;
     final running = on == true && !offline && !error;
     final statusLabel = tank
         ? (level ?? 'Chưa gán')
         : pump
-            ? (on == true ? 'Mở' : 'Tắt')
+            ? (on == null ? 'Chưa xác nhận' : on ? 'Mở' : 'Tắt')
             : (error
                 ? 'Lỗi'
                 : offline
                     ? 'Mất kết nối'
                     : running
                         ? 'Đang chạy'
-                        : 'Đang tắt');
+                        : on == false ? 'Đang tắt' : 'Chưa xác nhận');
     final statusColor = tank
         ? (_levelColor(level) ?? const Color(0xFF94A3B8))
         : pump
@@ -2619,7 +2495,7 @@ class _DeviceCard extends StatelessWidget {
                     : running
                         ? DashboardColors.brand
                         : DashboardColors.textMuted);
-    final canCmd = node.hasRelay && !offline && pending == null;
+    final canCmd = controlsEnabled && node.hasRelay && !offline && pending == null;
     final manualOk = canCmd && !node.isAuto;
     return Container(
       padding: const EdgeInsets.all(14),
@@ -2647,19 +2523,11 @@ class _DeviceCard extends StatelessWidget {
                 tooltip: 'Thao tác',
                 onSelected: onMenu,
                 itemBuilder: (_) => [
-                  if (tank) const PopupMenuItem(value: 'edit', child: Text('Gán phao')),
                   if (!tank) const PopupMenuItem(value: 'history', child: Text('Xem lịch sử')),
                   if (!tank && power != null)
                     const PopupMenuItem(value: 'power', child: Text('Lịch sử điện')),
                   if (!tank) const PopupMenuItem(value: 'controller', child: Text('Xem Controller')),
-                  if (assignable)
-                    const PopupMenuItem(value: 'relay', child: Text('Gán actuator')),
-                  const PopupMenuItem(value: 'delete', child: Text('Xóa thiết bị')),
-                  if (!tank) ...[
-                    const PopupMenuItem(value: 'auto', child: Text('Cấu hình AUTO')),
-                    const PopupMenuItem(value: 'schedule', child: Text('Lịch chạy')),
-                  ],
-                  if (!tank && node.hasRelay && !node.isAuto && !offline) ...[
+                  if (!tank && manualOk) ...[
                     const PopupMenuItem(value: 'on', child: Text('Bật')),
                     const PopupMenuItem(value: 'off', child: Text('Tắt')),
                   ],
@@ -2673,7 +2541,7 @@ class _DeviceCard extends StatelessWidget {
               children: [
                 _modeBtn(pump ? 'Mở' : 'Bật', on == true, manualOk ? onOn : null, 'Bật $title'),
                 const SizedBox(width: 6),
-                _modeBtn('Tắt', on != true, manualOk ? onOff : null, 'Tắt $title'),
+                _modeBtn('Tắt', on == false, manualOk ? onOff : null, 'Tắt $title'),
               ],
             ),
           ],
@@ -2682,13 +2550,7 @@ class _DeviceCard extends StatelessWidget {
             _meta('Trạng thái', statusLabel, color: statusColor),
             _meta('Phao dưới', lowFloat),
             _meta('Phao trên', highFloat),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton(
-                onPressed: () => onMenu('edit'),
-                child: const Text('Gán phao'),
-              ),
-            ),
+
           ] else ...[
           _meta('Vị trí', '${node.sortOrder}'),
           _meta('Controller', node.relayDeviceId == null ? 'Chưa gán' : 'Đã gán'),
@@ -2700,6 +2562,11 @@ class _DeviceCard extends StatelessWidget {
           _meta('Thời gian chạy', on == true ? _runtime(node) : '—'),
           _meta('Lần thay đổi', node.lastCommandAt == null ? '—' : fmtDateTimeVn(node.lastCommandAt)),
           _meta('Nguồn lệnh', commandSource),
+          if (node.hasRelay) ...[
+            _meta('Trạng thái lệnh', node.commandLabel),
+            _meta('Yêu cầu', node.desiredIsOn == null ? '—' : node.desiredIsOn! ? 'Bật' : 'Tắt'),
+            _meta('Thiết bị báo lúc', node.lastReportedAt == null ? '—' : fmtDateTimeVn(node.lastReportedAt)),
+          ],
           if (power?.hasData == true) _powerBlock(),
           if (offline) ...[
             const SizedBox(height: 8),
@@ -3070,7 +2937,7 @@ class _RasCanvas extends StatefulWidget {
   final List<RasPipe> pipes;
   final String Function(RasFlowNodeLive) titleOf;
   final ValueChanged<RasFlowNodeLive> onOpen;
-  final VoidCallback onAdd;
+  final VoidCallback? onAdd;
   final String? Function(RasFlowNodeLive) meterOf;
   final String? Function(RasFlowNodeLive) levelOf;
   final String Function(RasFlowNodeLive) kindOf;
@@ -3189,7 +3056,7 @@ class _RasCanvasState extends State<_RasCanvas> with SingleTickerProviderStateMi
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            MgmtOutlineButton(onTap: widget.onAdd, icon: Icons.add, label: 'Thêm mới'),
+            if (widget.onAdd != null) MgmtOutlineButton(onTap: widget.onAdd, icon: Icons.add, label: 'Thêm mới'),
             MgmtOutlineButton(
               onTap: () => _setScale(_scale / 1.2),
               icon: Icons.zoom_out,
@@ -3283,8 +3150,8 @@ class _RasCanvasState extends State<_RasCanvas> with SingleTickerProviderStateMi
 
   Widget _canvasNode(RasFlowNodeLive n) {
     final error = n.status.toLowerCase() == 'alarm' || n.status.toLowerCase() == 'error';
-    final offline = n.isOnline == false;
-    final on = widget.liveOf(n) ?? n.isOn;
+    final offline = n.isOnline != true;
+    final on = widget.liveOf(n);
     final running = n.hasRelay && on == true && !offline && !error;
     final kind = widget.kindOf(n);
     final level = widget.levelOf(n);
@@ -3295,7 +3162,7 @@ class _RasCanvasState extends State<_RasCanvas> with SingleTickerProviderStateMi
       status = level ?? 'Chưa gán';
       color = _levelColor(level) ?? const Color(0xFF94A3B8);
     } else if (kind == 'pump') {
-      status = open ? 'Mở' : 'Tắt';
+      status = on == null ? 'Chưa xác nhận' : open ? 'Mở' : 'Tắt';
       color = open ? DashboardColors.brand : const Color(0xFF94A3B8);
     } else {
       color = error
@@ -3312,7 +3179,7 @@ class _RasCanvasState extends State<_RasCanvas> with SingleTickerProviderStateMi
               : running
                   ? 'Đang chạy'
                   : n.hasRelay
-                      ? 'Tắt'
+                      ? (on == null ? 'Chưa xác nhận' : 'Tắt')
                       : 'Online';
     }
     return Container(
