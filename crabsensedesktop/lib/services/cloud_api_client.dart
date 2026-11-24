@@ -728,6 +728,65 @@ class CloudApiClient {
   Future<List<Map<String, dynamic>>> fetchFrozenTransactions(String token, {required String farmingAreaId}) =>
       _getDataList(token, '/api/frozen-storage-transactions', farmingAreaId: farmingAreaId);
 
+  Future<List<Map<String, dynamic>>> fetchFrozenCrabItems(String token, String lotId, {required String farmingAreaId}) =>
+      _getDataList(token, '/api/frozen-lots/$lotId/crab-items', farmingAreaId: farmingAreaId);
+
+  Future<List<Map<String, dynamic>>> fetchFrozenAdjustments(String token, String lotId, {required String farmingAreaId}) =>
+      _getDataList(token, '/api/frozen-inventory-adjustments', farmingAreaId: farmingAreaId,
+        extraQuery: {'frozenLotId': lotId});
+
+  Future<List<Map<String, dynamic>>> fetchFrozenOpeningBalances(String token, {required String farmingAreaId}) =>
+      _getDataList(token, '/api/frozen-opening-balances', farmingAreaId: farmingAreaId);
+
+  Future<void> createFrozenLot(String token, {required String farmingAreaId,
+    required String lotCode, String? harvestVoucherId, required DateTime frozenDate,
+    required DateTime expiryDate, String? grade, String? storageLocation,
+  }) => _writeFrozen(token, 'POST', '/api/frozen-lots', farmingAreaId, {
+    'lotCode': lotCode, 'harvestVoucherId': harvestVoucherId,
+    'farmingAreaId': farmingAreaId, 'frozenDate': frozenDate.toIso8601String(),
+    'expiryDate': expiryDate.toIso8601String(), 'grade': grade,
+    'storageLocation': storageLocation, 'quantity': 0, 'weightKg': 0,
+  });
+
+  Future<void> updateFrozenLot(String token, String id, {required String farmingAreaId,
+    required DateTime frozenDate, required DateTime expiryDate, String? grade,
+    String? storageLocation, required int quantity, required num weightKg, required String status,
+  }) => _writeFrozen(token, 'PUT', '/api/frozen-lots/$id', farmingAreaId, {
+    'frozenDate': frozenDate.toIso8601String(), 'expiryDate': expiryDate.toIso8601String(),
+    'grade': grade, 'storageLocation': storageLocation,
+    'quantity': quantity, 'weightKg': weightKg, 'status': status,
+  });
+
+  Future<void> deleteFrozenLot(String token, String id, {required String farmingAreaId}) =>
+      _writeFrozen(token, 'DELETE', '/api/frozen-lots/$id', farmingAreaId, null);
+
+  Future<void> reconcileFrozenCrabItems(String token, String lotId, {
+    required String farmingAreaId, required List<String> availableItemIds, required String reason,
+  }) => _writeFrozen(token, 'POST', '/api/frozen-lots/$lotId/crab-items/reconcile', farmingAreaId, {
+    'availableItemIds': availableItemIds, 'reason': reason,
+  });
+
+  Future<void> verifyFrozenOpeningBalance(String token, String id, {
+    required String farmingAreaId, required int quantity, required num weightKg, required String reason,
+  }) => _writeFrozen(token, 'POST', '/api/frozen-opening-balances/$id/verify', farmingAreaId, {
+    'openingQuantity': quantity, 'openingWeightKg': weightKg, 'reason': reason,
+  });
+
+  Future<void> _writeFrozen(String token, String method, String path, String area, Map<String, dynamic>? payload) async {
+    if (area.trim().isEmpty) throw CloudApiException('Thiếu khu nuôi.');
+    final uri = Uri.parse('$_base$path');
+    final headers = {...authHeaders(token, farmId: area), 'Content-Type': 'application/json'};
+    final body = payload == null ? null : jsonEncode(payload);
+    final http.Response res;
+    switch (method) {
+      case 'POST': res = await _client.post(uri, headers: headers, body: body); break;
+      case 'PUT': res = await _client.put(uri, headers: headers, body: body); break;
+      case 'DELETE': res = await _client.delete(uri, headers: headers); break;
+      default: throw CloudApiException('Thao tác kho không hợp lệ.');
+    }
+    _throwIfFailed(res, _decode(res), uri.path);
+  }
+
   Future<void> decideFrozenTransaction(String token, String id, {
     required String farmingAreaId, required bool approve, String? reason,
   }) async {

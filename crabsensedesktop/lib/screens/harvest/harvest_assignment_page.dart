@@ -39,6 +39,7 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
   bool _loading = false;
   bool _submitting = false;
   int _loadVersion = 0;
+  int _submitVersion = 0;
   List<Map<String, dynamic>> _assignments = [];
 
   @override
@@ -57,6 +58,9 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
 
     // Đổi khu thì tải lại dữ liệu và bỏ các lựa chọn thuộc khu cũ.
     if (oldWidget.areaId != widget.areaId && widget.isManager) {
+      ++_submitVersion;
+      _submitting = false;
+      _notesController.clear();
       _selectedStaffId = null;
       _selectedCrabIds.clear();
       _staff = [];
@@ -122,6 +126,8 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
   Future<void> _submit() async {
     if (_submitting || _loading || _selectedStaffId == null || _selectedCrabIds.isEmpty) return;
     final area = widget.areaId;
+    final version = ++_submitVersion;
+    final submittedIds = _selectedCrabIds.toList(growable: false);
 
     setState(() {
       _submitting = true;
@@ -132,7 +138,7 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
       final result = await widget.service.createAssignment(
         farmingAreaId: area,
         assignedToUserId: _selectedStaffId!,
-        crabIds: _selectedCrabIds.toList(growable: false),
+        crabIds: submittedIds,
         notes: _notesController.text,
       );
 
@@ -141,11 +147,11 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
               'Nhiệm vụ mới')
           .toString();
 
-      if (!mounted || area != widget.areaId) return;
+      if (!mounted || area != widget.areaId || version != _submitVersion) return;
 
       // Bỏ cua vừa giao khỏi danh sách hiện tại để tránh chọn lại ngay.
       setState(() {
-        _crabs.removeWhere((crab) => _selectedCrabIds.contains(crab.id));
+        _crabs = _crabs.where((crab) => !submittedIds.contains(crab.id)).toList();
         _selectedCrabIds.clear();
         _selectedStaffId = null;
         _notesController.clear();
@@ -157,9 +163,9 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
       await _loadData();
     } catch (e) {
       // Hiển thị lỗi BE, ví dụ cua đã nằm trong task khác.
-      if (mounted) setState(() => _error = '$e');
+      if (mounted && version == _submitVersion && area == widget.areaId) setState(() => _error = '$e');
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted && version == _submitVersion && area == widget.areaId) setState(() => _submitting = false);
     }
   }
 
