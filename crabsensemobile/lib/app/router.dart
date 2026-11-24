@@ -1,3 +1,4 @@
+import '../features/authentication/domain/entities/user.dart' show UserRoleExtension;
 /// GoRouter configuration for the CrabSense mobile application.
 ///
 /// Defines the complete route tree, authentication guards, deep-link
@@ -149,7 +150,7 @@ GoRouter createRouter(AuthBloc authBloc) {
       final authState = authBloc.state;
       final path = state.fullPath ?? state.uri.path;
 
-      final isAuthenticated = authState is Authenticated;
+      final isAuthenticated = authState is Authenticated && authState.user.role.canUseMobile;
       final isInitializing = authState is AuthInitial;
 
       if (isInitializing) {

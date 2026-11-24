@@ -83,7 +83,7 @@ class CloudAuthService {
       if (!UserRoles.canUseDesktop(login.user.role)) {
         return CloudAuthResult.failure(
           'Role "${login.user.role}" không được vào Desktop. '
-          'Dùng owner/Owner@123, manager/Manager@123 hoặc staff/Staff@123.',
+          'Desktop chỉ dành cho Farm Manager.',
         );
       }
       return CloudAuthResult.success(
@@ -127,6 +127,10 @@ class CloudAuthService {
     if (stored == null) return null;
 
     var session = stored.session;
+    if (!UserRoles.canUseDesktop(session.user.role)) {
+      await _store.clearTokensKeepUsername();
+      return null;
+    }
     try {
       final me = await _api.authMe(session.token);
       return await _mergeMe(session, me, stored.username);
@@ -178,6 +182,10 @@ class CloudAuthService {
     if (refresh == null || refresh.isEmpty) return null;
     try {
       final next = await _api.refresh(refresh);
+      if (next.user == null || !UserRoles.canUseDesktop(next.user!.role)) {
+        await clearSession();
+        return null;
+      }
       final updated = session.copyWith(
         token: next.token,
         refreshToken: next.refreshToken ?? refresh,
@@ -224,11 +232,15 @@ class CloudAuthService {
     }
   }
 
-  Future<AuthSession> _mergeMe(
+  Future<AuthSession?> _mergeMe(
     AuthSession session,
     AuthMePayload me,
     String? username,
   ) async {
+    if (!UserRoles.canUseDesktop(me.user.role)) {
+      await clearSession();
+      return null;
+    }
     final farms = me.farms.isEmpty ? const [FarmSummary.unassigned] : me.farms;
     final selected = farms.any((f) => f.id == session.selectedFarm.id)
         ? farms.firstWhere((f) => f.id == session.selectedFarm.id)

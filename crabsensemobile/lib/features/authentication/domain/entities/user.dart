@@ -111,63 +111,42 @@ class User {
   }
 }
 
-/// User roles determining access permissions in the CrabSense system.
-///
-/// Based on Requirement 19: Role-Based Access Control
-/// - Admin: Full system access to all features
-/// - Farm Manager: All Field Operator features plus user management
-/// - Field Operator: Scanning, video capture, inspections, operations, harvests
-/// - Sales: Sales creation, harvest viewing, inventory
-/// - Viewer: Read-only access to dashboard, water quality, reports
+/// Canonical BE role names. Unknown is a local deny-all sentinel.
 enum UserRole {
-  /// Administrator with full system permissions
-  admin,
+  systemAdministrator('SystemAdministrator'),
+  farmAdministrator('FarmAdministrator'),
+  farmManager('FarmManager'),
+  farmStaff('FarmStaff'),
+  unknown('Unknown');
 
-  /// Farm manager with operator features plus user management
-  farmManager,
+  const UserRole(this.apiValue);
+  final String apiValue;
 
-  /// Field operator with field operation permissions
-  fieldOperator,
+  static UserRole parse(Object? raw) => values.firstWhere(
+    (role) => role != unknown && role.apiValue == raw,
+    orElse: () => unknown,
+  );
 
-  /// Sales role with sales and inventory permissions
-  sales,
-
-  /// Viewer with read-only access
-  viewer,
+  // Transitional source aliases only; never accepted as wire values.
+  static const admin = systemAdministrator;
+  static const fieldOperator = farmStaff;
+  static const viewer = unknown;
+  static const sales = farmManager;
 }
 
-/// Extension on UserRole to provide helper methods
 extension UserRoleExtension on UserRole {
-  /// Returns the display name for the role
-  String get displayName {
-    switch (this) {
-      case UserRole.admin:
-        return 'Admin';
-      case UserRole.farmManager:
-        return 'Farm Manager';
-      case UserRole.fieldOperator:
-        return 'Field Operator';
-      case UserRole.sales:
-        return 'Sales';
-      case UserRole.viewer:
-        return 'Viewer';
-    }
-  }
+  String get displayName => switch (this) {
+    UserRole.systemAdministrator => 'System Administrator',
+    UserRole.farmAdministrator => 'Farm Administrator',
+    UserRole.farmManager => 'Farm Manager',
+    UserRole.farmStaff => 'Farm Staff',
+    UserRole.unknown => 'Unknown',
+  };
 
-  /// Returns true if the role has admin privileges
-  bool get isAdmin => this == UserRole.admin;
-
-  /// Returns true if the role can manage users
-  bool get canManageUsers => this == UserRole.admin || this == UserRole.farmManager;
-
-  /// Returns true if the role can perform field operations
-  bool get canPerformFieldOperations =>
-      this == UserRole.admin || this == UserRole.farmManager || this == UserRole.fieldOperator;
-
-  /// Returns true if the role can manage sales
-  bool get canManageSales =>
-      this == UserRole.admin || this == UserRole.farmManager || this == UserRole.sales;
-
-  /// Returns true if the role has write access
-  bool get hasWriteAccess => this != UserRole.viewer;
+  bool get canUseMobile => this == UserRole.farmStaff;
+  bool get isAdmin => this == UserRole.systemAdministrator || this == UserRole.farmAdministrator;
+  bool get canManageUsers => isAdmin || this == UserRole.farmManager;
+  bool get canPerformFieldOperations => isAdmin || this == UserRole.farmManager || this == UserRole.farmStaff;
+  bool get canManageSales => isAdmin || this == UserRole.farmManager;
+  bool get hasWriteAccess => this != UserRole.unknown;
 }

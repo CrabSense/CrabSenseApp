@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/errors/exceptions.dart';
-import '../../domain/entities/user.dart';
 import '../models/user_model.dart';
 
 /// Remote data source for authentication operations via the backend API.
@@ -98,7 +97,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     try {
       final response = await dio.post(
         '${ApiConstants.apiBaseUrl}${ApiConstants.googleLogin}',
-        data: {'idToken': idToken ?? 'google-mock-id-token'},
+        data: {'idToken': idToken},
       );
 
       if (response.statusCode == 200 && response.data != null) {
@@ -106,23 +105,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }
       throw ServerException(message: 'Unexpected response format', statusCode: response.statusCode);
     } on DioException catch (e) {
-      if (e.response?.statusCode == 404 || e.type == DioExceptionType.connectionError) {
-        final now = DateTime.now();
-        return AuthResponse(
-          accessToken: 'mock_google_access_token',
-          refreshToken: 'mock_google_refresh_token',
-          accessTokenExpiresAt: now.add(const Duration(hours: 1)),
-          refreshTokenExpiresAt: now.add(const Duration(days: 7)),
-          user: UserModel(
-            id: 'google_user_001',
-            email: 'user@google.com',
-            name: 'Google User',
-            role: UserRole.fieldOperator,
-            assignedFarmIds: const ['farm_001'],
-            createdAt: now,
-          ),
-        );
-      }
       throw _handleDioException(e);
     }
   }

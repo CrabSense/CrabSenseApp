@@ -50,6 +50,10 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, User>> login({required String email, required String password}) async {
     try {
       final response = await remoteDataSource.login(email: email, password: password);
+      if (!response.user.role.canUseMobile) {
+        await localDataSource.clearAuthData();
+        return const Left(AuthenticationFailure('Mobile chỉ dành cho Farm Staff.'));
+      }
       await _persistAuthResponse(response);
       return Right(response.user.toEntity());
     } on ServerException catch (e) {
@@ -69,6 +73,10 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, User>> loginWithGoogle({String? idToken}) async {
     try {
       final response = await remoteDataSource.loginWithGoogle(idToken: idToken);
+      if (!response.user.role.canUseMobile) {
+        await localDataSource.clearAuthData();
+        return const Left(AuthenticationFailure('Mobile chỉ dành cho Farm Staff.'));
+      }
       await _persistAuthResponse(response);
       return Right(response.user.toEntity());
     } on ServerException catch (e) {
@@ -113,6 +121,10 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       final storedRefreshToken = await localDataSource.getRefreshToken();
       final response = await remoteDataSource.refreshToken(storedRefreshToken);
+      if (!response.user.role.canUseMobile) {
+        await localDataSource.clearAuthData();
+        return const Left(AuthenticationFailure('Mobile chỉ dành cho Farm Staff.'));
+      }
       await _persistAuthResponse(response);
       return Right(response.user.toEntity());
     } on CacheException catch (e) {
@@ -172,7 +184,11 @@ class AuthRepositoryImpl implements AuthRepository {
       final isTokenValid = await localDataSource.isAuthenticated();
       if (isTokenValid) {
         final user = await localDataSource.getCachedUser();
-        return Right(user.toEntity());
+        if (!user.role.canUseMobile) {
+        await localDataSource.clearAuthData();
+        return const Left(AuthenticationFailure('Mobile chỉ dành cho Farm Staff.'));
+      }
+      return Right(user.toEntity());
       }
       // Token expired — attempt a silent refresh.
       return refreshToken();
@@ -197,6 +213,10 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, User>> getCurrentUser() async {
     try {
       final user = await localDataSource.getCachedUser();
+      if (!user.role.canUseMobile) {
+        await localDataSource.clearAuthData();
+        return const Left(AuthenticationFailure('Mobile chỉ dành cho Farm Staff.'));
+      }
       return Right(user.toEntity());
     } on CacheException catch (e) {
       return Left(CacheFailure(e.message, e.code));
