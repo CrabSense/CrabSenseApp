@@ -230,7 +230,7 @@ class _CrabGrowthMoltTabState extends State<CrabGrowthMoltTab> {
       _Kpi(
         icon: Icons.autorenew_rounded,
         label: 'Số lần lột xác',
-        value: loading ? null : '${data?.molts.length ?? 0} lần',
+        value: loading ? null : '${data?.molts.where((m)=>!m.isVoided).length ?? 0} lần',
       ),
       _Kpi(
         icon: Icons.calendar_today_outlined,

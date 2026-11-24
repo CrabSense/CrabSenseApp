@@ -51,6 +51,7 @@ class CrabService extends ChangeNotifier {
   AuthSession _session;
   final CloudApiClient _api;
   int _scopeGeneration = 0;
+  int get scopeGeneration => _scopeGeneration;
   int _listVersion = 0;
   bool _disposed = false;
   bool _current(int generation) => !_disposed && generation == _scopeGeneration;

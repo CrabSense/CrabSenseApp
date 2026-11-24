@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/crab/history_corrections.dart';
 import 'package:flutter/services.dart';
 
 import '../../models/box_alert.dart';
@@ -773,7 +774,13 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
           onOpenHistory: () => _tabs.animateTo(5),
         );
       default:
-        return BoxHistoryTab(
+        return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          if(widget.crabService?.canManageCurrentArea==true && widget.crabService?.farmId==widget.areaId)
+            Align(alignment:Alignment.centerRight,child:OutlinedButton.icon(icon:const Icon(Icons.edit_note),label:const Text('Hiệu chỉnh lịch sử hộp'),onPressed:() async {
+              final changed=await showHistoryCorrections(context,widget.crabService!,entityId:_box.id,byBox:true,label:_box.boxCode);
+              if(mounted&&changed==true)_reload();
+            })),
+          BoxHistoryTab(
           box: _box,
           profileService: _svc,
           areaId: widget.areaId,
@@ -787,7 +794,7 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
           onOpenCamera: () => _tabs.animateTo(3),
           onOpenSensors: () => _tabs.animateTo(2),
           onOpenAlerts: () => _tabs.animateTo(4),
-        );
+        )]);
     }
   }
 

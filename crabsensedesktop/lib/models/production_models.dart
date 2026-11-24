@@ -570,6 +570,10 @@ class FarmingBatchRecord {
   const FarmingBatchRecord({
     this.farmingAreaIds = const [],
     this.isPartialScope = false,
+    this.closedAt,
+    this.stockedAt,
+    this.closeDisposition,
+    this.closeCounts = const {},
     required this.id,
     required this.boxId,
     required this.batchCode,
@@ -599,6 +603,10 @@ class FarmingBatchRecord {
 
   final List<String> farmingAreaIds;
   final bool isPartialScope;
+  final DateTime? closedAt, stockedAt;
+  final String? closeDisposition;
+  final Map<String, int> closeCounts;
+  bool get isClosed => closedAt != null;
   final String id;
   final String boxId;
   final String batchCode;
@@ -707,6 +715,12 @@ class FarmingBatchRecord {
     return FarmingBatchRecord(
       farmingAreaIds: linkedAreas is List ? linkedAreas.map((v) => v.toString()).toList() : const [],
       isPartialScope: (json['isPartialScope'] ?? json['IsPartialScope']) == true,
+      closedAt: _parseDate(json['closedAt'] ?? json['ClosedAt']),
+      stockedAt: _parseDate(json['stockedAt'] ?? json['StockedAt']),
+      closeDisposition: (json['closeDisposition'] ?? json['CloseDisposition'])?.toString(),
+      closeCounts: {for (final key in const ['registeredCountAtClose','aliveCountAtClose','unmoltedCountAtClose','moltedCountAtClose','harvestedCountAtClose','deadCountAtClose','unstockedCountAtClose'])
+        if ((json[key] ?? json[key[0].toUpperCase()+key.substring(1)]) is num)
+          key: ((json[key] ?? json[key[0].toUpperCase()+key.substring(1)]) as num).toInt()},
       id: (json['id'] ?? json['Id']).toString(),
       boxId: (json['boxId'] ?? json['BoxId'] ?? '').toString(),
       boxCode: (json['boxCode'] ?? json['BoxCode'])?.toString(),
