@@ -38,6 +38,8 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
   String? _error;
   bool _loading = false;
   bool _submitting = false;
+  int _loadVersion = 0;
+  List<Map<String, dynamic>> _assignments = [];
 
   @override
   void initState() {
@@ -57,6 +59,9 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
     if (oldWidget.areaId != widget.areaId && widget.isManager) {
       _selectedStaffId = null;
       _selectedCrabIds.clear();
+      _staff = [];
+      _crabs = [];
+      _assignments = [];
       _loadData();
     }
   }
@@ -69,6 +74,8 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
   }
 
   Future<void> _loadData() async {
+    final version = ++_loadVersion;
+    final area = widget.areaId;
     setState(() {
       _loading = true;
       _error = null;
@@ -76,16 +83,19 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
 
     try {
       final staff = await widget.service.loadStaff(
-        farmingAreaId: widget.areaId,
+        farmingAreaId: area,
       );
       final crabs = await widget.service.loadAliveCrabs(
-        farmingAreaId: widget.areaId,
+        farmingAreaId: area,
       );
 
-      if (!mounted) return;
+      final assignments = await widget.service.loadAssignments(area);
+      if (!mounted || version != _loadVersion || area != widget.areaId) return;
       setState(() {
+        _assignments = assignments;
         _staff = staff;
         _crabs = crabs;
+        _selectedCrabIds.retainAll(crabs.map((c) => c.id).toSet());
 
         // Bảo đảm không giữ một nhân viên không thuộc khu đang chọn.
         if (!_staff.any((item) => item.id == _selectedStaffId)) {
@@ -93,9 +103,9 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
         }
       });
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (mounted && version == _loadVersion) setState(() => _error = '$e');
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && version == _loadVersion) setState(() => _loading = false);
     }
   }
 
@@ -110,7 +120,8 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
   }
 
   Future<void> _submit() async {
-    if (_selectedStaffId == null || _selectedCrabIds.isEmpty) return;
+    if (_submitting || _loading || _selectedStaffId == null || _selectedCrabIds.isEmpty) return;
+    final area = widget.areaId;
 
     setState(() {
       _submitting = true;
@@ -119,7 +130,7 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
 
     try {
       final result = await widget.service.createAssignment(
-        farmingAreaId: widget.areaId,
+        farmingAreaId: area,
         assignedToUserId: _selectedStaffId!,
         crabIds: _selectedCrabIds.toList(growable: false),
         notes: _notesController.text,
@@ -130,7 +141,7 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
               'Nhiệm vụ mới')
           .toString();
 
-      if (!mounted) return;
+      if (!mounted || area != widget.areaId) return;
 
       // Bỏ cua vừa giao khỏi danh sách hiện tại để tránh chọn lại ngay.
       setState(() {
@@ -143,6 +154,7 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Đã giao nhiệm vụ $code.')),
       );
+      await _loadData();
     } catch (e) {
       // Hiển thị lỗi BE, ví dụ cua đã nằm trong task khác.
       if (mounted) setState(() => _error = '$e');
@@ -162,11 +174,14 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
       );
     }
 
+    if (widget.areaId.isEmpty) return const Center(child: Text('Chưa được phân công khu nuôi.'));
     final crabs = _visibleCrabs;
 
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
+        _assignmentHistory(),
+        const SizedBox(height: 16),
         Row(
           children: [
             const Icon(
@@ -387,6 +402,56 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
         ),
       ],
     );
+  }
+
+  Widget _assignmentHistory() {
+    return Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Theo dõi nhiệm vụ đã giao', style: bvText(fontSize: 17, fontWeight: FontWeight.w700)),
+        if (_loading) const LinearProgressIndicator(),
+        if (!_loading && _assignments.isEmpty) const Text('Chưa có nhiệm vụ trong khu.'),
+        for (final item in _assignments)
+          ListTile(
+            title: Text((item['assignmentCode'] ?? 'Nhiệm vụ').toString()),
+            subtitle: Text('Trạng thái: ${item['status'] ?? '—'} · Cua: ${item['lineCount'] ?? 0} · Đã thu: ${item['harvestedCount'] ?? 0} · Hoãn: ${item['deferredCount'] ?? 0}'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _openAssignment(item),
+          ),
+      ],
+    )));
+  }
+
+  Future<void> _openAssignment(Map<String, dynamic> item) async {
+    final area = widget.areaId;
+    final id = (item['id'] ?? '').toString();
+    try {
+      final detail = await widget.service.loadAssignmentDetail(area, id);
+      if (!mounted || area != widget.areaId) return;
+      final lines = detail['lines'];
+      final vouchers = detail['vouchers'];
+      await showDialog<void>(context: context, builder: (ctx) => AlertDialog(
+        title: Text((detail['assignmentCode'] ?? 'Chi tiết nhiệm vụ').toString()),
+        content: SizedBox(width: 600, child: SingleChildScrollView(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Trạng thái: ${detail['status'] ?? '—'}'),
+            Text('Ghi chú: ${detail['notes'] ?? '—'}'),
+            const Divider(),
+            if (lines is List) for (final line in lines.whereType<Map>())
+              ListTile(title: Text('${line['crabCode'] ?? '—'} · ${line['status'] ?? '—'}'),
+                subtitle: Text('Hộp: ${line['boxCode'] ?? '—'} · Khối lượng: ${line['weightGram'] ?? line['pendingWeightGram'] ?? '—'} g\n${line['eligibilityReason'] ?? ''}')),
+            const Divider(),
+            const Text('Phiếu thu hoạch liên quan'),
+            if (vouchers is List) for (final v in vouchers.whereType<Map>())
+              ListTile(title: Text('${v['voucherCode'] ?? '—'} · ${v['status'] ?? '—'}'),
+                subtitle: Text('${v['totalQuantity'] ?? 0} cua · ${v['totalWeightKg'] ?? 0} kg')),
+          ],
+        ))),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng'))],
+      ));
+    } catch (e) {
+      if (mounted && area == widget.areaId) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
   }
 
   /// Dùng chung kiểu input với các màn hình quản trị hiện tại.
