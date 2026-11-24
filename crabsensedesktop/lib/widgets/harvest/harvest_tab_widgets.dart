@@ -838,11 +838,9 @@ class HarvestSlipTable extends StatelessWidget {
                               onSelected: (a) => onAction(slip, a),
                               itemBuilder: (_) => [
                                 const PopupMenuItem(value: HarvestRowAction.detail, child: Text('Xem chi tiết')),
-                                const PopupMenuItem(value: HarvestRowAction.print, child: Text('In phiếu')),
-                                const PopupMenuItem(value: HarvestRowAction.pdf, child: Text('Tải PDF')),
-                                if (slip.isDraft) ...[
-                                  const PopupMenuItem(value: HarvestRowAction.edit, child: Text('Chỉnh sửa')),
-                                  const PopupMenuItem(value: HarvestRowAction.cancel, child: Text('Hủy phiếu')),
+                                if (slip.canApprove) ...[
+                                  const PopupMenuItem(value: HarvestRowAction.edit, child: Text('Duyệt phiếu')),
+                                  const PopupMenuItem(value: HarvestRowAction.cancel, child: Text('Từ chối phiếu')),
                                 ],
                                 if (slip.canTransferToSale)
                                   const PopupMenuItem(
@@ -852,7 +850,7 @@ class HarvestSlipTable extends StatelessWidget {
                                 if (slip.canComplete)
                                   const PopupMenuItem(
                                     value: HarvestRowAction.complete,
-                                    child: Text('Hoàn tất thu hoạch'),
+                                    child: Text('Xác nhận kết quả'),
                                   ),
                               ],
                             ),
@@ -1040,18 +1038,12 @@ class HarvestDetailPanel extends StatelessWidget {
                   const SizedBox(height: 8),
                   MgmtPrimaryButton(
                     icon: Icons.check_rounded,
-                    label: 'Hoàn tất thu hoạch',
+                    label: 'Xác nhận kết quả',
                     onTap: onComplete,
                   ),
                 ],
                 const SizedBox(height: 10),
-                Row(
-                  children: [
-                    MgmtOutlineButton(icon: Icons.print_outlined, label: 'In phiếu', onTap: onPrint),
-                    const SizedBox(width: 8),
-                    MgmtOutlineButton(icon: Icons.download_outlined, label: 'Tải xuống PDF', onTap: onPdf),
-                  ],
-                ),
+                if (s.rejectionReason?.isNotEmpty == true) Text('Lý do từ chối: ${s.rejectionReason}'),
               ],
             ),
           ),

@@ -929,8 +929,7 @@ class HarvestSalesService extends ChangeNotifier {
     List<String> photoUrls = const [],
     String status = 'InProgress',
   }) async {
-    final isDraft = status.toLowerCase() == 'planned';
-    if (!isDraft && crabs.isEmpty) {
+    if (crabs.isEmpty) {
       throw CloudApiException('Chọn ít nhất một con cua');
     }
     final preview = nextVoucherPreview;
@@ -951,7 +950,7 @@ class HarvestSalesService extends ChangeNotifier {
       farmingAreaId: _session.selectedFarm.id,
       performedByName: performedBy,
       photoUrls: photoUrls,
-      status: status,
+      status: 'PendingApproval',
       lines: [
         for (final c in crabs)
           {
@@ -975,19 +974,56 @@ class HarvestSalesService extends ChangeNotifier {
     return (id: id, code: code.isEmpty ? preview : code);
   }
 
-  Future<void> updateHarvestStatus(String id, String status) async {
-    await _api.updateHarvestVoucherStatus(_session.token, id, status: status);
+  Future<void> _decideHarvest(String id, String action, {String? reason}) async {
+    if (_session.user.role != UserRoles.farmManager || areaId.isEmpty) {
+      throw CloudApiException('Chỉ Farm Manager trong khu được phân công mới được quyết định.');
+    }
+    final slip = _harvests.where((v) => v.id == id).firstOrNull;
+    if (slip == null || (slip.farmingAreaId != null && slip.farmingAreaId != areaId)) {
+      throw CloudApiException('Phiếu không thuộc danh sách khu hiện tại.');
+    }
+    if ((action == 'confirm' && !slip.canComplete) ||
+        (action != 'confirm' && !slip.canApprove)) {
+      throw CloudApiException('Trạng thái phiếu không cho phép thao tác này.');
+    }
+    await _api.decideHarvestVoucher(_session.token, id,
+      action: action, reason: reason, farmingAreaId: areaId);
     await load();
   }
 
-  Future<void> completeHarvest(String id) =>
-      updateHarvestStatus(id, 'Completed');
+  Future<void> approveHarvest(String id) => _decideHarvest(id, 'approve');
+  Future<void> rejectHarvest(String id, String reason) =>
+      _decideHarvest(id, 'reject', reason: reason);
+  Future<void> completeHarvest(String id) => _decideHarvest(id, 'confirm');
+  Future<void> startHarvest(String id) => approveHarvest(id);
+  Future<void> cancelHarvest(String id) async {
+    throw CloudApiException('Vui lòng từ chối phiếu chờ duyệt và nhập lý do.');
+  }
 
-  Future<void> startHarvest(String id) =>
-      updateHarvestStatus(id, 'InProgress');
+  Future<List<Map<String, dynamic>>> loadFrozenLots() async {
+    final area = areaId;
+    if (area.isEmpty) return [];
+    final rows = await _api.fetchFrozenLots(_session.token, farmingAreaId: area);
+    return rows.where((r) => (r['farmingAreaId'] ?? r['FarmingAreaId']).toString() == area).toList();
+  }
 
-  Future<void> cancelHarvest(String id) =>
-      updateHarvestStatus(id, 'Cancelled');
+  Future<List<Map<String, dynamic>>> loadFrozenTransactions() async {
+    final area = areaId;
+    if (area.isEmpty) return [];
+    final rows = await _api.fetchFrozenTransactions(_session.token, farmingAreaId: area);
+    return rows.where((r) => (r['farmingAreaId'] ?? r['FarmingAreaId']).toString() == area).toList();
+  }
+
+  Future<void> decideFrozen(Map<String, dynamic> row, {required bool approve, String? reason}) async {
+    if (_session.user.role != UserRoles.farmManager || areaId.isEmpty ||
+        (row['farmingAreaId'] ?? row['FarmingAreaId']).toString() != areaId ||
+        (row['status'] ?? row['Status']).toString().toLowerCase() != 'pendingapproval') {
+      throw CloudApiException('Không có quyền hoặc phiếu không còn chờ duyệt.');
+    }
+    await _api.decideFrozenTransaction(_session.token, (row['id'] ?? row['Id'] ?? '').toString(),
+      farmingAreaId: areaId, approve: approve, reason: reason);
+    await load();
+  }
 
   Future<void> deleteHarvest(String id) async {
     await _api.deleteHarvestVoucher(_session.token, id);
@@ -1222,6 +1258,8 @@ class HarvestSalesService extends ChangeNotifier {
           (json['performedByName'] ?? json['PerformedByName'] ?? '').toString(),
       note: (json['notes'] ?? json['Notes'])?.toString(),
       status: rawStatus,
+      executionCompletedAt: DateTime.tryParse((json['executionCompletedAt'] ?? json['ExecutionCompletedAt'] ?? '').toString()),
+      rejectionReason: (json['rejectionReason'] ?? json['RejectionReason'])?.toString(),
       lines: lines,
       passedCount:
           (json['passedCount'] ?? json['PassedCount'] as num?)?.toInt() ??

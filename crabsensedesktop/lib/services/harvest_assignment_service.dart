@@ -30,14 +30,35 @@ class HarvestAssignmentService {
     return '${area.code} — ${area.name}';
   }
 
+  void _requireArea(String id) {
+    if (_session.user.role != UserRoles.farmManager ||
+        id.trim().isEmpty || id != selectedAreaId ||
+        !_session.farms.any((f) => f.id == id)) {
+      throw CloudApiException('Khu nuôi hoặc quyền Manager không hợp lệ.');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> loadAssignments(String areaId) async {
+    _requireArea(areaId);
+    final rows = await _api.fetchHarvestAssignments(_session.token, farmingAreaId: areaId);
+    return rows.where((row) => (row['farmingAreaId'] ?? row['FarmingAreaId']).toString() == areaId).toList();
+  }
+
+  Future<Map<String, dynamic>> loadAssignmentDetail(String areaId, String id) async {
+    _requireArea(areaId);
+    final detail = await _api.fetchHarvestAssignmentDetail(_session.token, id, farmingAreaId: areaId);
+    if ((detail['farmingAreaId'] ?? detail['FarmingAreaId']).toString() != areaId) {
+      throw CloudApiException('Nhiệm vụ không thuộc khu hiện tại.');
+    }
+    return detail;
+  }
+
   /// Tải các cua thuộc khu và chỉ trả về cua đang Alive.
   /// BE vẫn kiểm tra lại trạng thái và task đang mở khi tạo assignment.
   Future<List<CrabManagementListItem>> loadAliveCrabs({
     required String farmingAreaId,
   }) async {
-    if (farmingAreaId.trim().isEmpty) {
-      throw CloudApiException('Chưa chọn khu nuôi.');
-    }
+    _requireArea(farmingAreaId);
 
     final result = await _api.fetchFarmCrabs(
       _session.token,
@@ -62,9 +83,7 @@ class HarvestAssignmentService {
   Future<List<HarvestAssignmentStaff>> loadStaff({
     required String farmingAreaId,
   }) {
-    if (farmingAreaId.trim().isEmpty) {
-      throw CloudApiException('Chưa chọn khu nuôi.');
-    }
+    _requireArea(farmingAreaId);
 
     return _api.fetchHarvestAssignmentStaff(
       _session.token,
@@ -79,13 +98,11 @@ class HarvestAssignmentService {
     required List<String> crabIds,
     String? notes,
   }) {
-    if (farmingAreaId.trim().isEmpty) {
-      throw CloudApiException('Chưa chọn khu nuôi.');
-    }
+    _requireArea(farmingAreaId);
     if (assignedToUserId.trim().isEmpty) {
       throw CloudApiException('Vui lòng chọn nhân viên nhận việc.');
     }
-    if (crabIds.isEmpty) {
+    if (crabIds.isEmpty || crabIds.any((id) => id.trim().isEmpty) || crabIds.toSet().length != crabIds.length) {
       throw CloudApiException('Chọn ít nhất một con cua.');
     }
 

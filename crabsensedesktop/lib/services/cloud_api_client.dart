@@ -698,25 +698,49 @@ class CloudApiClient {
     return _asMap(_dataOf(body) ?? body);
   }
 
-  Future<Map<String, dynamic>> updateHarvestVoucherStatus(
-    String token,
-    String id, {
-    required String status,
+  Future<Map<String, dynamic>> decideHarvestVoucher(
+    String token, String id, {
+    required String action, String? reason, String? farmingAreaId,
   }) async {
-    final uri = Uri.parse('$_base/api/harvest-vouchers/$id/status');
-    final res = await _client.patch(
-      uri,
-      headers: {...authHeaders(token), 'Content-Type': 'application/json'},
-      body: jsonEncode({'status': status}),
-    );
-    final body = _decode(res);
-    if (_isApiFailure(res, body)) {
-      throw CloudApiException(
-        _errorMessage(body) ?? 'Không cập nhật trạng thái phiếu thu hoạch',
-        statusCode: res.statusCode,
-      );
+    if (!const {'approve', 'reject', 'confirm'}.contains(action) ||
+        id.trim().isEmpty || (action == 'reject' && (reason ?? '').trim().isEmpty)) {
+      throw CloudApiException('Thao tác hoặc lý do không hợp lệ.');
     }
+    final uri = Uri.parse('$_base/api/harvest-vouchers/$id/$action');
+    final res = await _client.post(uri,
+      headers: {...authHeaders(token, farmId: farmingAreaId), 'Content-Type': 'application/json'},
+      body: jsonEncode({if (action == 'reject') 'reason': reason!.trim()}));
+    final body = _decode(res);
+    _throwIfFailed(res, body, uri.path);
     return _asMap(_dataOf(body) ?? body);
+  }
+
+  Future<List<Map<String, dynamic>>> fetchHarvestAssignments(String token, {
+    required String farmingAreaId,
+  }) => _getDataList(token, '/api/harvest-assignments', farmingAreaId: farmingAreaId);
+
+  Future<Map<String, dynamic>> fetchHarvestAssignmentDetail(String token, String id, {
+    required String farmingAreaId,
+  }) => _getDataMap(token, '/api/harvest-assignments/$id', farmingAreaId: farmingAreaId);
+
+  Future<List<Map<String, dynamic>>> fetchFrozenLots(String token, {required String farmingAreaId}) =>
+      _getDataList(token, '/api/frozen-lots', farmingAreaId: farmingAreaId);
+  Future<List<Map<String, dynamic>>> fetchFrozenTransactions(String token, {required String farmingAreaId}) =>
+      _getDataList(token, '/api/frozen-storage-transactions', farmingAreaId: farmingAreaId);
+
+  Future<void> decideFrozenTransaction(String token, String id, {
+    required String farmingAreaId, required bool approve, String? reason,
+  }) async {
+    if (id.trim().isEmpty || farmingAreaId.trim().isEmpty ||
+        (!approve && (reason ?? '').trim().isEmpty)) {
+      throw CloudApiException('Thiếu phiếu, khu nuôi hoặc lý do từ chối.');
+    }
+    final action = approve ? 'approve' : 'reject';
+    final uri = Uri.parse('$_base/api/frozen-storage-transactions/$id/$action');
+    final res = await _client.post(uri,
+      headers: {...authHeaders(token, farmId: farmingAreaId), 'Content-Type': 'application/json'},
+      body: jsonEncode({if (!approve) 'reason': reason!.trim()}));
+    _throwIfFailed(res, _decode(res), uri.path);
   }
 
   Future<void> deleteHarvestVoucher(String token, String id) async {

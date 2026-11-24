@@ -430,6 +430,8 @@ class HarvestSlipDetail extends HarvestSlip {
     required super.performedBy,
     super.note,
     required this.status,
+    this.executionCompletedAt,
+    this.rejectionReason,
     required this.lines,
     this.passedCount = 0,
     this.failedCount = 0,
@@ -442,6 +444,8 @@ class HarvestSlipDetail extends HarvestSlip {
   });
 
   final String status;
+  final DateTime? executionCompletedAt;
+  final String? rejectionReason;
   final List<HarvestLineItem> lines;
   final int passedCount;
   final int failedCount;
@@ -478,26 +482,24 @@ class HarvestSlipDetail extends HarvestSlip {
     };
   }
 
-  String get statusLabel => harvestUiStatusLabel(uiStatus);
-
+  String get _state => status.trim().toLowerCase();
+  String get statusLabel => switch (_state) {
+    'pendingapproval' => 'Chờ duyệt',
+    'approved' => 'Đã duyệt, chờ Staff',
+    'rejected' => 'Đã từ chối',
+    'inprogress' when executionCompletedAt != null => 'Chờ Manager xác nhận',
+    _ => harvestUiStatusLabel(uiStatus),
+  };
   bool get isDraft => uiStatus == HarvestUiStatus.draft;
   bool get isPending => uiStatus == HarvestUiStatus.pending;
   bool get isInProgress => uiStatus == HarvestUiStatus.inProgress;
-  bool get isCompleted =>
-      uiStatus == HarvestUiStatus.completed ||
-      uiStatus == HarvestUiStatus.waitingSale ||
-      uiStatus == HarvestUiStatus.transferred;
+  bool get isCompleted => _state == 'completed';
   bool get isCancelled => uiStatus == HarvestUiStatus.cancelled;
-  bool get canTransferToSale =>
-      uiStatus == HarvestUiStatus.completed ||
-      uiStatus == HarvestUiStatus.waitingSale;
-  bool get canComplete =>
-      uiStatus == HarvestUiStatus.draft ||
-      uiStatus == HarvestUiStatus.pending ||
-      uiStatus == HarvestUiStatus.inProgress;
-  bool get canCancel =>
-      uiStatus == HarvestUiStatus.draft ||
-      uiStatus == HarvestUiStatus.pending;
+  bool get canTransferToSale => isCompleted && lines.isNotEmpty;
+  bool get canApprove => _state == 'pendingapproval' || _state == 'planned';
+  bool get canComplete => _state == 'inprogress' && executionCompletedAt != null;
+  bool get canCancel => canApprove;
+
 }
 
 String harvestUiStatusLabel(HarvestUiStatus s) => switch (s) {
@@ -522,9 +524,9 @@ Color harvestUiStatusColor(HarvestUiStatus s) => switch (s) {
 
 HarvestUiStatus parseHarvestUiStatus(String raw, {required bool stillInInventory}) {
   final s = raw.toLowerCase();
-  if (s.contains('cancel') || s.contains('hủy')) return HarvestUiStatus.cancelled;
+  if (s == 'rejected' || s.contains('cancel') || s.contains('hủy')) return HarvestUiStatus.cancelled;
   if (s.contains('progress') || s.contains('đang')) return HarvestUiStatus.inProgress;
-  if (s.contains('pending') || s.contains('chờ thực')) return HarvestUiStatus.pending;
+  if (s == 'approved' || s.contains('pending') || s.contains('chờ thực')) return HarvestUiStatus.pending;
   if (s.contains('plan') || s.contains('draft') || s.contains('nháp')) {
     return HarvestUiStatus.draft;
   }
@@ -534,7 +536,7 @@ HarvestUiStatus parseHarvestUiStatus(String raw, {required bool stillInInventory
   if (s.contains('sale') || s.contains('bán')) {
     return stillInInventory ? HarvestUiStatus.waitingSale : HarvestUiStatus.transferred;
   }
-  return HarvestUiStatus.completed;
+  return HarvestUiStatus.pending;
 }
 
 class HarvestLineItem {

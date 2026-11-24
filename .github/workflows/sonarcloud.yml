@@ -52,7 +52,7 @@ jobs:
 
       - name: Desktop role contract tests
         working-directory: crabsensedesktop
-        run: flutter test test/user_role_contract_test.dart test/manager_structure_permissions_test.dart test/manager_workflow_permissions_test.dart
+        run: flutter test test/user_role_contract_test.dart test/manager_structure_permissions_test.dart test/manager_workflow_permissions_test.dart test/manager_harvest_permissions_test.dart
 
       - name: SonarCloud Scan
         if: env.SONAR_TOKEN != ''
