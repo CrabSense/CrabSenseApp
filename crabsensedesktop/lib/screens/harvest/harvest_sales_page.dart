@@ -240,9 +240,10 @@ class _HarvestTabState extends State<HarvestTab> {
   }
 
   Future<void> _complete(HarvestSlipDetail slip) async {
-    if (!slip.canComplete) return;
+    if (!service.canConfirm(slip)) return;
+    final generation = service.scopeGeneration;
     final ok = await showCompleteHarvestDialog(context, slip);
-    if (ok != true || !mounted) return;
+    if (ok != true || !mounted || generation != service.scopeGeneration) return;
     try {
       await service.completeHarvest(slip.id);
       if (!mounted) return;
@@ -257,21 +258,23 @@ class _HarvestTabState extends State<HarvestTab> {
   }
 
   Future<void> _approve(HarvestSlipDetail slip) async {
-    if (!slip.canApprove) return;
+    if (!service.canDecide(slip)) return;
+    final generation = service.scopeGeneration;
     final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
       title: const Text('Duyệt phiếu thu hoạch?'),
       content: Text('${slip.code} sẽ chuyển sang chờ Staff thực hiện.'),
       actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
         FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Duyệt'))],
     ));
-    if (ok != true || !mounted) return;
+    if (ok != true || !mounted || generation != service.scopeGeneration) return;
     try { await service.approveHarvest(slip.id);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã duyệt phiếu.')));
     } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'))); }
   }
 
   Future<void> _cancel(HarvestSlipDetail slip) async {
-    if (!slip.canApprove) return;
+    if (!service.canDecide(slip)) return;
+    final generation = service.scopeGeneration;
     var reason = '';
     final result = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
       title: const Text('Từ chối phiếu thu hoạch'),
@@ -281,10 +284,25 @@ class _HarvestTabState extends State<HarvestTab> {
         FilledButton(onPressed: () { if (reason.trim().isNotEmpty) Navigator.pop(ctx, reason.trim()); },
           child: const Text('Từ chối'))],
     ));
-    if (result == null || !mounted) return;
+    if (result == null || !mounted || generation != service.scopeGeneration) return;
     try { await service.rejectHarvest(slip.id, result);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã từ chối phiếu.')));
     } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'))); }
+  }
+
+  Future<void> _delete(HarvestSlipDetail slip) async {
+    if(!service.canDeleteHarvest(slip))return;
+    final generation=service.scopeGeneration;
+    final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(
+      title:const Text('Xóa phiếu chưa thực hiện?'),
+      content:Text('Xóa ${slip.code}. Backend kiểm tra trạng thái và liên kết lô đông lạnh trước khi xóa.'),
+      actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Hủy')),
+        FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Xóa'))],
+    ));
+    if(!mounted||ok!=true||generation!=service.scopeGeneration)return;
+    try {await service.deleteHarvest(slip.id);
+      if(mounted&&generation==service.scopeGeneration)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Đã xóa phiếu.')));
+    }catch(e){if(mounted&&generation==service.scopeGeneration)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));}
   }
 
   Future<void> _export() async {
@@ -326,6 +344,8 @@ class _HarvestTabState extends State<HarvestTab> {
         _transfer(slip);
       case HarvestRowAction.complete:
         _complete(slip);
+      case HarvestRowAction.delete:
+        _delete(slip);
     }
   }
 

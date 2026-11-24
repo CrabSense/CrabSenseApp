@@ -723,6 +723,29 @@ class CloudApiClient {
     required String farmingAreaId,
   }) => _getDataMap(token, '/api/harvest-assignments/$id', farmingAreaId: farmingAreaId);
 
+  Future<Set<String>> fetchOpenHarvestAssignmentCrabIds(String token, {required String farmingAreaId}) async {
+    if(farmingAreaId.isEmpty) throw CloudApiException('Thiếu khu nuôi.');
+    final assignments=await fetchHarvestAssignments(token,farmingAreaId:farmingAreaId);
+    final ids=<String>{};
+    for(final task in assignments) {
+      if((task['farmingAreaId']??task['FarmingAreaId']).toString()!=farmingAreaId) continue;
+      final state=(task['status']??task['Status']).toString().toLowerCase();
+      if(state!='assigned'&&state!='inprogress') continue;
+      final taskId=(task['id']??task['Id']??'').toString();
+      if(taskId.isEmpty) throw CloudApiException('Nhiệm vụ thiếu ID.');
+      final detail=await fetchHarvestAssignmentDetail(token,taskId,farmingAreaId:farmingAreaId);
+      if((detail['farmingAreaId']??detail['FarmingAreaId']).toString()!=farmingAreaId) throw CloudApiException('Nhiệm vụ không thuộc khu.');
+      final lines=detail['lines']??detail['Lines'];
+      if(lines is! List) throw CloudApiException('Thiếu danh sách cua đã giao.');
+      for(final row in lines.whereType<Map>()) {
+        final id=(row['crabId']??row['CrabId']??'').toString();
+        // While the assignment is open reserve the entire selection, until completion.
+        if(id.isNotEmpty)ids.add(id);
+      }
+    }
+    return ids;
+  }
+
   Future<List<Map<String, dynamic>>> fetchFrozenLots(String token, {required String farmingAreaId}) =>
       _getDataList(token, '/api/frozen-lots', farmingAreaId: farmingAreaId);
   Future<List<Map<String, dynamic>>> fetchFrozenTransactions(String token, {required String farmingAreaId}) =>

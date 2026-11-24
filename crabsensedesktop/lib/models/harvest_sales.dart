@@ -431,6 +431,12 @@ class HarvestSlipDetail extends HarvestSlip {
     super.note,
     required this.status,
     this.executionCompletedAt,
+    this.createdBy,
+    this.adjustmentRequestedByUserId,
+    this.adjustmentReason,
+    this.approvedQuantity,
+    this.executionShortfallCount,
+    this.executionShortfallReason,
     this.rejectionReason,
     required this.lines,
     this.passedCount = 0,
@@ -445,6 +451,8 @@ class HarvestSlipDetail extends HarvestSlip {
 
   final String status;
   final DateTime? executionCompletedAt;
+  final String? createdBy, adjustmentRequestedByUserId, executionShortfallReason, adjustmentReason;
+  final int? approvedQuantity, executionShortfallCount;
   final String? rejectionReason;
   final List<HarvestLineItem> lines;
   final int passedCount;
@@ -499,6 +507,7 @@ class HarvestSlipDetail extends HarvestSlip {
   bool get canApprove => _state == 'pendingapproval' || _state == 'planned';
   bool get canComplete => _state == 'inprogress' && executionCompletedAt != null;
   bool get canCancel => canApprove;
+  bool get canDelete => const {'pendingapproval','planned','rejected','cancelled'}.contains(_state);
 
 }
 
