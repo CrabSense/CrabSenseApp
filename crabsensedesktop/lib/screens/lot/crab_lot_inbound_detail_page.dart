@@ -34,6 +34,30 @@ class CrabLotInboundDetailPage extends StatefulWidget {
 
 class _CrabLotInboundDetailPageState extends State<CrabLotInboundDetailPage> {
   var _loading = false;
+  bool _writing = false;
+  Future<void> _finishLot({required bool deleting}) async {
+    final svc=widget.service;
+    final lot=svc.findById(widget.lotId);
+    if(_writing||lot==null||!(deleting?svc.canDeleteLot(lot):svc.canCloseLot(lot)))return;
+    final area=svc.areaId;
+    final reason=TextEditingController();
+    try {
+      final accepted=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(
+        title:Text(deleting?'Xóa lô chưa sử dụng?':'Kết thúc vòng đời lô?'),
+        content:Column(mainAxisSize:MainAxisSize.min,children:[
+          Text(deleting?'Backend chỉ xóa lô chưa đóng, không có cua tham chiếu.':'Backend chốt snapshot báo cáo, giữ toàn bộ lịch sử. Ghi phương án xử lý cua còn lại.'),
+          if(!deleting)TextField(controller:reason,decoration:const InputDecoration(labelText:'Phương án xử lý'),maxLines:3),
+        ]),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Hủy')),
+          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Xác nhận'))],
+      ));
+      if(!mounted||accepted!=true||svc.areaId!=area||_writing)return;
+      setState(()=>_writing=true);
+      final ok=deleting?await svc.deleteUnused(lot.id):await svc.close(lot.id,reason.text)!=null;
+      if(!mounted||svc.areaId!=area)return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(ok?'Đã xử lý lô.':svc.error??'Thao tác thất bại.')));
+      if(ok&&deleting)widget.onBack();
+    }finally{reason.dispose();if(mounted)setState(()=>_writing=false);}
+  }
 
   @override
   void initState() {
@@ -130,7 +154,7 @@ class _CrabLotInboundDetailPageState extends State<CrabLotInboundDetailPage> {
     final qty = lot.initialQuantity <= 0 ? 1 : lot.initialQuantity;
     final progress = (placed / qty).clamp(0.0, 1.0);
     final crabs = widget.crabService.crabsInLot(lotId: lot.id, lotCode: lot.batchCode);
-    final canAct = widget.service.canManageLot(lot) && lot.workflowStatus != CrabLotWorkflowStatus.cancelled &&
+    final canAct = widget.service.canManageLot(lot) && !lot.isClosed && lot.workflowStatus != CrabLotWorkflowStatus.cancelled &&
         lot.workflowStatus != CrabLotWorkflowStatus.completed;
 
     return SingleChildScrollView(
@@ -180,10 +204,12 @@ class _CrabLotInboundDetailPageState extends State<CrabLotInboundDetailPage> {
                 const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
               else
                 IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh)),
+              if(widget.service.canCloseLot(lot)) TextButton(onPressed:_writing?null:()=>_finishLot(deleting:false),child:const Text('Kết thúc lô')),
+              if(widget.service.canDeleteLot(lot)) TextButton(onPressed:_writing?null:()=>_finishLot(deleting:true),child:const Text('Xóa lô chưa dùng')),
               if (canAct) ...[
                 const SizedBox(width: 8),
                 OutlinedButton(
-                  onPressed: _cancel,
+                  onPressed: _writing ? null : _cancel,
                   style: OutlinedButton.styleFrom(foregroundColor: DashboardColors.risk),
                   child: const Text('Hủy lô'),
                 ),
@@ -192,6 +218,12 @@ class _CrabLotInboundDetailPageState extends State<CrabLotInboundDetailPage> {
               ],
             ],
           ),
+          if(lot.isPartialScope || lot.farmingAreaIds.length>1) const Text('Lô nhiều khu: chỉ số lô không phải tồn riêng của khu đang chọn.'),
+          if(lot.isClosed) GlassCard(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Text('Đã kết thúc: ${_date(lot.closedAt!)}'),Text('Phương án: ${lot.closeDisposition??"—"}'),
+            for(final e in const {'registeredCountAtClose':'Đã đăng ký','aliveCountAtClose':'Còn sống','unmoltedCountAtClose':'Chưa lột','moltedCountAtClose':'Đã lột','harvestedCountAtClose':'Thu hoạch','deadCountAtClose':'Chết','unstockedCountAtClose':'Chưa thả'}.entries)
+              Text('${e.value}: ${lot.closeCounts[e.key]??"—"}'),
+          ])),
           const SizedBox(height: 20),
           GlassCard(
             padding: const EdgeInsets.all(20),

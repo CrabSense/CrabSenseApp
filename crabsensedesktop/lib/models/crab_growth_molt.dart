@@ -121,6 +121,8 @@ class MoltEvent {
   const MoltEvent({
     required this.id,
     required this.number,
+    this.isVoided = false,
+    this.voidReason,
     required this.at,
     required this.status,
     this.startedAt,
@@ -139,6 +141,8 @@ class MoltEvent {
 
   final String id;
   final int number;
+  final bool isVoided;
+  final String? voidReason;
   final DateTime at;
   final MoltEventStatus status;
   final DateTime? startedAt;
@@ -172,6 +176,8 @@ class MoltEvent {
     return MoltEvent(
       id: '${json['id'] ?? json['Id'] ?? ''}',
       number: number,
+      isVoided: (json['isVoided'] ?? json['IsVoided']) == true,
+      voidReason: (json['voidReason'] ?? json['VoidReason'])?.toString(),
       at: at,
       status: MoltEventStatus.parse('${json['result'] ?? json['Result'] ?? json['status'] ?? ''}'),
       startedAt: t(json['startedAt'] ?? json['StartedAt']),

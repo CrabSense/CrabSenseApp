@@ -122,7 +122,7 @@ class _MoltEventTile extends StatelessWidget {
               const SizedBox(width: 8),
               Text('Lần ${e.number}', style: bvText(fontSize: 13.5, fontWeight: FontWeight.w800, color: DashboardColors.textPrimary)),
               const SizedBox(width: 8),
-              MgmtStatusBadge(label: e.status.label, color: e.status.color),
+              MgmtStatusBadge(label: (e.isVoided ? 'Đã vô hiệu hóa' : e.status.label), color: e.status.color),
               const Spacer(),
               Text(fmtDateVn(e.at), style: bvText(fontSize: 12, color: DashboardColors.textMuted)),
             ],
@@ -297,7 +297,8 @@ class _MoltDrawer extends StatelessWidget {
             children: [
               kv('Lần', '${e.number}'),
               kv('Ngày', fmtDateVn(e.at)),
-              kv('Trạng thái', e.status.label),
+              kv('Trạng thái', (e.isVoided ? 'Đã vô hiệu hóa' : e.status.label)),
+              if(e.isVoided) kv('Lý do vô hiệu',e.voidReason ?? '—'),
               kv('Bắt đầu', e.startedAt == null ? '—' : fmtDateTimeVn(e.startedAt)),
               kv('Hoàn tất', e.completedAt == null ? '—' : fmtDateTimeVn(e.completedAt)),
               kv('Thời lượng', e.duration == null ? '—' : fmtDurationVn(e.duration!)),

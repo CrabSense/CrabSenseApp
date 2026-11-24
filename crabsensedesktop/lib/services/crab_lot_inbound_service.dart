@@ -43,9 +43,11 @@ class CrabLotInboundService extends ChangeNotifier {
   int _generation = 0;
   String get areaId => _session.selectedFarm.id;
   bool canManageLot(FarmingBatchRecord lot) => _session.user.role == UserRoles.farmManager && areaId.isNotEmpty && !lot.isPartialScope && lot.farmingAreaIds.contains(areaId) && lot.farmingAreaIds.every((id) => _session.farms.any((f) => f.id == id));
+  bool canCloseLot(FarmingBatchRecord lot) => canManageLot(lot) && !lot.isClosed && lot.stockedAt != null && lot.workflowStatus != CrabLotWorkflowStatus.cancelled;
+  bool canDeleteLot(FarmingBatchRecord lot) => canManageLot(lot) && !lot.isClosed && lot.placedCount == 0;
   bool _guard(String id) {
     final lot = findById(id);
-    if (lot != null && canManageLot(lot)) return true;
+    if (lot != null && canManageLot(lot) && !lot.isClosed) return true;
     _error = 'Lô không thuộc phạm vi quản lý đầy đủ của khu hiện tại.';
     notifyListeners();
     return false;
@@ -390,6 +392,41 @@ class CrabLotInboundService extends ChangeNotifier {
       _error = e.message;
       notifyListeners();
       return null;
+    }
+  }
+  Future<FarmingBatchRecord?> close(String id, String disposition) async {
+    final lot = findById(id);
+    if (lot == null || !canCloseLot(lot) || disposition.trim().isEmpty) {
+      _error = 'Lô không thể kết thúc hoặc thiếu phương án xử lý.';
+      notifyListeners(); return null;
+    }
+    final generation = _generation;
+    try {
+      final next = await _api.closeCrabLot(token,id,disposition:disposition.trim());
+      if (generation != _generation) return null;
+      _lots = [next,..._lots.where((l)=>l.id != id)];
+      _error = null; notifyListeners(); return next;
+    } catch (e) {
+      if (generation == _generation) { _error = '$e'; notifyListeners(); }
+      return null;
+    }
+  }
+
+  Future<bool> deleteUnused(String id) async {
+    final lot = findById(id);
+    if (lot == null || !canDeleteLot(lot)) {
+      _error = 'Chỉ xóa lô chưa kết thúc và không có cua tham chiếu.';
+      notifyListeners(); return false;
+    }
+    final generation = _generation;
+    try {
+      await _api.deleteBatch(token,id);
+      if (generation != _generation) return false;
+      _lots = _lots.where((l)=>l.id != id).toList();
+      _error = null; notifyListeners(); return true;
+    } catch (e) {
+      if (generation == _generation) { _error = '$e'; notifyListeners(); }
+      return false;
     }
   }
   @override

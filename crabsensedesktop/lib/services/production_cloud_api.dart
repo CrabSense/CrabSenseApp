@@ -582,6 +582,15 @@ extension ProductionCloudApi on CloudApiClient {
     return _parseSingle(res, 'batch', FarmingBatchRecord.fromJson);
   }
 
+  Future<FarmingBatchRecord> closeCrabLot(String token, String lotId, {
+    required String disposition,
+  }) async {
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crab-lots/$lotId/close');
+    final res = await _client.post(uri, headers: {...authHeaders(token),'Content-Type':'application/json'},
+      body: jsonEncode({'disposition':disposition}));
+    return _parseSingle(res,'batch',FarmingBatchRecord.fromJson);
+  }
+
   Future<void> deleteBatch(String token, String batchId) async {
     final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crab-lots/$batchId');
     final res = await _client.delete(uri, headers: authHeaders(token));

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/crab/history_corrections.dart';
 
 import '../../models/crab_individual.dart';
 import '../../models/crab_profile.dart';
@@ -469,7 +470,13 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
           onViewCamera: () => _showCameras(crab),
         );
       case CrabDetailTab.history:
-        return CrabHistoryLogTab(
+        return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          if (_svc.canCorrectCrab(crab.id)) Align(alignment:Alignment.centerRight,child:OutlinedButton.icon(
+            icon:const Icon(Icons.edit_note),label:const Text('Hiệu chỉnh lịch sử'),onPressed:() async {
+              final changed=await showHistoryCorrections(context,_svc,entityId:crab.id,byBox:false,label:crab.code);
+              if(mounted&&changed==true){_history.load();_growth.load();_loadDetail();}
+            })),
+          CrabHistoryLogTab(
           crab: crab,
           controller: _history,
           token: _svc.token,
@@ -478,7 +485,7 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
           onOpenRow: widget.onOpenBoxes,
           onOpenBox: (box) => widget.onOpenBox?.call(box, crab),
           onOpenCamera: (_) => _showCameras(crab),
-        );
+        )]);
     }
   }
 }

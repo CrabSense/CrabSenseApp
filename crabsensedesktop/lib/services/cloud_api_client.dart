@@ -772,6 +772,43 @@ class CloudApiClient {
     'openingQuantity': quantity, 'openingWeightKg': weightKg, 'reason': reason,
   });
 
+  Future<List<Map<String, dynamic>>> fetchCorrectionHistory(String token, {
+    required String areaId, required String entityId, required bool byBox, required String kind,
+  }) {
+    if (areaId.isEmpty || entityId.isEmpty ||
+        !const {'allocations','moltings','status-history'}.contains(kind) ||
+        (!byBox && kind == 'status-history')) {
+      throw CloudApiException('Phạm vi lịch sử không hợp lệ.');
+    }
+    return _getDataList(token, '/api/${byBox ? 'boxes' : 'crabs'}/$entityId/$kind', farmingAreaId: areaId);
+  }
+
+  Future<void> correctAllocation(String token, String id, String area, {
+    required String notes, DateTime? startTime, DateTime? endTime,
+  }) => _writeFrozen(token,'PUT','/api/allocations/$id',area,{
+    'notes':notes, if (startTime != null) 'startTime':startTime.toUtc().toIso8601String(),
+    if (endTime != null) 'endTime':endTime.toUtc().toIso8601String(),
+  });
+
+  Future<void> correctMolting(String token, String id, String area, {
+    required String reason, required String notes, String? result, DateTime? moltTime, double? weightAfterGram,
+  }) => _writeFrozen(token,'PUT','/api/moltings/$id',area,{
+    'correctionReason':reason,'notes':notes,if (result != null) 'result':result,
+    if (moltTime != null) 'moltTime':moltTime.toUtc().toIso8601String(),
+    if (weightAfterGram != null) 'weightAfterGram':weightAfterGram,
+  });
+
+  Future<void> voidMolting(String token, String id, String area, String reason) =>
+    _writeFrozen(token,'POST','/api/moltings/$id/void',area,{'reason':reason});
+
+  Future<void> correctBoxHistory(String token, String id, String area, {
+    required String reason, String? newStatus, DateTime? changedAt, bool? newIsOccupied,
+  }) => _writeFrozen(token,'PUT','/api/box-status-histories/$id',area,{
+    'reason':reason,if (newStatus != null) 'newStatus':newStatus,
+    if (changedAt != null) 'changedAt':changedAt.toUtc().toIso8601String(),
+    if (newIsOccupied != null) 'newIsOccupied':newIsOccupied,
+  });
+
   Future<void> _writeFrozen(String token, String method, String path, String area, Map<String, dynamic>? payload) async {
     if (area.trim().isEmpty) throw CloudApiException('Thiếu khu nuôi.');
     final uri = Uri.parse('$_base$path');
