@@ -7,17 +7,11 @@ import 'crab_management_palette.dart';
 class CrabBulkActionBar extends StatelessWidget {
   const CrabBulkActionBar({
     required this.count,
-    required this.onTransfer,
-    required this.onUpdateHealth,
-    required this.onExport,
     required this.onClear,
     super.key,
   });
 
   final int count;
-  final VoidCallback onTransfer;
-  final VoidCallback onUpdateHealth;
-  final VoidCallback onExport;
   final VoidCallback onClear;
 
   @override
@@ -47,24 +41,6 @@ class CrabBulkActionBar extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          _BulkBtn(
-            icon: Icons.swap_horiz_rounded,
-            label: 'Chuyển hộp',
-            onTap: onTransfer,
-          ),
-          const SizedBox(width: 8),
-          _BulkBtn(
-            icon: Icons.health_and_safety_outlined,
-            label: 'Cập nhật sức khỏe',
-            onTap: onUpdateHealth,
-          ),
-          const SizedBox(width: 8),
-          _BulkBtn(
-            icon: Icons.file_download_outlined,
-            label: 'Xuất dữ liệu',
-            onTap: onExport,
-          ),
           const Spacer(),
           IconButton(
             onPressed: onClear,
@@ -80,32 +56,3 @@ class CrabBulkActionBar extends StatelessWidget {
   }
 }
 
-class _BulkBtn extends StatelessWidget {
-  const _BulkBtn({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => OutlinedButton.icon(
-    onPressed: onTap,
-    icon: Icon(icon, size: 13),
-    label: Text(
-      label,
-      style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700),
-    ),
-    style: OutlinedButton.styleFrom(
-      foregroundColor: kCmPrimaryDark,
-      side: BorderSide(color: kCmPrimary.withValues(alpha: 0.5)),
-      backgroundColor: kCmSurface,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      minimumSize: Size.zero,
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-    ),
-  );
-}

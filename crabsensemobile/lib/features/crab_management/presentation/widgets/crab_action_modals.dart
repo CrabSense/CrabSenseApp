@@ -17,11 +17,9 @@ Future<void> showCrabActionMenu({
   required VoidCallback onViewBox,
   required VoidCallback onTransfer,
   required VoidCallback onMarkMolting,
-  required VoidCallback onMarkReadyToHarvest,
   required VoidCallback onMarkDead,
 }) async {
-  final isDead = crab.lifecycleStatus == CrabLifecycleStatus.dead;
-  final isHarvested = crab.lifecycleStatus == CrabLifecycleStatus.harvested;
+  final canOperate = crab.canRecordOperations;
 
   await showMenu<String>(
     context: context,
@@ -35,18 +33,14 @@ Future<void> showCrabActionMenu({
     color: kCmSurface,
     items: [
       _menuItem('detail', Icons.visibility_outlined, 'Xem chi tiết'),
-      _menuItem('update', Icons.edit_outlined, 'Cập nhật thông tin'),
+      if (canOperate) _menuItem('update', Icons.edit_outlined, 'Cập nhật thông tin'),
       _menuItem('history', Icons.history_rounded, 'Xem lịch sử'),
       _menuItem('box', Icons.inventory_2_outlined, 'Xem hộp hiện tại'),
-      if (!isDead && !isHarvested) ...[
+      if (canOperate) ...[
         const PopupMenuDivider(height: 4),
         _menuItem('transfer', Icons.swap_horiz_rounded, 'Chuyển hộp'),
-        _menuItem('molting', Icons.autorenew_rounded, 'Đánh dấu lột xác'),
-        _menuItem(
-          'harvest',
-          Icons.shopping_basket_outlined,
-          'Đánh dấu sắp thu hoạch',
-        ),
+        if (crab.lifecycleStatus != CrabLifecycleStatus.readyToHarvest)
+          _menuItem('molting', Icons.autorenew_rounded, 'Xác nhận đã lột xác'),
         const PopupMenuDivider(height: 4),
         _menuItem(
           'dead',
@@ -71,8 +65,6 @@ Future<void> showCrabActionMenu({
         onTransfer();
       case 'molting':
         onMarkMolting();
-      case 'harvest':
-        onMarkReadyToHarvest();
       case 'dead':
         onMarkDead();
     }
@@ -136,7 +128,7 @@ Future<({DateTime detectedAt, String note})?> showMarkMoltingDialog(
             ),
             const SizedBox(width: 10),
             Text(
-              'Xác nhận cua đang lột xác?',
+              'Xác nhận cua đã lột xác thành công?',
               style: GoogleFonts.nunito(
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
