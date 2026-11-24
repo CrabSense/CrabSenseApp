@@ -1,4 +1,4 @@
-name: Desktop GitHub Pages
+name: App GitHub Pages
 
 on:
   push:
@@ -7,6 +7,8 @@ on:
     branches: [main]
     paths:
       - 'crabsensedesktop/**'
+      - 'crabsensemobile/**'
+      - 'docs/MOBILE_PREVIEW_DEPLOY.md'
       - '.github/workflows/desktop-github-pages.yml'
       - 'docs/DESKTOP_PREVIEW_DEPLOY.md'
   workflow_dispatch:
@@ -15,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: desktop-pages-${{ github.ref }}
+  group: app-pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -89,7 +91,7 @@ jobs:
         run: flutter test test/preview_policy_test.dart test/user_role_contract_test.dart
       - name: Build Pages release
         run: |
-          flutter build web --release --base-href "$PAGES_BASE" \
+          flutter build web --release --pwa-strategy=none --base-href "$PAGES_BASE" \
             --dart-define=CRABSENSE_DESKTOP_HOSTED_PREVIEW=true \
             --dart-define=CRABSENSE_PAGES_PREVIEW=true \
             --dart-define="CRABSENSE_PAGES_TEST_API_CONFIGURED=$PAGES_TEST_API_CONFIGURED" \
@@ -99,6 +101,78 @@ jobs:
           grep -Fq '<base href="/CrabSenseApp/">' build/web/index.html
           printf '{"commit":"%s","testApiConfigured":%s}\n' "$GITHUB_SHA" "$PAGES_TEST_API_CONFIGURED" > build/web/version.json
           touch build/web/.nojekyll
+      - name: Configure Mobile public test API only
+        working-directory: crabsensemobile
+        env:
+          TEST_API: ${{ github.event_name != 'pull_request' && (vars.MOBILE_PAGES_TEST_API_URL || vars.DESKTOP_PAGES_TEST_API_URL) || '' }}
+        run: |
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          from urllib.parse import urlsplit
+          api = os.environ.get('TEST_API', '').strip()
+          configured = bool(api)
+          if configured:
+              if not re.fullmatch(r'https://[a-z0-9][a-z0-9.-]*[a-z0-9](?::[0-9]{1,5})?', api):
+                  raise SystemExit('MOBILE_PAGES_TEST_API_URL must be an HTTPS origin without path, credentials, or query.')
+              host = urlsplit(api).hostname
+              if not host or '.' not in host or host in ('crabsense.github.io', 'crabsense.khanhtn45.id.vn', 'localhost') or host.endswith('.invalid'):
+                  raise SystemExit('Use an isolated public test API, not the production Web origin or placeholder.')
+          else:
+              api = 'https://api-staging.example.invalid'
+              print('::warning::No test API configured. Publishing login UI only; authentication is disabled.')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as f:
+              f.write('MOBILE_PAGES_TEST_API_CONFIGURED=' + str(configured).lower() + '\n')
+              f.write('MOBILE_PAGES_TEST_API_ORIGIN=' + api + '\n')
+          PY
+      - name: Verify Mobile test API health and CORS
+        if: env.MOBILE_PAGES_TEST_API_CONFIGURED == 'true'
+        working-directory: crabsensemobile
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 25 "$MOBILE_PAGES_TEST_API_ORIGIN/health" >/dev/null
+          headers="$(mktemp)"
+          status=$(curl --silent --show-error --max-time 25 -o /dev/null -D "$headers" -w '%{http_code}' \
+            -X OPTIONS "$MOBILE_PAGES_TEST_API_ORIGIN/api/auth/login" \
+            -H "Origin: $PAGES_ORIGIN" \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: content-type, authorization')
+          python3 - "$headers" "$status" <<'PY'
+          import os, sys
+          from pathlib import Path
+          if not 200 <= int(sys.argv[2]) < 300:
+              raise SystemExit('Login CORS preflight returned HTTP ' + sys.argv[2])
+          headers = {}
+          for line in Path(sys.argv[1]).read_text().splitlines():
+              if ':' in line:
+                  key, value = line.split(':', 1)
+                  headers[key.lower().strip()] = value.strip()
+          assert headers.get('access-control-allow-origin') == os.environ['PAGES_ORIGIN'], 'Missing exact Pages CORS origin'
+          methods = {x.strip().upper() for x in headers.get('access-control-allow-methods', '').split(',')}
+          allowed = {x.strip().lower() for x in headers.get('access-control-allow-headers', '').split(',')}
+          assert 'POST' in methods, 'CORS must allow POST'
+          assert {'content-type', 'authorization'} <= allowed, 'CORS must allow content-type and authorization'
+          PY
+          rm -f "$headers"
+      - name: Build Mobile Pages release
+        working-directory: crabsensemobile
+        run: |
+          flutter pub get
+          flutter build web --release --pwa-strategy=none --base-href "/CrabSenseApp/mobile/" \
+            --dart-define="API_BASE_URL=$MOBILE_PAGES_TEST_API_ORIGIN" \
+            --dart-define=CRABSENSE_MOBILE_HOSTED_PREVIEW=true \
+            --dart-define=CRABSENSE_MOBILE_PAGES_PREVIEW=true \
+            --dart-define="CRABSENSE_MOBILE_PAGES_TEST_API_CONFIGURED=$MOBILE_PAGES_TEST_API_CONFIGURED" \
+            --dart-define="CRABSENSE_PREVIEW_ORIGIN=$PAGES_ORIGIN"
+          test -s build/web/main.dart.js
+          grep -Fq '<base href="/CrabSenseApp/mobile/">' build/web/index.html
+          printf '{"commit":"%s","testApiConfigured":%s}\n' "$GITHUB_SHA" "$MOBILE_PAGES_TEST_API_CONFIGURED" > build/web/version.json
+      - name: Assemble one Pages artifact
+        working-directory: .
+        run: |
+          mkdir -p crabsensedesktop/build/web/mobile
+          cp -a crabsensemobile/build/web/. crabsensedesktop/build/web/mobile/
+          test -s crabsensedesktop/build/web/mobile/index.html
       - uses: actions/upload-pages-artifact@v3
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         with:
@@ -117,7 +191,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/configure-pages@v5
-      - name: Deploy Desktop to GitHub Pages
+      - name: Deploy Desktop and Mobile to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
       - name: Verify deployed Pages revision
@@ -130,7 +204,9 @@ jobs:
             if curl -fsS --max-time 20 "${SITE_URL%/}/version.json?rev=$GITHUB_SHA" |
               python3 -c 'import json,os,sys; sys.exit(0 if json.load(sys.stdin).get("commit")==os.environ["GITHUB_SHA"] else 1)'; then
               curl -fsS --max-time 20 "${SITE_URL%/}/" | grep -F '<base href="/CrabSenseApp/">' >/dev/null
-              echo "Desktop Pages deployed: $SITE_URL"
+              curl -fsS --max-time 20 "${SITE_URL%/}/mobile/version.json?rev=$GITHUB_SHA" | python3 -c 'import json,os,sys; sys.exit(0 if json.load(sys.stdin).get("commit")==os.environ["GITHUB_SHA"] else 1)' || continue
+              curl -fsS --max-time 20 "${SITE_URL%/}/mobile/" | grep -F '<base href="/CrabSenseApp/mobile/">' >/dev/null || continue
+              echo "Desktop and Mobile Pages deployed: $SITE_URL"
               exit 0
             fi
             sleep 10

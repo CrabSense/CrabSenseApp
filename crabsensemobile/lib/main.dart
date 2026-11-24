@@ -19,12 +19,14 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   const hosted = bool.fromEnvironment('CRABSENSE_MOBILE_HOSTED_PREVIEW');
+  const pages = bool.fromEnvironment('CRABSENSE_MOBILE_PAGES_PREVIEW');
   const expectedOrigin = String.fromEnvironment('CRABSENSE_PREVIEW_ORIGIN');
   const apiOrigin = String.fromEnvironment('API_BASE_URL');
   if (kIsWeb && hosted) {
     final api = Uri.tryParse(apiOrigin);
     if (expectedOrigin.isEmpty ||
         Uri.base.origin != expectedOrigin ||
+        (pages && !Uri.base.path.startsWith('/CrabSenseApp/mobile/')) ||
         api == null ||
         api.scheme != 'https' ||
         api.host.isEmpty ||
