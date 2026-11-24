@@ -61,6 +61,12 @@ class RasFlowNodeLive {
     this.lastCommandAt,
 
     this.runStartedAt,
+    this.desiredIsOn,
+    this.commandStatus,
+    this.commandId,
+    this.lastReportedAt,
+    this.portPresent,
+    this.commissioningStatus,
 
     this.type = '',
 
@@ -121,6 +127,25 @@ class RasFlowNodeLive {
   final DateTime? lastCommandAt;
 
   final DateTime? runStartedAt;
+  final bool? desiredIsOn;
+  final String? commandStatus;
+  final String? commandId;
+  final DateTime? lastReportedAt;
+  final bool? portPresent;
+  final String? commissioningStatus;
+
+  bool get commandPending => const {'pending','delivered','acknowledged','awaiting_report'}.contains(commandStatus?.toLowerCase());
+  bool? get observedOn => isOnline == true && lastReportedAt != null && portPresent != false ? isOn : null;
+  String get commandLabel => switch (commandStatus?.toLowerCase()) {
+    'pending' || 'delivered' => 'Đang chờ thiết bị',
+    'acknowledged' || 'awaiting_report' => 'Đã ACK, chờ trạng thái relay',
+    'confirmed' => 'Thiết bị đã xác nhận',
+    'timedout' || 'expired' => 'Lệnh hết thời gian chờ',
+    'failed' || 'rejected' => 'Lệnh thất bại',
+    'cancelled' || 'superseded' => 'Lệnh đã hủy/thay thế',
+    null || '' => '—',
+    _ => commandStatus!,
+  };
 
   final String type;
 
@@ -197,6 +222,12 @@ class RasFlowNodeLive {
         '${json['runStartedAt'] ?? json['RunStartedAt'] ?? ''}',
       ),
 
+      desiredIsOn: json['desiredIsOn'] ?? json['DesiredIsOn'] as bool?,
+      commandStatus: (json['commandStatus'] ?? json['CommandStatus'])?.toString(),
+      commandId: (json['commandId'] ?? json['CommandId'])?.toString(),
+      lastReportedAt: DateTime.tryParse('${json['lastReportedAt'] ?? json['LastReportedAt'] ?? ''}'),
+      portPresent: json['portPresent'] ?? json['PortPresent'] as bool?,
+      commissioningStatus: (json['commissioningStatus'] ?? json['CommissioningStatus'])?.toString(),
       type: '${json['type'] ?? json['Type'] ?? ''}',
 
       status: '${json['status'] ?? json['Status'] ?? 'active'}',
@@ -223,7 +254,8 @@ class RasFlowNodeLive {
 
   String get runLabel {
     if (isFault) return 'Lỗi';
-    if (hasRelay && (isOn ?? false)) return 'Đang hoạt động';
+    if (hasRelay && observedOn == null) return 'Chưa xác nhận';
+    if (hasRelay && observedOn == true) return 'Đang hoạt động';
     if (hasRelay) return 'Đang tắt';
     return isOnline == false ? 'Ngoại tuyến' : 'Trực tuyến';
   }
@@ -354,6 +386,7 @@ class RasFlowDiagram {
     this.activity = const [],
 
     this.flows = const [],
+    this.hardwareControlDisabled = true,
 
   });
 
@@ -382,6 +415,7 @@ class RasFlowDiagram {
   final List<RasControlEvent> activity;
 
   final List<RasPipe> flows;
+  final bool hardwareControlDisabled;
 
 
 
@@ -432,6 +466,7 @@ class RasFlowDiagram {
       activity: _events(json['activity'] ?? json['Activity']),
 
       flows: _pipes(json['flows'] ?? json['Flows']),
+      hardwareControlDisabled: (json['hardwareControlDisabled'] ?? json['HardwareControlDisabled']) != false,
 
     );
 
