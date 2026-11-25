@@ -68,7 +68,7 @@ void main() {
   test('active task reservation uses scoped detail and ignores finished tasks',()async{
     final api=CloudApiClient(client:MockClient((req)async{
       if(req.url.path=='/api/harvest-assignments')return ok([{'id':'open','status':'Assigned','farmingAreaId':a.id},{'id':'review','status':'PendingReview','farmingAreaId':a.id},{'id':'closed','status':'Completed','farmingAreaId':a.id}]);
-      if(req.url.path=='/api/harvest-assignments/review')return ok({'farmingAreaId':a.id,'lines':[{'crabId':'pending'}]});
+      if(req.url.path=='/api/harvest-assignments/review')return ok({'farmingAreaId':a.id,'lines':[{'crabId':'pending'},{'crabId':'resolved','status':'Skipped'}]});
       expect(req.url.path,'/api/harvest-assignments/open');
       return ok({'farmingAreaId':a.id,'lines':[{'crabId':'reserved'}]});
     }));
