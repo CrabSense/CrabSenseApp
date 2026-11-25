@@ -871,6 +871,7 @@ class CrabManagementListItem {
     this.shellWidth,
     this.shellLength,
     required this.status,
+    this.rawStatus = '',
     required this.moltCount,
     this.lastMoltDate,
     this.healthStatus,
@@ -897,6 +898,7 @@ class CrabManagementListItem {
   final double? shellWidth;
   final double? shellLength;
   final String status;
+  final String rawStatus;
   final int moltCount;
   final String? lastMoltDate;
   final String? healthStatus;
@@ -908,6 +910,7 @@ class CrabManagementListItem {
   factory CrabManagementListItem.fromJson(Map<String, dynamic> json) {
     final molting = (json['moltingStage'] ?? json['MoltingStage'] ?? '').toString();
     final status = resolveCrabLifecycleStatus(json);
+    final rawStatus = (json['status'] ?? json['Status'] ?? '').toString();
     final weightRaw =
         json['weightGram'] ?? json['WeightGram'] ?? json['weight'] ?? json['Weight'];
     final lotId = (json['crabLotId'] ??
@@ -954,6 +957,7 @@ class CrabManagementListItem {
       shellWidth: _crabWidthMm(json),
       shellLength: _crabLengthMm(json),
       status: status,
+      rawStatus: rawStatus,
       moltCount: (json['moltCount'] ?? json['MoltCount'] as num?)?.toInt() ?? 0,
       lastMoltDate: (json['moltedAt'] ??
               json['MoltedAt'] ??

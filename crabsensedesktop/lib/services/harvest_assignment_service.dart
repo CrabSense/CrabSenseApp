@@ -97,7 +97,7 @@ class HarvestAssignmentService {
     );
 
     return result.crabs
-        .where((crab) => crab.areaId == farmingAreaId && crab.boxId.isNotEmpty && crab.status.trim().toLowerCase() == 'alive' && !reserved.contains(crab.id))
+        .where((crab) => crab.areaId == farmingAreaId && crab.boxId.isNotEmpty && crab.rawStatus.trim().toLowerCase() == 'alive' && !reserved.contains(crab.id))
         .toList(growable: false);
   }
 

@@ -6,10 +6,21 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import '../lib/models/auth_models.dart';
 import '../lib/models/harvest_sales.dart';
+import '../lib/models/production_models.dart';
 import '../lib/services/cloud_api_client.dart';
 import '../lib/services/harvest_sales_service.dart';
 
 void main() {
+  test('raw lifecycle stays distinct from normalized display status', () {
+    final alive = CrabManagementListItem.fromJson({'id':'a','status':'Alive','condition':'Softshell'});
+    final quarantine = CrabManagementListItem.fromJson({'id':'q','status':'Quarantined'});
+    final missing = CrabManagementListItem.fromJson({'id':'m','Status':'Missing'});
+    expect(alive.rawStatus, 'Alive');
+    expect(quarantine.status, 'alive');
+    expect(quarantine.rawStatus, 'Quarantined');
+    expect(missing.rawStatus, 'Missing');
+    expect(missing.status, 'missing');
+  });
   const a=FarmSummary(id:'area-a',code:'A',name:'A');
   const b=FarmSummary(id:'area-b',code:'B',name:'B');
   const session=AuthSession(token:'test',user:AuthUser(id:'manager',email:'',displayName:'Manager',role:UserRoles.farmManager),farms:[a,b],selectedFarm:a,isOrgAdmin:false);
