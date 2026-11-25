@@ -424,12 +424,13 @@ class _MainContentState extends ConsumerState<_MainContent> {
       await notifier.markMolting(
         crabId: crab.id,
         detectedAt: result.detectedAt,
+        outcome: result.outcome,
         note: result.note,
       );
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(_successSnack('✓ Đã ghi nhận ${crab.id} lột xác thành công.'));
+        ).showSnackBar(_successSnack('Đã ghi nhận kết quả lột xác của ${crab.code}.'));
       }
     } on Exception catch (e) {
       if (context.mounted) {

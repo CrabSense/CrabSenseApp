@@ -22,6 +22,7 @@ abstract class CrabManagementRemoteDataSource {
   Future<void> markMolting({
     required String crabId,
     required DateTime detectedAt,
+    String outcome = 'success',
     String? note,
   });
 
@@ -159,13 +160,15 @@ class CrabManagementRemoteDataSourceImpl
   Future<void> markMolting({
     required String crabId,
     required DateTime detectedAt,
+    String outcome = 'success',
     String? note,
   }) async {
     final body = <String, dynamic>{
       'crabId': crabId,
       'moltTime': detectedAt.toUtc().toIso8601String(),
-      'completedAt': detectedAt.toUtc().toIso8601String(),
-      'result': 'success',
+      if (outcome == 'success' || outcome == 'failed')
+        'completedAt': detectedAt.toUtc().toIso8601String(),
+      'result': outcome,
       if (note != null && note.trim().isNotEmpty) 'notes': note.trim(),
     };
     final result = await _api.safePost<dynamic>(

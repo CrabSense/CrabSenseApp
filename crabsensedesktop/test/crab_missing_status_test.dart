@@ -1,10 +1,20 @@
 import 'package:crab_farm_monitor_desktop/models/crab_status.dart';
+import 'package:crab_farm_monitor_desktop/models/production_models.dart';
 import 'package:crab_farm_monitor_desktop/models/crab_lifecycle_event.dart';
 import 'package:crab_farm_monitor_desktop/theme/dashboard_theme.dart';
 import 'package:crab_farm_monitor_desktop/utils/crab_management_mapper.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('closed lot is not available for new registration', () {
+    final lot = FarmingBatchRecord.fromJson({
+      'id': 'lot-1', 'lotCode': 'LOT-1', 'quantity': 10, 'placedCount': 4,
+      'status': 'Allocating', 'closedAt': '2026-11-25T00:00:00Z',
+      'importDate': '2026-11-20T00:00:00Z',
+    });
+    expect(lot.isClosed, isTrue);
+    expect(lot.remainingCount, 0);
+  });
   test('Problem health is never presented as healthy', () {
     expect(mapHealthStatus('Problem'), CrabHealthStatus.atRisk);
     expect(mapDisplayHealth('Problem'), CrabDisplayHealth.alert);
