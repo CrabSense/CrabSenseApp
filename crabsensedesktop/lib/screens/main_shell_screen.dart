@@ -396,7 +396,8 @@ class _MainShellScreenState extends State<MainShellScreen> {
   void _navigate(AppRoute route) {
     if (route == AppRoute.cameraAi) route = AppRoute.farmAreas;
     if (route == AppRoute.feed) route = AppRoute.productionCrabManagement;
-    if (route == AppRoute.farmingBatchManagement || route == AppRoute.farmingBatchDetail) route = AppRoute.inboundLots;
+    if (route == AppRoute.farmingBatchManagement || route == AppRoute.farmingBatchDetail ||
+        route == AppRoute.batches || route == AppRoute.batchDetail) route = AppRoute.inboundLots;
     if (route == AppRoute.deviceSetup || route == AppRoute.sensorUpgrade) {
       route = AppRoute.controllers;
     }
@@ -911,9 +912,11 @@ class _MainShellScreenState extends State<MainShellScreen> {
           onViewBatch: _openBatchDetail,
         );
       case AppRoute.batchDetail:
-        final batch = _selectedBatch ??
-            _batchService.getById('CFM-2026-001') ??
-            _batchService.batches.first;
+        final batch = _selectedBatch;
+        if (batch == null) {
+          return CrabLotInboundPage(service: _inboundLotService, crabService: _crabService,
+            onNavigate: _navigate, onOpenDetail: _openInboundLotDetail);
+        }
         return BatchDetailPage(
           batch: batch,
           service: _batchService,
