@@ -164,196 +164,248 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
 
     final crabs = _visibleCrabs;
 
-    return ListView(
-      padding: const EdgeInsets.all(24),
+    return Column(
       children: [
-        Row(
-          children: [
-            const Icon(
-              Icons.assignment_add,
-              color: DashboardColors.brand,
-              size: 28,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Phân công thu hoạch',
-                    style: bvText(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: DashboardColors.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    widget.areaLabel,
-                    style: bvText(color: DashboardColors.textMuted),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              tooltip: 'Tải lại',
-              onPressed: _loading || _submitting ? null : _loadData,
-              icon: const Icon(Icons.refresh_rounded),
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-
-        // Card form sử dụng cùng nền, viền và typography với màn quản trị.
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: mgmtCardDeco(radius: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+        // Tiêu đề đứng yên, không nằm trong vùng cuộn.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+          child: Row(
             children: [
-              Text(
-                'Nhân viên nhận việc',
-                style: bvText(
-                  fontWeight: FontWeight.w700,
-                  color: DashboardColors.textPrimary,
-                ),
+              const Icon(
+                Icons.assignment_add,
+                color: DashboardColors.brand,
+                size: 28,
               ),
-              const SizedBox(height: 8),
-
-              if (_loading)
-                const LinearProgressIndicator()
-              else if (_staff.isEmpty)
-                Text(
-                  'Khu này chưa có nhân viên được phân công.',
-                  style: bvText(color: DashboardColors.textMuted),
-                )
-              else
-                DropdownButtonFormField<String>(
-                  value: _selectedStaffId,
-                  decoration: _decoration('Chọn nhân viên'),
-                  items: [
-                    for (final staff in _staff)
-                      DropdownMenuItem(
-                        value: staff.id,
-                        child: Text(
-                          staff.userCode == null || staff.userCode!.isEmpty
-                              ? staff.fullName
-                              : '${staff.fullName} · ${staff.userCode}',
-                        ),
-                      ),
-                  ],
-                  onChanged: _submitting
-                      ? null
-                      : (value) => setState(() {
-                            _selectedStaffId = value;
-                            _error = null;
-                          }),
-                ),
-              const SizedBox(height: 20),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Chọn cua (${_selectedCrabIds.length} đã chọn)',
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Phân công thu hoạch',
                       style: bvText(
-                        fontWeight: FontWeight.w700,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
                         color: DashboardColors.textPrimary,
                       ),
                     ),
+                    Text(
+                      widget.areaLabel,
+                      style: bvText(color: DashboardColors.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Tải lại',
+                onPressed: _loading || _submitting ? null : _loadData,
+                icon: const Icon(Icons.refresh_rounded),
+              ),
+            ],
+          ),
+        ),
+
+        // Phần form chiếm khoảng trống giữa tiêu đề và footer.
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: mgmtCardDeco(radius: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Nhân viên nhận việc',
+                    style: bvText(
+                      fontWeight: FontWeight.w700,
+                      color: DashboardColors.textPrimary,
+                    ),
                   ),
+                  const SizedBox(height: 8),
+
+                  if (_loading)
+                    const LinearProgressIndicator()
+                  else if (_staff.isEmpty)
+                    Text(
+                      'Khu này chưa có nhân viên được phân công.',
+                      style: bvText(color: DashboardColors.textMuted),
+                    )
+                  else
+                    DropdownButtonFormField<String>(
+                      value: _selectedStaffId,
+                      decoration: _decoration('Chọn nhân viên'),
+                      items: [
+                        for (final staff in _staff)
+                          DropdownMenuItem(
+                            value: staff.id,
+                            child: Text(
+                              staff.userCode == null || staff.userCode!.isEmpty
+                                  ? staff.fullName
+                                  : '${staff.fullName} · ${staff.userCode}',
+                            ),
+                          ),
+                      ],
+                      onChanged: _submitting
+                          ? null
+                          : (value) {
+                              setState(() {
+                                _selectedStaffId = value;
+                                _error = null;
+                              });
+                            },
+                    ),
+
+                  const SizedBox(height: 16),
+                  Text(
+                    'Chọn cua cần giao nhiệm vụ',
+                    style: bvText(
+                      fontWeight: FontWeight.w700,
+                      color: DashboardColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Tìm kiếm nằm ngoài ListView nên không cuộn theo danh sách.
+                  TextField(
+                    controller: _searchController,
+                    onChanged: (_) => setState(() {}),
+                    decoration:
+                        _decoration('Tìm theo mã cua hoặc mã hộp').copyWith(
+                      prefixIcon: const Icon(Icons.search_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Đây là vùng cuộn duy nhất trong trang.
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: DashboardColors.cardBorder),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: _loading
+                          ? const Center(
+                              child: CircularProgressIndicator(),
+                            )
+                          : crabs.isEmpty
+                              ? Center(
+                                  child: Text(
+                                    'Không có cua Alive trong khu này.',
+                                    style: bvText(
+                                      color: DashboardColors.textMuted,
+                                    ),
+                                  ),
+                                )
+                              : ListView.separated(
+                                  itemCount: crabs.length,
+                                  separatorBuilder: (_, __) => Divider(
+                                    height: 1,
+                                    color: DashboardColors.cardBorder,
+                                  ),
+                                  itemBuilder: (context, index) {
+                                    final crab = crabs[index];
+
+                                    return Material(
+                                      color: Colors.transparent,
+                                      child: CheckboxListTile(
+                                        dense: true,
+                                        visualDensity: const VisualDensity(
+                                          horizontal: -2,
+                                          vertical: -3,
+                                        ),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                        ),
+                                        minVerticalPadding: 0,
+                                        activeColor: DashboardColors.brand,
+                                        value:
+                                            _selectedCrabIds.contains(crab.id),
+                                        title: Text(
+                                          crab.crabCode,
+                                          style: bvText(
+                                            fontWeight: FontWeight.w700,
+                                            color: DashboardColors.textPrimary,
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          'Hộp ${crab.boxCode} · Trạng thái: ${crab.rawStatus}',
+                                          style: bvText(
+                                            fontSize: 12,
+                                            color: DashboardColors.textMuted,
+                                          ),
+                                        ),
+                                        onChanged: _submitting
+                                            ? null
+                                            : (checked) {
+                                                setState(() {
+                                                  if (checked == true) {
+                                                    _selectedCrabIds
+                                                        .add(crab.id);
+                                                  } else {
+                                                    _selectedCrabIds
+                                                        .remove(crab.id);
+                                                  }
+                                                  _error = null;
+                                                });
+                                              },
+                                      ),
+                                    );
+                                  },
+                                ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _notesController,
+                    minLines: 1,
+                    maxLines: 2,
+                    decoration: _decoration('Ghi chú (không bắt buộc)'),
+                  ),
+
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _error!,
+                      style: bvText(
+                        color: DashboardColors.risk,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ],
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _searchController,
-                onChanged: (_) => setState(() {}),
-                decoration: _decoration('Tìm theo mã cua hoặc mã hộp')
-                    .copyWith(prefixIcon: const Icon(Icons.search_rounded)),
-              ),
-              const SizedBox(height: 10),
+            ),
+          ),
+        ),
 
-              // Giới hạn chiều cao để danh sách dài không làm tràn trang.
-              Container(
-                height: 320,
-                decoration: BoxDecoration(
-                  border: Border.all(color: DashboardColors.cardBorder),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : crabs.isEmpty
-                        ? Center(
-                            child: Text(
-                              'Không có cua Alive trong khu này.',
-                              style: bvText(
-                                color: DashboardColors.textMuted,
-                              ),
-                            ),
-                          )
-                        : ListView.separated(
-                            itemCount: crabs.length,
-                            separatorBuilder: (_, __) => Divider(
-                              height: 1,
-                              color: DashboardColors.cardBorder,
-                            ),
-                            itemBuilder: (context, index) {
-                              final crab = crabs[index];
-                              return CheckboxListTile(
-                                dense: true,
-                                activeColor: DashboardColors.brand,
-                                value: _selectedCrabIds.contains(crab.id),
-                                title: Text(
-                                  crab.crabCode,
-                                  style: bvText(
-                                    fontWeight: FontWeight.w700,
-                                    color: DashboardColors.textPrimary,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  'Hộp ${crab.boxCode} · ${crab.rowName}',
-                                  style: bvText(
-                                    fontSize: 12,
-                                    color: DashboardColors.textMuted,
-                                  ),
-                                ),
-                                onChanged: _submitting
-                                    ? null
-                                    : (checked) {
-                                        setState(() {
-                                          if (checked == true) {
-                                            _selectedCrabIds.add(crab.id);
-                                          } else {
-                                            _selectedCrabIds.remove(crab.id);
-                                          }
-                                          _error = null;
-                                        });
-                                      },
-                              );
-                            },
-                          ),
+        // Footer nằm ngoài vùng cuộn.
+        SafeArea(
+          top: false,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(
+                top: BorderSide(color: DashboardColors.cardBorder),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _notesController,
-                minLines: 2,
-                maxLines: 3,
-                decoration: _decoration('Ghi chú (không bắt buộc)'),
-              ),
-
-              if (_error != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  _error!,
-                  style: bvText(
-                    color: DashboardColors.risk,
-                    fontWeight: FontWeight.w600,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${_selectedCrabIds.length} cua đã chọn',
+                    style: bvText(
+                      fontWeight: FontWeight.w700,
+                      color: DashboardColors.textPrimary,
+                    ),
                   ),
                 ),
-              ],
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton.icon(
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
                   onPressed: _loading ||
                           _submitting ||
                           _staff.isEmpty ||
@@ -368,7 +420,9 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.assignment_turned_in_outlined),
-                  label: Text(_submitting ? 'Đang giao...' : 'Giao nhiệm vụ'),
+                  label: Text(
+                    _submitting ? 'Đang giao...' : 'Giao nhiệm vụ',
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: DashboardColors.brand,
                     foregroundColor: Colors.white,
@@ -381,8 +435,8 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],

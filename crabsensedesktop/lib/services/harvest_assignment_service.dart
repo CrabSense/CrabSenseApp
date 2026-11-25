@@ -54,8 +54,8 @@ class HarvestAssignmentService {
     );
 
     return result.crabs
-        .where((crab) => crab.status.trim().toLowerCase() == 'alive')
-        .toList(growable: false);
+    .where((crab) => crab.rawStatus.trim().toLowerCase() == 'alive')
+    .toList(growable: false);
   }
 
   /// Tải danh sách nhân viên cho khu đang giao việc.
