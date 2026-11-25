@@ -157,49 +157,6 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
     return null;
   }
 
-  /// Ảnh chụp lúc kết thúc hộp -> {khu}/ThuHoach/{mã phiếu}.
-  /// BE chỉ tạo MediaAsset từ file thô nên path local sẽ bị bỏ mất.
-  Future<List<String>> _uploadEndCasePhotos(String voucherId) async {
-    final picked = <XFile>[
-      if (_boxPhoto != null) _boxPhoto!,
-      if (_pelletPhoto != null) _pelletPhoto!,
-    ];
-    if (picked.isEmpty) return const [];
-
-    final form = FormData.fromMap({
-      'files': [
-        for (final f in picked)
-          MultipartFile.fromBytes(
-            await f.readAsBytes(),
-            filename: f.name.isNotEmpty
-                ? f.name
-                : 'harvest_${DateTime.now().millisecondsSinceEpoch}.jpg',
-          ),
-      ],
-    });
-    final res = await _api.dio.post<dynamic>(
-      '/harvest-vouchers/$voucherId/images',
-      data: form,
-    );
-    final body = res.data;
-    dynamic raw = body is Map ? (body['data'] ?? body) : body;
-    if (raw is Map) raw = raw['items'] ?? raw['data'] ?? raw;
-    final urls = <String>[];
-    if (raw is List) {
-      for (final item in raw) {
-        if (item is! Map) continue;
-        final url = (item['url'] ??
-                item['Url'] ??
-                item['storageKey'] ??
-                item['StorageKey'])
-            ?.toString();
-        if (url != null && url.isNotEmpty) urls.add(url);
-      }
-    }
-    if (urls.isEmpty) throw Exception('Upload ảnh không trả về URL');
-    return urls;
-  }
-
   Future<void> _save() async {
     if (_saving) return;
     setState(() => _saving = true);
@@ -214,13 +171,13 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
       }
 
       if (!mounted) return;
-      final result = _isEnding ? 'ended' : 'saved';
+      final result = _endCase == 'dead' ? 'ended' : 'saved';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             result == 'ended'
                 ? 'Đã kết thúc hộp'
-                : 'Đã lưu phiếu hôm nay',
+                : _endCase == 'escaped' ? 'Đã báo cáo cua xổng; chưa giải phóng hộp.' : 'Đã lưu phiếu hôm nay',
           ),
           backgroundColor: CrabSenseColors.primary,
           behavior: SnackBarBehavior.floating,
@@ -256,79 +213,33 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
     required String tag,
     required String extraNotes,
   }) async {
-    final label = switch (_endCase) {
-      'dead' => 'Cua chết',
-      'escaped' => 'Cua xổng',
-      'harvested' => 'Cua đã thu hoạch',
-      _ => 'Kết thúc hộp',
-    };
+    final crabId = widget.crab.id;
+    if (crabId.isEmpty) throw StateError('Không xác định được cua.');
     final notes = [
-      'Kết thúc hộp ${widget.boxCode}',
-      'Cua: $tag',
-      label,
+      'Hộp ${widget.boxCode}', 'Cua: $tag',
+      if (_endCase == 'dead') 'Cua chết',
+      if (_endCase == 'escaped') 'Báo cáo cua xổng, cần quản lý xác minh',
       if (extraNotes.isNotEmpty) 'Ghi chú: $extraNotes',
     ].join('\n');
-
-    await _api.post<dynamic>(
-      '/operations',
-      data: await _opBody(
-        type: 'inspection',
-        notes: notes,
-        includeCare: false,
-      ),
-    );
-
-    final crabId = widget.crab.id;
-    if (crabId.isEmpty) return;
-
     if (_endCase == 'dead') {
-      // Không nuốt lỗi: nếu ghi nhận chết thất bại thì phải báo, tránh cua
-      // bị coi là chết mà không có bản ghi cân/kích thước lúc chết.
-      await _api.post<dynamic>(
-        '/mortality',
-        data: {
-          'crabId': crabId,
-          'cause': _deadCause,
-          'notes': notes,
-          'weightGram': _toDouble(_deadWeightCtrl.text),
-          'carapaceLengthMm': _toDouble(_deadLengthCtrl.text),
-          'carapaceWidthMm': _toDouble(_deadWidthCtrl.text),
-        },
-      );
+      // Mortality performs the terminal transition and releases the box atomically.
+      await _api.post<dynamic>('/mortality', data: {
+        'crabId': crabId,
+        'cause': _deadCause,
+        'notes': notes,
+        'weightGram': _toDouble(_deadWeightCtrl.text),
+        'carapaceLengthMm': _toDouble(_deadLengthCtrl.text),
+        'carapaceWidthMm': _toDouble(_deadWidthCtrl.text),
+      });
+    } else if (_endCase == 'escaped') {
+      // No dedicated missing-crab transition is available: record an inspection
+      // report, do not delete the animal or claim the box is empty.
+      await _api.post<dynamic>('/operations', data: await _opBody(
+        type: 'inspection', notes: notes, includeCare: false,
+      ));
+    } else {
+      throw StateError('Sử dụng luồng thu hoạch được phân công.');
     }
-
-    if (_endCase == 'harvested') {
-      try {
-        // Tạo phiếu TRƯỚC để BE sinh mã HAR-xxx; có id mới biết thư mục
-        // {khu}/ThuHoach/{mã phiếu} mà đẩy ảnh vào.
-        final res = await _api.post<dynamic>(
-          '/harvest-vouchers',
-          data: {
-            'harvestDate': DateTime.now().toUtc().toIso8601String(),
-            'notes': notes,
-            'lines': [
-              {
-                'crabId': crabId,
-                'weightGram': widget.crab.weight,
-                'grade': 'A',
-                'isSoftshell': false,
-                'notes': tag,
-              },
-            ],
-          },
-        );
-        final body = res.data;
-        final data = body is Map ? (body['data'] ?? body) : null;
-        final voucherId = data is Map ? (data['id'] ?? data['Id'])?.toString() : null;
-        if (voucherId != null && voucherId.isNotEmpty) {
-          await _uploadEndCasePhotos(voucherId);
-        }
-      } catch (_) {}
-    }
-
-    try {
-      await _api.delete<dynamic>('/crabs/$crabId');
-    } catch (_) {}
   }
 
   Future<void> _saveDaily({
@@ -523,7 +434,7 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
             options: const {
               '': 'Đang nuôi',
               'dead': 'Cua chết',
-              'escaped': 'Cua xổng',
+              'escaped': 'Báo cua xổng',
               'molting': 'Cua lột',
             },
             onChanged: (v) {
@@ -576,7 +487,7 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
             ),
           ] else ...[
             const Text(
-              'Không cần ghi ăn / tình trạng.',
+              'Báo quản lý xác minh. Hộp chưa được giải phóng.',
               style: TextStyle(color: kHomeTextSub, fontSize: 13),
             ),
           ],
@@ -703,7 +614,7 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
                     ),
                   )
                 : Text(
-                    _isEnding ? 'Xác nhận kết thúc hộp' : 'Lưu phiếu hôm nay',
+                    _endCase == 'dead' ? 'Xác nhận cua chết' : _endCase == 'escaped' ? 'Gửi báo cáo cua xổng' : 'Lưu phiếu hôm nay',
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
           ),
