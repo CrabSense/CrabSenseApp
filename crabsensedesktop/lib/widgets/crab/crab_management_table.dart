@@ -15,6 +15,7 @@ enum CrabManagementAction {
   readyHarvest,
   dead,
   releaseTerminal,
+  recoverMissing,
 }
 
 typedef CrabManagementActionCallback = void Function(
@@ -37,11 +38,13 @@ class CrabManagementDataTable extends StatelessWidget {
     this.sortAsc = true,
     this.onSort,
     this.canReleaseTerminal,
+    this.canRecoverMissing,
   });
 
   final List<CrabIndividual> crabs;
   final CrabManagementActionCallback onAction;
   final bool Function(CrabIndividual)? canReleaseTerminal;
+  final bool Function(CrabIndividual)? canRecoverMissing;
   final String? selectedId;
   final Set<String> checkedIds;
   final ValueChanged<CrabIndividual> onToggle;
@@ -218,6 +221,8 @@ class CrabManagementDataTable extends StatelessWidget {
             _item(CrabManagementAction.view, Icons.visibility_outlined, 'Xem chi tiết'),
             _item(CrabManagementAction.history, Icons.history_rounded, 'Xem lịch sử'),
             _item(CrabManagementAction.viewBox, Icons.inventory_2_outlined, 'Xem hộp hiện tại'),
+            if (canRecoverMissing?.call(c) == true)
+              _item(CrabManagementAction.recoverMissing, Icons.assignment_return_outlined, 'Khôi phục cua tìm thấy'),
             if (canReleaseTerminal?.call(c) == true)
               _item(CrabManagementAction.releaseTerminal, Icons.inventory_2_outlined, 'Giải phóng hộp (giữ lịch sử)'),
           ],

@@ -659,6 +659,18 @@ extension ProductionCloudApi on CloudApiClient {
     );
   }
 
+  Future<void> recoverMissingCrab(String token, String crabId, {
+    required String boxId, required String reason,
+  }) async {
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crabs/$crabId/recover');
+    final res = await _client.post(
+      uri,
+      headers: {...authHeaders(token), 'Content-Type': 'application/json'},
+      body: jsonEncode({'boxId': boxId, 'reason': reason}),
+    );
+    _ensureOk(res);
+  }
+
   Future<void> deleteBatchCrab(String token, String crabId) async {
     final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crabs/$crabId');
     final res = await _client.delete(uri, headers: authHeaders(token));
