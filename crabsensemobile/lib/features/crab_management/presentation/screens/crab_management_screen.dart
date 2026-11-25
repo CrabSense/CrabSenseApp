@@ -475,6 +475,11 @@ class _MainContentState extends ConsumerState<_MainContent> {
   ) async {
     final ds = ref.read(crabManagementDataSourceProvider);
     final farms = ref.read(crabManagementProvider).dropdown.farmAreas;
+    final sourceBoxId = crab.location.boxId.trim();
+    if (sourceBoxId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(_errorSnack('Không xác định được hộp hiện tại. Tải lại danh sách.'));
+      return;
+    }
     final toBoxId = await showTransferCrabDialog(
       context,
       crab,
@@ -484,7 +489,7 @@ class _MainContentState extends ConsumerState<_MainContent> {
     );
     if (toBoxId == null || !context.mounted) return;
     try {
-      await notifier.transferCrab(crabId: crab.id, toBoxId: toBoxId);
+      await notifier.transferCrab(crabId: crab.id, toBoxId: toBoxId, sourceBoxId: sourceBoxId);
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,

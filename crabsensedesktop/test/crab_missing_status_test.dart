@@ -5,6 +5,10 @@ import 'package:crab_farm_monitor_desktop/utils/crab_management_mapper.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('Problem health is never presented as healthy', () {
+    expect(mapHealthStatus('Problem'), CrabHealthStatus.atRisk);
+    expect(mapDisplayHealth('Problem'), CrabDisplayHealth.alert);
+  });
   test('recovered history is distinct and included in missing history filter', () {
     final event = CrabLifecycleEventType.parse('RECOVERED');
     expect(event, CrabLifecycleEventType.recovered);
