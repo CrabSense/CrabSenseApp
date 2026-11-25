@@ -221,7 +221,7 @@ class _CrabLotInboundDetailPageState extends State<CrabLotInboundDetailPage> {
           if(lot.isPartialScope || lot.farmingAreaIds.length>1) const Text('Lô nhiều khu: chỉ số lô không phải tồn riêng của khu đang chọn.'),
           if(lot.isClosed) GlassCard(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
             Text('Đã kết thúc: ${_date(lot.closedAt!)}'),Text('Phương án: ${lot.closeDisposition??"—"}'),
-            for(final e in const {'registeredCountAtClose':'Đã đăng ký','aliveCountAtClose':'Còn sống','unmoltedCountAtClose':'Chưa lột','moltedCountAtClose':'Đã lột','harvestedCountAtClose':'Thu hoạch','deadCountAtClose':'Chết','unstockedCountAtClose':'Chưa thả'}.entries)
+            for(final e in const {'registeredCountAtClose':'Đã đăng ký','aliveCountAtClose':'Còn sống','unmoltedCountAtClose':'Chưa lột','moltedCountAtClose':'Đã lột','harvestedCountAtClose':'Thu hoạch','deadCountAtClose':'Chết','missingCountAtClose':'Thất lạc','unstockedCountAtClose':'Chưa thả'}.entries)
               Text('${e.value}: ${lot.closeCounts[e.key]??"—"}'),
           ])),
           const SizedBox(height: 20),

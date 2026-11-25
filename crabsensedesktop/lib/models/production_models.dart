@@ -718,7 +718,7 @@ class FarmingBatchRecord {
       closedAt: _parseDate(json['closedAt'] ?? json['ClosedAt']),
       stockedAt: _parseDate(json['stockedAt'] ?? json['StockedAt']),
       closeDisposition: (json['closeDisposition'] ?? json['CloseDisposition'])?.toString(),
-      closeCounts: {for (final key in const ['registeredCountAtClose','aliveCountAtClose','unmoltedCountAtClose','moltedCountAtClose','harvestedCountAtClose','deadCountAtClose','unstockedCountAtClose'])
+      closeCounts: {for (final key in const ['registeredCountAtClose','aliveCountAtClose','unmoltedCountAtClose','moltedCountAtClose','harvestedCountAtClose','deadCountAtClose','missingCountAtClose','unstockedCountAtClose'])
         if ((json[key] ?? json[key[0].toUpperCase()+key.substring(1)]) is num)
           key: ((json[key] ?? json[key[0].toUpperCase()+key.substring(1)]) as num).toInt()},
       id: (json['id'] ?? json['Id']).toString(),

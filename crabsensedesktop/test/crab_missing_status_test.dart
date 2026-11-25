@@ -6,6 +6,13 @@ import 'package:crab_farm_monitor_desktop/utils/crab_management_mapper.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('closed lot missing count is independent of mortality and unknown stays absent', () {
+    final lot = FarmingBatchRecord.fromJson({'id':'lot','quantity':10,'placedCount':4,'status':'Completed','closedAt':'2026-11-25T00:00:00Z','missingCountAtClose':2,'deadCountAtClose':1});
+    expect(lot.closeCounts['missingCountAtClose'],2);
+    expect(lot.closeCounts['deadCountAtClose'],1);
+    final legacy = FarmingBatchRecord.fromJson({'id':'old','quantity':10,'placedCount':4,'status':'Completed','closedAt':'2026-11-25T00:00:00Z'});
+    expect(legacy.closeCounts.containsKey('missingCountAtClose'),isFalse);
+  });
   test('closed lot is not available for new registration', () {
     final lot = FarmingBatchRecord.fromJson({
       'id': 'lot-1', 'lotCode': 'LOT-1', 'quantity': 10, 'placedCount': 4,

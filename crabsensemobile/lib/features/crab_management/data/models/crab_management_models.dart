@@ -218,6 +218,9 @@ class CrabRecord {
       lifecycleStatus == CrabLifecycleStatus.molting ||
       lifecycleStatus == CrabLifecycleStatus.readyToHarvest;
 
+  bool get needsHealthWatch => canRecordOperations &&
+      const {CrabHealthStatus.monitoring, CrabHealthStatus.alert, CrabHealthStatus.weak}.contains(healthStatus);
+
   /// Format: "92 × 74 mm"
   String get sizeLabel {
     final w = shellWidthMm % 1 == 0
@@ -330,11 +333,7 @@ class CrabKpiSummary {
           .where((c) => c.lifecycleStatus == CrabLifecycleStatus.growing)
           .length,
       monitoring: crabs
-          .where(
-            (c) =>
-                c.healthStatus == CrabHealthStatus.monitoring ||
-                c.healthStatus == CrabHealthStatus.alert,
-          )
+          .where((c) => c.needsHealthWatch)
           .length,
       molting: crabs
           .where((c) => c.lifecycleStatus == CrabLifecycleStatus.molting)
@@ -389,6 +388,7 @@ class CrabFilterState {
     this.lifecycleStatus,
     this.healthStatus,
     this.quickStatus,
+    this.quickHealthWatch = false,
   });
 
   final String searchQuery;
@@ -400,6 +400,7 @@ class CrabFilterState {
   final CrabLifecycleStatus? lifecycleStatus;
   final CrabHealthStatus? healthStatus;
   final CrabLifecycleStatus? quickStatus; // null = all
+  final bool quickHealthWatch;
 
   bool get isEmpty =>
       searchQuery.isEmpty &&
@@ -410,7 +411,7 @@ class CrabFilterState {
       gender == null &&
       lifecycleStatus == null &&
       healthStatus == null &&
-      quickStatus == null;
+      quickStatus == null && !quickHealthWatch;
 
   CrabFilterState copyWith({
     String? searchQuery,
@@ -422,6 +423,7 @@ class CrabFilterState {
     Object? lifecycleStatus = _sentinel,
     Object? healthStatus = _sentinel,
     Object? quickStatus = _sentinel,
+    bool? quickHealthWatch,
   }) {
     return CrabFilterState(
       searchQuery: searchQuery ?? this.searchQuery,
@@ -441,6 +443,7 @@ class CrabFilterState {
       quickStatus: quickStatus == _sentinel
           ? this.quickStatus
           : quickStatus as CrabLifecycleStatus?,
+      quickHealthWatch: quickHealthWatch ?? this.quickHealthWatch,
     );
   }
 

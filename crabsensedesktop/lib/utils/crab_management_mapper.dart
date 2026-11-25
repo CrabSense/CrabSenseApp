@@ -414,6 +414,11 @@ List<CrabSummaryKpi> crabManagementSummaryKpis(CrabManagementSummary s) => [
         accentColor: DashboardColors.seaGreen,
       ),
       CrabSummaryKpi(
+        label: 'THẤT LẠC', value: formatInt(s.missing),
+        subtext: '${s.pct(s.missing).toStringAsFixed(1)}%',
+        icon: Icons.search_off, accentColor: DashboardColors.monitoring,
+      ),
+      CrabSummaryKpi(
         label: 'CUA CHẾT',
         value: formatInt(s.dead),
         subtext: '${s.pct(s.dead).toStringAsFixed(1)}%',
@@ -431,7 +436,7 @@ CrabManagementSummary summarizeCrabs(List<CrabIndividual> crabs) {
   final growing =
       crabs.where((c) => c.lifecycleStatus == CrabLifecycleStatus.growing).length;
   final monitoring =
-      crabs.where((c) => c.displayHealth == CrabDisplayHealth.monitoring).length;
+      crabs.where((c) => c.needsHealthWatch).length;
   final molting =
       crabs.where((c) => c.lifecycleStatus == CrabLifecycleStatus.molting).length;
   final ready = crabs
@@ -446,7 +451,7 @@ CrabManagementSummary summarizeCrabs(List<CrabIndividual> crabs) {
     missing: crabs.where((c) => c.lifecycleStatus == CrabLifecycleStatus.missing).length,
     molting: molting,
     readyHarvest: ready,
-    aliveRate: total == 0 ? 0 : growing / total * 100,
+    aliveRate: total == 0 ? 0 : (growing + molting + ready) / total * 100,
     monitoring: monitoring,
   );
 }

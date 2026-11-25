@@ -284,7 +284,7 @@ class CrabManagementNotifier extends StateNotifier<CrabManagementState> {
 
   Future<void> onLifecycleStatusChanged(CrabLifecycleStatus? status) async {
     state = state.copyWith(
-      filter: state.filter.copyWith(lifecycleStatus: status),
+      filter: state.filter.copyWith(lifecycleStatus: status, quickStatus: null, quickHealthWatch: false),
       currentPage: 1,
     );
     await _loadPage();
@@ -292,7 +292,7 @@ class CrabManagementNotifier extends StateNotifier<CrabManagementState> {
 
   Future<void> onHealthStatusChanged(CrabHealthStatus? status) async {
     state = state.copyWith(
-      filter: state.filter.copyWith(healthStatus: status),
+      filter: state.filter.copyWith(healthStatus: status, quickHealthWatch: false),
       currentPage: 1,
     );
     await _loadPage();
@@ -300,7 +300,15 @@ class CrabManagementNotifier extends StateNotifier<CrabManagementState> {
 
   Future<void> onQuickStatusSelected(CrabLifecycleStatus? status) async {
     state = state.copyWith(
-      filter: state.filter.copyWith(quickStatus: status),
+      filter: state.filter.copyWith(quickStatus: status, quickHealthWatch: false, lifecycleStatus: null, healthStatus: null),
+      currentPage: 1,
+    );
+    await _loadPage();
+  }
+
+  Future<void> onQuickHealthWatchSelected() async {
+    state = state.copyWith(
+      filter: state.filter.copyWith(quickStatus: null, lifecycleStatus: null, healthStatus: null, quickHealthWatch: true),
       currentPage: 1,
     );
     await _loadPage();

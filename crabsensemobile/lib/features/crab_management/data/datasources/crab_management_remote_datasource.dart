@@ -69,6 +69,7 @@ class CrabManagementRemoteDataSourceImpl
           (filter.boxId == null || crab.location.boxId == filter.boxId) &&
           (filter.batchId == null || crab.batch.id == filter.batchId) &&
           (filter.gender == null || crab.gender == filter.gender) &&
+          (!filter.quickHealthWatch || crab.needsHealthWatch) &&
           (status == null || crab.lifecycleStatus == status) &&
           (filter.healthStatus == null || crab.healthStatus == filter.healthStatus);
     }).toList();

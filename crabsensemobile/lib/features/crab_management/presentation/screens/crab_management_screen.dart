@@ -153,6 +153,8 @@ class _MainContentState extends ConsumerState<_MainContent> {
                     data: (kpi) => CrabKpiCards(
                       kpi: kpi,
                       activeStatus: state.filter.quickStatus,
+                      activeHealthWatch: state.filter.quickHealthWatch,
+                      onHealthWatch: notifier.onQuickHealthWatchSelected,
                       onQuickFilter: (status) {
                         notifier.onQuickStatusSelected(status);
                       },
@@ -174,6 +176,8 @@ class _MainContentState extends ConsumerState<_MainContent> {
                       kpi: kpi,
                       activeStatus: state.filter.quickStatus,
                       onSelected: notifier.onQuickStatusSelected,
+                      activeHealthWatch: state.filter.quickHealthWatch,
+                      onHealthWatch: notifier.onQuickHealthWatchSelected,
                     ),
                     orElse: () => const SizedBox.shrink(),
                   ),
