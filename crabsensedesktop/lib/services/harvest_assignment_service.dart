@@ -61,6 +61,21 @@ class HarvestAssignmentService {
     return detail;
   }
 
+  Future<void> reviewAssignment(String areaId, String id, {
+    required bool confirm, String? notes,
+  }) async {
+    _requireArea(areaId);
+    final generation = _generation;
+    final detail = await loadAssignmentDetail(areaId, id);
+    _checkScope(areaId, generation);
+    if ((detail['status'] ?? detail['Status']).toString().toLowerCase() != 'pendingreview') {
+      throw CloudApiException('Nhiệm vụ không còn chờ xác nhận.');
+    }
+    await _api.reviewHarvestAssignment(_session.token, id, farmingAreaId: areaId,
+      confirm: confirm, notes: notes);
+    _checkScope(areaId, generation);
+  }
+
   /// Tải các cua thuộc khu và chỉ trả về cua đang Alive.
   /// BE vẫn kiểm tra lại trạng thái và task đang mở khi tạo assignment.
   Future<List<CrabManagementListItem>> loadAliveCrabs({

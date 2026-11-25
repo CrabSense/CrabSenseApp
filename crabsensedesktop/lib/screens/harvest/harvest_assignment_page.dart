@@ -500,19 +500,24 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
     final area = widget.areaId;
     final id = (item['id'] ?? '').toString();
     try {
+      final generation = widget.service.scopeGeneration;
       final detail = await widget.service.loadAssignmentDetail(area, id);
-      if (!mounted || area != widget.areaId) return;
+      if (!mounted || area != widget.areaId || generation != widget.service.scopeGeneration) return;
       final lines = detail['lines'];
       final vouchers = detail['vouchers'];
-      await showDialog<void>(context: context, builder: (ctx) => AlertDialog(
+      final pending = (detail['status'] ?? '').toString().toLowerCase() == 'pendingreview';
+      final decision = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
         title: Text((detail['assignmentCode'] ?? 'Chi tiết nhiệm vụ').toString()),
         content: SizedBox(width: 600, child: SingleChildScrollView(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Trạng thái: ${detail['status'] ?? '—'}'),
             Text('Ghi chú: ${detail['notes'] ?? '—'}'),
+            if (detail['submittedAt'] != null) Text('Gửi lúc: ${detail['submittedAt']}'),
+            if (detail['submissionNotes'] != null) Text('Ghi chú Staff: ${detail['submissionNotes']}'),
+            if (detail['reviewNotes'] != null) Text('Phản hồi Manager: ${detail['reviewNotes']}'),
             const Divider(),
             if (lines is List) for (final line in lines.whereType<Map>())
-              ListTile(title: Text('${line['crabCode'] ?? '—'} · ${line['status'] ?? '—'}'),
+              ListTile(title: Text('${line['crabCode'] ?? '—'} · ${line['outcome'] ?? line['status'] ?? '—'}'),
                 subtitle: Text('Hộp: ${line['boxCode'] ?? '—'} · Khối lượng: ${line['weightGram'] ?? line['pendingWeightGram'] ?? '—'} g\n${line['eligibilityReason'] ?? ''}')),
             const Divider(),
             const Text('Phiếu thu hoạch liên quan'),
@@ -521,8 +526,47 @@ class _HarvestAssignmentPageState extends State<HarvestAssignmentPage> {
                 subtitle: Text('${v['totalQuantity'] ?? 0} cua · ${v['totalWeightKg'] ?? 0} kg')),
           ],
         ))),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng'))],
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng')),
+          if (pending) TextButton(onPressed: () => Navigator.pop(ctx, 'return'), child: const Text('Yêu cầu bổ sung')),
+          if (pending) FilledButton(onPressed: () => Navigator.pop(ctx, 'confirm'), child: const Text('Xác nhận kết quả')),
+        ],
       ));
+      if (decision == null || !mounted || area != widget.areaId ||
+          generation != widget.service.scopeGeneration || _submitting) return;
+      final confirm = decision == 'confirm';
+      String? notes;
+      if (confirm) {
+        final yes = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+          title: const Text('Xác nhận thu hoạch?'),
+          content: const Text('Kiểm tra kết quả thực tế trước khi xác nhận. Backend sẽ tạo phiếu và giải phóng hộp của cua thu hoạch.'),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Xác nhận'))],
+        ));
+        if (yes != true) return;
+      } else {
+        var reason = '';
+        notes = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
+          title: const Text('Yêu cầu Staff bổ sung'),
+          content: TextField(maxLength: 1000, maxLines: 3, onChanged: (v) => reason = v,
+            decoration: const InputDecoration(labelText: 'Lý do bắt buộc')),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            FilledButton(onPressed: () { if (reason.trim().isNotEmpty) Navigator.pop(ctx, reason.trim()); },
+              child: const Text('Gửi yêu cầu'))],
+        ));
+        if (notes == null) return;
+      }
+      if (!mounted || area != widget.areaId || generation != widget.service.scopeGeneration || _submitting) return;
+      final version = ++_submitVersion;
+      setState(() => _submitting = true);
+      try {
+        await widget.service.reviewAssignment(area, id, confirm: confirm, notes: notes);
+        if (!mounted || version != _submitVersion || area != widget.areaId) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(confirm ? 'Đã xác nhận nhiệm vụ.' : 'Đã gửi yêu cầu bổ sung.')));
+        await _loadData();
+      } finally {
+        if (mounted && version == _submitVersion && area == widget.areaId) setState(() => _submitting = false);
+      }
     } catch (e) {
       if (mounted && area == widget.areaId) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     }
