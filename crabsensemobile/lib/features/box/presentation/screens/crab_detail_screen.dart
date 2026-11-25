@@ -936,6 +936,8 @@ class _CrabDetailScreenState extends State<CrabDetailScreen>
 
   static (Color bg, Color fg, String label) _lifecycleBadge(String raw) {
     switch (raw.toUpperCase()) {
+      case 'MISSING':
+        return (const Color(0xFFFFF3CD), const Color(0xFF92400E), 'Thất lạc');
       case 'GROWING':
         return (const Color(0xFFDCFCE7), const Color(0xFF087F5B), 'Đang nuôi');
       case 'MOLTING':

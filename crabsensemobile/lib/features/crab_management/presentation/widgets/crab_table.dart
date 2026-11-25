@@ -411,6 +411,7 @@ class _CrabIcon extends StatelessWidget {
       CrabLifecycleStatus.readyToHarvest => (kCmTealLight, '🧺'),
       CrabLifecycleStatus.harvested => (kCmSlateBg, '✓'),
       CrabLifecycleStatus.dead => (kCmRedLight, '💔'),
+      CrabLifecycleStatus.missing => (kCmAmberLight, '?'),
       CrabLifecycleStatus.unknown => (kCmSlateBg, '?'),
     };
     return Container(

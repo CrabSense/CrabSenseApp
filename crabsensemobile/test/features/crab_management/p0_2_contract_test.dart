@@ -3,6 +3,14 @@ import 'package:crabsensemobile/features/crab_management/data/models/crab_manage
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('Missing is distinct from mortality and non-actionable', () {
+    final record = CrabRecord.fromJson({'status': 'Missing'});
+    expect(record.lifecycleStatus, CrabLifecycleStatus.missing);
+    expect(record.canRecordOperations, isFalse);
+    final kpi = CrabKpiSummary.fromList([record]);
+    expect(kpi.missing, 1);
+    expect(kpi.dead, 0);
+  });
   test('BE flat crab DTO maps scope and measures', () {
     final crab = CrabRecord.fromJson({
       'id': 'c', 'code': 'CRAB-1', 'farmingAreaId': 'a', 'farmingRowId': 'r',

@@ -59,7 +59,7 @@ class CrabService extends ChangeNotifier {
       farmId.isNotEmpty && _session.farms.any((f) => f.id == farmId);
   bool canCorrectCrab(String id) => canManageCurrentArea && getById(id)?.areaId == farmId;
   bool canReleaseTerminalCrab(CrabIndividual crab) => canCorrectCrab(crab.id) &&
-      crab.areaId == farmId && const {CrabLifeStatus.dead, CrabLifeStatus.sold, CrabLifeStatus.readyForSale}.contains(crab.lifeStatus);
+      crab.areaId == farmId && const {CrabLifeStatus.dead, CrabLifeStatus.missing, CrabLifeStatus.sold, CrabLifeStatus.readyForSale}.contains(crab.lifeStatus);
 
   List<CrabIndividual> _crabs = [];
   List<AreaRecord> _areas = [];
@@ -544,6 +544,7 @@ class CrabService extends ChangeNotifier {
         CrabLifecycleStatus.readyHarvest =>
           CrabManagementStatusFilter.readyHarvest,
         CrabLifecycleStatus.dead => CrabManagementStatusFilter.dead,
+        CrabLifecycleStatus.missing => CrabManagementStatusFilter.missing,
         CrabLifecycleStatus.harvested => CrabManagementStatusFilter.all,
       };
     }
@@ -569,6 +570,7 @@ class CrabService extends ChangeNotifier {
       CrabManagementStatusFilter.molting => CrabLifecycleStatus.molting,
       CrabManagementStatusFilter.readyHarvest => CrabLifecycleStatus.readyHarvest,
       CrabManagementStatusFilter.dead => CrabLifecycleStatus.dead,
+      CrabManagementStatusFilter.missing => CrabLifecycleStatus.missing,
       _ => null,
     };
     _healthFilter = value == CrabManagementStatusFilter.monitoring
@@ -935,6 +937,7 @@ class CrabService extends ChangeNotifier {
                 : healthDisplayToCondition(crab.displayHealth),
         notes: crab.quickNote,
         isAlive: crab.lifecycleStatus != CrabLifecycleStatus.dead
+            && crab.lifecycleStatus != CrabLifecycleStatus.missing
             && crab.lifecycleStatus != CrabLifecycleStatus.harvested,
       );
       await load();

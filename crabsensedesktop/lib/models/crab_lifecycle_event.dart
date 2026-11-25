@@ -39,6 +39,7 @@ enum CrabHistoryEventFilter {
   ai('AI phát hiện', 'AI_DETECTION'),
   alert('Cảnh báo', 'ALERT'),
   harvest('Thu hoạch', 'HARVEST'),
+  missing('Thất lạc', 'MISSING'),
   system('Hệ thống', 'SYSTEM'),
   note('Ghi chú', 'NOTE_UPDATED');
 
@@ -60,6 +61,7 @@ enum CrabLifecycleEventType {
   harvestReady,
   harvested,
   dead,
+  missing,
   note,
   profile,
   created,
@@ -92,6 +94,8 @@ enum CrabLifecycleEventType {
         return harvested;
       case 'DEAD':
         return dead;
+      case 'MISSING':
+        return missing;
       case 'NOTE_UPDATED':
         return note;
       case 'CRAB_PROFILE_UPDATED':
@@ -118,6 +122,7 @@ enum CrabLifecycleEventType {
         harvestReady => 'Sẵn sàng thu hoạch',
         harvested => 'Thu hoạch',
         dead => 'Ghi nhận chết',
+        missing => 'Ghi nhận thất lạc',
         note => 'Ghi chú',
         profile => 'Cập nhật thông tin cua',
         created => 'Tạo cá thể',
@@ -136,6 +141,7 @@ enum CrabLifecycleEventType {
         alertResolved => DashboardColors.brandGreen,
         harvestReady || harvested => kHistAmber,
         dead => DashboardColors.risk,
+        missing => kHistAmber,
         note => kMgmtSlate,
         profile => DashboardColors.brand,
         created => DashboardColors.brand,
@@ -154,6 +160,7 @@ enum CrabLifecycleEventType {
         alertResolved => Icons.check_circle_outline_rounded,
         harvestReady || harvested => Icons.inventory_2_outlined,
         dead => Icons.heart_broken_outlined,
+        missing => Icons.search_off,
         note => Icons.notes_rounded,
         profile => Icons.edit_outlined,
         created => Icons.add_circle_outline_rounded,
@@ -170,6 +177,7 @@ enum CrabLifecycleEventType {
         ai => CrabHistoryEventFilter.ai,
         alertCreated || alertResolved => CrabHistoryEventFilter.alert,
         harvestReady || harvested || dead => CrabHistoryEventFilter.harvest,
+        missing => CrabHistoryEventFilter.missing,
         system => CrabHistoryEventFilter.system,
         note => CrabHistoryEventFilter.note,
         profile => CrabHistoryEventFilter.system,

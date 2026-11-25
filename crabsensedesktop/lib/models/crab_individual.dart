@@ -219,6 +219,7 @@ class CrabIndividual {
   CrabOperationalStatus get operationalStatus {
     return switch (lifecycleStatus) {
       CrabLifecycleStatus.dead => CrabOperationalStatus.dead,
+      CrabLifecycleStatus.missing => CrabOperationalStatus.missing,
       CrabLifecycleStatus.harvested => CrabOperationalStatus.harvested,
       CrabLifecycleStatus.molting => CrabOperationalStatus.molting,
       CrabLifecycleStatus.readyHarvest => CrabOperationalStatus.readyHarvest,
@@ -240,6 +241,8 @@ class CrabIndividual {
         return lifecycleStatus == CrabLifecycleStatus.readyHarvest;
       case CrabManagementStatusFilter.dead:
         return lifecycleStatus == CrabLifecycleStatus.dead;
+      case CrabManagementStatusFilter.missing:
+        return lifecycleStatus == CrabLifecycleStatus.missing;
     }
   }
 
@@ -282,6 +285,7 @@ class CrabIndividual {
 
   bool get canMarkReadyForSale =>
       lifeStatus != CrabLifeStatus.dead &&
+      lifeStatus != CrabLifeStatus.missing &&
       lifeStatus != CrabLifeStatus.sold &&
       weightGram >= 150 &&
       healthScore >= 85 &&
@@ -378,6 +382,7 @@ class CrabManagementSummary {
     required this.readyHarvest,
     required this.aliveRate,
     this.monitoring = 0,
+    this.missing = 0,
   });
 
   final int total;
@@ -387,6 +392,7 @@ class CrabManagementSummary {
   final int readyHarvest;
   final double aliveRate;
   final int monitoring;
+  final int missing;
 
   double pct(int n) => total <= 0 ? 0 : n / total * 100;
 }

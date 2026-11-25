@@ -28,6 +28,7 @@ String genderToApi(CrabGender g) => switch (g) {
 
 CrabLifeStatus mapLifeStatus(String api) => switch (api.toLowerCase()) {
       'dead' => CrabLifeStatus.dead,
+      'missing' => CrabLifeStatus.missing,
       'sold' => CrabLifeStatus.sold,
       'harvested' || 'ready' => CrabLifeStatus.readyForSale,
       _ => CrabLifeStatus.raising,
@@ -40,6 +41,7 @@ CrabLifecycleStatus mapLifecycleStatus({
 }) {
   final s = status.toLowerCase();
   if (s == 'dead') return CrabLifecycleStatus.dead;
+  if (s == 'missing') return CrabLifecycleStatus.missing;
   if (s == 'harvested' || s == 'sold') return CrabLifecycleStatus.harvested;
   if (s == 'molting' || s.contains('molt')) return CrabLifecycleStatus.molting;
   final g = (growthStage ?? '').toLowerCase();
@@ -69,6 +71,7 @@ CrabDisplayHealth mapDisplayHealth(String? api) {
 
 String lifeStatusToApi(CrabLifeStatus life) => switch (life) {
       CrabLifeStatus.dead => 'dead',
+      CrabLifeStatus.missing => 'missing',
       CrabLifeStatus.sold => 'sold',
       CrabLifeStatus.readyForSale => 'harvested',
       _ => 'alive',
@@ -440,6 +443,7 @@ CrabManagementSummary summarizeCrabs(List<CrabIndividual> crabs) {
     total: total,
     alive: growing,
     dead: dead,
+    missing: crabs.where((c) => c.lifecycleStatus == CrabLifecycleStatus.missing).length,
     molting: molting,
     readyHarvest: ready,
     aliveRate: total == 0 ? 0 : growing / total * 100,

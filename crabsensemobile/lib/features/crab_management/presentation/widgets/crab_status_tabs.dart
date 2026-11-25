@@ -60,6 +60,8 @@ class CrabStatusTabs extends StatelessWidget {
         activeColor: kCmTealLight,
         icon: '🧺',
       ),
+      _ChipData(label: 'Thất lạc', count: kpi.missing, status: CrabLifecycleStatus.missing,
+        color: kCmAmber, activeColor: kCmAmberLight, icon: '?'),
       _ChipData(
         label: 'Chết',
         count: kpi.dead,
