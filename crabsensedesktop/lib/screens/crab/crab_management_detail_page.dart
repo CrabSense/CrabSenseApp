@@ -590,6 +590,7 @@ class _CrabDetailHeader extends StatelessWidget {
     final hasPhoto = (profile?.imageUrls.isNotEmpty ?? false) || (profile?.avatarUrl?.isNotEmpty ?? false);
     final lot = crab.batchId.trim().isEmpty ? (profile?.lotCode ?? '') : crab.batchId;
     final alive = crab.lifecycleStatus != CrabLifecycleStatus.dead &&
+        crab.lifecycleStatus != CrabLifecycleStatus.missing &&
         crab.lifecycleStatus != CrabLifecycleStatus.harvested;
 
     return Container(

@@ -132,6 +132,7 @@ class _TransferCrabModalState extends State<TransferCrabModal> {
   CrabService get _svc => widget.service;
 
   bool get _blocked =>
+      _crab.lifecycleStatus == CrabLifecycleStatus.missing ||
       _crab.lifecycleStatus == CrabLifecycleStatus.dead ||
       _crab.lifeStatus == CrabLifeStatus.dead ||
       _crab.lifecycleStatus == CrabLifecycleStatus.harvested ||

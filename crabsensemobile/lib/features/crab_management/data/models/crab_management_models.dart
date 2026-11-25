@@ -20,6 +20,7 @@ enum CrabLifecycleStatus {
   readyToHarvest, // READY_TO_HARVEST — Sắp thu hoạch
   harvested, // HARVESTED — Đã thu hoạch
   dead, // DEAD — Chết
+  missing, // MISSING — Thất lạc
   unknown,
 }
 
@@ -79,6 +80,8 @@ extension CrabLifecycleStatusX on CrabLifecycleStatus {
         return 'Đã thu hoạch';
       case CrabLifecycleStatus.dead:
         return 'Chết';
+      case CrabLifecycleStatus.missing:
+        return 'Thất lạc';
       case CrabLifecycleStatus.unknown:
         return 'Không rõ';
     }
@@ -96,6 +99,8 @@ extension CrabLifecycleStatusX on CrabLifecycleStatus {
         return CrabLifecycleStatus.harvested;
       case 'DEAD':
         return CrabLifecycleStatus.dead;
+      case 'MISSING':
+        return CrabLifecycleStatus.missing;
       default:
         return CrabLifecycleStatus.unknown;
     }
@@ -197,7 +202,8 @@ class CrabRecord {
     final status = (json['status'] ?? json['lifecycleStatus'] ?? json['lifecycle_status'] ?? '').toString().toUpperCase();
     if (status == 'DEAD') return CrabLifecycleStatus.dead;
     if (status == 'HARVESTED' || status == 'SOLD') return CrabLifecycleStatus.harvested;
-    if (status == 'MISSING' || status == 'QUARANTINED') return CrabLifecycleStatus.unknown;
+    if (status == 'MISSING') return CrabLifecycleStatus.missing;
+    if (status == 'QUARANTINED') return CrabLifecycleStatus.unknown;
     if (status == 'ALIVE' || status == 'MOLTING') {
       final condition = (json['condition'] ?? '').toString().toUpperCase();
       if (condition == 'SOFTSHELL' || condition == 'SOFT_SHELL') {
@@ -300,6 +306,7 @@ class CrabKpiSummary {
     required this.molting,
     required this.readyToHarvest,
     required this.dead,
+    this.missing = 0,
   });
 
   final int total;
@@ -308,6 +315,7 @@ class CrabKpiSummary {
   final int molting;
   final int readyToHarvest;
   final int dead;
+  final int missing;
 
   double get growingPct => total == 0 ? 0 : growing / total * 100;
   double get monitoringPct => total == 0 ? 0 : monitoring / total * 100;
@@ -334,6 +342,7 @@ class CrabKpiSummary {
       readyToHarvest: crabs
           .where((c) => c.lifecycleStatus == CrabLifecycleStatus.readyToHarvest)
           .length,
+      missing: crabs.where((c) => c.lifecycleStatus == CrabLifecycleStatus.missing).length,
       dead: crabs
           .where((c) => c.lifecycleStatus == CrabLifecycleStatus.dead)
           .length,
@@ -353,6 +362,7 @@ class CrabKpiSummary {
       molting: asInt(json['molting']),
       readyToHarvest: asInt(json['readyToHarvest'] ?? json['ready_to_harvest']),
       dead: asInt(json['dead']),
+      missing: asInt(json['missing']),
     );
   }
 

@@ -41,6 +41,7 @@ class CrabOperationalBadge extends StatelessWidget {
       CrabOperationalStatus.sold =>
         CrabLifecycleStatus.harvested,
       CrabOperationalStatus.dead => CrabLifecycleStatus.dead,
+      CrabOperationalStatus.missing => CrabLifecycleStatus.missing,
       CrabOperationalStatus.warning => CrabLifecycleStatus.growing,
     };
     return CrabLifecycleBadge(status: mapped);
@@ -60,6 +61,7 @@ class CrabLifeBadge extends StatelessWidget {
       CrabLifeStatus.sold =>
         CrabLifecycleStatus.harvested,
       CrabLifeStatus.dead => CrabLifecycleStatus.dead,
+      CrabLifeStatus.missing => CrabLifecycleStatus.missing,
     };
     return CrabLifecycleBadge(status: mapped);
   }

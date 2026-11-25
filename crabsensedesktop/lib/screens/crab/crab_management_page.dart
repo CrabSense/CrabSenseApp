@@ -563,6 +563,7 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
         Icons.shopping_basket_outlined,
       ),
       (CrabManagementStatusFilter.dead, 'Chết', s.dead, Icons.favorite_border),
+      (CrabManagementStatusFilter.missing, 'Thất lạc', s.missing, Icons.search_off),
     ];
     return Wrap(
       spacing: 8,

@@ -159,7 +159,34 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
 
   Future<void> _save() async {
     if (_saving) return;
-    setState(() => _saving = true);
+    if (_endCase == 'escaped') {
+      final reason = _notesCtrl.text.trim();
+      if (reason.isEmpty || reason.length > 1000) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Nhập lý do thất lạc (1–1000 ký tự).'),
+        ));
+        return;
+      }
+      setState(() => _saving = true);
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Xác nhận cua thất lạc?'),
+          content: const Text('Chỉ xác nhận sau khi kiểm tra thực tế. Hệ thống sẽ đóng phân bổ, giải phóng hộp và giữ lịch sử. Không phải ghi nhận tử vong.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Xác nhận')),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (confirmed != true) {
+        setState(() => _saving = false);
+        return;
+      }
+    } else {
+      setState(() => _saving = true);
+    }
     try {
       final tag = crabDisplayTag(widget.crab);
       final noteExtra = _notesCtrl.text.trim();
@@ -171,13 +198,12 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
       }
 
       if (!mounted) return;
-      final result = _endCase == 'dead' ? 'ended' : 'saved';
+      final result = _isEnding ? 'ended' : 'saved';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            result == 'ended'
-                ? 'Đã kết thúc hộp'
-                : _endCase == 'escaped' ? 'Đã báo cáo cua xổng; chưa giải phóng hộp.' : 'Đã lưu phiếu hôm nay',
+            _endCase == 'escaped' ? 'Đã ghi nhận thất lạc và giải phóng hộp'
+                : result == 'ended' ? 'Đã kết thúc hộp' : 'Đã lưu phiếu hôm nay',
           ),
           backgroundColor: CrabSenseColors.primary,
           behavior: SnackBarBehavior.floating,
@@ -232,11 +258,11 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
         'carapaceWidthMm': _toDouble(_deadWidthCtrl.text),
       });
     } else if (_endCase == 'escaped') {
-      // No dedicated missing-crab transition is available: record an inspection
-      // report, do not delete the animal or claim the box is empty.
-      await _api.post<dynamic>('/operations', data: await _opBody(
-        type: 'inspection', notes: notes, includeCare: false,
-      ));
+      final result = await _api.safePost<dynamic>('/crabs/$crabId/missing', data: {
+        'boxId': widget.boxId,
+        'reason': extraNotes,
+      });
+      if (result.failure != null) throw result.failure!;
     } else {
       throw StateError('Sử dụng luồng thu hoạch được phân công.');
     }
@@ -434,7 +460,7 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
             options: const {
               '': 'Đang nuôi',
               'dead': 'Cua chết',
-              'escaped': 'Báo cua xổng',
+              'escaped': 'Cua thất lạc',
               'molting': 'Cua lột',
             },
             onChanged: (v) {
@@ -487,12 +513,12 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
             ),
           ] else ...[
             const Text(
-              'Báo quản lý xác minh. Hộp chưa được giải phóng.',
+              'Kiểm tra hộp thực tế trước khi xác nhận. Hộp sẽ được giải phóng và hồ sơ cua được giữ lại.',
               style: TextStyle(color: kHomeTextSub, fontSize: 13),
             ),
           ],
           const SizedBox(height: 12),
-          _field(_notesCtrl, 'Ghi chú (không bắt buộc)', lines: 2),
+          _field(_notesCtrl, _endCase == 'escaped' ? 'Lý do thất lạc (bắt buộc)' : 'Ghi chú (không bắt buộc)', lines: 2),
         ] else ...[
           if (widget.mode == 'monitor') ...[
             const SizedBox(height: 16),
@@ -614,7 +640,7 @@ class _DailyBoxCareSheetState extends State<DailyBoxCareSheet> {
                     ),
                   )
                 : Text(
-                    _endCase == 'dead' ? 'Xác nhận cua chết' : _endCase == 'escaped' ? 'Gửi báo cáo cua xổng' : 'Lưu phiếu hôm nay',
+                    _endCase == 'dead' ? 'Xác nhận cua chết' : _endCase == 'escaped' ? 'Xác nhận thất lạc' : 'Lưu phiếu hôm nay',
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
           ),
