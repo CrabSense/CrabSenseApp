@@ -606,6 +606,7 @@ class CrabListTile extends StatelessWidget {
     CrabLifecycleStatus.readyToHarvest => kCmTealLight,
     CrabLifecycleStatus.harvested => kCmSlateBg,
     CrabLifecycleStatus.dead => kCmRedLight,
+    CrabLifecycleStatus.missing => kCmAmberLight,
     CrabLifecycleStatus.unknown => kCmSlateBg,
   };
 
@@ -615,6 +616,7 @@ class CrabListTile extends StatelessWidget {
     CrabLifecycleStatus.readyToHarvest => 'đŸ§º',
     CrabLifecycleStatus.harvested => 'âœ“',
     CrabLifecycleStatus.dead => 'đŸ’”',
+    CrabLifecycleStatus.missing => '?',
     CrabLifecycleStatus.unknown => '?',
   };
 }

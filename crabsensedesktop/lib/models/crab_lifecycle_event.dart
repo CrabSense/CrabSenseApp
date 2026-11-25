@@ -349,6 +349,7 @@ class CrabLifecycleSummary {
     this.ai = 0,
     this.alert = 0,
     this.harvest = 0,
+    this.missing = 0,
     this.system = 0,
     this.note = 0,
   });
@@ -362,6 +363,7 @@ class CrabLifecycleSummary {
   final int ai;
   final int alert;
   final int harvest;
+  final int missing;
   final int system;
   final int note;
 
@@ -375,6 +377,7 @@ class CrabLifecycleSummary {
         ai: _int(json, const ['ai', 'Ai']),
         alert: _int(json, const ['alert', 'Alert']),
         harvest: _int(json, const ['harvest', 'Harvest']),
+        missing: _int(json, const ['missing', 'Missing']),
         system: _int(json, const ['system', 'System']),
         note: _int(json, const ['note', 'Note']),
       );
@@ -389,6 +392,7 @@ class CrabLifecycleSummary {
         CrabHistoryEventFilter.ai => ai,
         CrabHistoryEventFilter.alert => alert,
         CrabHistoryEventFilter.harvest => harvest,
+        CrabHistoryEventFilter.missing => missing,
         CrabHistoryEventFilter.system => system,
         CrabHistoryEventFilter.note => note,
       };

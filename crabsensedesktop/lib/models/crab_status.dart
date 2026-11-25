@@ -75,7 +75,6 @@ enum CrabLifecycleStatus {
         CrabLifecycleStatus.readyHarvest => 'Sắp thu hoạch',
         CrabLifecycleStatus.harvested => 'Đã thu hoạch',
         CrabLifecycleStatus.dead => 'Chết',
-        CrabLifecycleStatus.missing => DashboardColors.monitoring,
         CrabLifecycleStatus.missing => 'Thất lạc',
       };
 
@@ -85,6 +84,7 @@ enum CrabLifecycleStatus {
         CrabLifecycleStatus.readyHarvest => DashboardColors.seaGreen,
         CrabLifecycleStatus.harvested => const Color(0xFF2495E8),
         CrabLifecycleStatus.dead => DashboardColors.risk,
+        CrabLifecycleStatus.missing => DashboardColors.monitoring,
       };
 }
 
@@ -157,7 +157,6 @@ enum CrabOperationalStatus {
         CrabOperationalStatus.harvested => 'ĐÃ THU HOẠCH',
         CrabOperationalStatus.sold => 'ĐÃ BÁN',
         CrabOperationalStatus.dead => 'CHẾT',
-        CrabOperationalStatus.missing => DashboardColors.monitoring,
         CrabOperationalStatus.missing => 'THẤT LẠC',
       };
 
@@ -169,6 +168,7 @@ enum CrabOperationalStatus {
         CrabOperationalStatus.harvested => DashboardColors.cyan,
         CrabOperationalStatus.sold => DashboardColors.purple,
         CrabOperationalStatus.dead => DashboardColors.risk,
+        CrabOperationalStatus.missing => DashboardColors.monitoring,
       };
 }
 
@@ -233,7 +233,6 @@ enum CrabLifeStatus {
         CrabLifeStatus.readyForSale => 'Đã thu hoạch',
         CrabLifeStatus.sold => 'Đã bán',
         CrabLifeStatus.dead => 'Đã chết',
-        CrabLifeStatus.missing => DashboardColors.monitoring,
         CrabLifeStatus.missing => 'Thất lạc',
       };
 
@@ -242,6 +241,7 @@ enum CrabLifeStatus {
         CrabLifeStatus.readyForSale => DashboardColors.blue,
         CrabLifeStatus.sold => DashboardColors.purple,
         CrabLifeStatus.dead => DashboardColors.dead,
+        CrabLifeStatus.missing => DashboardColors.monitoring,
       };
 }
 
