@@ -5,6 +5,14 @@ import 'package:crab_farm_monitor_desktop/utils/crab_management_mapper.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('recovered history is distinct and included in missing history filter', () {
+    final event = CrabLifecycleEventType.parse('RECOVERED');
+    expect(event, CrabLifecycleEventType.recovered);
+    expect(event.filter, CrabHistoryEventFilter.missing);
+    expect(event.label, 'Khôi phục cua tìm thấy');
+    expect(CrabLifecycleSummary.fromJson({'missing': 2, 'recovered': 1})
+        .of(CrabHistoryEventFilter.missing), 3);
+  });
   test('missing lifecycle labels and colors are distinct from death', () {
     expect(resolveCrabLifecycleStatus({'status': 'Missing', 'isAlive': false}), 'missing');
     expect(mapLifeStatus('missing'), CrabLifeStatus.missing);

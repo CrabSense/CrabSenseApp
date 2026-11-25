@@ -36,6 +36,23 @@ void main() {
     expect(svc.lots.single.id,'lot-a');
   });
 
+  test('recovery API uses dedicated endpoint and explicit destination and reason', () async {
+    final api = CloudApiClient(client:MockClient((req) async {
+      expect(req.method,'POST');
+      expect(req.url.path,'/api/crabs/crab-1/recover');
+      expect(jsonDecode(req.body), {'boxId':'box-2','reason':'Found alive'});
+      return http.Response(jsonEncode({'success':true}),200);
+    }));
+    await api.recoverMissingCrab('test','crab-1',boxId:'box-2',reason:'Found alive');
+  });
+
+  test('unknown crab recovery cannot call API', () async {
+    final api = CloudApiClient(client:MockClient((_) async { fail('Unexpected HTTP request'); }));
+    final svc = CrabService(session:session,api:api);
+    addTearDown(svc.dispose);
+    expect(await svc.recoverMissing('unknown',boxId:'box-2',reason:'Found alive'),isFalse);
+  });
+
   test('unknown crab cannot be deleted and unassigned Manager cannot import', () async {
     final api = CloudApiClient(client:MockClient((_) async { fail('Unexpected HTTP request'); }));
     final svc = CrabService(session:session,api:api);

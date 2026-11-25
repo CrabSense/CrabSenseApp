@@ -61,6 +61,16 @@ class CrabService extends ChangeNotifier {
   bool canReleaseTerminalCrab(CrabIndividual crab) => canCorrectCrab(crab.id) &&
       crab.areaId == farmId && const {CrabLifeStatus.dead, CrabLifeStatus.missing, CrabLifeStatus.sold, CrabLifeStatus.readyForSale}.contains(crab.lifeStatus);
 
+  bool canRecoverMissing(String id) => canCorrectCrab(id) &&
+      getById(id)?.lifecycleStatus == CrabLifecycleStatus.missing;
+
+  List<BoxRecord> get recoveryBoxes => !canManageCurrentArea ? const [] :
+      _boxes.where((box) =>
+          (box.areaId == farmId || (box.areaId == null &&
+              _rowsInArea.any((row) => row.id == box.rowId))) &&
+          !box.isOccupied && !box.hasCrab &&
+          box.status.trim().toLowerCase() == 'empty').toList();
+
   List<CrabIndividual> _crabs = [];
   List<AreaRecord> _areas = [];
   List<RowRecord> _rowsInArea = [];
@@ -975,6 +985,30 @@ class CrabService extends ChangeNotifier {
     } on CloudApiException catch (e) {
       _error = e.message;
       notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> recoverMissing(String id, {
+    required String boxId, required String reason,
+  }) async {
+    final text = reason.trim();
+    if (!canRecoverMissing(id) || text.isEmpty || text.length > 1000 ||
+        !recoveryBoxes.any((box) => box.id == boxId)) {
+      _error = 'Chọn cua thất lạc, hộp trống cùng khu và nhập lý do hợp lệ.';
+      if (!_disposed) notifyListeners();
+      return false;
+    }
+    final generation = _scopeGeneration;
+    try {
+      await _api.recoverMissingCrab(token, id, boxId: boxId, reason: text);
+      if (_current(generation)) await load();
+      return true;
+    } catch (e) {
+      if (_current(generation)) {
+        _error = e is CloudApiException ? e.message : '$e';
+        notifyListeners();
+      }
       return false;
     }
   }

@@ -108,6 +108,8 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
         widget.onOpenDetail?.call(crab);
       case CrabManagementAction.viewBox:
         _openBoxes(crab);
+      case CrabManagementAction.recoverMissing:
+        await _recoverMissing(crab);
       case CrabManagementAction.releaseTerminal:
         if (_releasing || !_svc.canReleaseTerminalCrab(crab)) return;
         final area = _svc.farmId;
@@ -130,6 +132,76 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
         }
       default:
         return;
+    }
+  }
+
+  Future<void> _recoverMissing(CrabIndividual crab) async {
+    if (_releasing || !_svc.canRecoverMissing(crab.id)) return;
+    final area = _svc.farmId;
+    setState(() => _releasing = true);
+    try {
+      // Refresh the scoped inventory before offering a destination.
+      await _svc.load();
+      if (!mounted || _svc.farmId != area || !_svc.canRecoverMissing(crab.id)) return;
+      final boxes = _svc.recoveryBoxes;
+      if (boxes.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Không có hộp trống hợp lệ trong khu hiện tại.'),
+        ));
+        return;
+      }
+      String? boxId;
+      String reason = '';
+      final result = await showDialog<(String, String)>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text('Khôi phục ${crab.code}'),
+            content: SizedBox(
+              width: 440,
+              child: SingleChildScrollView(
+                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Chỉ xác nhận khi đã tìm thấy đúng cua còn sống và Staff đã đưa vào hộp trống. Giữ mã cua, QR, lô và lịch sử; cần kiểm tra sức khỏe lại.'),
+                    const SizedBox(height: 16),
+                    DropdownButton<String>(
+                      isExpanded: true, value: boxId, hint: const Text('Chọn hộp trống'),
+                      items: boxes.map((box) => DropdownMenuItem(
+                        value: box.id,
+                        child: Text('${box.rowCode ?? box.rowName ?? ""} — ${box.boxCode}', overflow: TextOverflow.ellipsis),
+                      )).toList(),
+                      onChanged: (value) => setDialogState(() => boxId = value),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      maxLength: 1000, maxLines: 3,
+                      decoration: const InputDecoration(labelText: 'Lý do / xác nhận tìm thấy cua'),
+                      onChanged: (value) => setDialogState(() => reason = value.trim()),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+              FilledButton(
+                onPressed: boxId == null || reason.isEmpty || reason.length > 1000 ? null :
+                    () => Navigator.pop(ctx, (boxId!, reason)),
+                child: const Text('Xác nhận khôi phục'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (!mounted || _svc.farmId != area || result == null) return;
+      final ok = await _svc.recoverMissing(crab.id, boxId: result.$1, reason: result.$2);
+      if (mounted && _svc.farmId == area) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(ok ? 'Đã khôi phục cua. Staff cần kiểm tra sức khỏe.' : (_svc.error ?? 'Không thể khôi phục.')),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _releasing = false);
     }
   }
 
@@ -713,6 +785,7 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
       onOpenCode: widget.onOpenDetail,
       onAction: _onAction,
         canReleaseTerminal: (crab) => !_releasing && _svc.canReleaseTerminalCrab(crab),
+        canRecoverMissing: (crab) => !_releasing && _svc.canRecoverMissing(crab.id),
       onSort: (col, asc) {
         _svc.setSort(switch (col) {
           1 => CrabListSort.code,
