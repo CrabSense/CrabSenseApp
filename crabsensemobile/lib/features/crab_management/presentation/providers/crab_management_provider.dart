@@ -375,11 +375,12 @@ class CrabManagementNotifier extends StateNotifier<CrabManagementState> {
   Future<void> markMolting({
     required String crabId,
     required DateTime detectedAt,
+    String outcome = 'success',
     String? note,
   }) async {
     state = state.copyWith(actionLoading: true);
     try {
-      await _ds.markMolting(crabId: crabId, detectedAt: detectedAt, note: note);
+      await _ds.markMolting(crabId: crabId, detectedAt: detectedAt, outcome: outcome, note: note);
       await Future.wait([_loadKpi(), _loadPage()]);
       // Refresh detail if this crab is selected
       if (state.selectedCrab?.id == crabId) {

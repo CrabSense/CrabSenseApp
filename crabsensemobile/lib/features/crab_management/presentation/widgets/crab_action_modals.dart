@@ -99,14 +99,15 @@ PopupMenuItem<String> _menuItem(
 
 // ── Mark Molting modal ────────────────────────────────────────────────────────
 
-Future<({DateTime detectedAt, String note})?> showMarkMoltingDialog(
+Future<({DateTime detectedAt, String note, String outcome})?> showMarkMoltingDialog(
   BuildContext context,
   CrabRecord crab,
 ) {
   final noteCtrl = TextEditingController();
   DateTime detectedAt = DateTime.now();
+  String outcome = 'success';
 
-  return showDialog<({DateTime detectedAt, String note})>(
+  return showDialog<({DateTime detectedAt, String note, String outcome})>(
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setState) => AlertDialog(
@@ -128,7 +129,7 @@ Future<({DateTime detectedAt, String note})?> showMarkMoltingDialog(
             ),
             const SizedBox(width: 10),
             Text(
-              'Xác nhận cua đã lột xác thành công?',
+              'Ghi nhận kết quả lột xác',
               style: GoogleFonts.nunito(
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
@@ -141,7 +142,24 @@ Future<({DateTime detectedAt, String note})?> showMarkMoltingDialog(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _DialogInfoRow(label: 'Cua', value: crab.id),
+            _DialogInfoRow(label: 'Cua', value: crab.code),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: outcome,
+              isExpanded: true,
+              decoration: _inputDeco('Kết quả lột xác'),
+              items: const [
+                DropdownMenuItem(value: 'success', child: Text('Thành công')),
+                DropdownMenuItem(value: 'monitoring', child: Text('Chưa hoàn tất / theo dõi')),
+                DropdownMenuItem(value: 'abnormal', child: Text('Bất thường')),
+                DropdownMenuItem(value: 'failed', child: Text('Thất bại')),
+              ],
+              onChanged: (v) { if (v != null) setState(() => outcome = v); },
+            ),
+            if (outcome != 'success') const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('Cua còn sống cần được kiểm tra lại. Nếu đã chết, dùng ghi nhận tử vong.'),
+            ),
             const SizedBox(height: 12),
             Text(
               'Thời gian',
@@ -220,6 +238,7 @@ Future<({DateTime detectedAt, String note})?> showMarkMoltingDialog(
             onPressed: () => Navigator.pop(ctx, (
               detectedAt: detectedAt,
               note: noteCtrl.text.trim(),
+              outcome: outcome,
             )),
             style: ElevatedButton.styleFrom(
               backgroundColor: kCmPurple,

@@ -648,7 +648,7 @@ class FarmingBatchRecord {
   }
 
   int get remainingCount {
-    if (workflowStatus == CrabLotWorkflowStatus.cancelled) return 0;
+    if (isClosed || workflowStatus == CrabLotWorkflowStatus.cancelled) return 0;
     final left = initialQuantity - placedCount - deadOnArrival;
     return left < 0 ? 0 : left;
   }
