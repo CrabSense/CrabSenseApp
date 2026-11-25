@@ -61,6 +61,7 @@ class CrabLifecycleBadge extends StatelessWidget {
       CrabLifecycleStatus.readyToHarvest => kCmTeal,
       CrabLifecycleStatus.harvested => kCmSlate,
       CrabLifecycleStatus.dead => kCmRed,
+      CrabLifecycleStatus.missing => kCmAmber,
       CrabLifecycleStatus.unknown => kCmSlate,
     };
     return _StatusChip(
