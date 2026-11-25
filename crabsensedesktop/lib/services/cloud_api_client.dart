@@ -733,6 +733,21 @@ class CloudApiClient {
     required String farmingAreaId,
   }) => _getDataMap(token, '/api/harvest-assignments/$id', farmingAreaId: farmingAreaId);
 
+  Future<void> reviewHarvestAssignment(String token, String id, {
+    required String farmingAreaId, required bool confirm, String? notes,
+  }) async {
+    if(id.trim().isEmpty || farmingAreaId.trim().isEmpty ||
+        (!confirm && (notes ?? '').trim().isEmpty)) {
+      throw CloudApiException('Thiếu nhiệm vụ, khu hoặc lý do bổ sung.');
+    }
+    final action = confirm ? 'confirm' : 'return';
+    final uri = Uri.parse('$_base/api/harvest-assignments/$id/$action');
+    final response = await _client.post(uri,
+      headers: {...authHeaders(token, farmId: farmingAreaId), 'Content-Type': 'application/json'},
+      body: jsonEncode({'notes': notes?.trim()}));
+    _throwIfFailed(response, _decode(response), uri.path);
+  }
+
   Future<Set<String>> fetchOpenHarvestAssignmentCrabIds(String token, {required String farmingAreaId}) async {
     if(farmingAreaId.isEmpty) throw CloudApiException('Thiếu khu nuôi.');
     final assignments=await fetchHarvestAssignments(token,farmingAreaId:farmingAreaId);
@@ -740,7 +755,7 @@ class CloudApiClient {
     for(final task in assignments) {
       if((task['farmingAreaId']??task['FarmingAreaId']).toString()!=farmingAreaId) continue;
       final state=(task['status']??task['Status']).toString().toLowerCase();
-      if(state!='assigned'&&state!='inprogress') continue;
+      if(!const {'assigned','inprogress','pendingreview'}.contains(state)) continue;
       final taskId=(task['id']??task['Id']??'').toString();
       if(taskId.isEmpty) throw CloudApiException('Nhiệm vụ thiếu ID.');
       final detail=await fetchHarvestAssignmentDetail(token,taskId,farmingAreaId:farmingAreaId);
