@@ -417,11 +417,12 @@ class CrabManagementNotifier extends StateNotifier<CrabManagementState> {
   Future<void> transferCrab({
     required String crabId,
     required String toBoxId,
+    required String sourceBoxId,
     String? note,
   }) async {
     state = state.copyWith(actionLoading: true);
     try {
-      await _ds.transferCrab(crabId: crabId, toBoxId: toBoxId, note: note);
+      await _ds.transferCrab(crabId: crabId, toBoxId: toBoxId, sourceBoxId: sourceBoxId, note: note);
       await Future.wait([_loadKpi(), _loadPage()]);
       if (state.selectedCrab?.id == crabId) {
         final updated = await _ds.getCrabById(crabId);

@@ -55,7 +55,7 @@ CrabLifecycleStatus mapLifecycleStatus({
 
 CrabDisplayHealth mapDisplayHealth(String? api) {
   final s = (api ?? '').toLowerCase();
-  if (s.contains('alert') || s.contains('cảnh')) return CrabDisplayHealth.alert;
+  if (s.contains('alert') || s.contains('cảnh') || s == 'problem') return CrabDisplayHealth.alert;
   if (s.contains('risk') ||
       s.contains('weak') ||
       s.contains('yếu') ||
@@ -80,7 +80,7 @@ String lifeStatusToApi(CrabLifeStatus life) => switch (life) {
 CrabHealthStatus mapHealthStatus(String? api) {
   final s = (api ?? 'healthy').toLowerCase();
   if (s.contains('molt')) return CrabHealthStatus.molting;
-  if (s.contains('risk') ||
+  if (s == 'problem' || s.contains('risk') ||
       s.contains('nguy') ||
       s.contains('weak') ||
       s.contains('yếu') ||

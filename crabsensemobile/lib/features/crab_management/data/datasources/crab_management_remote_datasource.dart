@@ -37,6 +37,7 @@ abstract class CrabManagementRemoteDataSource {
   Future<void> transferCrab({
     required String crabId,
     required String toBoxId,
+    required String sourceBoxId,
     String? note,
   });
 
@@ -199,11 +200,13 @@ class CrabManagementRemoteDataSourceImpl
   Future<void> transferCrab({
     required String crabId,
     required String toBoxId,
+    required String sourceBoxId,
     String? note,
   }) async {
     final body = <String, dynamic>{
       'crabId': crabId,
       'destinationBoxId': toBoxId,
+      'sourceBoxId': sourceBoxId,
       if (note != null && note.trim().isNotEmpty) 'notes': note.trim(),
     };
     final result = await _api.safePost<dynamic>(
