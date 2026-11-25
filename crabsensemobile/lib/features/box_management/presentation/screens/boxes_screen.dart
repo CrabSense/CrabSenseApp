@@ -500,7 +500,7 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
     final authState = context.watch<AuthBloc>().state;
     final role = authState is Authenticated
         ? authState.user.role
-        : UserRole.viewer;
+        : UserRole.unknown;
     _syncPermissions(role);
 
     final asyncState = ref.watch(boxesStateProvider);

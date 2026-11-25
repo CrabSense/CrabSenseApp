@@ -140,6 +140,9 @@ class AreaManagementService extends ChangeNotifier {
     double? latitude,
     double? longitude,
   }) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     final a = await _api.createArea(
       token,
       farmId,
@@ -167,6 +170,9 @@ class AreaManagementService extends ChangeNotifier {
     double? latitude,
     double? longitude,
   }) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     final a = await _api.updateArea(
       token,
       item.id,
@@ -185,6 +191,9 @@ class AreaManagementService extends ChangeNotifier {
   }
 
   Future<void> deleteArea(AreaRecord item, {bool cascade = false}) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     await _api.deleteArea(token, item.id, cascade: cascade);
     await load();
   }

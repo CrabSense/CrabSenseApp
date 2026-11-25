@@ -1,0 +1,2 @@
+# P0.2 Missing UI
+Staff records a physically verified missing crab through daily care with explicit reason and confirmation. Dedicated API rejects stale allocation/reserved harvest. Desktop has distinct lifecycle, filter, count and event type; no Staff mutation on Manager surface. Missing cannot transfer/harvest and must not inflate mortality. No recovery action yet. Deploy BE #75 before App. Manual UAT consolidated with other P0.2 checks.

@@ -139,10 +139,6 @@ class BoxDetailHeader extends StatelessWidget {
                   const PopupMenuItem(value: BoxHeaderAction.qr, child: Text('Xem QR')),
                   const PopupMenuItem(value: BoxHeaderAction.print, child: Text('In mã hộp')),
                   const PopupMenuItem(value: BoxHeaderAction.history, child: Text('Xem lịch sử')),
-                  const PopupMenuItem(value: BoxHeaderAction.transfer, child: Text('Chuyển cua ra')),
-                  const PopupMenuItem(value: BoxHeaderAction.maintenance, child: Text('Đánh dấu bảo trì')),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(value: BoxHeaderAction.delete, child: Text('Xóa hộp')),
                 ],
                 child: Container(
                   width: 38,
@@ -156,8 +152,8 @@ class BoxDetailHeader extends StatelessWidget {
                   child: Icon(Icons.more_vert_rounded, color: DashboardColors.textMuted),
                 ),
               ),
-              MgmtOutlineButton(icon: Icons.edit_outlined, label: 'Chỉnh sửa', onTap: onEdit),
-              MgmtOutlineButton(
+              if (onEdit != null) MgmtOutlineButton(icon: Icons.edit_outlined, label: 'Chỉnh sửa', onTap: onEdit),
+              if (onLock != null) MgmtOutlineButton(
                 icon: locked ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
                 label: locking ? 'Đang xử lý...' : (locked ? 'Mở khóa hộp' : 'Khóa hộp'),
                 color: locked ? DashboardColors.brand : const Color(0xFFF5B700),

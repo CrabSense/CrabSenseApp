@@ -1,0 +1,2 @@
+# Missing crab recovery
+Manager Desktop/Web: select Missing crab in management list, choose same-area empty box, enter reason, confirm actual recovery. API is authoritative. Refresh data after success. History distinguishes RECOVERED from MISSING; one filter groups both. Staff Mobile continues normal care after recovery; no Manager mutation in Mobile. Requires BE #77. Manual acceptance deferred.

@@ -1,0 +1,7 @@
+# P0.3 — Manager harvest scope
+- Separate voucher approval workflow from assignment workflow. Assigned tasks complete with an authoritative completed voucher when staff harvests; deferred crabs remain in farming. Do not confirm a completed assignment voucher again.
+- Guard voucher decisions and deletes with manager assignment, exact non-null area, current loaded state, creator/adjustment requester separation, reason and single-flight mutation.
+- Reset all KPI/list/error/filter data on area/session change; ignore stale responses and load readiness after open vouchers. Reserve IDs of crabs in open assignments or active vouchers before exposing selections.
+- Manager can create a proposed voucher, another manager must approve it. Staff executes; manager confirms after execution. Assignment route selects Alive crabs in current area, eligible staff, distinct IDs. BE is final validation.
+- Display shortfall count/reason and adjustment reason returned by BE; permanent deletion permitted only in BE-supported states and no frozen references. No physical harvest or frozen inventory creation on client.
+- Verify mobile acceptance with real accounts: accept assigned task, record measurements/evidence or defer with reason, complete all lines, verify voucher quantity and crab state, verify frozen stock and traceability separately. Review cross-flow concurrent reservation at database level and adjustment-request UI in follow-up; not covered by this patch.

@@ -22,6 +22,7 @@ import '../../domain/entities/harvest.dart';
 import '../bloc/harvest_bloc.dart';
 import '../bloc/harvest_event.dart';
 import '../bloc/harvest_state.dart';
+import 'harvest_assignments_screen.dart';
 
 /// Screen for recording harvest data in CrabSense.
 ///
@@ -255,6 +256,7 @@ class _HarvestView extends StatelessWidget {
           ],
         ),
         centerTitle: true,
+        actions: [if (userRole == UserRole.farmStaff) IconButton(tooltip: 'Nhiệm vụ thu hoạch', icon: const Icon(Icons.assignment_outlined), onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const HarvestAssignmentsScreen())))],
       ),
       body: BlocConsumer<HarvestBloc, HarvestState>(
         listener: (context, state) {
@@ -266,7 +268,7 @@ class _HarvestView extends StatelessWidget {
                       : 'Đã ghi nhận lột — cua ở lại hộp nuôi tiếp.')
                   : (state.isOffline
                       ? 'Đã lưu thu hoạch ngoại tuyến, sẽ đồng bộ khi có mạng.'
-                      : 'Đã ghi nhận thu hoạch thành công!');
+                      : 'Đã gửi yêu cầu thu hoạch, chờ Manager duyệt.');
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(message),

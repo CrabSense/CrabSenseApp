@@ -10,12 +10,16 @@ class CrabStatusTabs extends StatelessWidget {
     required this.kpi,
     required this.activeStatus,
     required this.onSelected,
+    this.activeHealthWatch = false,
+    this.onHealthWatch,
     super.key,
   });
 
   final CrabKpiSummary kpi;
   final CrabLifecycleStatus? activeStatus; // null = Tất cả
   final void Function(CrabLifecycleStatus?) onSelected;
+  final bool activeHealthWatch;
+  final VoidCallback? onHealthWatch;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +64,8 @@ class CrabStatusTabs extends StatelessWidget {
         activeColor: kCmTealLight,
         icon: '🧺',
       ),
+      _ChipData(label: 'Thất lạc', count: kpi.missing, status: CrabLifecycleStatus.missing,
+        color: kCmAmber, activeColor: kCmAmberLight, icon: '?'),
       _ChipData(
         label: 'Chết',
         count: kpi.dead,
@@ -79,8 +85,8 @@ class CrabStatusTabs extends StatelessWidget {
             _StatusChip(
               data: chips[i],
               isActive:
-                  chips[i].status == activeStatus && !chips[i].isHealthWatch,
-              onTap: () => onSelected(chips[i].status),
+                  chips[i].isHealthWatch ? activeHealthWatch : !activeHealthWatch && chips[i].status == activeStatus,
+              onTap: () { if (chips[i].isHealthWatch) { onHealthWatch?.call(); } else { onSelected(chips[i].status); } },
             ),
           ],
         ],

@@ -10,7 +10,22 @@ import '../models/ras_flow.dart';
 import 'cloud_auth_service.dart';
 
 class RasFlowService extends ChangeNotifier {
-  RasFlowService({required AuthSession session}) : _session = session;
+  RasFlowService({required AuthSession session, http.Client? client})
+      : _session = session, _client = client ?? http.Client(), _ownsClient = client == null;
+
+  final http.Client _client;
+  final bool _ownsClient;
+  int _generation = 0;
+  int _readVersion = 0;
+  int _powerVersion = 0;
+  bool _mutating = false;
+  bool _current(int generation) => !_disposed && generation == _generation;
+  bool _assigned(String area) => area.isNotEmpty && _session.farms.any((f) => f.id == area);
+  bool get hardwareDisabled => _diagram?.hardwareControlDisabled != false;
+  bool get canOperate => _session.user.role == UserRoles.farmManager &&
+      !hardwareDisabled && !_disposed && !_mutating && _diagram != null &&
+      _assigned(_diagram!.areaId) && _diagram!.areaId == _session.selectedFarm.id &&
+      _lastRefreshedAt != null && DateTime.now().difference(_lastRefreshedAt!) <= const Duration(seconds: 30);
 
   /// Live view refresh. Backend /api/iot/live is heavy, so 5s matches the Edge
   /// telemetry cadence instead of hammering it every 2s.
@@ -18,16 +33,28 @@ class RasFlowService extends ChangeNotifier {
 
   AuthSession _session;
 
+  bool get canManageStructure => _session.user.isFarmOwner;
+  bool get canConfigureRelay => _session.user.isSystemAdmin;
+
   void updateSession(AuthSession session) {
     _session = session;
     stopLiveRefresh(notify: false);
     _diagram = null;
     _power = const PowerSnapshot();
+    _lastRefreshedAt = null;
     _error = null;
     _notifyDeferred();
   }
 
-  void _notifyDeferred() => Future.microtask(notifyListeners);
+  bool _disposed = false;
+
+  void _notifyDeferred() {
+    if (_disposed) return;
+    Future.microtask(() {
+      // A screen may leave while a refresh or HTTP request is still pending.
+      if (!_disposed) notifyListeners();
+    });
+  }
 
   var _loading = false;
   var _refreshInFlight = false;
@@ -53,10 +80,14 @@ class RasFlowService extends ChangeNotifier {
     String areaId, {
     Duration interval = livePollInterval,
   }) {
-    if (areaId.trim().isEmpty) return;
+    if (_disposed || !_assigned(areaId)) return;
     if (_liveAreaId == areaId && _liveTimer != null) return;
 
-    stopLiveRefresh();
+    stopLiveRefresh(notify: false);
+    _diagram = null;
+    _power = const PowerSnapshot();
+    _lastRefreshedAt = null;
+    _error = null;
     _liveAreaId = areaId;
     unawaited(loadDiagram(areaId));
     unawaited(refreshPower());
@@ -72,6 +103,10 @@ class RasFlowService extends ChangeNotifier {
   }
 
   void stopLiveRefresh({bool notify = true}) {
+    ++_generation;
+    _loading = false;
+    _refreshInFlight = false;
+    _mutating = false;
     _liveTimer?.cancel();
     _meterTimer?.cancel();
     _liveTimer = null;
@@ -85,7 +120,12 @@ class RasFlowService extends ChangeNotifier {
     bool silent = false,
     bool allowRefresh = true,
   }) async {
-    if (areaId.trim().isEmpty) return;
+    if (_disposed || !_assigned(areaId) ||
+        (_liveAreaId != null && _liveAreaId != areaId) || _mutating ||
+        (silent && (_loading || _refreshInFlight))) return;
+    final generation = _generation;
+    final version = ++_readVersion;
+    bool active() => _current(generation) && version == _readVersion;
     if (!silent) {
       _loading = true;
       _error = null;
@@ -94,30 +134,38 @@ class RasFlowService extends ChangeNotifier {
       _refreshInFlight = true;
     }
     try {
-      final res = await http.get(
-        Uri.parse('${AppEnv.cloudApiUrl}/api/areas/$areaId/ras-flow'),
-        headers: _headers(),
-      );
+      final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/areas/$areaId/ras-flow');
+      var res = await _client.get(uri, headers: _headers());
+      if (!active()) return;
+      if (res.statusCode == 401 && allowRefresh && await _renew(generation)) {
+        if (!active()) return;
+        res = await _client.get(uri, headers: _headers());
+      }
+      if (!active()) return;
       if (res.statusCode == 401) {
-        if (allowRefresh && await _renew()) {
-          await loadDiagram(areaId, silent: silent, allowRefresh: false);
-          return;
-        }
-        _error = 'Phiên đăng nhập hết hạn';
         stopLiveRefresh(notify: false);
+        _diagram = null;
+        _power = const PowerSnapshot();
+        _lastRefreshedAt = null;
+        _error = 'Phiên đăng nhập hết hạn';
+        _notifyDeferred();
         return;
       }
-      final data = _requireData(res);
-      _diagram = RasFlowDiagram.fromJson(data);
+      final next = RasFlowDiagram.fromJson(_requireData(res));
+      if (next.areaId != areaId) throw StateError('Phản hồi RAS sai khu nuôi.');
+      _diagram = next;
       _error = null;
       _lastRefreshedAt = DateTime.now();
     } catch (e) {
+      if (!active()) return;
       _error = e.toString();
       if (!silent) _diagram = null;
     } finally {
-      _loading = false;
-      _refreshInFlight = false;
-      _notifyDeferred();
+      if (active()) {
+        _loading = false;
+        _refreshInFlight = false;
+        _notifyDeferred();
+      }
     }
   }
 
@@ -134,15 +182,19 @@ class RasFlowService extends ChangeNotifier {
   Future<List<({String id, String code, String name, String ip})>> areaControllers(
     String areaId,
   ) async {
+    if (_disposed || !_assigned(areaId)) return const [];
+    final generation = _generation;
     final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/devices').replace(
       queryParameters: {'farmingAreaId': areaId},
     );
-    final res = await http.get(uri, headers: _headers());
-    if (res.statusCode == 401 && await _renew()) {
-      final again = await http.get(uri, headers: _headers());
-      return _controllersFrom(again);
+    final res = await _client.get(uri, headers: _headers());
+    if (!_current(generation)) return const [];
+    if (res.statusCode == 401 && await _renew(generation)) {
+      if (!_current(generation)) return const [];
+      final again = await _client.get(uri, headers: _headers());
+      return _current(generation) ? _controllersFrom(again) : const [];
     }
-    return _controllersFrom(res);
+    return _current(generation) ? _controllersFrom(res) : const [];
   }
 
   List<({String id, String code, String name, String ip})> _controllersFrom(
@@ -172,8 +224,12 @@ class RasFlowService extends ChangeNotifier {
     required String fromId,
     required String toId,
   }) {
+    if (!canManageStructure) {
+      _error = 'Cấu hình RAS thuộc quyền quản trị trên Web.';
+      return Future.value(false);
+    }
     return _mutate(
-      () => http.post(
+      () => _client.post(
         Uri.parse('${AppEnv.cloudApiUrl}/api/areas/$areaId/ras-flow/flows'),
         headers: _headers(),
         body: jsonEncode({
@@ -189,8 +245,12 @@ class RasFlowService extends ChangeNotifier {
     required String areaId,
     required String flowId,
   }) {
+    if (!canManageStructure) {
+      _error = 'Cấu hình RAS thuộc quyền quản trị trên Web.';
+      return Future.value(false);
+    }
     return _mutate(
-      () => http.delete(
+      () => _client.delete(
         Uri.parse('${AppEnv.cloudApiUrl}/api/areas/$areaId/ras-flow/flows/$flowId'),
         headers: _headers(),
       ),
@@ -202,8 +262,12 @@ class RasFlowService extends ChangeNotifier {
     required String areaId,
     required List<String> nodeIdsInOrder,
   }) async {
+    if (!canManageStructure) {
+      _error = 'Cấu hình RAS thuộc quyền quản trị trên Web.';
+      return false;
+    }
     return _mutate(
-      () => http.post(
+      () => _client.post(
         Uri.parse('${AppEnv.cloudApiUrl}/api/areas/$areaId/ras-flow/reorder'),
         headers: _headers(),
         body: jsonEncode({'nodeIds': nodeIdsInOrder}),
@@ -223,8 +287,12 @@ class RasFlowService extends ChangeNotifier {
     String? type,
     String? paramDefaults,
   }) async {
+    if (!canManageStructure) {
+      _error = 'Cấu hình RAS thuộc quyền quản trị trên Web.';
+      return false;
+    }
     return _mutate(
-      () => http.post(
+      () => _client.post(
         Uri.parse('${AppEnv.cloudApiUrl}/api/areas/$areaId/ras-flow/nodes'),
         headers: _headers(),
         body: jsonEncode({
@@ -253,8 +321,12 @@ class RasFlowService extends ChangeNotifier {
     String? relayChannel,
     String? paramDefaultsJson,
   }) async {
+    if (!canConfigureRelay) {
+      _error = 'Cấu hình RAS thuộc quyền quản trị trên Web.';
+      return false;
+    }
     return _mutate(
-      () => http.put(
+      () => _client.put(
         Uri.parse(
           '${AppEnv.cloudApiUrl}/api/areas/$areaId/ras-flow/nodes/$nodeId/relay',
         ),
@@ -274,8 +346,12 @@ class RasFlowService extends ChangeNotifier {
     required String areaId,
     required String nodeId,
   }) async {
+    if (!canManageStructure) {
+      _error = 'Cấu hình RAS thuộc quyền quản trị trên Web.';
+      return false;
+    }
     return _mutate(
-      () => http.delete(
+      () => _client.delete(
         Uri.parse(
           '${AppEnv.cloudApiUrl}/api/areas/$areaId/ras-flow/nodes/$nodeId',
         ),
@@ -292,7 +368,7 @@ class RasFlowService extends ChangeNotifier {
     required bool on,
   }) async {
     try {
-      await http.post(
+      await _client.post(
         Uri.parse('${AppEnv.cloudApiUrl}/api/iot/relay-state'),
         headers: _headers(),
         body: jsonEncode({
@@ -309,27 +385,41 @@ class RasFlowService extends ChangeNotifier {
     required String nodeId,
     required String command,
   }) async {
+    final node = _diagram?.nodes.where((n) => n.id == nodeId).firstOrNull;
+    final normalized = command.trim().toLowerCase();
+    if (!canOperate || _diagram?.areaId != areaId || node == null ||
+        !node.hasRelay || node.isOnline != true ||
+        node.relayDeviceId == null || node.relayDeviceId!.isEmpty ||
+        (node.relayChannel ?? '').isEmpty || node.portPresent == false ||
+        node.commandPending || !const {'on','off','start','stop','auto','manual'}.contains(normalized)) {
+      _error = 'Lệnh bị chặn: kiểm tra khu, kết nối, cấu hình cổng và trạng thái xác nhận.';
+      _notifyDeferred();
+      return false;
+    }
     return _mutate(
-      () => http.post(
+      () => _client.post(
         Uri.parse(
           '${AppEnv.cloudApiUrl}/api/areas/$areaId/ras-flow/nodes/$nodeId/command',
         ),
         headers: _headers(),
-        body: jsonEncode({'command': command}),
+        body: jsonEncode({'command': normalized}),
       ),
       areaId,
     );
   }
 
   Future<void> refreshPower() async {
+    final area = _liveAreaId;
+    if (_disposed || area == null || !_assigned(area)) return;
+    final generation = _generation;
+    final version = ++_powerVersion;
     try {
       final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/iot/live').replace(
         queryParameters: {
-          if (_liveAreaId != null && _liveAreaId!.trim().isNotEmpty)
-            'farmingAreaId': _liveAreaId!,
+          'farmingAreaId': area,
         },
       );
-      final res = await http.get(
+      final res = await _client.get(
         uri,
         headers: _headers(),
       );
@@ -362,6 +452,7 @@ class RasFlowService extends ChangeNotifier {
           max: numOf(row['maxThreshold'] ?? row['MaxThreshold']),
         );
       }
+      if (!_current(generation) || version != _powerVersion) return;
       _power = PowerSnapshot(points);
       _notifyDeferred();
     } catch (_) {}
@@ -380,7 +471,7 @@ class RasFlowService extends ChangeNotifier {
         'pageSize': '200',
       },
     );
-    final res = await http.get(uri, headers: _headers());
+    final res = await _client.get(uri, headers: _headers());
     final body = _decode(res.body);
     final data = body['data'] ?? body['Data'];
     final items = data is Map ? (data['items'] ?? data['Items']) : data;
@@ -393,10 +484,11 @@ class RasFlowService extends ChangeNotifier {
         'Content-Type': 'application/json',
       };
 
-  Future<bool> _renew() async {
+  Future<bool> _renew(int generation) async {
+    if (!_current(generation)) return false;
     final next = await CloudAuthService().refreshSession(LiveSession.current ?? _session);
-    if (next == null) return false;
-    _session = next;
+    if (next == null || !_current(generation) || next.user.id != _session.user.id) return false;
+    _session = _session.copyWith(token: next.token, refreshToken: next.refreshToken, user: next.user);
     return true;
   }
 
@@ -405,40 +497,55 @@ class RasFlowService extends ChangeNotifier {
     String areaId, {
     bool expectNoContent = false,
   }) async {
+    if (_disposed || !_assigned(areaId) || _mutating ||
+        (_liveAreaId != null && _liveAreaId != areaId)) return false;
+    final generation = _generation;
+    ++_readVersion;
+    _loading = false;
+    _refreshInFlight = false;
+    _mutating = true;
+    _notifyDeferred();
+    bool reload = false;
     try {
       var res = await call();
-      if (res.statusCode == 401 && await _renew()) {
+      if (!_current(generation)) return false;
+      if (res.statusCode == 401 && await _renew(generation)) {
+        if (!_current(generation)) return false;
         res = await call();
       }
+      if (!_current(generation)) return false;
       if (res.statusCode == 401) {
-        _error = 'Phiên đăng nhập hết hạn';
         stopLiveRefresh(notify: false);
+        _diagram = null;
+        _power = const PowerSnapshot();
+        _lastRefreshedAt = null;
+        _error = 'Phiên đăng nhập hết hạn';
         _notifyDeferred();
         return false;
       }
       if (res.statusCode < 200 || res.statusCode >= 300) {
         _error = _messageOf(res) ?? 'Thao tác RAS thất bại (${res.statusCode})';
-        _notifyDeferred();
         return false;
       }
-      if (!expectNoContent) {
-        try {
-          final data = _requireData(res);
-          _diagram = RasFlowDiagram.fromJson(data);
-          _lastRefreshedAt = DateTime.now();
-        } catch (_) {
-          await loadDiagram(areaId, silent: true);
-        }
+      if (expectNoContent) {
+        reload = true;
       } else {
-        await loadDiagram(areaId, silent: true);
+        final next = RasFlowDiagram.fromJson(_requireData(res));
+        if (next.areaId != areaId) throw StateError('Phản hồi RAS sai khu nuôi.');
+        _diagram = next;
+        _lastRefreshedAt = DateTime.now();
       }
       _error = null;
-      _notifyDeferred();
       return true;
     } catch (e) {
-      _error = '$e';
-      _notifyDeferred();
+      if (_current(generation)) _error = '$e';
       return false;
+    } finally {
+      if (_current(generation)) {
+        _mutating = false;
+        if (reload) unawaited(loadDiagram(areaId));
+        _notifyDeferred();
+      }
     }
   }
 
@@ -476,7 +583,9 @@ class RasFlowService extends ChangeNotifier {
 
   @override
   void dispose() {
-    stopLiveRefresh();
+    _disposed = true;
+    stopLiveRefresh(notify: false);
+    if (_ownsClient) _client.close();
     super.dispose();
   }
 }

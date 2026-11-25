@@ -39,6 +39,7 @@ enum CrabHistoryEventFilter {
   ai('AI phát hiện', 'AI_DETECTION'),
   alert('Cảnh báo', 'ALERT'),
   harvest('Thu hoạch', 'HARVEST'),
+  missing('Thất lạc / tìm thấy', 'MISSING'),
   system('Hệ thống', 'SYSTEM'),
   note('Ghi chú', 'NOTE_UPDATED');
 
@@ -60,6 +61,8 @@ enum CrabLifecycleEventType {
   harvestReady,
   harvested,
   dead,
+  missing,
+  recovered,
   note,
   profile,
   created,
@@ -92,6 +95,10 @@ enum CrabLifecycleEventType {
         return harvested;
       case 'DEAD':
         return dead;
+      case 'MISSING':
+        return missing;
+      case 'RECOVERED':
+        return recovered;
       case 'NOTE_UPDATED':
         return note;
       case 'CRAB_PROFILE_UPDATED':
@@ -118,6 +125,8 @@ enum CrabLifecycleEventType {
         harvestReady => 'Sẵn sàng thu hoạch',
         harvested => 'Thu hoạch',
         dead => 'Ghi nhận chết',
+        missing => 'Ghi nhận thất lạc',
+        recovered => 'Khôi phục cua tìm thấy',
         note => 'Ghi chú',
         profile => 'Cập nhật thông tin cua',
         created => 'Tạo cá thể',
@@ -136,6 +145,8 @@ enum CrabLifecycleEventType {
         alertResolved => DashboardColors.brandGreen,
         harvestReady || harvested => kHistAmber,
         dead => DashboardColors.risk,
+        missing => kHistAmber,
+        recovered => DashboardColors.brandGreen,
         note => kMgmtSlate,
         profile => DashboardColors.brand,
         created => DashboardColors.brand,
@@ -154,6 +165,8 @@ enum CrabLifecycleEventType {
         alertResolved => Icons.check_circle_outline_rounded,
         harvestReady || harvested => Icons.inventory_2_outlined,
         dead => Icons.heart_broken_outlined,
+        missing => Icons.search_off,
+        recovered => Icons.assignment_return_outlined,
         note => Icons.notes_rounded,
         profile => Icons.edit_outlined,
         created => Icons.add_circle_outline_rounded,
@@ -170,6 +183,7 @@ enum CrabLifecycleEventType {
         ai => CrabHistoryEventFilter.ai,
         alertCreated || alertResolved => CrabHistoryEventFilter.alert,
         harvestReady || harvested || dead => CrabHistoryEventFilter.harvest,
+        missing || recovered => CrabHistoryEventFilter.missing,
         system => CrabHistoryEventFilter.system,
         note => CrabHistoryEventFilter.note,
         profile => CrabHistoryEventFilter.system,
@@ -341,6 +355,8 @@ class CrabLifecycleSummary {
     this.ai = 0,
     this.alert = 0,
     this.harvest = 0,
+    this.missing = 0,
+    this.recovered = 0,
     this.system = 0,
     this.note = 0,
   });
@@ -354,6 +370,8 @@ class CrabLifecycleSummary {
   final int ai;
   final int alert;
   final int harvest;
+  final int missing;
+  final int recovered;
   final int system;
   final int note;
 
@@ -367,6 +385,8 @@ class CrabLifecycleSummary {
         ai: _int(json, const ['ai', 'Ai']),
         alert: _int(json, const ['alert', 'Alert']),
         harvest: _int(json, const ['harvest', 'Harvest']),
+        missing: _int(json, const ['missing', 'Missing']),
+        recovered: _int(json, const ['recovered', 'Recovered']),
         system: _int(json, const ['system', 'System']),
         note: _int(json, const ['note', 'Note']),
       );
@@ -381,6 +401,7 @@ class CrabLifecycleSummary {
         CrabHistoryEventFilter.ai => ai,
         CrabHistoryEventFilter.alert => alert,
         CrabHistoryEventFilter.harvest => harvest,
+        CrabHistoryEventFilter.missing => missing + recovered,
         CrabHistoryEventFilter.system => system,
         CrabHistoryEventFilter.note => note,
       };

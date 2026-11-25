@@ -68,7 +68,7 @@ class _FarmSelectScreenState extends State<FarmSelectScreen> {
       if (!UserRoles.canUseDesktop(me.user.role)) {
         setState(() {
           _loading = false;
-          _error = 'Desktop chỉ dành cho chủ trại và Manager.';
+          _error = 'Desktop chỉ dành cho Farm Manager.';
         });
         return;
       }

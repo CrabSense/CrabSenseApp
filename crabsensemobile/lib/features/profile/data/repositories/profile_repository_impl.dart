@@ -55,13 +55,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
       final boxCounts = results[2] as Map<String, int>?;
       final aiSummary = results[3] as AISummary?;
 
-      final roleStr = userInfo?['role']?.toString().toLowerCase() ?? 'staff';
-      UserRole userRole = UserRole.operator;
-      if (roleStr.contains('owner') || roleStr.contains('manager')) {
-        userRole = UserRole.manager;
-      } else if (roleStr.contains('admin')) {
-        userRole = UserRole.admin;
-      }
+      final userRole = UserRole.parse(userInfo?['role']);
 
       final fullName =
           userInfo?['fullName'] as String? ??
@@ -339,13 +333,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
       throw Exception('Phản hồi hồ sơ không hợp lệ');
     }
 
-    final roleStr = raw['role']?.toString().toLowerCase() ?? 'staff';
-    UserRole userRole = UserRole.operator;
-    if (roleStr.contains('owner') || roleStr.contains('manager')) {
-      userRole = UserRole.manager;
-    } else if (roleStr.contains('admin')) {
-      userRole = UserRole.admin;
-    }
+    final userRole = UserRole.parse(raw['role']);
 
     final joined =
         DateTime.tryParse(raw['createdAt']?.toString() ?? '') ??
@@ -648,7 +636,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
         email: '',
         phone: '',
         employeeId: '',
-        role: UserRole.operator,
+        role: UserRole.unknown,
         currentFarm: 'Chưa có trang trại',
         isOnline: false,
         joinedDate: now,

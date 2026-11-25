@@ -1,0 +1,7 @@
+# P0.2 Mobile contract and role acceptance
+- Web FE: System Administrator uses system routes; Farm Administrator uses farm administration routes. Desktop: Farm Manager only. Mobile and its hosted Web build: Farm Staff only. BE permits scoped farm reads to FA/FM/FS, manager lot mutations, staff field writes, and denies System Administrator farm CRUD.
+- Mobile list now reads BE's scoped crab DTO and computes local filters, pagination and KPI over the server-authorized area snapshot; no nonexistent /crabs/summary request.
+- Confirm completed molt only (never mark ongoing molt as success), with explicit timestamp and canonical payload. Softshell is displayed as awaiting harvest, not approval. Actual harvest stays in the assignment workflow. Direct ready PATCH is disabled.
+- Mortality posts canonical enum/date/notes to /mortality; unsupported legacy causes are retained in notes under Other. Transfer posts destinationBoxId.
+- Hide staff lot-import control and unimplemented bulk actions. Manager lot lifecycle remains Desktop. Unknown, missing and terminal records have no field-write menu.
+- Required acceptance: sign in each canonical role on intended surface and reject other surfaces and direct links; test real area scoping, registration, transfer, mortality, completed molt, private photos, manager close and correction, reload, partial scope, and compare counts. Test both narrow and wide mobile web. Test live deployment migration history separately. This patch is not full UAT and does not implement new bulk workflow.

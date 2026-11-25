@@ -40,6 +40,18 @@ class CrabLotInboundService extends ChangeNotifier {
 
   AuthSession _session;
   final CloudApiClient _api;
+  int _generation = 0;
+  String get areaId => _session.selectedFarm.id;
+  bool canManageLot(FarmingBatchRecord lot) => _session.user.role == UserRoles.farmManager && areaId.isNotEmpty && !lot.isPartialScope && lot.farmingAreaIds.contains(areaId) && lot.farmingAreaIds.every((id) => _session.farms.any((f) => f.id == id));
+  bool canCloseLot(FarmingBatchRecord lot) => canManageLot(lot) && !lot.isClosed && lot.stockedAt != null && lot.workflowStatus != CrabLotWorkflowStatus.cancelled;
+  bool canDeleteLot(FarmingBatchRecord lot) => canManageLot(lot) && !lot.isClosed && lot.placedCount == 0;
+  bool _guard(String id) {
+    final lot = findById(id);
+    if (lot != null && canManageLot(lot) && !lot.isClosed) return true;
+    _error = 'Lô không thuộc phạm vi quản lý đầy đủ của khu hiện tại.';
+    notifyListeners();
+    return false;
+  }
 
   List<FarmingBatchRecord> _lots = [];
   bool _loading = false;
@@ -84,6 +96,9 @@ class CrabLotInboundService extends ChangeNotifier {
       _qtyMax != null;
 
   void updateSession(AuthSession session) {
+    ++_generation;
+    _loading = false;
+    _error = null;
     _session = session;
     _lots = [];
     _page = 0;
@@ -269,29 +284,40 @@ class CrabLotInboundService extends ChangeNotifier {
   }
 
   Future<void> load() async {
+    if (areaId.isEmpty) return;
+    final generation = ++_generation;
+    final area = areaId;
     _loading = true;
     _error = null;
     notifyListeners();
     try {
-      _lots = await _api.fetchCrabLots(token);
+      final rows = await _api.fetchCrabLots(token);
+      if (generation != _generation) return;
+      _lots = rows.where((l) => l.farmingAreaIds.contains(area)).toList();
       _error = null;
     } on CloudApiException catch (e) {
+      if (generation != _generation) return;
       _error = e.message;
     } catch (e) {
+      if (generation != _generation) return;
       _error = '$e';
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (generation == _generation) { _loading = false; notifyListeners(); }
     }
   }
 
   Future<FarmingBatchRecord?> refreshOne(String id) async {
+    if (areaId.isEmpty) return null;
+    final generation = _generation;
+    final area = areaId;
     try {
       final lot = await _api.fetchCrabLot(token, id);
+      if (generation != _generation || !lot.farmingAreaIds.contains(area)) return null;
       _lots = [lot, ..._lots.where((l) => l.id != id)];
       notifyListeners();
       return lot;
     } on CloudApiException catch (e) {
+      if (generation != _generation) return null;
       _error = e.message;
       notifyListeners();
       return null;
@@ -299,6 +325,7 @@ class CrabLotInboundService extends ChangeNotifier {
   }
 
   Future<void> upsert(FarmingBatchRecord lot) async {
+    if (!lot.farmingAreaIds.contains(areaId)) return;
     _lots = [lot, ..._lots.where((l) => l.id != lot.id)];
     notifyListeners();
   }
@@ -311,6 +338,8 @@ class CrabLotInboundService extends ChangeNotifier {
     int? quantity,
     DateTime? importDate,
   }) async {
+    if (!_guard(id)) return null;
+    final generation = _generation;
     try {
       final lot = await _api.updateCrabLot(
         token,
@@ -321,10 +350,12 @@ class CrabLotInboundService extends ChangeNotifier {
         quantity: quantity,
         importDate: importDate,
       );
+      if (generation != _generation) return null;
       _lots = [lot, ..._lots.where((l) => l.id != id)];
       notifyListeners();
       return lot;
     } on CloudApiException catch (e) {
+      if (generation != _generation) return null;
       _error = e.message;
       notifyListeners();
       return null;
@@ -332,11 +363,15 @@ class CrabLotInboundService extends ChangeNotifier {
   }
 
   Future<FarmingBatchRecord?> uploadPhotos(String lotId, List<String> paths) async {
+    if (!_guard(lotId)) return null;
+    final generation = _generation;
     if (paths.isEmpty) return findById(lotId);
     try {
       await _api.uploadLotImages(token, lotId, paths);
+      if (generation != _generation) return null;
       return await refreshOne(lotId);
     } on CloudApiException catch (e) {
+      if (generation != _generation) return null;
       _error = e.message;
       notifyListeners();
       return null;
@@ -344,15 +379,56 @@ class CrabLotInboundService extends ChangeNotifier {
   }
 
   Future<FarmingBatchRecord?> cancel(String id) async {
+    if (!_guard(id)) return null;
+    final generation = _generation;
     try {
       final lot = await _api.updateCrabLot(token, id, status: 'Cancelled');
+      if (generation != _generation) return null;
       _lots = [lot, ..._lots.where((l) => l.id != id)];
       notifyListeners();
       return lot;
     } on CloudApiException catch (e) {
+      if (generation != _generation) return null;
       _error = e.message;
       notifyListeners();
       return null;
     }
   }
+  Future<FarmingBatchRecord?> close(String id, String disposition) async {
+    final lot = findById(id);
+    if (lot == null || !canCloseLot(lot) || disposition.trim().isEmpty) {
+      _error = 'Lô không thể kết thúc hoặc thiếu phương án xử lý.';
+      notifyListeners(); return null;
+    }
+    final generation = _generation;
+    try {
+      final next = await _api.closeCrabLot(token,id,disposition:disposition.trim());
+      if (generation != _generation) return null;
+      _lots = [next,..._lots.where((l)=>l.id != id)];
+      _error = null; notifyListeners(); return next;
+    } catch (e) {
+      if (generation == _generation) { _error = '$e'; notifyListeners(); }
+      return null;
+    }
+  }
+
+  Future<bool> deleteUnused(String id) async {
+    final lot = findById(id);
+    if (lot == null || !canDeleteLot(lot)) {
+      _error = 'Chỉ xóa lô chưa kết thúc và không có cua tham chiếu.';
+      notifyListeners(); return false;
+    }
+    final generation = _generation;
+    try {
+      await _api.deleteBatch(token,id);
+      if (generation != _generation) return false;
+      _lots = _lots.where((l)=>l.id != id).toList();
+      _error = null; notifyListeners(); return true;
+    } catch (e) {
+      if (generation == _generation) { _error = '$e'; notifyListeners(); }
+      return false;
+    }
+  }
+  @override
+  void dispose() { ++_generation; super.dispose(); }
 }

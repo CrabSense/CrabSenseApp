@@ -678,15 +678,14 @@ class SalesOrderTable extends StatelessWidget {
                               onSelected: (a) => onAction(o, a),
                               itemBuilder: (_) => [
                                 const PopupMenuItem(value: SalesRowAction.detail, child: Text('Xem chi tiết')),
-                                const PopupMenuItem(value: SalesRowAction.print, child: Text('In hóa đơn')),
-                                const PopupMenuItem(value: SalesRowAction.pdf, child: Text('Tải PDF')),
-                                const PopupMenuItem(value: SalesRowAction.history, child: Text('Xem lịch sử')),
+
+
+
                                 if (o.isDraft)
                                   const PopupMenuItem(value: SalesRowAction.complete, child: Text('Hoàn tất đơn')),
                                 if (!o.isCancelled)
                                   const PopupMenuItem(value: SalesRowAction.cancel, child: Text('Hủy đơn')),
-                                if (o.isPaid && !o.isCancelled)
-                                  const PopupMenuItem(value: SalesRowAction.refund, child: Text('Hoàn tiền')),
+
                               ],
                             ),
                           ),
@@ -847,16 +846,15 @@ class _SalesOrderDetailPanelState extends State<SalesOrderDetailPanel> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    MgmtOutlineButton(icon: Icons.print_outlined, label: 'In hóa đơn', onTap: widget.onPrint),
-                    MgmtOutlineButton(icon: Icons.download_outlined, label: 'Tải xuống PDF', onTap: widget.onPdf),
-                    PopupMenuButton<String>(
+
+
+                    if (!o.isCancelled) PopupMenuButton<String>(
                       tooltip: '',
                       onSelected: (v) {
                         if (v == 'cancel') widget.onCancel();
                         if (v == 'complete') widget.onComplete();
                       },
                       itemBuilder: (_) => [
-                        const PopupMenuItem(value: 'history', child: Text('Xem lịch sử')),
                         if (o.isDraft) const PopupMenuItem(value: 'complete', child: Text('Hoàn tất đơn')),
                         if (!o.isCancelled) const PopupMenuItem(value: 'cancel', child: Text('Hủy đơn')),
                       ],

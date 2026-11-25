@@ -284,7 +284,7 @@ class CrabManagementNotifier extends StateNotifier<CrabManagementState> {
 
   Future<void> onLifecycleStatusChanged(CrabLifecycleStatus? status) async {
     state = state.copyWith(
-      filter: state.filter.copyWith(lifecycleStatus: status),
+      filter: state.filter.copyWith(lifecycleStatus: status, quickStatus: null, quickHealthWatch: false),
       currentPage: 1,
     );
     await _loadPage();
@@ -292,7 +292,7 @@ class CrabManagementNotifier extends StateNotifier<CrabManagementState> {
 
   Future<void> onHealthStatusChanged(CrabHealthStatus? status) async {
     state = state.copyWith(
-      filter: state.filter.copyWith(healthStatus: status),
+      filter: state.filter.copyWith(healthStatus: status, quickHealthWatch: false),
       currentPage: 1,
     );
     await _loadPage();
@@ -300,7 +300,15 @@ class CrabManagementNotifier extends StateNotifier<CrabManagementState> {
 
   Future<void> onQuickStatusSelected(CrabLifecycleStatus? status) async {
     state = state.copyWith(
-      filter: state.filter.copyWith(quickStatus: status),
+      filter: state.filter.copyWith(quickStatus: status, quickHealthWatch: false, lifecycleStatus: null, healthStatus: null),
+      currentPage: 1,
+    );
+    await _loadPage();
+  }
+
+  Future<void> onQuickHealthWatchSelected() async {
+    state = state.copyWith(
+      filter: state.filter.copyWith(quickStatus: null, lifecycleStatus: null, healthStatus: null, quickHealthWatch: true),
       currentPage: 1,
     );
     await _loadPage();
@@ -375,11 +383,12 @@ class CrabManagementNotifier extends StateNotifier<CrabManagementState> {
   Future<void> markMolting({
     required String crabId,
     required DateTime detectedAt,
+    String outcome = 'success',
     String? note,
   }) async {
     state = state.copyWith(actionLoading: true);
     try {
-      await _ds.markMolting(crabId: crabId, detectedAt: detectedAt, note: note);
+      await _ds.markMolting(crabId: crabId, detectedAt: detectedAt, outcome: outcome, note: note);
       await Future.wait([_loadKpi(), _loadPage()]);
       // Refresh detail if this crab is selected
       if (state.selectedCrab?.id == crabId) {
@@ -417,11 +426,12 @@ class CrabManagementNotifier extends StateNotifier<CrabManagementState> {
   Future<void> transferCrab({
     required String crabId,
     required String toBoxId,
+    required String sourceBoxId,
     String? note,
   }) async {
     state = state.copyWith(actionLoading: true);
     try {
-      await _ds.transferCrab(crabId: crabId, toBoxId: toBoxId, note: note);
+      await _ds.transferCrab(crabId: crabId, toBoxId: toBoxId, sourceBoxId: sourceBoxId, note: note);
       await Future.wait([_loadKpi(), _loadPage()]);
       if (state.selectedCrab?.id == crabId) {
         final updated = await _ds.getCrabById(crabId);

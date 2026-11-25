@@ -164,7 +164,7 @@ class MockHarvestLocalDataSource implements HarvestLocalDataSource {
   }
 }
 
-class MockNetworkInfo implements NetworkInfo {
+class MockNetworkInfo extends NetworkInfo {
   bool isConnectedValue = true;
 
   @override

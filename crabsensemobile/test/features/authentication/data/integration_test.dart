@@ -51,7 +51,7 @@ class _StubSecureStorage extends FlutterSecureStorage {
 }
 
 /// Minimal stub for [NetworkInfo].
-class _StubNetworkInfo implements NetworkInfo {
+class _StubNetworkInfo extends NetworkInfo {
   @override
   Future<bool> get isConnected async => true;
 }

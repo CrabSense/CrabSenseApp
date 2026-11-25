@@ -185,6 +185,9 @@ class RowManagementService extends ChangeNotifier {
     FarmStatus status = FarmStatus.active,
     int sortOrder = 1,
   }) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     final row = await _api.createRow(
       token,
       areaId,
@@ -215,6 +218,9 @@ class RowManagementService extends ChangeNotifier {
     required int count,
     required String prefix,
   }) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     final cleaned = prefix.trim().replaceAll(RegExp(r'-+$'), '');
     final used = <String>{};
     try {
@@ -254,6 +260,9 @@ class RowManagementService extends ChangeNotifier {
     FarmStatus status = FarmStatus.active,
     int? sortOrder,
   }) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     final row = await _api.updateRow(
       token,
       existing.id,
@@ -269,6 +278,9 @@ class RowManagementService extends ChangeNotifier {
   }
 
   Future<void> deleteRow(RowListItem item) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     await _api.deleteRow(token, item.rowId);
     await load();
   }

@@ -44,8 +44,8 @@ class MockSalesRepository implements SalesRepository {
         startDate: startDate,
         endDate: endDate,
         totalRevenue: 500.0,
-        totalQuantitySold: 25.0,
-        totalTransactionsCount: 1,
+        totalQuantity: 25.0,
+        totalSalesCount: 1,
       ),
     );
   }
@@ -94,13 +94,13 @@ void main() {
     blocTest<SalesBloc, SalesState>(
       'updates buyer name and clears error on SalesBuyerNameChanged',
       build: buildBloc,
-      seed: () => const SalesFormState(
+      seed: () => SalesFormState(
         buyerName: '',
         buyerContact: '',
         quantityText: '',
         unitPriceText: '',
         paymentMethod: PaymentMethod.cash,
-        saleDate: null ?? DateTime.parse('2026-07-22'),
+        saleDate: DateTime.parse('2026-07-22'),
         buyerNameError: 'Buyer name is required',
       ),
       act: (bloc) => bloc.add(const SalesBuyerNameChanged(buyerName: 'Acme Seafood')),
@@ -145,7 +145,7 @@ void main() {
         const SubmitSale(
           operatorId: 'op-1',
           operatorName: 'John',
-          userRole: UserRole.fieldOperator,
+          userRole: UserRole.farmStaff,
         ),
       ),
       expect: () => [
@@ -171,7 +171,7 @@ void main() {
         const SubmitSale(
           operatorId: 'op-123',
           operatorName: 'Test Operator',
-          userRole: UserRole.sales,
+          userRole: UserRole.farmManager,
         ),
       ),
       expect: () => [
@@ -202,7 +202,7 @@ void main() {
         const SubmitSale(
           operatorId: 'op-123',
           operatorName: 'Test Operator',
-          userRole: UserRole.sales,
+          userRole: UserRole.farmManager,
         ),
       ),
       expect: () => [

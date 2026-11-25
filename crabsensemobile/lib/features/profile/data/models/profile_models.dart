@@ -1,32 +1,15 @@
 import 'package:flutter/material.dart';
+import '../../../authentication/domain/entities/user.dart';
+export '../../../authentication/domain/entities/user.dart' show UserRole, UserRoleExtension;
 
-/// User Role Enum in CrabSense System
-enum UserRole {
-  operator,
-  manager,
-  admin;
-
-  String get displayName {
-    switch (this) {
-      case UserRole.operator:
-        return 'Operator';
-      case UserRole.manager:
-        return 'Quản lý Trang trại';
-      case UserRole.admin:
-        return 'Quản trị hệ thống';
-    }
-  }
-
-  Color get badgeColor {
-    switch (this) {
-      case UserRole.operator:
-        return const Color(0xFF00C8FF);
-      case UserRole.manager:
-        return const Color(0xFF27AE60);
-      case UserRole.admin:
-        return const Color(0xFFF2C94C);
-    }
-  }
+/// Presentation styling of the shared role.
+extension ProfileRoleBadge on UserRole {
+  Color get badgeColor => switch (this) {
+    UserRole.farmStaff => const Color(0xFF00C8FF),
+    UserRole.farmManager => const Color(0xFF27AE60),
+    UserRole.farmAdministrator || UserRole.systemAdministrator => const Color(0xFFF2C94C),
+    UserRole.unknown => const Color(0xFF777777),
+  };
 }
 
 /// 1. Profile Summary Data Model
@@ -63,7 +46,7 @@ class ProfileSummary {
         email: 'khanh.truong@crabsense.io',
         phone: '+84 901 234 567',
         employeeId: 'EMP-2026-088',
-        role: UserRole.operator,
+        role: UserRole.farmStaff,
         currentFarm: 'Farm A',
         isOnline: true,
         joinedDate: DateTime(2024, 1, 15),

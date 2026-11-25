@@ -80,7 +80,7 @@ void main() {
     test('succeeds when log is valid and user has FieldOperator role', () async {
       final params = CreateOperationLogParams(
         log: validLog,
-        userRole: UserRole.fieldOperator,
+        userRole: UserRole.farmStaff,
       );
 
       final result = await createUseCase(params);
@@ -93,7 +93,7 @@ void main() {
       final invalidLog = validLog.copyWith(boxIds: []);
       final params = CreateOperationLogParams(
         log: invalidLog,
-        userRole: UserRole.fieldOperator,
+        userRole: UserRole.farmStaff,
       );
 
       final result = await createUseCase(params);
@@ -111,7 +111,7 @@ void main() {
       );
       final params = CreateOperationLogParams(
         log: futureLog,
-        userRole: UserRole.fieldOperator,
+        userRole: UserRole.farmStaff,
       );
 
       final result = await createUseCase(params);
@@ -122,7 +122,7 @@ void main() {
     test('fails when userRole is Viewer (unauthorized)', () async {
       final params = CreateOperationLogParams(
         log: validLog,
-        userRole: UserRole.viewer,
+        userRole: UserRole.unknown,
       );
 
       final result = await createUseCase(params);
@@ -157,7 +157,7 @@ void main() {
       );
       final params = UpdateOperationLogParams(
         log: expiredLog,
-        userRole: UserRole.admin,
+        userRole: UserRole.systemAdministrator,
       );
 
       final result = await updateUseCase(params);
@@ -175,7 +175,7 @@ void main() {
     test('fails when user role is Sales (unauthorized)', () async {
       final params = UpdateOperationLogParams(
         log: validLog,
-        userRole: UserRole.sales,
+        userRole: UserRole.farmManager,
       );
 
       final result = await updateUseCase(params);

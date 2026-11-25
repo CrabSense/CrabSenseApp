@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+import '../../domain/entities/user.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/errors/failures.dart';
 import '../../domain/usecases/login_usecase.dart';
@@ -42,6 +44,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<BiometricAuthenticationRequested>(_onBiometricAuthenticationRequested);
   }
 
+  static const _pages = bool.fromEnvironment('CRABSENSE_MOBILE_PAGES_PREVIEW');
+  static const _apiConfigured = bool.fromEnvironment('CRABSENSE_MOBILE_PAGES_TEST_API_CONFIGURED');
+  bool get _previewLoginDisabled => kIsWeb && _pages && !_apiConfigured;
+  static const _previewError = AuthError('Mobile Web Preview: test API is not configured.');
+
   final LoginUseCase loginUseCase;
   final LogoutUseCase logoutUseCase;
   final RefreshTokenUseCase refreshTokenUseCase;
@@ -57,13 +64,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ///
   /// Requirements: 1.1, 1.2, 1.5
   Future<void> _onLoginRequested(LoginRequested event, Emitter<AuthState> emit) async {
+    if (_previewLoginDisabled) {
+      emit(_previewError);
+      return;
+    }
     emit(const AuthLoading());
 
     final result = await loginUseCase(email: event.email, password: event.password);
 
     result.fold(
       (failure) => emit(AuthError(failure.message, code: failure.code)),
-      (user) => emit(Authenticated(user)),
+      (user) => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()),
     );
   }
 
@@ -72,13 +83,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     GoogleLoginRequested event,
     Emitter<AuthState> emit,
   ) async {
+    if (_previewLoginDisabled) {
+      emit(_previewError);
+      return;
+    }
     emit(const AuthLoading());
 
     final result = await authRepository.loginWithGoogle(idToken: event.idToken);
 
     result.fold(
       (failure) => emit(AuthError(failure.message, code: failure.code)),
-      (user) => emit(Authenticated(user)),
+      (user) => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()),
     );
   }
 
@@ -112,12 +127,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthenticationStatusRequested event,
     Emitter<AuthState> emit,
   ) async {
+    if (_previewLoginDisabled) {
+      emit(const Unauthenticated());
+      return;
+    }
     final isAuthResult = await authRepository.isAuthenticated();
 
     await isAuthResult.fold((_) async => emit(const Unauthenticated()), (isAuthenticated) async {
       if (isAuthenticated) {
         final userResult = await authRepository.getCurrentUser();
-        userResult.fold((_) => emit(const Unauthenticated()), (user) => emit(Authenticated(user)));
+        userResult.fold((_) => emit(const Unauthenticated()), (user) => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()));
         return;
       }
       // Access token is one hour. A still-valid refresh token (7 days)
@@ -129,8 +148,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           return;
         }
         final cached = await authRepository.getCurrentUser();
-        cached.fold((_) => emit(const Unauthenticated()), (user) => emit(Authenticated(user)));
-      }, (user) async => emit(Authenticated(user)));
+        cached.fold((_) => emit(const Unauthenticated()), (user) => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()));
+      }, (user) async => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()));
     });
   }
 
@@ -148,6 +167,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     TokenRefreshRequested event,
     Emitter<AuthState> emit,
   ) async {
+    if (_previewLoginDisabled) {
+      emit(const Unauthenticated());
+      return;
+    }
     final result = await refreshTokenUseCase();
 
     result.fold((failure) {
@@ -157,7 +180,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       } else {
         emit(AuthError(failure.message, code: failure.code));
       }
-    }, (user) => emit(Authenticated(user)));
+    }, (user) => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()));
   }
 
   /// Handles the biometric authentication request event.
@@ -173,13 +196,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     BiometricAuthenticationRequested event,
     Emitter<AuthState> emit,
   ) async {
+    if (_previewLoginDisabled) {
+      emit(_previewError);
+      return;
+    }
     emit(const AuthLoading());
 
     final result = await authRepository.loginWithBiometric();
 
     result.fold(
       (failure) => emit(AuthError(failure.message, code: failure.code)),
-      (user) => emit(Authenticated(user)),
+      (user) => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()),
     );
   }
 }

@@ -8,11 +8,9 @@ import 'crab_management_palette.dart';
 class CrabEmptyState extends StatelessWidget {
   const CrabEmptyState({
     required this.onAddCrab,
-    required this.onImportBatch,
     super.key,
   });
   final VoidCallback onAddCrab;
-  final VoidCallback onImportBatch;
 
   @override
   Widget build(BuildContext context) => _StateBase(
@@ -21,22 +19,6 @@ class CrabEmptyState extends StatelessWidget {
     subtitle:
         'Các cá thể cua sau khi nhập lô hoặc thêm thủ công\nsẽ xuất hiện tại đây.',
     actions: [
-      OutlinedButton.icon(
-        onPressed: onImportBatch,
-        icon: const Icon(Icons.upload_rounded, size: 15),
-        label: Text(
-          'Nhập lô',
-          style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w600),
-        ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: kCmPrimaryDark,
-          side: const BorderSide(color: kCmBorder),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      ),
-      const SizedBox(width: 10),
       ElevatedButton.icon(
         onPressed: onAddCrab,
         icon: const Icon(Icons.add_rounded, size: 15),

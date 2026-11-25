@@ -25,6 +25,7 @@ class CrabGrowthMoltTab extends StatefulWidget {
     this.cameras = const [],
     this.operatorName,
     this.onRecorded,
+    this.canRecord = true,
   });
 
   final CrabIndividual crab;
@@ -34,6 +35,7 @@ class CrabGrowthMoltTab extends StatefulWidget {
   final List<CameraDevice> cameras;
   final String? operatorName;
   final VoidCallback? onRecorded;
+  final bool canRecord;
 
   @override
   State<CrabGrowthMoltTab> createState() => _CrabGrowthMoltTabState();
@@ -60,6 +62,7 @@ class _CrabGrowthMoltTabState extends State<CrabGrowthMoltTab> {
   }
 
   Future<void> _add() async {
+    if (!widget.canRecord) return;
     final input = await showGrowthRecordModal(
       context,
       crabCode: widget.crab.code,
@@ -190,7 +193,7 @@ class _CrabGrowthMoltTabState extends State<CrabGrowthMoltTab> {
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            MgmtPrimaryButton(icon: Icons.add_rounded, label: 'Ghi nhận', onTap: _add, height: 36),
+            if (widget.canRecord) MgmtPrimaryButton(icon: Icons.add_rounded, label: 'Ghi nhận', onTap: _add, height: 36),
             _PeriodChips(value: _c.period, onChanged: _c.setPeriod),
           ],
         ),
@@ -227,7 +230,7 @@ class _CrabGrowthMoltTabState extends State<CrabGrowthMoltTab> {
       _Kpi(
         icon: Icons.autorenew_rounded,
         label: 'Số lần lột xác',
-        value: loading ? null : '${data?.molts.length ?? 0} lần',
+        value: loading ? null : '${data?.molts.where((m)=>!m.isVoided).length ?? 0} lần',
       ),
       _Kpi(
         icon: Icons.calendar_today_outlined,
@@ -256,10 +259,10 @@ class _CrabGrowthMoltTabState extends State<CrabGrowthMoltTab> {
       builder: (context, c) {
         final a = loading
             ? const ChartSkeleton(height: 240)
-            : WeightTrendChart(points: data?.measurements ?? const [], onAdd: _add);
+            : WeightTrendChart(points: data?.measurements ?? const [], onAdd: widget.canRecord ? _add : null);
         final b = loading
             ? const ChartSkeleton(height: 240)
-            : ShellSizeTrendChart(points: data?.measurements ?? const [], onAdd: _add);
+            : ShellSizeTrendChart(points: data?.measurements ?? const [], onAdd: widget.canRecord ? _add : null);
         if (c.maxWidth >= 900) {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,

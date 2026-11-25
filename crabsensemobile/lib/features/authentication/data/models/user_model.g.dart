@@ -33,11 +33,11 @@ Map<String, dynamic> _$UserModelToJson(UserModel instance) => <String, dynamic>{
 };
 
 const _$UserRoleEnumMap = {
-  UserRole.admin: 'admin',
-  UserRole.farmManager: 'farmManager',
-  UserRole.fieldOperator: 'fieldOperator',
-  UserRole.sales: 'sales',
-  UserRole.viewer: 'viewer',
+  UserRole.systemAdministrator: 'SystemAdministrator',
+  UserRole.farmAdministrator: 'FarmAdministrator',
+  UserRole.farmManager: 'FarmManager',
+  UserRole.farmStaff: 'FarmStaff',
+  UserRole.unknown: 'Unknown',
 };
 
 AuthResponse _$AuthResponseFromJson(Map<String, dynamic> json) => AuthResponse(

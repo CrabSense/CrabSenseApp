@@ -39,9 +39,11 @@ class CrabLotInboundTable extends StatelessWidget {
     required this.onOpenCode,
     required this.onView,
     required this.onMenu,
+    this.canManageLot,
   });
 
   final List<FarmingBatchRecord> lots;
+  final bool Function(FarmingBatchRecord)? canManageLot;
   final String? selectedId;
   final Set<String> checkedIds;
   final ValueChanged<FarmingBatchRecord> onToggle;
@@ -234,13 +236,12 @@ class CrabLotInboundTable extends StatelessWidget {
                 onSelected: (a) => onMenu(lot, a),
                 itemBuilder: (_) => [
                   _item(CrabLotRowMenu.view, 'Xem chi tiết'),
-                  _item(CrabLotRowMenu.edit, 'Chỉnh sửa thông tin'),
-                  if (lot.workflowStatus.canAllocate)
-                    _item(CrabLotRowMenu.place, 'Tiếp tục phân hộp'),
+                  if (!lot.isClosed && canManageLot?.call(lot) == true) _item(CrabLotRowMenu.edit, 'Chỉnh sửa thông tin'),
+
                   _item(CrabLotRowMenu.crabs, 'Xem danh sách cua'),
                   _item(CrabLotRowMenu.boxes, 'Xem hộp đã phân'),
                   _item(CrabLotRowMenu.printSlip, 'In phiếu nhập'),
-                  if (lot.workflowStatus.canCancel)
+                  if (!lot.isClosed && canManageLot?.call(lot) == true && lot.workflowStatus.canCancel)
                     const PopupMenuItem(
                       value: CrabLotRowMenu.cancel,
                       height: 38,

@@ -183,6 +183,8 @@ class ApiConstants {
   static const String waterQuality = '/sensors';
   static const String waterQualityLatest = '/iot/live';
   static String waterAnalysis(String areaId) => '/areas/$areaId/water-analysis';
+  static String waterBatchSample(String areaId, String batchId, String analyte) =>
+      '${waterAnalysis(Uri.encodeComponent(areaId))}/batches/${Uri.encodeComponent(batchId)}/channels/${Uri.encodeComponent(analyte.trim().toUpperCase())}/sample';
   static const String waterQualityHistorical = '/iot/history';
   static String waterQualityForFarm(String farmId) => '/sensors';
   static String waterQualityForPond(String pondId) => '/sensors';
@@ -230,7 +232,8 @@ class ApiConstants {
   static const String uploadMedia = '/media/upload';
   static const String videos = '/media';
   static const String uploadVideo = '/media/upload';
-  static String videoDetails(String videoId) => '/media/$videoId';
+  static String videoDetails(String videoId) => '/media/${Uri.encodeComponent(videoId)}';
+  static String mediaContent(String mediaId) => '${videoDetails(mediaId)}/content';
   static const String videoDueSchedule = '/videos/schedule';
   static String videosForBox(String boxId) => '/boxes/$boxId/videos';
 

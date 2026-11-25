@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../models/user_model.dart';
@@ -136,17 +137,23 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   static const String _keyRefreshTokenExpiry = 'auth_refresh_token_expiry';
   static const String _keyBiometricEnabled = 'auth_biometric_enabled';
 
+  // Pages apps share an origin; isolate Mobile auth keys from Desktop.
+  String _storageKey(String key) =>
+      kIsWeb && const bool.fromEnvironment('CRABSENSE_MOBILE_PAGES_PREVIEW')
+          ? 'crabsense_mobile_pages_$key'
+          : key;
+
   // ── Web-safe storage helpers ─────────────────────────────────────────
   Future<void> _write(String key, String value) async {
-    await secureStorage.write(key: key, value: value);
+    await secureStorage.write(key: _storageKey(key), value: value);
   }
 
   Future<String?> _read(String key) async {
-    return secureStorage.read(key: key);
+    return secureStorage.read(key: _storageKey(key));
   }
 
   Future<void> _delete(String key) async {
-    await secureStorage.delete(key: key);
+    await secureStorage.delete(key: _storageKey(key));
   }
 
   @override

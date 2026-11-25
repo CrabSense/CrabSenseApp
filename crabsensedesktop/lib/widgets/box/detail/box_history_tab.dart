@@ -1621,8 +1621,8 @@ BoxHistoryType _fromLifecycle(CrabLifecycleEventType t) => switch (t) {
       CrabLifecycleEventType.ai => BoxHistoryType.camera,
       CrabLifecycleEventType.alertCreated || CrabLifecycleEventType.alertResolved => BoxHistoryType.alert,
       CrabLifecycleEventType.profile => BoxHistoryType.boxUpdated,
-      CrabLifecycleEventType.harvested || CrabLifecycleEventType.harvestReady || CrabLifecycleEventType.dead => BoxHistoryType.crabOut,
-      CrabLifecycleEventType.created => BoxHistoryType.crabIn,
+      CrabLifecycleEventType.harvested || CrabLifecycleEventType.harvestReady || CrabLifecycleEventType.dead || CrabLifecycleEventType.missing => BoxHistoryType.crabOut,
+      CrabLifecycleEventType.created || CrabLifecycleEventType.recovered => BoxHistoryType.crabIn,
       _ => BoxHistoryType.system,
     };
 

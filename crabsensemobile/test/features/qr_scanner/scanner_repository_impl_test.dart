@@ -14,12 +14,12 @@ import 'package:crabsensemobile/features/qr_scanner/domain/entities/scan_result.
 // Minimal test doubles (no mockito/mocktail to keep dependencies lean)
 // ---------------------------------------------------------------------------
 
-class _FakeNetworkOnline implements NetworkInfo {
+class _FakeNetworkOnline extends NetworkInfo {
   @override
   Future<bool> get isConnected async => true;
 }
 
-class _FakeNetworkOffline implements NetworkInfo {
+class _FakeNetworkOffline extends NetworkInfo {
   @override
   Future<bool> get isConnected async => false;
 }

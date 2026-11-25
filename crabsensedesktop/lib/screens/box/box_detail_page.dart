@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/crab/history_corrections.dart';
 import 'package:flutter/services.dart';
 
 import '../../models/box_alert.dart';
@@ -496,6 +497,7 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
   }
 
   Future<void> _more(BoxHeaderAction a) async {
+    if (!const {BoxHeaderAction.qr, BoxHeaderAction.print, BoxHeaderAction.history}.contains(a)) return;
     switch (a) {
       case BoxHeaderAction.qr:
       case BoxHeaderAction.print:
@@ -640,8 +642,8 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
                     hasCrab: _box.hasCrab || _crab != null,
                     locked: isBoxLocked(_box.status),
                     locking: _locking,
-                    onEdit: widget.productionService == null ? null : _editBox,
-                    onLock: widget.productionService == null ? null : _toggleLock,
+                    onEdit: null,
+                    onLock: null,
                     onMore: _more,
                   ),
                   const SizedBox(height: 12),
@@ -693,7 +695,7 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
           activitiesLoading: _activityLoading,
           onOpenCrab: () => _openCrab(),
           onOpenCrabGrowth: () => _openCrab(target: BoxOpenCrabTarget.growth),
-          onAddCrab: _addCrab,
+          onAddCrab: null,
           onManageLots: () => widget.onNavigate?.call(AppRoute.inboundLots),
           onOpenCamera: () => _tabs.animateTo(3),
           onOpenSensors: () => _tabs.animateTo(2),
@@ -712,10 +714,10 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
           cameraLoading: widget.cameraService.loading && widget.cameraService.cameras.isEmpty,
           alerts: _alerts,
           onOpenCrab: (id, {target = BoxOpenCrabTarget.overview}) => _openCrab(target: target),
-          onTransferCrab: _transferCrab,
-          onAddCrab: _addCrab,
+          onTransferCrab: null,
+          onAddCrab: null,
           onManageLots: () => widget.onNavigate?.call(AppRoute.inboundLots),
-          onAddFeeding: _addFeeding,
+          onAddFeeding: null,
           onOpenCamera: () => _tabs.animateTo(3),
           onOpenHistory: () => _tabs.animateTo(5),
           onRetryCrab: _reload,
@@ -772,7 +774,13 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
           onOpenHistory: () => _tabs.animateTo(5),
         );
       default:
-        return BoxHistoryTab(
+        return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          if(widget.crabService?.canManageCurrentArea==true && widget.crabService?.farmId==widget.areaId)
+            Align(alignment:Alignment.centerRight,child:OutlinedButton.icon(icon:const Icon(Icons.edit_note),label:const Text('Hiệu chỉnh lịch sử hộp'),onPressed:() async {
+              final changed=await showHistoryCorrections(context,widget.crabService!,entityId:_box.id,byBox:true,label:_box.boxCode);
+              if(mounted&&changed==true)_reload();
+            })),
+          BoxHistoryTab(
           box: _box,
           profileService: _svc,
           areaId: widget.areaId,
@@ -786,7 +794,7 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
           onOpenCamera: () => _tabs.animateTo(3),
           onOpenSensors: () => _tabs.animateTo(2),
           onOpenAlerts: () => _tabs.animateTo(4),
-        );
+        )]);
     }
   }
 

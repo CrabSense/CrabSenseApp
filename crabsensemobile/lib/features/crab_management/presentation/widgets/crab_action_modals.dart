@@ -17,11 +17,9 @@ Future<void> showCrabActionMenu({
   required VoidCallback onViewBox,
   required VoidCallback onTransfer,
   required VoidCallback onMarkMolting,
-  required VoidCallback onMarkReadyToHarvest,
   required VoidCallback onMarkDead,
 }) async {
-  final isDead = crab.lifecycleStatus == CrabLifecycleStatus.dead;
-  final isHarvested = crab.lifecycleStatus == CrabLifecycleStatus.harvested;
+  final canOperate = crab.canRecordOperations;
 
   await showMenu<String>(
     context: context,
@@ -35,18 +33,14 @@ Future<void> showCrabActionMenu({
     color: kCmSurface,
     items: [
       _menuItem('detail', Icons.visibility_outlined, 'Xem chi tiết'),
-      _menuItem('update', Icons.edit_outlined, 'Cập nhật thông tin'),
+      if (canOperate) _menuItem('update', Icons.edit_outlined, 'Cập nhật thông tin'),
       _menuItem('history', Icons.history_rounded, 'Xem lịch sử'),
       _menuItem('box', Icons.inventory_2_outlined, 'Xem hộp hiện tại'),
-      if (!isDead && !isHarvested) ...[
+      if (canOperate) ...[
         const PopupMenuDivider(height: 4),
         _menuItem('transfer', Icons.swap_horiz_rounded, 'Chuyển hộp'),
-        _menuItem('molting', Icons.autorenew_rounded, 'Đánh dấu lột xác'),
-        _menuItem(
-          'harvest',
-          Icons.shopping_basket_outlined,
-          'Đánh dấu sắp thu hoạch',
-        ),
+        if (crab.lifecycleStatus != CrabLifecycleStatus.readyToHarvest)
+          _menuItem('molting', Icons.autorenew_rounded, 'Xác nhận đã lột xác'),
         const PopupMenuDivider(height: 4),
         _menuItem(
           'dead',
@@ -71,8 +65,6 @@ Future<void> showCrabActionMenu({
         onTransfer();
       case 'molting':
         onMarkMolting();
-      case 'harvest':
-        onMarkReadyToHarvest();
       case 'dead':
         onMarkDead();
     }
@@ -107,14 +99,15 @@ PopupMenuItem<String> _menuItem(
 
 // ── Mark Molting modal ────────────────────────────────────────────────────────
 
-Future<({DateTime detectedAt, String note})?> showMarkMoltingDialog(
+Future<({DateTime detectedAt, String note, String outcome})?> showMarkMoltingDialog(
   BuildContext context,
   CrabRecord crab,
 ) {
   final noteCtrl = TextEditingController();
   DateTime detectedAt = DateTime.now();
+  String outcome = 'success';
 
-  return showDialog<({DateTime detectedAt, String note})>(
+  return showDialog<({DateTime detectedAt, String note, String outcome})>(
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setState) => AlertDialog(
@@ -136,7 +129,7 @@ Future<({DateTime detectedAt, String note})?> showMarkMoltingDialog(
             ),
             const SizedBox(width: 10),
             Text(
-              'Xác nhận cua đang lột xác?',
+              'Ghi nhận kết quả lột xác',
               style: GoogleFonts.nunito(
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
@@ -149,7 +142,24 @@ Future<({DateTime detectedAt, String note})?> showMarkMoltingDialog(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _DialogInfoRow(label: 'Cua', value: crab.id),
+            _DialogInfoRow(label: 'Cua', value: crab.code),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: outcome,
+              isExpanded: true,
+              decoration: _inputDeco('Kết quả lột xác'),
+              items: const [
+                DropdownMenuItem(value: 'success', child: Text('Thành công')),
+                DropdownMenuItem(value: 'monitoring', child: Text('Chưa hoàn tất / theo dõi')),
+                DropdownMenuItem(value: 'abnormal', child: Text('Bất thường')),
+                DropdownMenuItem(value: 'failed', child: Text('Thất bại')),
+              ],
+              onChanged: (v) { if (v != null) setState(() => outcome = v); },
+            ),
+            if (outcome != 'success') const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('Cua còn sống cần được kiểm tra lại. Nếu đã chết, dùng ghi nhận tử vong.'),
+            ),
             const SizedBox(height: 12),
             Text(
               'Thời gian',
@@ -228,6 +238,7 @@ Future<({DateTime detectedAt, String note})?> showMarkMoltingDialog(
             onPressed: () => Navigator.pop(ctx, (
               detectedAt: detectedAt,
               note: noteCtrl.text.trim(),
+              outcome: outcome,
             )),
             style: ElevatedButton.styleFrom(
               backgroundColor: kCmPurple,

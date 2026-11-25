@@ -46,7 +46,8 @@ enum CrabManagementStatusFilter {
   monitoring,
   molting,
   readyHarvest,
-  dead;
+  dead,
+  missing;
 
   String get label => switch (this) {
         CrabManagementStatusFilter.all => 'Tất cả',
@@ -55,6 +56,7 @@ enum CrabManagementStatusFilter {
         CrabManagementStatusFilter.molting => 'Đang lột xác',
         CrabManagementStatusFilter.readyHarvest => 'Sắp thu hoạch',
         CrabManagementStatusFilter.dead => 'Chết',
+        CrabManagementStatusFilter.missing => 'Thất lạc',
       };
 }
 
@@ -64,7 +66,8 @@ enum CrabLifecycleStatus {
   molting,
   readyHarvest,
   harvested,
-  dead;
+  dead,
+  missing;
 
   String get label => switch (this) {
         CrabLifecycleStatus.growing => 'Đang nuôi',
@@ -72,6 +75,7 @@ enum CrabLifecycleStatus {
         CrabLifecycleStatus.readyHarvest => 'Sắp thu hoạch',
         CrabLifecycleStatus.harvested => 'Đã thu hoạch',
         CrabLifecycleStatus.dead => 'Chết',
+        CrabLifecycleStatus.missing => 'Thất lạc',
       };
 
   Color get color => switch (this) {
@@ -80,6 +84,7 @@ enum CrabLifecycleStatus {
         CrabLifecycleStatus.readyHarvest => DashboardColors.seaGreen,
         CrabLifecycleStatus.harvested => const Color(0xFF2495E8),
         CrabLifecycleStatus.dead => DashboardColors.risk,
+        CrabLifecycleStatus.missing => DashboardColors.monitoring,
       };
 }
 
@@ -141,7 +146,8 @@ enum CrabOperationalStatus {
   readyHarvest,
   harvested,
   sold,
-  dead;
+  dead,
+  missing;
 
   String get label => switch (this) {
         CrabOperationalStatus.alive => 'ĐANG SỐNG',
@@ -151,6 +157,7 @@ enum CrabOperationalStatus {
         CrabOperationalStatus.harvested => 'ĐÃ THU HOẠCH',
         CrabOperationalStatus.sold => 'ĐÃ BÁN',
         CrabOperationalStatus.dead => 'CHẾT',
+        CrabOperationalStatus.missing => 'THẤT LẠC',
       };
 
   Color get color => switch (this) {
@@ -161,6 +168,7 @@ enum CrabOperationalStatus {
         CrabOperationalStatus.harvested => DashboardColors.cyan,
         CrabOperationalStatus.sold => DashboardColors.purple,
         CrabOperationalStatus.dead => DashboardColors.risk,
+        CrabOperationalStatus.missing => DashboardColors.monitoring,
       };
 }
 
@@ -197,10 +205,10 @@ String? _normalizeLifecycle(String raw) {
       key.contains('thuhoach')) {
     return 'harvested';
   }
+  if (key == 'missing') return 'missing';
   if (key.contains('dead') ||
       key.contains('chet') ||
-      key.contains('chết') ||
-      key == 'missing') {
+      key.contains('chết')) {
     return 'dead';
   }
   if (key.contains('molt') || key.contains('lột')) return 'molting';
@@ -217,13 +225,15 @@ enum CrabLifeStatus {
   raising,
   readyForSale,
   sold,
-  dead;
+  dead,
+  missing;
 
   String get label => switch (this) {
         CrabLifeStatus.raising => 'Đang nuôi',
         CrabLifeStatus.readyForSale => 'Đã thu hoạch',
         CrabLifeStatus.sold => 'Đã bán',
         CrabLifeStatus.dead => 'Đã chết',
+        CrabLifeStatus.missing => 'Thất lạc',
       };
 
   Color get color => switch (this) {
@@ -231,6 +241,7 @@ enum CrabLifeStatus {
         CrabLifeStatus.readyForSale => DashboardColors.blue,
         CrabLifeStatus.sold => DashboardColors.purple,
         CrabLifeStatus.dead => DashboardColors.dead,
+        CrabLifeStatus.missing => DashboardColors.monitoring,
       };
 }
 

@@ -25,22 +25,7 @@ class UserModel extends User {
 
   /// Creates a [UserModel] from JSON data with safe fallback parsing for backend roles.
   factory UserModel.fromJson(Map<String, dynamic> json) {
-    final rawRole = json['role'];
-    UserRole roleEnum = UserRole.fieldOperator;
-    if (rawRole != null) {
-      final str = rawRole.toString().toLowerCase();
-      if (str.contains('admin') || str.contains('sysadmin')) {
-        roleEnum = UserRole.admin;
-      } else if (str.contains('owner') || str.contains('manager')) {
-        roleEnum = UserRole.farmManager;
-      } else if (str.contains('staff') || str.contains('operator')) {
-        roleEnum = UserRole.fieldOperator;
-      } else if (str.contains('sale')) {
-        roleEnum = UserRole.sales;
-      } else if (str.contains('viewer')) {
-        roleEnum = UserRole.viewer;
-      }
-    }
+    final roleEnum = UserRole.parse(json['role']);
     return UserModel(
       id: json['id']?.toString() ?? json['userId']?.toString() ?? 'user_001',
       email: json['email']?.toString() ?? json['username']?.toString() ?? 'user@crabsense.app',
@@ -67,7 +52,10 @@ class UserModel extends User {
   );
 
   /// Converts this [UserModel] to JSON format.
-  Map<String, dynamic> toJson() => _$UserModelToJson(this);
+  Map<String, dynamic> toJson() => {
+    ..._$UserModelToJson(this),
+    'role': role.apiValue,
+  };
 
   /// Converts this [UserModel] to a domain [User] entity.
   User toEntity() => User(

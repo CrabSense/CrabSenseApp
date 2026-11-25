@@ -31,6 +31,7 @@ class CrabFeedingActivityController extends ChangeNotifier {
   bool _tableLoading = false;
   String? _error;
   int _gen = 0;
+  bool _disposed = false;
 
   FeedingPeriod get period => _period;
   DateTime get from => _period == FeedingPeriod.custom && _customFrom != null
@@ -78,6 +79,7 @@ class CrabFeedingActivityController extends ChangeNotifier {
   }
 
   Future<void> load({bool tableOnly = false}) async {
+    if (_disposed) return;
     final gen = ++_gen;
     if (tableOnly) {
       _tableLoading = true;
@@ -211,4 +213,6 @@ class CrabFeedingActivityController extends ChangeNotifier {
     if (events == null || events.isEmpty) return null;
     return events.reduce((a, b) => a.time.isAfter(b.time) ? a : b);
   }
+  @override
+  void dispose() { _disposed = true; ++_gen; super.dispose(); }
 }

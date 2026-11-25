@@ -18,7 +18,7 @@ const _kSlate = Color(0xFF94A3B8);
 Future<void> showRowDetailDialog(
   BuildContext context, {
   required RowListItem item,
-  required VoidCallback onEdit,
+  required VoidCallback? onEdit,
   VoidCallback? onViewBoxes,
   Future<void> Function()? onDelete,
   RowManagementService? rowService,
@@ -50,7 +50,7 @@ class _RowDetailDialog extends StatefulWidget {
   });
 
   final RowListItem item;
-  final VoidCallback onEdit;
+  final VoidCallback? onEdit;
   final VoidCallback? onViewBoxes;
   final Future<void> Function()? onDelete;
   final RowManagementService? rowService;
@@ -204,7 +204,7 @@ class _RowDetailDialogState extends State<_RowDetailDialog> {
 
   void _edit() {
     _close();
-    widget.onEdit();
+    widget.onEdit?.call();
   }
 
   void _viewBoxes() {
@@ -214,7 +214,7 @@ class _RowDetailDialogState extends State<_RowDetailDialog> {
 
   Future<void> _toggleStatus() async {
     final svc = widget.rowService;
-    if (svc == null || _acting) return;
+    if (svc == null || !svc.session.isFarmOwner || _acting) return;
     final next = _row.status == FarmStatus.active
         ? FarmStatus.suspended
         : FarmStatus.active;
@@ -268,7 +268,7 @@ class _RowDetailDialogState extends State<_RowDetailDialog> {
   }
 
   Future<void> _delete() async {
-    if (_acting) return;
+    if (widget.onDelete == null || _acting) return;
     if (_occupied > 0 || _row.crabCount > 0) {
       await showDialog<void>(
         context: context,
@@ -386,8 +386,8 @@ class _RowDetailDialogState extends State<_RowDetailDialog> {
               ),
             ),
           ),
-          PopupMenuButton<String>(
-            tooltip: 'Thêm',
+          if (widget.onEdit != null || widget.onDelete != null || widget.rowService?.session.isFarmOwner == true) PopupMenuButton<String>(
+            tooltip: 'Thao tác dãy',
             padding: EdgeInsets.zero,
             color: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -397,11 +397,11 @@ class _RowDetailDialogState extends State<_RowDetailDialog> {
               if (v == 'delete') _delete();
             },
             itemBuilder: (ctx) => [
-              PopupMenuItem(
+              if (widget.onEdit != null) PopupMenuItem(
                 value: 'edit',
                 child: Text('Chỉnh sửa', style: bvText(fontSize: 13.5)),
               ),
-              if (widget.rowService != null)
+              if (widget.rowService?.session.isFarmOwner == true)
                 PopupMenuItem(
                   value: 'suspend',
                   child: Text(
@@ -670,7 +670,7 @@ class _RowDetailDialogState extends State<_RowDetailDialog> {
               children: [
                 Expanded(child: closeBtn),
                 const SizedBox(width: 8),
-                Expanded(child: editBtn),
+                if (widget.onEdit != null) Expanded(child: editBtn),
               ],
             ),
           ],
@@ -688,7 +688,7 @@ class _RowDetailDialogState extends State<_RowDetailDialog> {
         children: [
           closeBtn,
           const Spacer(),
-          editBtn,
+          if (widget.onEdit != null) editBtn,
           const SizedBox(width: 8),
           viewBtn,
         ],
