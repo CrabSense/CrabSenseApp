@@ -95,6 +95,8 @@ class _ReportValue extends StatelessWidget {
   static const labels = {
     'totalCrabs': 'Tổng cua', 'aliveCrabs': 'Cua còn sống', 'deadCrabs': 'Cua chết',
     'harvestedCrabs': 'Cua thu hoạch', 'survivalRate': 'Tỷ lệ sống',
+    'missingCrabs': 'Cua thất lạc', 'missingRate': 'Tỷ lệ thất lạc',
+    'missingCountAtClose': 'Thất lạc khi đóng lô',
     'moltingRate': 'Tỷ lệ lột xác', 'lotCode': 'Mã lô', 'totalWeight': 'Tổng khối lượng',
     'date': 'Ngày', 'period': 'Kỳ báo cáo',
   };

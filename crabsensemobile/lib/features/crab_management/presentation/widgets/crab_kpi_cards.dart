@@ -11,11 +11,15 @@ class CrabKpiCards extends StatelessWidget {
     super.key,
     this.onQuickFilter,
     this.activeStatus,
+    this.activeHealthWatch = false,
+    this.onHealthWatch,
   });
 
   final CrabKpiSummary kpi;
   final void Function(CrabLifecycleStatus?)? onQuickFilter;
   final CrabLifecycleStatus? activeStatus;
+  final bool activeHealthWatch;
+  final VoidCallback? onHealthWatch;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +50,8 @@ class CrabKpiCards extends StatelessWidget {
         sub: pct(kpi.monitoringPct),
         color: kCmAmber,
         bgColor: kCmAmberLight,
-        status: null, // health-based, no direct lifecycle filter
+        status: null,
+        healthWatch: true,
       ),
       _KpiCardData(
         icon: '↻',
@@ -65,6 +70,11 @@ class CrabKpiCards extends StatelessWidget {
         color: kCmTeal,
         bgColor: kCmTealLight,
         status: CrabLifecycleStatus.readyToHarvest,
+      ),
+      _KpiCardData(
+        icon: '?', label: 'Thất lạc', value: '${kpi.missing}',
+        sub: 'Không tính tử vong', color: kCmAmber, bgColor: kCmAmberLight,
+        status: CrabLifecycleStatus.missing,
       ),
       _KpiCardData(
         icon: '💔',
@@ -93,11 +103,10 @@ class CrabKpiCards extends StatelessWidget {
                     child: _KpiCard(
                       data: cards[i],
                       isActive:
-                          activeStatus == cards[i].status &&
-                          cards[i].status != null,
-                      onTap: onQuickFilter == null
-                          ? null
-                          : () => onQuickFilter!(cards[i].status),
+                          cards[i].healthWatch ? activeHealthWatch :
+                          !activeHealthWatch && activeStatus == cards[i].status,
+                      onTap: cards[i].healthWatch ? onHealthWatch :
+                          onQuickFilter == null ? null : () => onQuickFilter!(cards[i].status),
                     ),
                   ),
                 ],
@@ -117,10 +126,9 @@ class CrabKpiCards extends StatelessWidget {
               .map(
                 (d) => _KpiCard(
                   data: d,
-                  isActive: activeStatus == d.status && d.status != null,
-                  onTap: onQuickFilter == null
-                      ? null
-                      : () => onQuickFilter!(d.status),
+                  isActive: d.healthWatch ? activeHealthWatch : !activeHealthWatch && activeStatus == d.status,
+                  onTap: d.healthWatch ? onHealthWatch :
+                      onQuickFilter == null ? null : () => onQuickFilter!(d.status),
                 ),
               )
               .toList(),
@@ -139,6 +147,7 @@ class _KpiCardData {
     required this.color,
     required this.bgColor,
     required this.status,
+    this.healthWatch = false,
   });
   final String icon;
   final String label;
@@ -147,6 +156,7 @@ class _KpiCardData {
   final Color color;
   final Color bgColor;
   final CrabLifecycleStatus? status;
+  final bool healthWatch;
 }
 
 class _KpiCard extends StatelessWidget {

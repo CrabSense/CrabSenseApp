@@ -227,6 +227,10 @@ class CrabIndividual {
     };
   }
 
+  bool get needsHealthWatch =>
+      const {CrabLifecycleStatus.growing, CrabLifecycleStatus.molting, CrabLifecycleStatus.readyHarvest}.contains(lifecycleStatus) &&
+      const {CrabDisplayHealth.monitoring, CrabDisplayHealth.weak, CrabDisplayHealth.alert}.contains(displayHealth);
+
   bool matchesStatusFilter(CrabManagementStatusFilter filter) {
     switch (filter) {
       case CrabManagementStatusFilter.all:
@@ -234,7 +238,7 @@ class CrabIndividual {
       case CrabManagementStatusFilter.growing:
         return lifecycleStatus == CrabLifecycleStatus.growing;
       case CrabManagementStatusFilter.monitoring:
-        return displayHealth == CrabDisplayHealth.monitoring;
+        return needsHealthWatch;
       case CrabManagementStatusFilter.molting:
         return lifecycleStatus == CrabLifecycleStatus.molting;
       case CrabManagementStatusFilter.readyHarvest:

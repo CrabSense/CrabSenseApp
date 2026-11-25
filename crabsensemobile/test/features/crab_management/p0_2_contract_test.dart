@@ -3,6 +3,18 @@ import 'package:crabsensemobile/features/crab_management/data/models/crab_manage
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('health watch excludes terminal crabs and includes living problem/weak', () {
+    final living = CrabRecord.fromJson({'status':'Alive','condition':'Problem'});
+    final weak = CrabRecord.fromJson({'status':'Alive','condition':'Weak'});
+    final lost = CrabRecord.fromJson({'status':'Missing','condition':'Problem'});
+    final dead = CrabRecord.fromJson({'status':'Dead','condition':'Problem'});
+    expect(living.needsHealthWatch, isTrue);
+    expect(lost.needsHealthWatch, isFalse);
+    expect(dead.needsHealthWatch, isFalse);
+    expect(CrabKpiSummary.fromList([living,weak,lost,dead]).monitoring, 2);
+    expect(const CrabFilterState(quickHealthWatch:true).isEmpty, isFalse);
+    expect(const CrabFilterState(quickHealthWatch:true).copyWith(quickHealthWatch:false).isEmpty, isTrue);
+  });
   test('Missing is distinct from mortality and non-actionable', () {
     final record = CrabRecord.fromJson({'status': 'Missing'});
     expect(record.lifecycleStatus, CrabLifecycleStatus.missing);
