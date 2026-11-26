@@ -45,6 +45,8 @@ class _HarvestAssignmentsScreenState extends State<HarvestAssignmentsScreen> {
   }
   String _status(Map<String,dynamic> row)=>(row['status']??'').toString().toLowerCase();
   List<Map<String,dynamic>> get _lines=>_detail==null?[]:_rows(_detail!['lines']);
+  bool _activeLine(Map<String,dynamic> line)=>const {'assigned','eligible','inprogress'}.contains(_status(line));
+  bool get _readyToSubmit => _lines.isNotEmpty && _lines.where(_activeLine).every((l)=>l['outcome']!=null);
   @override void initState(){super.initState();WidgetsBinding.instance.addPostFrameCallback((_){if(mounted)_refresh();});}
   Future<void> _run(Future<void> Function() action) async {
     if(_busy||!mounted)return;
@@ -65,10 +67,12 @@ class _HarvestAssignmentsScreenState extends State<HarvestAssignmentsScreen> {
     setState(()=>_tasks=rows.where(_allowed).toList());
   }
   Future<void> _fetchDetail(String id) async {
-    final res=await _api.get<dynamic>('/harvest-assignments/$id');
+    final dynamic res;
+    try { res=await _api.get<dynamic>('/harvest-assignments/$id'); }
+    on DioException catch(e){if(mounted&&const {403,404}.contains(e.response?.statusCode))setState(()=>_detail=null);rethrow;}
     final row=Map<String,dynamic>.from(_data(res.data) as Map);
     if(!mounted||_user?.id!=_owner)return;
-    if(!_allowed(row)||row['id']?.toString()!=id)throw StateError('Nhiệm vụ ngoài phạm vi.');
+    if(!_allowed(row)||row['id']?.toString()!=id){setState(()=>_detail=null);throw StateError('Nhiệm vụ ngoài phạm vi.');}
     setState(()=>_detail=row);
   }
   Future<void> _refresh()=>_run(()async{final id=_detail?['id']?.toString();await _fetchList();if(id!=null&&mounted)await _fetchDetail(id);});
@@ -84,7 +88,7 @@ class _HarvestAssignmentsScreenState extends State<HarvestAssignmentsScreen> {
   });
 
   Future<void> _edit(Map<String,dynamic> line) async {
-    if(_busy||_detail==null||!_allowed(_detail!)||_status(_detail!)!='inprogress')return;
+    if(_busy||_detail==null||!_allowed(_detail!)||_status(_detail!)!='inprogress'||!_activeLine(line))return;
     final taskId=_detail!['id'].toString();
     final lineId=line['id'].toString();
     final crabId=line['crabId'].toString();
@@ -117,8 +121,8 @@ class _HarvestAssignmentsScreenState extends State<HarvestAssignmentsScreen> {
 
   Future<void> _complete()async {
     final row=_detail;
-    if(row==null||!_allowed(row)||_status(row)!='inprogress'||_lines.isEmpty||_lines.any((l)=>l['outcome']==null))return;
-    final yes=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:const Text('Hoàn tất nhiệm vụ?'),content:const Text('Backend sẽ ghi nhận các cua thu hoạch và giữ lại cua được chọn nuôi tiếp. Không thể sửa kết quả sau khi hoàn tất.'),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Hủy')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Xác nhận'))]));
+    if(row==null||!_allowed(row)||_status(row)!='inprogress'||!_readyToSubmit)return;
+    final yes=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:const Text('Gửi kết quả cho Manager?'),content:const Text('Kết quả sẽ được khóa để Manager kiểm tra. Phiếu và trạng thái cua chỉ được cập nhật khi Manager xác nhận. Nếu yêu cầu bổ sung, bạn có thể sửa lại.'),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Hủy')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Xác nhận'))]));
     if(yes==true&&mounted&&identical(row,_detail)&&_allowed(row))await _write('complete',{});
   }
   @override Widget build(BuildContext context){
@@ -137,9 +141,12 @@ class _HarvestAssignmentsScreenState extends State<HarvestAssignmentsScreen> {
         Text(detail['assignmentCode'].toString(),style:Theme.of(context).textTheme.titleLarge),
         Text('Khu: ${detail['farmingAreaId']} · ${detail['status']}'),
         if(detail['notes']!=null)Text(detail['notes'].toString()),
+        if(_status(detail)=='pendingreview')const Text('Đã gửi kết quả. Đang chờ Manager xác nhận.'),
+        if(detail['reviewNotes']!=null)Text('Phản hồi Manager: ${detail['reviewNotes']}'),
+        if(detail['workflowAudit'] is List)for(final event in _rows(detail['workflowAudit']))ListTile(dense:true,title:Text('${event['action']} · ${event['at']}'),subtitle:Text(event['reason']?.toString()??'—')),
         if(_status(detail)=='assigned')FilledButton(onPressed:_busy?null:()=>_write('accept',{}),child:const Text('Nhận nhiệm vụ')),
-        for(final line in _lines)Card(child:ListTile(title:Text('${line['crabCode']} · ${line['boxCode']}'),subtitle:Text('${line['outcome']??"Chưa xử lý"} · ${line['pendingWeightGram']??"—"} g'),trailing:_status(detail)=='inprogress'?const Icon(Icons.edit):null,onTap:_busy||_status(detail)!='inprogress'?null:()=>_edit(line))),
-        if(_status(detail)=='inprogress')FilledButton(onPressed:_busy||_lines.isEmpty||_lines.any((l)=>l['outcome']==null)?null:_complete,child:const Text('Hoàn tất nhiệm vụ')),
+        for(final line in _lines)Card(child:ListTile(title:Text('${line['crabCode']} · ${line['boxCode']}'),subtitle:Text('${line['status']} · ${line['outcome']??"Chưa xử lý"} · ${line['pendingWeightGram']??"—"} g'),trailing:_status(detail)=='inprogress'&&_activeLine(line)?const Icon(Icons.edit):null,onTap:_busy||_status(detail)!='inprogress'||!_activeLine(line)?null:()=>_edit(line))),
+        if(_status(detail)=='inprogress')FilledButton(onPressed:_busy||!_readyToSubmit?null:_complete,child:const Text('Gửi kết quả chờ xác nhận')),
         if(detail['vouchers'] is List)for(final voucher in _rows(detail['vouchers']))ListTile(title:Text('Phiếu ${voucher['voucherCode']}'),subtitle:Text('${voucher['status']} · ${voucher['totalQuantity']} cua · ${voucher['totalWeightKg']} kg')),
       ]
     ]));

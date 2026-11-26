@@ -173,7 +173,7 @@ jobs:
           mkdir -p crabsensedesktop/build/web/mobile
           cp -a crabsensemobile/build/web/. crabsensedesktop/build/web/mobile/
           test -s crabsensedesktop/build/web/mobile/index.html
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         with:
           path: crabsensedesktop/build/web
@@ -190,10 +190,10 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - name: Deploy Desktop and Mobile to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
       - name: Verify deployed Pages revision
         env:
           SITE_URL: ${{ steps.deployment.outputs.page_url }}

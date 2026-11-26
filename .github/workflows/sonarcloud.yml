@@ -11,8 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  sonarcloud:
-    name: SonarCloud Scan (Flutter/Dart)
+  mobile-tests:
+    name: Mobile analysis and tests
     runs-on: ubuntu-latest
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -30,29 +30,13 @@ jobs:
         working-directory: crabsensemobile
         run: flutter pub get
 
-      - name: Desktop pub get
-        working-directory: crabsensedesktop
-        run: flutter pub get
-
       - name: Analyze Mobile (including tests)
         working-directory: crabsensemobile
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
-
-      - name: Analyze Desktop (including tests)
-        working-directory: crabsensedesktop
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+        run: flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
 
       - name: Mobile role contract and authentication tests
         working-directory: crabsensemobile
-        run: flutter test test/features/authentication/domain/user_role_contract_test.dart test/features/authentication/data/models/user_model_test.dart test/features/authentication/data/integration_test.dart test/features/crab_management/p0_2_contract_test.dart test/features/box/domain/lot_registration_policy_test.dart
-
-      - name: Prepare Desktop test environment
-        working-directory: crabsensedesktop
-        run: printf 'CLOUD_API_URL=http://127.0.0.1:5080\n' > .env
-
-      - name: Desktop role contract tests
-        working-directory: crabsensedesktop
-        run: flutter test test/user_role_contract_test.dart test/manager_structure_permissions_test.dart test/manager_workflow_permissions_test.dart test/manager_harvest_permissions_test.dart test/manager_frozen_lot_test.dart test/manager_ras_scope_test.dart test/manager_crab_permissions_test.dart test/manager_history_corrections_test.dart test/manager_harvest_scope_test.dart test/crab_missing_status_test.dart
+        run: flutter test --no-pub test/features/authentication/domain/user_role_contract_test.dart test/features/authentication/data/models/user_model_test.dart test/features/authentication/data/integration_test.dart test/features/crab_management/p0_2_contract_test.dart test/features/box/domain/lot_registration_policy_test.dart
 
       - name: SonarCloud Scan
         if: env.SONAR_TOKEN != ''
@@ -68,3 +52,48 @@ jobs:
             -Dsonar.sources=lib
             -Dsonar.tests=test
             -Dsonar.exclusions=**/*.g.dart,**/*.freezed.dart,**/generated/**
+
+  desktop-tests:
+    name: Desktop analysis and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Desktop pub get
+        working-directory: crabsensedesktop
+        run: flutter pub get
+
+      - name: Analyze Desktop (including tests)
+        working-directory: crabsensedesktop
+        run: flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
+
+      - name: Prepare Desktop test environment
+        working-directory: crabsensedesktop
+        run: printf 'CLOUD_API_URL=http://127.0.0.1:5080\n' > .env
+
+      - name: Desktop role contract tests
+        working-directory: crabsensedesktop
+        run: flutter test --no-pub test/user_role_contract_test.dart test/manager_structure_permissions_test.dart test/manager_workflow_permissions_test.dart test/manager_harvest_permissions_test.dart test/manager_frozen_lot_test.dart test/manager_ras_scope_test.dart test/manager_crab_permissions_test.dart test/manager_history_corrections_test.dart test/manager_harvest_scope_test.dart test/crab_missing_status_test.dart
+
+
+  sonarcloud:
+    name: SonarCloud Scan (Flutter/Dart)
+    runs-on: ubuntu-latest
+    needs: [mobile-tests, desktop-tests]
+    if: ${{ always() }}
+    steps:
+      - name: Require all validation jobs
+        env:
+          MOBILE_TESTS_RESULT: ${{ needs.mobile-tests.result }}
+          DESKTOP_TESTS_RESULT: ${{ needs.desktop-tests.result }}
+        run: |
+          set -euo pipefail
+          test "$MOBILE_TESTS_RESULT" = success
+          test "$DESKTOP_TESTS_RESULT" = success

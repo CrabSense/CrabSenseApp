@@ -910,8 +910,7 @@ class CrabManagementListItem {
   factory CrabManagementListItem.fromJson(Map<String, dynamic> json) {
     final molting = (json['moltingStage'] ?? json['MoltingStage'] ?? '').toString();
     final status = resolveCrabLifecycleStatus(json);
-    final rawStatus =
-    (json['status'] ?? json['Status'] ?? '').toString();
+    final rawStatus = (json['status'] ?? json['Status'] ?? '').toString();
     final weightRaw =
         json['weightGram'] ?? json['WeightGram'] ?? json['weight'] ?? json['Weight'];
     final lotId = (json['crabLotId'] ??

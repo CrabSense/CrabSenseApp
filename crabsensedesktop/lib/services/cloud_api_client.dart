@@ -733,6 +733,43 @@ class CloudApiClient {
     required String farmingAreaId,
   }) => _getDataMap(token, '/api/harvest-assignments/$id', farmingAreaId: farmingAreaId);
 
+  Future<void> reviewHarvestAssignment(String token, String id, {
+    required String farmingAreaId, required bool confirm, String? notes,
+  }) async {
+    if(id.trim().isEmpty || farmingAreaId.trim().isEmpty ||
+        (!confirm && (notes ?? '').trim().isEmpty)) {
+      throw CloudApiException('Thiếu nhiệm vụ, khu hoặc lý do bổ sung.');
+    }
+    final action = confirm ? 'confirm' : 'return';
+    final uri = Uri.parse('$_base/api/harvest-assignments/$id/$action');
+    final response = await _client.post(uri,
+      headers: {...authHeaders(token, farmId: farmingAreaId), 'Content-Type': 'application/json'},
+      body: jsonEncode({'notes': notes?.trim()}));
+    _throwIfFailed(response, _decode(response), uri.path);
+  }
+
+  Future<void> handleHarvestAssignmentException(String token, String id, {
+    required String farmingAreaId, required String action, required String reason,
+    String? staffId, String? lineId,
+  }) async {
+    if (id.trim().isEmpty || farmingAreaId.trim().isEmpty ||
+        reason.trim().isEmpty || reason.trim().length > 1000 ||
+        !const {'cancel','reassign','skip'}.contains(action) ||
+        (action == 'reassign' && (staffId ?? '').trim().isEmpty) ||
+        (action == 'skip' && (lineId ?? '').trim().isEmpty)) {
+      throw CloudApiException('Thiếu thông tin xử lý nhiệm vụ.');
+    }
+    final suffix = action == 'skip' ? 'lines/$lineId/skip' : action;
+    final uri = Uri.parse('$_base/api/harvest-assignments/$id/$suffix');
+    final response = await _client.post(uri,
+      headers: {...authHeaders(token, farmId: farmingAreaId), 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        if (action == 'cancel') 'notes': reason.trim() else 'reason': reason.trim(),
+        if (action == 'reassign') 'assignedToUserId': staffId,
+      }));
+    _throwIfFailed(response, _decode(response), uri.path);
+  }
+
   Future<Set<String>> fetchOpenHarvestAssignmentCrabIds(String token, {required String farmingAreaId}) async {
     if(farmingAreaId.isEmpty) throw CloudApiException('Thiếu khu nuôi.');
     final assignments=await fetchHarvestAssignments(token,farmingAreaId:farmingAreaId);
@@ -740,7 +777,7 @@ class CloudApiClient {
     for(final task in assignments) {
       if((task['farmingAreaId']??task['FarmingAreaId']).toString()!=farmingAreaId) continue;
       final state=(task['status']??task['Status']).toString().toLowerCase();
-      if(state!='assigned'&&state!='inprogress') continue;
+      if(!const {'assigned','inprogress','pendingreview'}.contains(state)) continue;
       final taskId=(task['id']??task['Id']??'').toString();
       if(taskId.isEmpty) throw CloudApiException('Nhiệm vụ thiếu ID.');
       final detail=await fetchHarvestAssignmentDetail(token,taskId,farmingAreaId:farmingAreaId);
@@ -749,8 +786,9 @@ class CloudApiClient {
       if(lines is! List) throw CloudApiException('Thiếu danh sách cua đã giao.');
       for(final row in lines.whereType<Map>()) {
         final id=(row['crabId']??row['CrabId']??'').toString();
-        // While the assignment is open reserve the entire selection, until completion.
-        if(id.isNotEmpty)ids.add(id);
+        // Resolved exceptions are no longer reserved; unknown states fail closed.
+        final lineState = (row['status'] ?? row['Status'] ?? '').toString().toLowerCase();
+        if(id.isNotEmpty && !const {'skipped','cancelled'}.contains(lineState)) ids.add(id);
       }
     }
     return ids;

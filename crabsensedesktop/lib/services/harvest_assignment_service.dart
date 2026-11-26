@@ -61,6 +61,44 @@ class HarvestAssignmentService {
     return detail;
   }
 
+  Future<void> reviewAssignment(String areaId, String id, {
+    required bool confirm, String? notes,
+  }) async {
+    _requireArea(areaId);
+    final generation = _generation;
+    final detail = await loadAssignmentDetail(areaId, id);
+    _checkScope(areaId, generation);
+    if ((detail['status'] ?? detail['Status']).toString().toLowerCase() != 'pendingreview') {
+      throw CloudApiException('Nhiệm vụ không còn chờ xác nhận.');
+    }
+    await _api.reviewHarvestAssignment(_session.token, id, farmingAreaId: areaId,
+      confirm: confirm, notes: notes);
+    _checkScope(areaId, generation);
+  }
+
+  Future<void> handleAssignmentException(String areaId, String id, {
+    required String action, required String reason, String? staffId, String? lineId,
+  }) async {
+    _requireArea(areaId);
+    final generation = _generation;
+    final detail = await loadAssignmentDetail(areaId, id);
+    _checkScope(areaId, generation);
+    final status = (detail['status'] ?? detail['Status']).toString().toLowerCase();
+    if (!const {'assigned','inprogress','pendingreview'}.contains(status)) {
+      throw CloudApiException('Nhiệm vụ đã kết thúc.');
+    }
+    if (action == 'skip') {
+      final lines = detail['lines'];
+      if (lines is! List || !lines.whereType<Map>().any((l) => l['id'].toString() == lineId &&
+          const {'assigned','eligible','inprogress'}.contains(l['status'].toString().toLowerCase()))) {
+        throw CloudApiException('Dòng cua không còn thuộc nhiệm vụ đang mở.');
+      }
+    }
+    await _api.handleHarvestAssignmentException(_session.token, id, farmingAreaId: areaId,
+      action: action, reason: reason, staffId: staffId, lineId: lineId);
+    _checkScope(areaId, generation);
+  }
+
   /// Tải các cua thuộc khu và chỉ trả về cua đang Alive.
   /// BE vẫn kiểm tra lại trạng thái và task đang mở khi tạo assignment.
   Future<List<CrabManagementListItem>> loadAliveCrabs({
@@ -97,8 +135,8 @@ class HarvestAssignmentService {
     );
 
     return result.crabs
-    .where((crab) => crab.rawStatus.trim().toLowerCase() == 'alive')
-    .toList(growable: false);
+        .where((crab) => crab.areaId == farmingAreaId && crab.boxId.isNotEmpty && crab.rawStatus.trim().toLowerCase() == 'alive' && !reserved.contains(crab.id))
+        .toList(growable: false);
   }
 
   /// Tải danh sách nhân viên cho khu đang giao việc.
