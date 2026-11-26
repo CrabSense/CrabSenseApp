@@ -20,6 +20,7 @@ enum CrabLifecycleStatus {
   readyToHarvest, // READY_TO_HARVEST — Sắp thu hoạch
   harvested, // HARVESTED — Đã thu hoạch
   dead, // DEAD — Chết
+  missing, // MISSING — Thất lạc
   unknown,
 }
 
@@ -49,12 +50,15 @@ extension CrabHealthStatusX on CrabHealthStatus {
 
   static CrabHealthStatus fromString(String? value) {
     switch (value?.toUpperCase()) {
+      case 'NORMAL':
       case 'HEALTHY':
         return CrabHealthStatus.healthy;
+      case 'PREMOLT':
       case 'MONITORING':
         return CrabHealthStatus.monitoring;
       case 'WEAK':
         return CrabHealthStatus.weak;
+      case 'PROBLEM':
       case 'ALERT':
         return CrabHealthStatus.alert;
       default:
@@ -71,11 +75,13 @@ extension CrabLifecycleStatusX on CrabLifecycleStatus {
       case CrabLifecycleStatus.molting:
         return 'Đang lột xác';
       case CrabLifecycleStatus.readyToHarvest:
-        return 'Sắp thu hoạch';
+        return 'Cua mềm / chờ thu hoạch';
       case CrabLifecycleStatus.harvested:
         return 'Đã thu hoạch';
       case CrabLifecycleStatus.dead:
         return 'Chết';
+      case CrabLifecycleStatus.missing:
+        return 'Thất lạc';
       case CrabLifecycleStatus.unknown:
         return 'Không rõ';
     }
@@ -93,6 +99,8 @@ extension CrabLifecycleStatusX on CrabLifecycleStatus {
         return CrabLifecycleStatus.harvested;
       case 'DEAD':
         return CrabLifecycleStatus.dead;
+      case 'MISSING':
+        return CrabLifecycleStatus.missing;
       default:
         return CrabLifecycleStatus.unknown;
     }
@@ -155,6 +163,7 @@ class CrabLocationRef {
 class CrabRecord {
   const CrabRecord({
     required this.id,
+    this.code = '',
     required this.location,
     required this.batch,
     required this.gender,
@@ -172,6 +181,7 @@ class CrabRecord {
   });
 
   final String id;
+  final String code;
   final CrabLocationRef location;
   final CrabBatchRef batch;
   final CrabGender gender;
@@ -186,6 +196,30 @@ class CrabRecord {
   final DateTime? lastMoltAt;
   final String? note;
   final String? aiStatus; // e.g. "Không phát hiện bất thường"
+
+  // Unknown, missing and legacy quarantined records remain non-actionable.
+  static CrabLifecycleStatus lifecycleFromBackend(Map<String, dynamic> json) {
+    final status = (json['status'] ?? json['lifecycleStatus'] ?? json['lifecycle_status'] ?? '').toString().toUpperCase();
+    if (status == 'DEAD') return CrabLifecycleStatus.dead;
+    if (status == 'HARVESTED' || status == 'SOLD') return CrabLifecycleStatus.harvested;
+    if (status == 'MISSING') return CrabLifecycleStatus.missing;
+    if (status == 'QUARANTINED') return CrabLifecycleStatus.unknown;
+    if (status == 'ALIVE' || status == 'MOLTING') {
+      final condition = (json['condition'] ?? '').toString().toUpperCase();
+      if (condition == 'SOFTSHELL' || condition == 'SOFT_SHELL') {
+        return CrabLifecycleStatus.readyToHarvest;
+      }
+      return status == 'MOLTING' ? CrabLifecycleStatus.molting : CrabLifecycleStatus.growing;
+    }
+    return CrabLifecycleStatusX.fromString(status);
+  }
+
+  bool get canRecordOperations => lifecycleStatus == CrabLifecycleStatus.growing ||
+      lifecycleStatus == CrabLifecycleStatus.molting ||
+      lifecycleStatus == CrabLifecycleStatus.readyToHarvest;
+
+  bool get needsHealthWatch => canRecordOperations &&
+      const {CrabHealthStatus.monitoring, CrabHealthStatus.alert, CrabHealthStatus.weak}.contains(healthStatus);
 
   /// Format: "92 × 74 mm"
   String get sizeLabel {
@@ -228,14 +262,15 @@ class CrabRecord {
 
     return CrabRecord(
       id: asStr(json['id']),
+      code: asStr(json['code']),
       batch: CrabBatchRef(
         id: asStr(batchJson['id'] ?? json['batchId'] ?? json['crabLotId']),
-        name: asStr(batchJson['code'] ?? batchJson['name'] ?? batchJson['id']),
+        name: asStr(batchJson['code'] ?? batchJson['name'] ?? json['lotName'] ?? json['lotCode'] ?? batchJson['id']),
       ),
       location: CrabLocationRef(
-        farmAreaId: asStr(farmAreaJson['id'] ?? json['farmAreaId']),
-        farmAreaName: asStr(farmAreaJson['name'] ?? json['farmAreaName']),
-        rowId: asStr(rowJson['id'] ?? json['rowId']),
+        farmAreaId: asStr(farmAreaJson['id'] ?? json['farmingAreaId'] ?? json['farmAreaId']),
+        farmAreaName: asStr(farmAreaJson['name'] ?? json['areaName'] ?? json['farmAreaName']),
+        rowId: asStr(rowJson['id'] ?? json['farmingRowId'] ?? json['rowId']),
         rowName: asStr(rowJson['name'] ?? json['rowName']),
         boxId: asStr(boxJson['id'] ?? json['boxId']),
         boxCode: asStr(
@@ -247,22 +282,18 @@ class CrabRecord {
       ),
       gender: CrabGenderX.fromString(asStr(json['gender'])),
       weightGram: asDouble(json['weightGram'] ?? json['weight']),
-      shellWidthMm: asDouble(json['shellWidthMm'] ?? json['shellWidth']),
-      shellLengthMm: asDouble(json['shellLengthMm'] ?? json['shellLength']),
+      shellWidthMm: asDouble(json['carapaceWidthMm'] ?? json['shellWidthMm'] ?? json['shellWidth']),
+      shellLengthMm: asDouble(json['carapaceLengthMm'] ?? json['shellLengthMm'] ?? json['shellLength']),
       moltCount: asInt(json['moltCount'] ?? json['moltingCount']),
       healthStatus: CrabHealthStatusX.fromString(
-        asStr(json['healthStatus'] ?? json['health_status']),
+        asStr(json['healthStatus'] ?? json['health_status'] ?? json['condition']),
       ),
-      lifecycleStatus: CrabLifecycleStatusX.fromString(
-        asStr(
-          json['lifecycleStatus'] ?? json['lifecycle_status'] ?? json['status'],
-        ),
-      ),
+      lifecycleStatus: lifecycleFromBackend(json),
       enteredAt:
-          parseDate(json['enteredAt'] ?? json['createdAt']) ?? DateTime.now(),
+          parseDate(json['stockedAt'] ?? json['enteredAt'] ?? json['createdAt']) ?? DateTime.now(),
       updatedAt: parseDate(json['updatedAt']) ?? DateTime.now(),
-      lastMoltAt: parseDate(json['lastMoltAt']),
-      note: json['note']?.toString(),
+      lastMoltAt: parseDate(json['moltedAt'] ?? json['lastMoltAt']),
+      note: (json['notes'] ?? json['note'])?.toString(),
       aiStatus: json['aiStatus']?.toString(),
     );
   }
@@ -278,6 +309,7 @@ class CrabKpiSummary {
     required this.molting,
     required this.readyToHarvest,
     required this.dead,
+    this.missing = 0,
   });
 
   final int total;
@@ -286,6 +318,7 @@ class CrabKpiSummary {
   final int molting;
   final int readyToHarvest;
   final int dead;
+  final int missing;
 
   double get growingPct => total == 0 ? 0 : growing / total * 100;
   double get monitoringPct => total == 0 ? 0 : monitoring / total * 100;
@@ -300,11 +333,7 @@ class CrabKpiSummary {
           .where((c) => c.lifecycleStatus == CrabLifecycleStatus.growing)
           .length,
       monitoring: crabs
-          .where(
-            (c) =>
-                c.healthStatus == CrabHealthStatus.monitoring ||
-                c.healthStatus == CrabHealthStatus.alert,
-          )
+          .where((c) => c.needsHealthWatch)
           .length,
       molting: crabs
           .where((c) => c.lifecycleStatus == CrabLifecycleStatus.molting)
@@ -312,6 +341,7 @@ class CrabKpiSummary {
       readyToHarvest: crabs
           .where((c) => c.lifecycleStatus == CrabLifecycleStatus.readyToHarvest)
           .length,
+      missing: crabs.where((c) => c.lifecycleStatus == CrabLifecycleStatus.missing).length,
       dead: crabs
           .where((c) => c.lifecycleStatus == CrabLifecycleStatus.dead)
           .length,
@@ -331,6 +361,7 @@ class CrabKpiSummary {
       molting: asInt(json['molting']),
       readyToHarvest: asInt(json['readyToHarvest'] ?? json['ready_to_harvest']),
       dead: asInt(json['dead']),
+      missing: asInt(json['missing']),
     );
   }
 
@@ -357,6 +388,7 @@ class CrabFilterState {
     this.lifecycleStatus,
     this.healthStatus,
     this.quickStatus,
+    this.quickHealthWatch = false,
   });
 
   final String searchQuery;
@@ -368,6 +400,7 @@ class CrabFilterState {
   final CrabLifecycleStatus? lifecycleStatus;
   final CrabHealthStatus? healthStatus;
   final CrabLifecycleStatus? quickStatus; // null = all
+  final bool quickHealthWatch;
 
   bool get isEmpty =>
       searchQuery.isEmpty &&
@@ -378,7 +411,7 @@ class CrabFilterState {
       gender == null &&
       lifecycleStatus == null &&
       healthStatus == null &&
-      quickStatus == null;
+      quickStatus == null && !quickHealthWatch;
 
   CrabFilterState copyWith({
     String? searchQuery,
@@ -390,6 +423,7 @@ class CrabFilterState {
     Object? lifecycleStatus = _sentinel,
     Object? healthStatus = _sentinel,
     Object? quickStatus = _sentinel,
+    bool? quickHealthWatch,
   }) {
     return CrabFilterState(
       searchQuery: searchQuery ?? this.searchQuery,
@@ -409,6 +443,7 @@ class CrabFilterState {
       quickStatus: quickStatus == _sentinel
           ? this.quickStatus
           : quickStatus as CrabLifecycleStatus?,
+      quickHealthWatch: quickHealthWatch ?? this.quickHealthWatch,
     );
   }
 
@@ -497,7 +532,7 @@ class BatchOption {
   final String code;
   factory BatchOption.fromJson(Map<String, dynamic> j) => BatchOption(
     id: j['id'].toString(),
-    code: (j['code'] ?? j['name'] ?? j['id']).toString(),
+    code: (j['lotCode'] ?? j['code'] ?? j['name'] ?? j['id']).toString(),
   );
 }
 

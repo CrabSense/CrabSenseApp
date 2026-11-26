@@ -1,0 +1,29 @@
+name: Desktop Local Preview
+on:
+  pull_request:
+    paths:
+      - 'crabsensedesktop/**'
+      - '.github/workflows/desktop-preview.yml'
+      - '.vscode/launch.json'
+      - '.vscode/settings.json'
+permissions:
+  contents: read
+jobs:
+  web-compile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crabsensedesktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Prepare non-secret preview config
+        run: printf 'CLOUD_API_URL=http://localhost:5080\n' > .env
+      - run: flutter pub get
+      - name: Test preview origin policy
+        run: flutter test test/preview_policy_test.dart
+      - name: Compile Desktop for local browser preview
+        run: flutter build web --debug --dart-define=CRABSENSE_DESKTOP_PREVIEW=true

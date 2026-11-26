@@ -224,6 +224,7 @@ class FeedingHistoryTable extends StatelessWidget {
     required this.onSort,
     required this.onRowTap,
     required this.onAction,
+    this.canEditNote = false,
     this.thresholds = FeedingThresholds.defaults,
     this.selectedId,
   });
@@ -235,6 +236,7 @@ class FeedingHistoryTable extends StatelessWidget {
   final ValueChanged<FeedingSort> onSort;
   final ValueChanged<FeedingEvent> onRowTap;
   final void Function(FeedingEvent event, FeedingEventAction action) onAction;
+  final bool canEditNote;
   final FeedingThresholds thresholds;
   final String? selectedId;
 
@@ -427,7 +429,7 @@ class FeedingHistoryTable extends StatelessWidget {
                   onSelected: (a) => onAction(e, a),
                   itemBuilder: (_) => [
                     _item(FeedingEventAction.detail, Icons.visibility_outlined, 'Xem chi tiết lần ăn'),
-                    _item(FeedingEventAction.editNote, Icons.edit_note_rounded, 'Chỉnh sửa ghi chú'),
+                    if (canEditNote) _item(FeedingEventAction.editNote, Icons.edit_note_rounded, 'Chỉnh sửa ghi chú'),
                     if (e.photoUrls.isNotEmpty)
                       _item(FeedingEventAction.viewPhotos, Icons.image_outlined, 'Xem hình ảnh'),
                     _item(FeedingEventAction.viewCamera, Icons.videocam_outlined, 'Xem camera liên quan'),

@@ -9,6 +9,10 @@ import 'package:logger/logger.dart';
 import 'package:workmanager/workmanager.dart';
 
 class FakeWorkmanager implements Workmanager {
+  // Unexpected platform calls should fail the test, not silently succeed.
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
   bool initialized = false;
   Function? callbackDispatcher;
   final List<Map<String, dynamic>> registeredTasks = [];
@@ -27,10 +31,11 @@ class FakeWorkmanager implements Workmanager {
     Duration? frequency,
     Duration? initialDelay,
     Constraints? constraints,
-    ExistingWorkPolicy? existingWorkPolicy,
+    ExistingPeriodicWorkPolicy? existingWorkPolicy,
     BackoffPolicy? backoffPolicy,
     Duration? backoffPolicyDelay,
-    OutOfQuotaPolicy? outOfQuotaPolicy,
+    Duration? flexInterval,
+    ForegroundServiceConfig? foregroundServiceConfig,
     Map<String, dynamic>? inputData,
     String? tag,
   }) async {
@@ -63,12 +68,14 @@ class FakeWorkmanager implements Workmanager {
     BackoffPolicy? backoffPolicy,
     Duration? backoffPolicyDelay,
     OutOfQuotaPolicy? outOfQuotaPolicy,
+    bool expedited = false,
+    ForegroundServiceConfig? foregroundServiceConfig,
     Map<String, dynamic>? inputData,
     String? tag,
   }) async {}
 
   @override
-  Future<void> printScheduledTasks() async {}
+  Future<String> printScheduledTasks() async => '';
 }
 
 class FakeSyncServiceForBg implements SyncService {
@@ -112,7 +119,7 @@ class FakeSyncServiceForBg implements SyncService {
 
 class FakeBidirectionalSyncManagerForBg implements BidirectionalSyncManager {
   bool syncNowCalled = false;
-  SyncProgress resultProgress = SyncProgress.completed();
+  SyncProgress resultProgress = SyncProgress.completed(lastSyncTime: DateTime(2026, 1, 1));
 
   @override
   Future<SyncProgress> syncNow() async {
@@ -216,7 +223,7 @@ void main() {
 
     test('syncIfQueueNotEmpty triggers sync when pending items exist', () async {
       fakeSyncService.mockPendingCount = 3;
-      fakeSyncManager.resultProgress = SyncProgress.completed();
+      fakeSyncManager.resultProgress = SyncProgress.completed(lastSyncTime: DateTime(2026, 1, 1));
 
       final synced = await backgroundSyncService.syncIfQueueNotEmpty();
 

@@ -316,6 +316,9 @@ class BoxManagementService extends ChangeNotifier {
   }
 
   Future<void> deleteBox(BoxListItem item) async {
+    if (!_session.isFarmOwner) {
+      throw CloudApiException('Cấu trúc khu nuôi do Farm Admin quản lý trên Web.');
+    }
     await _api.deleteBox(token, item.box.id);
     await load();
   }

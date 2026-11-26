@@ -148,6 +148,8 @@ class _CrabLotInboundPageState extends State<CrabLotInboundPage> {
   }
 
   Future<void> _cancel(FarmingBatchRecord lot) async {
+    if (!_svc.canManageLot(lot)) return;
+    final area = _svc.areaId;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -183,7 +185,7 @@ class _CrabLotInboundPageState extends State<CrabLotInboundPage> {
         ],
       ),
     );
-    if (ok != true) return;
+    if (ok != true || !mounted || _svc.areaId != area) return;
     final updated = await _svc.cancel(lot.id);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -196,6 +198,8 @@ class _CrabLotInboundPageState extends State<CrabLotInboundPage> {
   }
 
   Future<void> _edit(FarmingBatchRecord lot) async {
+    if (!_svc.canManageLot(lot)) return;
+    final area = _svc.areaId;
     final name = TextEditingController(text: lot.name ?? '');
     final supplier = TextEditingController(text: lot.supplierName ?? '');
     final notes = TextEditingController(text: lot.notes ?? '');
@@ -248,7 +252,7 @@ class _CrabLotInboundPageState extends State<CrabLotInboundPage> {
         ],
       ),
     );
-    if (saved != true) return;
+    if (saved != true || !mounted || _svc.areaId != area) { name.dispose(); supplier.dispose(); notes.dispose(); return; }
     await _svc.updateInfo(
       lot.id,
       name: name.text.trim(),
@@ -360,7 +364,7 @@ class _CrabLotInboundPageState extends State<CrabLotInboundPage> {
       case CrabLotRowMenu.edit:
         _edit(lot);
       case CrabLotRowMenu.place:
-        _place(lot);
+        return;
       case CrabLotRowMenu.crabs:
       case CrabLotRowMenu.boxes:
         widget.onOpenDetail?.call(lot);
@@ -554,12 +558,10 @@ class _CrabLotInboundPageState extends State<CrabLotInboundPage> {
                                   _hidePanel = true;
                                   _selectedId = null;
                                 }),
-                                onPlace: selected.workflowStatus.canAllocate
-                                    ? () => _place(selected)
-                                    : null,
+                                onPlace: null,
                                 onOpenFull: () => widget.onOpenDetail?.call(selected),
                                 onOpenImage: (url) => _openImage(selected, url),
-                                onAddPhotos: () => _addLotPhotos(selected),
+                                onAddPhotos: _svc.canManageLot(selected) ? () => _addLotPhotos(selected) : null,
                               ),
                       ),
                     ],
@@ -1018,6 +1020,7 @@ class _CrabLotInboundPageState extends State<CrabLotInboundPage> {
         _hidePanel = false;
       }),
       onMenu: _onMenu,
+       canManageLot: _svc.canManageLot,
     );
   }
 

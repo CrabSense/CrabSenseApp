@@ -11,7 +11,6 @@ import '../../services/crab_service.dart';
 import '../../theme/dashboard_theme.dart';
 import '../../utils/app_formatters.dart';
 import '../../widgets/crab/crab_action_modals.dart';
-import '../../widgets/crab/crab_bulk_add_dialog.dart';
 import '../../widgets/crab/crab_management_dialogs.dart';
 import '../../widgets/crab/crab_management_table.dart';
 import '../../widgets/crab/crab_quick_detail.dart';
@@ -100,33 +99,109 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
     if (mounted) setState(() => _detailLoading = false);
   }
 
+  bool _releasing = false;
+
   Future<void> _onAction(CrabIndividual crab, CrabManagementAction action) async {
     switch (action) {
       case CrabManagementAction.view:
-        widget.onOpenDetail?.call(crab);
-      case CrabManagementAction.edit:
-        await showCrabManagementFormDialog(context, _svc, existing: crab);
       case CrabManagementAction.history:
         widget.onOpenDetail?.call(crab);
       case CrabManagementAction.viewBox:
         _openBoxes(crab);
-      case CrabManagementAction.move:
-        await showMoveCrabModal(context, _svc, crab);
-      case CrabManagementAction.molt:
-        await showMarkMoltingModal(context, _svc, crab);
-      case CrabManagementAction.readyHarvest:
-        final ok = await _svc.markReadyHarvest(crab.id);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                ok ? 'Đã đánh dấu ${crab.code} sắp thu hoạch' : (_svc.error ?? 'Lỗi'),
+      case CrabManagementAction.recoverMissing:
+        await _recoverMissing(crab);
+      case CrabManagementAction.releaseTerminal:
+        if (_releasing || !_svc.canReleaseTerminalCrab(crab)) return;
+        final area = _svc.farmId;
+        final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+          title: const Text('Giải phóng hộp của cua đã kết thúc?'),
+          content: Text('Xử lý bản ghi ${crab.code}. Backend giữ lịch sử, chỉ giải phóng hộp nếu hợp lệ. Không dùng để xóa cua đang sống.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Xác nhận')),
+          ],
+        ));
+        if (!mounted || confirmed != true || _svc.farmId != area || _releasing) return;
+        setState(() => _releasing = true);
+        try {
+          final ok = await _svc.deleteCrab(crab.id);
+          if (mounted && _svc.farmId == area) ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(ok ? 'Đã xử lý bản ghi, lịch sử được giữ lại.' : (_svc.error ?? 'Không thể xử lý.'))));
+        } finally {
+          if (mounted) setState(() => _releasing = false);
+        }
+      default:
+        return;
+    }
+  }
+
+  Future<void> _recoverMissing(CrabIndividual crab) async {
+    if (_releasing || !_svc.canRecoverMissing(crab.id)) return;
+    final area = _svc.farmId;
+    setState(() => _releasing = true);
+    try {
+      // Refresh the scoped inventory before offering a destination.
+      await _svc.load();
+      if (!mounted || _svc.farmId != area || !_svc.canRecoverMissing(crab.id)) return;
+      final boxes = _svc.recoveryBoxes;
+      if (boxes.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Không có hộp trống hợp lệ trong khu hiện tại.'),
+        ));
+        return;
+      }
+      String? boxId;
+      String reason = '';
+      final result = await showDialog<(String, String)>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text('Khôi phục ${crab.code}'),
+            content: SizedBox(
+              width: 440,
+              child: SingleChildScrollView(
+                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Chỉ xác nhận khi đã tìm thấy đúng cua còn sống và Staff đã đưa vào hộp trống. Giữ mã cua, QR, lô và lịch sử; cần kiểm tra sức khỏe lại.'),
+                    const SizedBox(height: 16),
+                    DropdownButton<String>(
+                      isExpanded: true, value: boxId, hint: const Text('Chọn hộp trống'),
+                      items: boxes.map((box) => DropdownMenuItem(
+                        value: box.id,
+                        child: Text('${box.rowCode ?? box.rowName ?? ""} — ${box.boxCode}', overflow: TextOverflow.ellipsis),
+                      )).toList(),
+                      onChanged: (value) => setDialogState(() => boxId = value),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      maxLength: 1000, maxLines: 3,
+                      decoration: const InputDecoration(labelText: 'Lý do / xác nhận tìm thấy cua'),
+                      onChanged: (value) => setDialogState(() => reason = value.trim()),
+                    ),
+                  ],
+                ),
               ),
             ),
-          );
-        }
-      case CrabManagementAction.dead:
-        await showMarkDeadModal(context, _svc, crab);
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+              FilledButton(
+                onPressed: boxId == null || reason.isEmpty || reason.length > 1000 ? null :
+                    () => Navigator.pop(ctx, (boxId!, reason)),
+                child: const Text('Xác nhận khôi phục'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (!mounted || _svc.farmId != area || result == null) return;
+      final ok = await _svc.recoverMissing(crab.id, boxId: result.$1, reason: result.$2);
+      if (mounted && _svc.farmId == area) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(ok ? 'Đã khôi phục cua. Staff cần kiểm tra sức khỏe.' : (_svc.error ?? 'Không thể khôi phục.')),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _releasing = false);
     }
   }
 
@@ -301,25 +376,6 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
               label: 'Nhập lô',
               onTap: () => widget.onNavigate?.call(AppRoute.inboundLots),
               height: 42,
-            ),
-            MgmtOutlineButton(
-              icon: Icons.playlist_add_rounded,
-              label: 'Thêm nhiều',
-              onTap: () => showCrabBulkAddDialog(
-                context,
-                _svc,
-                onManageLots: () => widget.onNavigate?.call(AppRoute.inboundLots),
-              ),
-              height: 42,
-            ),
-            MgmtPrimaryButton(
-              icon: Icons.add_rounded,
-              label: 'Thêm Cua',
-              onTap: () => showCrabManagementFormDialog(
-                context,
-                _svc,
-                onManageLots: () => widget.onNavigate?.call(AppRoute.inboundLots),
-              ),
             ),
           ],
         ),
@@ -579,6 +635,7 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
         Icons.shopping_basket_outlined,
       ),
       (CrabManagementStatusFilter.dead, 'Chết', s.dead, Icons.favorite_border),
+      (CrabManagementStatusFilter.missing, 'Thất lạc', s.missing, Icons.search_off),
     ];
     return Wrap(
       spacing: 8,
@@ -671,7 +728,7 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
           icon: Icons.set_meal_outlined,
           title: 'Chưa có cua trong hệ thống',
           message:
-              'Các cá thể cua sau khi nhập lô hoặc thêm thủ công sẽ xuất hiện tại đây.',
+              'Farm Staff đăng ký cá thể cua trên Mobile sau khi Manager tạo lô nhập.',
           action: Wrap(
             alignment: WrapAlignment.center,
             spacing: 8,
@@ -680,15 +737,6 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
               MgmtOutlineButton(
                 label: 'Nhập lô',
                 onTap: () => widget.onNavigate?.call(AppRoute.inboundLots),
-              ),
-              MgmtPrimaryButton(
-                icon: Icons.add_rounded,
-                label: 'Thêm cua',
-                onTap: () => showCrabManagementFormDialog(
-                  context,
-                  _svc,
-                  onManageLots: () => widget.onNavigate?.call(AppRoute.inboundLots),
-                ),
               ),
             ],
           ),
@@ -736,6 +784,8 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
       onSelectRow: _select,
       onOpenCode: widget.onOpenDetail,
       onAction: _onAction,
+        canReleaseTerminal: (crab) => !_releasing && _svc.canReleaseTerminalCrab(crab),
+        canRecoverMissing: (crab) => !_releasing && _svc.canRecoverMissing(crab.id),
       onSort: (col, asc) {
         _svc.setSort(switch (col) {
           1 => CrabListSort.code,
@@ -785,27 +835,7 @@ class _CrabManagementPageState extends State<CrabManagementPage> {
               ),
             ),
             const SizedBox(width: 8),
-            MgmtOutlineButton(
-              label: 'Chuyển hộp',
-              onTap: () {
-                if (n != 1) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Chọn 1 cua để chuyển hộp (1 hộp = 1 cua).'),
-                    ),
-                  );
-                  return;
-                }
-                showMoveCrabModal(context, _svc, selected.first);
-              },
-              height: 34,
-            ),
             const SizedBox(width: 6),
-            MgmtOutlineButton(
-              label: 'Cập nhật sức khỏe',
-              onTap: () => showBulkHealthModal(context, _svc, selected),
-              height: 34,
-            ),
             const SizedBox(width: 6),
             MgmtOutlineButton(
               icon: Icons.download_outlined,

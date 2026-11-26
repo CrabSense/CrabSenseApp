@@ -19,7 +19,7 @@ class BoxActionPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final authState = context.watch<AuthBloc>().state;
     final role =
-        authState is Authenticated ? authState.user.role : UserRole.viewer;
+        authState is Authenticated ? authState.user.role : UserRole.unknown;
 
     final canField = role.canPerformFieldOperations;
     final canSales = role.canManageSales;

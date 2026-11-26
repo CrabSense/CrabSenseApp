@@ -8,7 +8,7 @@ void main() {
       id: '123',
       email: 'test@example.com',
       name: 'Test User',
-      role: UserRole.fieldOperator,
+      role: UserRole.farmStaff,
       assignedFarmIds: const ['farm1', 'farm2'],
       photoUrl: 'https://example.com/photo.jpg',
       createdAt: DateTime.parse('2024-01-01T00:00:00.000Z'),
@@ -19,7 +19,7 @@ void main() {
       'id': '123',
       'email': 'test@example.com',
       'name': 'Test User',
-      'role': 'fieldOperator',
+      'role': 'FarmStaff',
       'assignedFarmIds': ['farm1', 'farm2'],
       'photoUrl': 'https://example.com/photo.jpg',
       'createdAt': '2024-01-01T00:00:00.000Z',
@@ -54,7 +54,7 @@ void main() {
         final result = UserModel.fromJson(tUserJson);
 
         // assert
-        expect(result.role, UserRole.fieldOperator);
+        expect(result.role, UserRole.farmStaff);
       });
 
       test('should handle null photoUrl', () {
@@ -105,7 +105,7 @@ void main() {
         final result = tUserModel.toJson();
 
         // assert
-        expect(result['role'], 'fieldOperator');
+        expect(result['role'], 'FarmStaff');
       });
     });
 
@@ -116,7 +116,7 @@ void main() {
           id: '123',
           email: 'test@example.com',
           name: 'Test User',
-          role: UserRole.fieldOperator,
+          role: UserRole.farmStaff,
           assignedFarmIds: const ['farm1', 'farm2'],
           photoUrl: 'https://example.com/photo.jpg',
           createdAt: DateTime.parse('2024-01-01T00:00:00.000Z'),
@@ -175,7 +175,7 @@ void main() {
       id: '123',
       email: 'test@example.com',
       name: 'Test User',
-      role: UserRole.fieldOperator,
+      role: UserRole.farmStaff,
       assignedFarmIds: const ['farm1'],
       createdAt: DateTime.parse('2024-01-01T00:00:00.000Z'),
     );
@@ -193,7 +193,7 @@ void main() {
         'id': '123',
         'email': 'test@example.com',
         'name': 'Test User',
-        'role': 'fieldOperator',
+        'role': 'FarmStaff',
         'assignedFarmIds': ['farm1'],
         'photoUrl': null,
         'createdAt': '2024-01-01T00:00:00.000Z',

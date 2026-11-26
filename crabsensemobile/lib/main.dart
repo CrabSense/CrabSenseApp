@@ -18,10 +18,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  const hosted = bool.fromEnvironment('CRABSENSE_MOBILE_HOSTED_PREVIEW');
+  const pages = bool.fromEnvironment('CRABSENSE_MOBILE_PAGES_PREVIEW');
+  const expectedOrigin = String.fromEnvironment('CRABSENSE_PREVIEW_ORIGIN');
+  const apiOrigin = String.fromEnvironment('API_BASE_URL');
+  if (kIsWeb && hosted) {
+    final api = Uri.tryParse(apiOrigin);
+    if (expectedOrigin.isEmpty ||
+        Uri.base.origin != expectedOrigin ||
+        (pages && !Uri.base.path.startsWith('/CrabSenseApp/mobile/')) ||
+        api == null ||
+        api.scheme != 'https' ||
+        api.host.isEmpty ||
+        api.userInfo.isNotEmpty ||
+        api.origin != apiOrigin) {
+      runApp(const MaterialApp(
+        home: Scaffold(body: Center(child: Text('Mobile preview configuration is invalid.'))),
+      ));
+      return;
+    }
+  }
+
   // Register FCM background handler & initialize Firebase safely
   try {
     await Firebase.initializeApp();
-    if (Firebase.apps.isNotEmpty) {
+    if (!kIsWeb && Firebase.apps.isNotEmpty) {
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
       // Crashlytics — bắt lỗi Flutter (non-blocking nếu plugin chưa sẵn sàng)
       try {
@@ -78,7 +99,7 @@ void main() async {
 
   // Initialize background sync safely if registered
   try {
-    if (di.sl.isRegistered<BackgroundSyncService>()) {
+    if (!kIsWeb && di.sl.isRegistered<BackgroundSyncService>()) {
       await di.sl<BackgroundSyncService>().initialize();
       await di.sl<BackgroundSyncService>().schedulePeriodicSync();
     }

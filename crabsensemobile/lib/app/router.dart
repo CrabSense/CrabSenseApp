@@ -9,6 +9,8 @@
 ///               17.1 (traceability public access, ≤ 500 ms QR decode)
 library;
 
+import '../features/authentication/domain/entities/user.dart' show UserRoleExtension;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -149,7 +151,7 @@ GoRouter createRouter(AuthBloc authBloc) {
       final authState = authBloc.state;
       final path = state.fullPath ?? state.uri.path;
 
-      final isAuthenticated = authState is Authenticated;
+      final isAuthenticated = authState is Authenticated && authState.user.role.canUseMobile;
       final isInitializing = authState is AuthInitial;
 
       if (isInitializing) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/crab/history_corrections.dart';
 
 import '../../models/crab_individual.dart';
 import '../../models/crab_profile.dart';
@@ -74,6 +75,7 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
     crabId: widget.crabId,
     api: widget.service.api,
     tokenProvider: () => widget.service.token,
+    canCorrect: () => widget.service.canCorrectCrab(widget.crabId),
   );
   late final CrabLifecycleController _history = CrabLifecycleController(
     crabId: widget.crabId,
@@ -113,7 +115,9 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
 
   Future<void> _loadDetail() async {
     setState(() => _detailLoading = true);
+    final area = _svc.farmId;
     await _svc.loadDetail(widget.crabId);
+    if (!mounted || _svc.farmId != area) return;
     final crab = _svc.getById(widget.crabId);
     if (mounted) setState(() => _detailLoading = false);
     if (crab != null && crab.boxId.isNotEmpty) {
@@ -311,6 +315,7 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
   }
 
   Future<void> _moreAction(_HeaderAction a, CrabIndividual crab) async {
+    if (!const {_HeaderAction.history, _HeaderAction.cameras}.contains(a)) return;
     final messenger = ScaffoldMessenger.of(context);
     switch (a) {
       case _HeaderAction.edit:
@@ -397,12 +402,7 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
                   loading: _detailLoading,
                   onBack: widget.onBack,
                   onRefresh: _loadDetail,
-                  onMove: () async {
-                    final ok = await showMoveCrabModal(context, _svc, crab);
-                    if (!mounted || !ok) return;
-                    await _loadDetail();
-                    _history.load();
-                  },
+                  onMove: null,
                   onMore: (a) => _moreAction(a, crab),
                   onOpenArea: crab.areaId.isEmpty ? null : () => widget.onOpenArea?.call(crab.areaId),
                   onOpenRow: crab.areaId.isEmpty ? null : () => _openBoxes(crab),
@@ -421,7 +421,7 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
 
   Future<void> _retry() async {
     await _svc.load();
-    await _loadDetail();
+    if (mounted) await _loadDetail();
   }
 
   Widget _tabBody(CrabIndividual crab, CrabProfile? profile, bool initialLoading) {
@@ -436,9 +436,9 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
           boxLoading: _boxLoading,
           onOpenFeeding: () => setState(() => _tab = CrabDetailTab.feeding),
           onOpenHistory: () => setState(() => _tab = CrabDetailTab.history),
-          onEdit: () => _editCrab(crab),
-          onEditNote: () => _editNote(crab),
-          onAddFeeding: () => _addFeeding(crab),
+          onEdit: null,
+          onEditNote: null,
+          onAddFeeding: null,
           onOpenArea: crab.areaId.isEmpty ? null : () => widget.onOpenArea?.call(crab.areaId),
           onOpenRow: crab.areaId.isEmpty ? null : () => _openBoxes(crab),
           onOpenBox: crab.boxId.isEmpty ? null : () => _openBoxDetail(crab),
@@ -446,6 +446,7 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
         );
       case CrabDetailTab.growth:
         return CrabGrowthMoltTab(
+          canRecord: false,
           crab: crab,
           controller: _growth,
           token: _svc.token,
@@ -459,6 +460,7 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
         );
       case CrabDetailTab.feeding:
         return CrabFeedingActivityTab(
+          canRecord: false,
           crab: crab,
           controller: _feeding,
           token: _svc.token,
@@ -468,7 +470,13 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
           onViewCamera: () => _showCameras(crab),
         );
       case CrabDetailTab.history:
-        return CrabHistoryLogTab(
+        return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          if (_svc.canCorrectCrab(crab.id)) Align(alignment:Alignment.centerRight,child:OutlinedButton.icon(
+            icon:const Icon(Icons.edit_note),label:const Text('Hiệu chỉnh lịch sử'),onPressed:() async {
+              final changed=await showHistoryCorrections(context,_svc,entityId:crab.id,byBox:false,label:crab.code);
+              if(mounted&&changed==true){_history.load();_growth.load();_loadDetail();}
+            })),
+          CrabHistoryLogTab(
           crab: crab,
           controller: _history,
           token: _svc.token,
@@ -477,7 +485,7 @@ class _CrabManagementDetailPageState extends State<CrabManagementDetailPage> {
           onOpenRow: widget.onOpenBoxes,
           onOpenBox: (box) => widget.onOpenBox?.call(box, crab),
           onOpenCamera: (_) => _showCameras(crab),
-        );
+        )]);
     }
   }
 }
@@ -571,7 +579,7 @@ class _CrabDetailHeader extends StatelessWidget {
   final bool loading;
   final VoidCallback onBack;
   final VoidCallback onRefresh;
-  final VoidCallback onMove;
+  final VoidCallback? onMove;
   final ValueChanged<_HeaderAction> onMore;
   final VoidCallback? onOpenArea;
   final VoidCallback? onOpenRow;
@@ -582,6 +590,7 @@ class _CrabDetailHeader extends StatelessWidget {
     final hasPhoto = (profile?.imageUrls.isNotEmpty ?? false) || (profile?.avatarUrl?.isNotEmpty ?? false);
     final lot = crab.batchId.trim().isEmpty ? (profile?.lotCode ?? '') : crab.batchId;
     final alive = crab.lifecycleStatus != CrabLifecycleStatus.dead &&
+        crab.lifecycleStatus != CrabLifecycleStatus.missing &&
         crab.lifecycleStatus != CrabLifecycleStatus.harvested;
 
     return Container(
@@ -652,7 +661,7 @@ class _CrabDetailHeader extends StatelessWidget {
                 color: DashboardColors.textPrimary,
                 borderColor: DashboardColors.cardBorder,
               ),
-              MgmtOutlineButton(icon: Icons.swap_horiz_rounded, label: 'Chuyển hộp', onTap: alive ? onMove : null),
+              if (onMove != null) MgmtOutlineButton(icon: Icons.swap_horiz_rounded, label: 'Chuyển hộp', onTap: alive ? onMove : null),
               PopupMenuButton<_HeaderAction>(
                 tooltip: 'Thao tác khác',
                 offset: const Offset(0, 42),
@@ -660,16 +669,8 @@ class _CrabDetailHeader extends StatelessWidget {
                 color: Colors.white,
                 onSelected: onMore,
                 itemBuilder: (_) => [
-                  _item(_HeaderAction.edit, Icons.edit_outlined, 'Chỉnh sửa thông tin'),
                   _item(_HeaderAction.history, Icons.history_rounded, 'Xem lịch sử'),
-                  if (alive) _item(_HeaderAction.markMolting, Icons.autorenew_rounded, 'Đánh dấu lột xác'),
-                  if (alive) _item(_HeaderAction.readyHarvest, Icons.flag_outlined, 'Đánh dấu sắp thu hoạch'),
-                  _item(_HeaderAction.recordMolt, Icons.history_edu_outlined, 'Ghi nhận lần lột xác'),
                   _item(_HeaderAction.cameras, Icons.videocam_outlined, 'Camera hộp'),
-                  if (crab.lifeStatus == CrabLifeStatus.raising)
-                    _item(_HeaderAction.exportSoftshell, Icons.outbox_outlined, 'Xuất cua lột'),
-                  if (alive) const PopupMenuDivider(height: 8),
-                  if (alive) _item(_HeaderAction.markDead, Icons.dangerous_outlined, 'Đánh dấu chết', danger: true),
                 ],
                 child: Container(
                   width: 38,
@@ -951,9 +952,9 @@ class _OverviewTab extends StatelessWidget {
   final bool boxLoading;
   final VoidCallback onOpenFeeding;
   final VoidCallback onOpenHistory;
-  final VoidCallback onEdit;
-  final VoidCallback onEditNote;
-  final VoidCallback onAddFeeding;
+  final VoidCallback? onEdit;
+  final VoidCallback? onEditNote;
+  final VoidCallback? onAddFeeding;
   final ValueChanged<CrabActivityItem> onTapActivity;
   final VoidCallback? onOpenArea;
   final VoidCallback? onOpenRow;

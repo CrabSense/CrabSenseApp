@@ -37,12 +37,12 @@ import 'package:crabsensemobile/features/qr_scanner/presentation/bloc/scanner_st
 // Network stubs
 // ---------------------------------------------------------------------------
 
-class _OnlineNetwork implements NetworkInfo {
+class _OnlineNetwork extends NetworkInfo {
   @override
   Future<bool> get isConnected async => true;
 }
 
-class _OfflineNetwork implements NetworkInfo {
+class _OfflineNetwork extends NetworkInfo {
   @override
   Future<bool> get isConnected async => false;
 }
@@ -77,6 +77,10 @@ class _StubRemoteSuccess implements BoxRemoteDataSource {
   Future<List<CrabModel>> getCrabsByBox(String boxId) async => [];
 
   @override
+  Future<CrabModel> getCrabById(String crabId) async =>
+      throw const ServerException(message: 'Crab not found', statusCode: 404);
+
+  @override
   Future<void> deleteCrab(String crabId) async {}
 }
 
@@ -86,7 +90,7 @@ class _StubRemoteSuccess implements BoxRemoteDataSource {
 
 /// Local source that records every [cacheBox] call so tests can assert
 /// that data was persisted.
-class _StubLocalCapturing implements BoxLocalDataSource {
+class _StubLocalCapturing extends BoxLocalDataSource {
   BoxModel? _lastCached;
   final Map<String, BoxModel> _byId = {};
   final Map<String, BoxModel> _byQr = {};
@@ -145,7 +149,7 @@ class _StubLocalCapturing implements BoxLocalDataSource {
 }
 
 /// Local source that always throws on reads (simulates empty cache).
-class _StubLocalEmpty implements BoxLocalDataSource {
+class _StubLocalEmpty extends BoxLocalDataSource {
   @override
   Future<BoxModel> getCachedBox(String boxId) async =>
       throw CacheException(message: 'No cached box: $boxId', code: 'BOX_NOT_FOUND');

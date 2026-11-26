@@ -12,7 +12,7 @@ void main() {
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    logger = Logger(printer: PrettyPrinter(enabled: false));
+    logger = Logger(level: Level.off);
     syncService = SyncServiceImpl(database: db, logger: logger);
   });
 

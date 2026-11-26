@@ -23,6 +23,7 @@ class CrabFeedingActivityTab extends StatefulWidget {
     this.cameras = const [],
     this.operatorName,
     this.onViewCamera,
+    this.canRecord = true,
   });
 
   final CrabIndividual crab;
@@ -34,6 +35,7 @@ class CrabFeedingActivityTab extends StatefulWidget {
 
   /// Mở màn camera của hộp (từ ⋯ "Xem camera liên quan").
   final VoidCallback? onViewCamera;
+  final bool canRecord;
 
   @override
   State<CrabFeedingActivityTab> createState() => _CrabFeedingActivityTabState();
@@ -91,6 +93,7 @@ class _CrabFeedingActivityTabState extends State<CrabFeedingActivityTab> {
   }
 
   Future<void> _addFeeding() async {
+    if (!widget.canRecord) return;
     final input = await showAddFeedingModal(
       context,
       crabCode: widget.crab.code,
@@ -115,6 +118,7 @@ class _CrabFeedingActivityTabState extends State<CrabFeedingActivityTab> {
   }
 
   Future<void> _editNote(FeedingEvent e) async {
+    if (!widget.canRecord) return;
     final note = await showEditFeedingNoteDialog(context, e);
     if (note == null || !mounted) return;
     final err = await _c.updateNote(e, note);
@@ -132,7 +136,7 @@ class _CrabFeedingActivityTabState extends State<CrabFeedingActivityTab> {
       token: widget.token,
       cameraLabel: _cameraLabel(e.cameraId),
       thresholds: _th,
-      onEditNote: () => _editNote(e),
+      onEditNote: widget.canRecord ? () => _editNote(e) : null,
       onViewCamera: widget.onViewCamera,
     ).then((_) {
       if (mounted) setState(() => _selectedEventId = null);
@@ -226,7 +230,7 @@ class _CrabFeedingActivityTabState extends State<CrabFeedingActivityTab> {
               borderColor: _c.period == FeedingPeriod.custom ? DashboardColors.brand : DashboardColors.cardBorder,
               height: 36,
             ),
-            MgmtPrimaryButton(
+            if (widget.canRecord) MgmtPrimaryButton(
               icon: Icons.add_rounded,
               label: 'Ghi nhận cho ăn',
               onTap: _addFeeding,
@@ -333,7 +337,7 @@ class _CrabFeedingActivityTabState extends State<CrabFeedingActivityTab> {
                     style: bvText(fontSize: 12.5, color: DashboardColors.textMuted),
                   ),
                   const SizedBox(height: 12),
-                  MgmtOutlineButton(icon: Icons.add_rounded, label: 'Ghi nhận lần cho ăn', onTap: _addFeeding),
+                  if (widget.canRecord) MgmtOutlineButton(icon: Icons.add_rounded, label: 'Ghi nhận lần cho ăn', onTap: _addFeeding),
                 ],
               ),
             )
@@ -346,6 +350,7 @@ class _CrabFeedingActivityTabState extends State<CrabFeedingActivityTab> {
               onSort: _c.setSort,
               onRowTap: _openDetail,
               onAction: _onAction,
+              canEditNote: widget.canRecord,
               thresholds: _th,
               selectedId: _selectedEventId,
             ),
@@ -406,7 +411,7 @@ class _CrabFeedingActivityTabState extends State<CrabFeedingActivityTab> {
       icon: Icons.restaurant_rounded,
       title: 'Chưa có dữ liệu cho ăn',
       message: 'Các lần cho ăn của cua sẽ xuất hiện tại đây.',
-      action: MgmtPrimaryButton(icon: Icons.add_rounded, label: 'Ghi nhận lần cho ăn', onTap: _addFeeding, height: 38),
+      action: !widget.canRecord ? null : MgmtPrimaryButton(icon: Icons.add_rounded, label: 'Ghi nhận lần cho ăn', onTap: _addFeeding, height: 38),
     );
   }
 

@@ -50,6 +50,26 @@ class CrabService extends ChangeNotifier {
 
   AuthSession _session;
   final CloudApiClient _api;
+  int _scopeGeneration = 0;
+  int get scopeGeneration => _scopeGeneration;
+  int _listVersion = 0;
+  bool _disposed = false;
+  bool _current(int generation) => !_disposed && generation == _scopeGeneration;
+  bool get canManageCurrentArea => !_disposed && _session.user.role == UserRoles.farmManager &&
+      farmId.isNotEmpty && _session.farms.any((f) => f.id == farmId);
+  bool canCorrectCrab(String id) => canManageCurrentArea && getById(id)?.areaId == farmId;
+  bool canReleaseTerminalCrab(CrabIndividual crab) => canCorrectCrab(crab.id) &&
+      crab.areaId == farmId && const {CrabLifeStatus.dead, CrabLifeStatus.missing, CrabLifeStatus.sold, CrabLifeStatus.readyForSale}.contains(crab.lifeStatus);
+
+  bool canRecoverMissing(String id) => canCorrectCrab(id) &&
+      getById(id)?.lifecycleStatus == CrabLifecycleStatus.missing;
+
+  List<BoxRecord> get recoveryBoxes => !canManageCurrentArea ? const [] :
+      _boxes.where((box) =>
+          (box.areaId == farmId || (box.areaId == null &&
+              _rowsInArea.any((row) => row.id == box.rowId))) &&
+          !box.isOccupied && !box.hasCrab &&
+          box.status.trim().toLowerCase() == 'empty').toList();
 
   List<CrabIndividual> _crabs = [];
   List<AreaRecord> _areas = [];
@@ -124,6 +144,10 @@ class CrabService extends ChangeNotifier {
       _statusFilter != CrabManagementStatusFilter.all;
 
   void updateSession(AuthSession session) {
+    ++_scopeGeneration;
+    _loading = false;
+    _error = null;
+    _lastListItems = [];
     _session = session;
     _crabs = [];
     _areas = [];
@@ -347,56 +371,74 @@ class CrabService extends ChangeNotifier {
   int get totalPages => (filteredCount / _pageSize).ceil().clamp(1, 999);
 
   Future<void> load() async {
+    if (_disposed) return;
+    final generation = _scopeGeneration;
+    final version = ++_listVersion;
+    bool active() => _current(generation) && version == _listVersion;
+    final area = farmId;
+    final auth = token;
+    if (area.isEmpty || !_session.farms.any((f) => f.id == area)) {
+      _error = 'Chưa được phân công khu nuôi.';
+      _loading = false;
+      notifyListeners();
+      return;
+    }
     _loading = true;
     _error = null;
     notifyListeners();
     try {
-      final result = await _api.fetchFarmCrabs(token, farmId);
-      try {
-        _lots = await _api.fetchCrabLots(token);
-      } catch (_) {
-        _lots = [];
-      }
-      try {
-        _rowsInArea = farmId.isEmpty
-            ? []
-            : await _api.fetchAllRows(token, areaId: farmId);
-      } catch (_) {
-        _rowsInArea = [];
-      }
+      final result = await _api.fetchFarmCrabs(auth, area);
+      if (!active()) return;
+      List<FarmingBatchRecord> lots = [];
+      List<RowRecord> rows = [];
+      List<AreaRecord> areas = [];
+      List<BoxRecord> boxes = [];
+      try { lots = await _api.fetchCrabLots(auth); } catch (_) {}
+      if (!active()) return;
+      try { rows = await _api.fetchAllRows(auth, areaId: area); } catch (_) {}
+      if (!active()) return;
+      try { areas = await _api.fetchAreas(auth, ''); } catch (_) {}
+      if (!active()) return;
+      try { boxes = await _api.fetchAllBoxes(auth, areaId: area); } catch (_) {}
+      if (!active()) return;
+      _lots = lots.where((l) => l.farmingAreaIds.contains(area)).toList();
+      _rowsInArea = rows;
+      _areas = areas.where((a) => a.id == area).toList();
+      _boxes = boxes;
       _lastListItems = result.crabs;
-      _crabs = result.crabs.map(crabFromListItem).toList();
+      _crabs = result.crabs.map(crabFromListItem).where((c) => c.areaId == area).toList();
       _summary = summarizeCrabs(_crabs);
-      try {
-        _areas = await _api.fetchAreas(token, '');
-      } catch (_) {
-        _areas = [];
-      }
-      try {
-        _boxes = await _api.fetchAllBoxes(
-          token,
-          areaId: farmId.isEmpty ? null : farmId,
-        );
-      } catch (_) {
-        _boxes = [];
-      }
       _error = null;
-    } on CloudApiException catch (e) {
-      _error = e.message;
     } catch (e) {
-      _error = '$e';
+      if (active()) _error = e is CloudApiException ? e.message : '$e';
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (active()) {
+        _loading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<void> loadDetail(String crabId) async {
+    if (_disposed || farmId.isEmpty || !_session.farms.any((f) => f.id == farmId)) return;
+    final generation = _scopeGeneration;
+    final area = farmId;
+    final auth = token;
     try {
-      try {
-        _profiles[crabId] = await _api.fetchCrabProfile(token, crabId);
-      } catch (_) {}
-      final body = await _api.fetchCrabDetail(token, crabId);
+      CrabProfile? fetchedProfile;
+      try { fetchedProfile = await _api.fetchCrabProfile(auth, crabId); } catch (_) {}
+      if (!_current(generation)) return;
+      final body = await _api.fetchCrabDetail(auth, crabId);
+      if (!_current(generation)) return;
+      final actualArea = (body['farmingAreaId'] ?? body['FarmingAreaId'] ?? '').toString();
+      if (actualArea != area) {
+        _profiles.remove(crabId);
+        _crabs = _crabs.where((c) => c.id != crabId).toList();
+        _error = 'Cua không thuộc khu nuôi hiện tại.';
+        notifyListeners();
+        return;
+      }
+      if (fetchedProfile != null) _profiles[crabId] = fetchedProfile;
       final urls = parseCrabImageUrls(body['imageUrls'] ?? body['ImageUrls']);
       final existingProfile = _profiles[crabId];
       if (existingProfile == null) {
@@ -452,9 +494,11 @@ class CrabService extends ChangeNotifier {
         _crabs = [..._crabs, merged];
       }
       notifyListeners();
-    } on CloudApiException catch (e) {
-      _error = e.message;
-      notifyListeners();
+    } catch (e) {
+      if (_current(generation)) {
+        _error = e is CloudApiException ? e.message : '$e';
+        notifyListeners();
+      }
     }
   }
 
@@ -510,6 +554,7 @@ class CrabService extends ChangeNotifier {
         CrabLifecycleStatus.readyHarvest =>
           CrabManagementStatusFilter.readyHarvest,
         CrabLifecycleStatus.dead => CrabManagementStatusFilter.dead,
+        CrabLifecycleStatus.missing => CrabManagementStatusFilter.missing,
         CrabLifecycleStatus.harvested => CrabManagementStatusFilter.all,
       };
     }
@@ -535,6 +580,7 @@ class CrabService extends ChangeNotifier {
       CrabManagementStatusFilter.molting => CrabLifecycleStatus.molting,
       CrabManagementStatusFilter.readyHarvest => CrabLifecycleStatus.readyHarvest,
       CrabManagementStatusFilter.dead => CrabLifecycleStatus.dead,
+      CrabManagementStatusFilter.missing => CrabLifecycleStatus.missing,
       _ => null,
     };
     _healthFilter = value == CrabManagementStatusFilter.monitoring
@@ -591,34 +637,23 @@ class CrabService extends ChangeNotifier {
   }
 
   Future<void> refreshLots() async {
+    if (_disposed || farmId.isEmpty) return;
+    final generation = _scopeGeneration;
+    final area = farmId;
     try {
-      _lots = await _api.fetchCrabLots(token);
-      notifyListeners();
-    } on CloudApiException catch (e) {
-      _error = e.message;
+      final lots = await _api.fetchCrabLots(token);
+      if (!_current(generation)) return;
+      _lots = lots.where((l) => l.farmingAreaIds.contains(area)).toList();
       notifyListeners();
     } catch (e) {
-      _error = '$e';
-      notifyListeners();
+      if (_current(generation)) { _error = e is CloudApiException ? e.message : '$e'; notifyListeners(); }
     }
   }
 
   Future<FarmingBatchRecord?> ensureDefaultLot() async {
-    try {
-      if (_lots.isEmpty) {
-        _lots = await _api.fetchCrabLots(token);
-        notifyListeners();
-      }
-      return _lots.isEmpty ? null : _lots.first;
-    } on CloudApiException catch (e) {
-      _error = e.message;
-      notifyListeners();
-      return null;
-    } catch (e) {
-      _error = '$e';
-      notifyListeners();
-      return null;
-    }
+    if (_disposed || farmId.isEmpty) return null;
+    if (_lots.isEmpty) await refreshLots();
+    return _lots.isEmpty ? null : _lots.first;
   }
 
   Future<String> peekNextLotCode({DateTime? importDate}) async {
@@ -642,9 +677,14 @@ class CrabService extends ChangeNotifier {
     String? notes,
     List<String> imagePaths = const [],
   }) async {
+    if (!canManageCurrentArea) { _error = 'Chỉ Manager trong khu được phân công được tạo lô.'; if (!_disposed) notifyListeners(); return null; }
+    final generation = _scopeGeneration;
+    final auth = token;
+    final area = farmId;
     try {
       var lot = await _api.createCrabLot(
-        token,
+        auth,
+        farmingAreaId: area,
         name: name,
         importDate: importDate,
         quantity: quantity,
@@ -660,14 +700,17 @@ class CrabService extends ChangeNotifier {
         deadOnArrival: deadOnArrival,
         notes: notes,
       );
+      if (!_current(generation)) return lot;
       if (imagePaths.isNotEmpty) {
-        final urls = await _api.uploadLotImages(token, lot.id, imagePaths);
+        final urls = await _api.uploadLotImages(auth, lot.id, imagePaths);
         if (urls.isNotEmpty) {
-          lot = await _api.fetchCrabLot(token, lot.id);
+          lot = await _api.fetchCrabLot(auth, lot.id);
         }
       }
-      _lots = [lot, ..._lots.where((l) => l.id != lot.id)];
-      notifyListeners();
+      if (_current(generation)) {
+        _lots = [lot, ..._lots.where((l) => l.id != lot.id)];
+        notifyListeners();
+      }
       return lot;
     } on CloudApiException catch (e) {
       _error = e.message;
@@ -735,6 +778,7 @@ class CrabService extends ChangeNotifier {
     DateTime? stockedAt,
     List<String>? imagePaths,
   }) async {
+    if (!_session.user.isStaff) throw CloudApiException('Thao tác này thuộc Farm Staff trên Mobile.');
     final imageUrls = (imagePaths == null || imagePaths.isEmpty)
         ? const <String>[]
         : await _api.uploadCrabImages(token, imagePaths);
@@ -781,6 +825,7 @@ class CrabService extends ChangeNotifier {
       List<String>? imagePaths,
     })> rows,
   ) async {
+    if (!_session.user.isStaff) throw CloudApiException('Thao tác này thuộc Farm Staff trên Mobile.');
     if (rows.isEmpty) return (saved: 0, errors: const ['Không có dòng nào để lưu.']);
     final first = rows.first;
     try {
@@ -884,6 +929,10 @@ class CrabService extends ChangeNotifier {
   }
 
   Future<bool> updateCrabProfile(CrabIndividual crab) async {
+    if (!_session.user.isStaff) {
+      _error = 'Thao tác này thuộc Farm Staff trên Mobile.';
+      return false;
+    }
     try {
       await _api.updateCrabProfile(
         token,
@@ -898,6 +947,7 @@ class CrabService extends ChangeNotifier {
                 : healthDisplayToCondition(crab.displayHealth),
         notes: crab.quickNote,
         isAlive: crab.lifecycleStatus != CrabLifecycleStatus.dead
+            && crab.lifecycleStatus != CrabLifecycleStatus.missing
             && crab.lifecycleStatus != CrabLifecycleStatus.harvested,
       );
       await load();
@@ -911,6 +961,10 @@ class CrabService extends ChangeNotifier {
   }
 
   Future<bool> updateCrab(CrabIndividual crab) async {
+    if (!_session.user.isStaff) {
+      _error = 'Thao tác này thuộc Farm Staff trên Mobile.';
+      return false;
+    }
     try {
       await _api.updateBatchCrabExtended(
         token,
@@ -935,14 +989,47 @@ class CrabService extends ChangeNotifier {
     }
   }
 
+  Future<bool> recoverMissing(String id, {
+    required String boxId, required String reason,
+  }) async {
+    final text = reason.trim();
+    if (!canRecoverMissing(id) || text.isEmpty || text.length > 1000 ||
+        !recoveryBoxes.any((box) => box.id == boxId)) {
+      _error = 'Chọn cua thất lạc, hộp trống cùng khu và nhập lý do hợp lệ.';
+      if (!_disposed) notifyListeners();
+      return false;
+    }
+    final generation = _scopeGeneration;
+    try {
+      await _api.recoverMissingCrab(token, id, boxId: boxId, reason: text);
+      if (_current(generation)) await load();
+      return true;
+    } catch (e) {
+      if (_current(generation)) {
+        _error = e is CloudApiException ? e.message : '$e';
+        notifyListeners();
+      }
+      return false;
+    }
+  }
+
   Future<bool> deleteCrab(String id) async {
+    final crab = getById(id);
+    if (crab == null || !canReleaseTerminalCrab(crab)) {
+      _error = 'Chỉ Manager được xử lý bản ghi cua đã kết thúc trong khu hiện tại. Không xóa cua đang sống.';
+      if (!_disposed) notifyListeners();
+      return false;
+    }
+    final generation = _scopeGeneration;
     try {
       await _api.deleteBatchCrab(token, id);
-      await load();
+      if (_current(generation)) await load();
       return true;
-    } on CloudApiException catch (e) {
-      _error = e.message;
-      notifyListeners();
+    } catch (e) {
+      if (_current(generation)) {
+        _error = e is CloudApiException ? e.message : '$e';
+        notifyListeners();
+      }
       return false;
     }
   }
@@ -956,6 +1043,10 @@ class CrabService extends ChangeNotifier {
     String? note,
     required DateTime recordedAt,
   }) async {
+    if (!_session.user.isStaff) {
+      _error = 'Thao tác này thuộc Farm Staff trên Mobile.';
+      return false;
+    }
     try {
       await _api.recordCrabHealth(
         token,
@@ -984,6 +1075,10 @@ class CrabService extends ChangeNotifier {
     String? note,
     List<String> imagePaths = const [],
   }) async {
+    if (!_session.user.isStaff) {
+      _error = 'Thao tác này thuộc Farm Staff trên Mobile.';
+      return false;
+    }
     try {
       final y = date.year.toString().padLeft(4, '0');
       final m = date.month.toString().padLeft(2, '0');
@@ -1071,6 +1166,10 @@ class CrabService extends ChangeNotifier {
   }
 
   Future<bool> markDead(String id, {required String cause, required DateTime date}) async {
+    if (!_session.user.isStaff) {
+      _error = 'Thao tác này thuộc Farm Staff trên Mobile.';
+      return false;
+    }
     final crab = getById(id);
     if (crab == null) return false;
     return updateCrab(
@@ -1090,6 +1189,10 @@ class CrabService extends ChangeNotifier {
     required DateTime date,
     String? note,
   }) async {
+    if (!_session.user.isStaff) {
+      _error = 'Thao tác này thuộc Farm Staff trên Mobile.';
+      return false;
+    }
     final crab = getById(id);
     if (crab == null) return false;
     final ok = await recordMolt(
@@ -1111,6 +1214,10 @@ class CrabService extends ChangeNotifier {
   }
 
   Future<bool> markReadyHarvest(String id) async {
+    if (!_session.user.isStaff) {
+      _error = 'Thao tác này thuộc Farm Staff trên Mobile.';
+      return false;
+    }
     final crab = getById(id);
     if (crab == null) return false;
     return updateCrab(
@@ -1132,6 +1239,7 @@ class CrabService extends ChangeNotifier {
     String? reasonText,
     String? note,
   }) async {
+    if (!_session.user.isStaff) throw CloudApiException('Thao tác này thuộc Farm Staff trên Mobile.');
     final crab = getById(id);
     await _api.transferCrab(
       token,
@@ -1153,6 +1261,10 @@ class CrabService extends ChangeNotifier {
     Iterable<String> ids,
     CrabDisplayHealth health,
   ) async {
+    if (!_session.user.isStaff) {
+      _error = 'Thao tác này thuộc Farm Staff trên Mobile.';
+      return false;
+    }
     final mapped = switch (health) {
       CrabDisplayHealth.healthy => CrabHealthStatus.healthy,
       CrabDisplayHealth.monitoring => CrabHealthStatus.monitoring,
@@ -1223,6 +1335,9 @@ class CrabService extends ChangeNotifier {
       ),
     );
   }
+
+  @override
+  void dispose() { _disposed = true; ++_scopeGeneration; super.dispose(); }
 
   @Deprecated('Dùng generateNextCodeForBatch')
   String generateDisplayCode() => 'CR-${1000 + _crabs.length}';

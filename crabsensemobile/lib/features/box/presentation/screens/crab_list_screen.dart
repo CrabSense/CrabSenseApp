@@ -20,6 +20,7 @@ import '../../../home/presentation/widgets/home_palette.dart';
 import '../widgets/box_history_panel.dart';
 import '../widgets/crab_avatar.dart';
 import '../widgets/daily_box_care_sheet.dart';
+import '../../domain/lot_registration_policy.dart';
 
 const _primary = kHomePrimary;
 const _primaryDk = kHomePrimaryDark;
@@ -163,7 +164,9 @@ class _CrabListScreenState extends State<CrabListScreen> {
     );
   }
 
-  Future<void> _onCareResult(String result) async {}
+  Future<void> _onCareResult(String result) async {
+    if (mounted) await _refresh();
+  }
 
   // ── Build ──────────────────────────────────────────────────────────────────
   @override
@@ -553,8 +556,7 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
   bool _loadingLots = true;
   List<({String id, String code, String name, String meta})> _lots = [];
   String? _selectedLotId;
-  bool _createNewLot = false;
-  final _newLotCtrl = TextEditingController();
+  String? _lotError;
 
   @override
   void initState() {
@@ -564,11 +566,19 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
 
   Future<void> _loadLots() async {
     try {
+      final boxResponse = await _api.get<dynamic>(ApiConstants.boxDetails(widget.boxId));
+      final boxBody = boxResponse.data;
+      final boxData = boxBody is Map ? boxBody['data'] : null;
+      final areaId = boxData is Map ? boxData['farmingAreaId']?.toString() : null;
+      if (areaId == null || areaId.isEmpty) {
+        throw const FormatException('Không xác định được khu của hộp.');
+      }
       final res = await _api.get<dynamic>(ApiConstants.crabLots);
       final decoded = jsonDecode(jsonEncode(res.data));
       final list = <({String id, String code, String name, String meta})>[];
       dynamic raw = decoded;
       if (decoded is Map) raw = decoded['data'] ?? decoded;
+      if (raw is! List) throw const FormatException('Thiếu danh sách lô nhập');
       if (raw is List) {
         for (final item in raw) {
           if (item is! Map) continue;
@@ -576,12 +586,12 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
           final code =
               (item['lotCode'] ?? item['LotCode'] ?? item['code'])?.toString() ??
                   '';
-          if (id.isEmpty) continue;
+          if (id.isEmpty || !canRegisterInLot(item, areaId)) continue;
           list.add((
             id: id,
             code: code.isEmpty ? id : code,
             name: (item['name'] ?? item['Name'])?.toString() ?? '',
-            meta: lotOptionMeta(
+            meta: item['isPartialScope'] == true ? 'Lô nhiều khu · số còn lại do BE kiểm tra' : lotOptionMeta(
               item['quantity'] ?? item['Quantity'],
               item['placedCount'] ?? item['PlacedCount'],
               (item['importDate'] ?? item['ImportDate'])?.toString() ?? '',
@@ -593,7 +603,7 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
         setState(() {
           _lots = list;
           _selectedLotId = list.isNotEmpty ? list.first.id : null;
-          _createNewLot = list.isEmpty;
+          _lotError = null;
           _loadingLots = false;
         });
       }
@@ -601,29 +611,12 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
       if (mounted) {
         setState(() {
           _loadingLots = false;
-          _createNewLot = true;
+          _lots = [];
+          _selectedLotId = null;
+          _lotError = 'Không tải được lô nhập. Vui lòng thử lại.';
         });
       }
     }
-  }
-
-  Future<String?> _ensureLotId() async {
-    if (!_createNewLot && _selectedLotId != null) return _selectedLotId;
-    final code = _newLotCtrl.text.trim().isNotEmpty
-        ? _newLotCtrl.text.trim()
-        : 'LOT-${DateTime.now().millisecondsSinceEpoch}';
-    final res = await _api.post<dynamic>(ApiConstants.crabLots, data: {
-      'lotCode': code,
-      'importDate': DateTime.now().toUtc().toIso8601String(),
-    });
-    final decoded = jsonDecode(jsonEncode(res.data));
-    if (decoded is Map) {
-      final data = decoded['data'];
-      if (data is Map) {
-        return (data['id'] ?? data['Id'])?.toString();
-      }
-    }
-    return null;
   }
 
   /// Hỏi nguồn ảnh trước: chụp tại chỗ hay lấy ảnh có sẵn.
@@ -808,7 +801,6 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
     _widthCtrl.dispose();
     _notesCtrl.dispose();
     _crabTypeCtrl.dispose();
-    _newLotCtrl.dispose();
     super.dispose();
   }
 
@@ -819,18 +811,14 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
   }
 
   Future<void> _submit() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (_submitting || _loadingLots || _selectedLotId == null ||
+        !(_formKey.currentState?.validate() ?? false)) return;
     final crabTag = 'CRAB-${DateTime.now().millisecondsSinceEpoch}';
     setState(() => _submitting = true);
     try {
       final isMale = _gender == 'male';
       final weight = int.parse(_weightCtrl.text.trim());
-      String? lotId;
-      try {
-        lotId = await _ensureLotId();
-      } catch (_) {
-        lotId = null; // BE may auto-create lot when omitted.
-      }
+      final lotId = _selectedLotId!;
       final imageUrls = await _uploadImages();
       final lengthMm = _toMm(_lengthCtrl);
       final widthMm = _toMm(_widthCtrl);
@@ -845,7 +833,7 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
           'gender': _gender,
           // Tình trạng để BE tự suy ra từ tình trạng vỏ / gạch cua.
           if (crabType.isNotEmpty) 'crabType': crabType,
-          if (lotId != null && lotId.isNotEmpty) 'crabLotId': lotId,
+          'crabLotId': lotId,
           if (isMale) 'moltingStage': _shell,
           if (!isMale) 'roeStatus': _spots,
           if (lengthMm != null) 'carapaceLengthMm': lengthMm,
@@ -938,16 +926,7 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
                   child: LinearProgressIndicator(color: _primary),
                 )
               else ...[
-                _OptionPills(
-                  value: _createNewLot ? 'new' : 'pick',
-                  options: const {'pick': 'Chọn lô', 'new': 'Tạo lô mới'},
-                  onChanged: (v) {
-                    if (v == 'pick' && _lots.isEmpty) return;
-                    setState(() => _createNewLot = v == 'new');
-                  },
-                ),
-                const SizedBox(height: 8),
-                if (!_createNewLot && _lots.isNotEmpty)
+                if (_lots.isNotEmpty)
                   DropdownButtonFormField<String>(
                     value: _selectedLotId,
                     isExpanded: true,
@@ -1000,11 +979,10 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
                     ],
                     onChanged: (v) => setState(() => _selectedLotId = v),
                   )
-                else
-                  TextFormField(
-                    controller: _newLotCtrl,
-                    decoration: _deco('VD: LOT-2026-09'),
-                  ),
+                else ...[
+                  Text(_lotError ?? 'Không có lô phù hợp. Liên hệ Farm Manager để tạo lô.'),
+                  TextButton(onPressed: () { setState(() => _loadingLots = true); _loadLots(); }, child: const Text('Tải lại lô')),
+                ],
               ],
               const SizedBox(height: 20),
               _section('Cân nặng (g)'),
@@ -1020,7 +998,7 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
                 },
               ),
               const SizedBox(height: 14),
-              _section('Kích thước (không bắt buộc)'),
+              _section('Kích thước (bắt buộc)'),
               Row(
                 children: [
                   Expanded(child: _numberField(_lengthCtrl, 'Dài cm')),
@@ -1078,7 +1056,7 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
                 width: double.infinity,
                 height: 52,
                 child: FilledButton(
-                  onPressed: _submitting ? null : _submit,
+                  onPressed: _submitting || _loadingLots || _selectedLotId == null ? null : _submit,
                   style: FilledButton.styleFrom(
                     backgroundColor: CrabSenseColors.primary,
                     foregroundColor: CrabSenseColors.textOnPrimary,
@@ -1186,6 +1164,10 @@ class _AddCrabSheetState extends State<_AddCrabSheet> {
           FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
         ],
         decoration: _deco(label),
+        validator: (value) {
+          final number = double.tryParse(value?.trim() ?? '');
+          return number == null || !number.isFinite || number <= 0 ? 'Nhập số đo > 0' : null;
+        },
       );
 
   /// Tiêu đề mục — cùng style phiếu chăm sóc (đậm, xanh rừng, cách dưới 10).

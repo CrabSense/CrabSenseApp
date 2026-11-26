@@ -485,6 +485,7 @@ extension ProductionCloudApi on CloudApiClient {
 
   Future<FarmingBatchRecord> createCrabLot(
     String token, {
+    String? farmingAreaId,
     required String name,
     required DateTime importDate,
     required int quantity,
@@ -506,6 +507,7 @@ extension ProductionCloudApi on CloudApiClient {
       headers: {...authHeaders(token), 'Content-Type': 'application/json'},
       body: jsonEncode({
         'name': name,
+        if (farmingAreaId != null && farmingAreaId.isNotEmpty) 'farmingAreaId': farmingAreaId,
         'importDate': importDate.toUtc().toIso8601String(),
         'quantity': quantity,
         if (lotCode != null && lotCode.isNotEmpty) 'lotCode': lotCode,
@@ -580,6 +582,15 @@ extension ProductionCloudApi on CloudApiClient {
     return _parseSingle(res, 'batch', FarmingBatchRecord.fromJson);
   }
 
+  Future<FarmingBatchRecord> closeCrabLot(String token, String lotId, {
+    required String disposition,
+  }) async {
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crab-lots/$lotId/close');
+    final res = await _client.post(uri, headers: {...authHeaders(token),'Content-Type':'application/json'},
+      body: jsonEncode({'disposition':disposition}));
+    return _parseSingle(res,'batch',FarmingBatchRecord.fromJson);
+  }
+
   Future<void> deleteBatch(String token, String batchId) async {
     final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crab-lots/$batchId');
     final res = await _client.delete(uri, headers: authHeaders(token));
@@ -646,6 +657,18 @@ extension ProductionCloudApi on CloudApiClient {
       shellWidth: shellWidth,
       status: status,
     );
+  }
+
+  Future<void> recoverMissingCrab(String token, String crabId, {
+    required String boxId, required String reason,
+  }) async {
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/crabs/$crabId/recover');
+    final res = await _client.post(
+      uri,
+      headers: {...authHeaders(token), 'Content-Type': 'application/json'},
+      body: jsonEncode({'boxId': boxId, 'reason': reason}),
+    );
+    _ensureOk(res);
   }
 
   Future<void> deleteBatchCrab(String token, String crabId) async {

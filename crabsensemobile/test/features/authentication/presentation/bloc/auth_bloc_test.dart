@@ -82,7 +82,7 @@ User _testUser() => User(
   id: 'user-123',
   email: 'operator@crabsense.com',
   name: 'Test Operator',
-  role: UserRole.fieldOperator,
+  role: UserRole.farmStaff,
   assignedFarmIds: const ['farm-1'],
   createdAt: DateTime(2024),
 );

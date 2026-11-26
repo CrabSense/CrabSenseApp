@@ -12,6 +12,7 @@ import '../../widgets/harvest/harvest_sales_dialogs.dart';
 import '../../widgets/harvest/harvest_tab_widgets.dart';
 import '../../widgets/harvest/sales_tab_widgets.dart';
 import '../../widgets/shared/mgmt_ui.dart';
+import 'frozen_manager_tab.dart';
 
 class HarvestSalesPage extends StatefulWidget {
   const HarvestSalesPage({
@@ -34,7 +35,7 @@ class _HarvestSalesPageState extends State<HarvestSalesPage>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 2, vsync: this);
+    _tabs = TabController(length: 3, vsync: this);
     widget.service.addListener(_onUpdate);
   }
 
@@ -71,6 +72,7 @@ class _HarvestSalesPageState extends State<HarvestSalesPage>
             unselectedLabelStyle: bvText(fontWeight: FontWeight.w600, fontSize: 13.5),
             tabs: const [
               Tab(text: 'Thu hoạch'),
+              Tab(text: 'Kho đông lạnh'),
               Tab(text: 'Bán hàng'),
             ],
           ),
@@ -80,6 +82,7 @@ class _HarvestSalesPageState extends State<HarvestSalesPage>
             controller: _tabs,
             children: [
               HarvestTab(service: service),
+              FrozenManagerTab(key: ValueKey(service.areaId), service: service),
               SalesTab(service: service),
             ],
           ),
@@ -231,13 +234,16 @@ class _HarvestTabState extends State<HarvestTab> {
     );
   }
 
-  Future<void> _transfer(HarvestSlipDetail slip) {
+  Future<void> _transfer(HarvestSlipDetail slip) async {
+    if (!slip.canTransferToSale) return;
     return showCreateSalesOrderDialog(context, service, fromSlip: slip);
   }
 
   Future<void> _complete(HarvestSlipDetail slip) async {
+    if (!service.canConfirm(slip)) return;
+    final generation = service.scopeGeneration;
     final ok = await showCompleteHarvestDialog(context, slip);
-    if (ok != true || !mounted) return;
+    if (ok != true || !mounted || generation != service.scopeGeneration) return;
     try {
       await service.completeHarvest(slip.id);
       if (!mounted) return;
@@ -251,19 +257,52 @@ class _HarvestTabState extends State<HarvestTab> {
     }
   }
 
+  Future<void> _approve(HarvestSlipDetail slip) async {
+    if (!service.canDecide(slip)) return;
+    final generation = service.scopeGeneration;
+    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Duyệt phiếu thu hoạch?'),
+      content: Text('${slip.code} sẽ chuyển sang chờ Staff thực hiện.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Duyệt'))],
+    ));
+    if (ok != true || !mounted || generation != service.scopeGeneration) return;
+    try { await service.approveHarvest(slip.id);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã duyệt phiếu.')));
+    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'))); }
+  }
+
   Future<void> _cancel(HarvestSlipDetail slip) async {
-    try {
-      await service.cancelHarvest(slip.id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đã hủy ${slip.code}.')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-      }
-    }
+    if (!service.canDecide(slip)) return;
+    final generation = service.scopeGeneration;
+    var reason = '';
+    final result = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Từ chối phiếu thu hoạch'),
+      content: TextField(onChanged: (v) => reason = v, maxLines: 3,
+        decoration: const InputDecoration(labelText: 'Lý do bắt buộc')),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+        FilledButton(onPressed: () { if (reason.trim().isNotEmpty) Navigator.pop(ctx, reason.trim()); },
+          child: const Text('Từ chối'))],
+    ));
+    if (result == null || !mounted || generation != service.scopeGeneration) return;
+    try { await service.rejectHarvest(slip.id, result);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã từ chối phiếu.')));
+    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'))); }
+  }
+
+  Future<void> _delete(HarvestSlipDetail slip) async {
+    if(!service.canDeleteHarvest(slip))return;
+    final generation=service.scopeGeneration;
+    final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(
+      title:const Text('Xóa phiếu chưa thực hiện?'),
+      content:Text('Xóa ${slip.code}. Backend kiểm tra trạng thái và liên kết lô đông lạnh trước khi xóa.'),
+      actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Hủy')),
+        FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Xóa'))],
+    ));
+    if(!mounted||ok!=true||generation!=service.scopeGeneration)return;
+    try {await service.deleteHarvest(slip.id);
+      if(mounted&&generation==service.scopeGeneration)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Đã xóa phiếu.')));
+    }catch(e){if(mounted&&generation==service.scopeGeneration)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));}
   }
 
   Future<void> _export() async {
@@ -288,6 +327,26 @@ class _HarvestTabState extends State<HarvestTab> {
     );
   }
 
+  Future<void> _adjust(HarvestSlipDetail slip)async{
+    if(!service.canAdjustHarvest(slip))return;
+    final generation=service.scopeGeneration;
+    final selected=slip.lines.map((l)=>l.crabId).whereType<String>().where((id)=>id.isNotEmpty).toSet();
+    final labels=<String,String>{for(final line in slip.lines)if(line.crabId!=null&&line.crabId!.isNotEmpty)line.crabId!:'${line.crabCode} · ${line.boxCode} (đã duyệt)',for(final c in service.harvestableCrabs)if(c.canSelect&&c.areaId==service.areaId)c.id:'${c.code} · ${c.boxCode}'};
+    String reason='',query='';
+    final ok=await showDialog<bool>(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,update)=>AlertDialog(
+      title:Text('Điều chỉnh ${slip.code}'),
+      content:SizedBox(width:520,child:Column(mainAxisSize:MainAxisSize.min,children:[
+        const Text('Bỏ hoặc thêm cá thể. Phiếu sẽ trở về chờ duyệt; người gửi điều chỉnh không được tự duyệt.'),
+        TextField(onChanged:(v)=>update(()=>query=v.toLowerCase()),decoration:const InputDecoration(labelText:'Tìm cua / hộp')),
+        SizedBox(height:280,child:ListView(children:[for(final item in labels.entries)if(item.value.toLowerCase().contains(query))CheckboxListTile(title:Text(item.value),value:selected.contains(item.key),onChanged:(v)=>update((){if(v==true){selected.add(item.key);}else{selected.remove(item.key);}}))])),
+        TextField(onChanged:(v)=>update(()=>reason=v),decoration:const InputDecoration(labelText:'Lý do điều chỉnh (bắt buộc)'),maxLength:500),
+      ])),
+      actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Hủy')),FilledButton(onPressed:selected.isEmpty||reason.trim().isEmpty?null:()=>Navigator.pop(ctx,true),child:const Text('Gửi duyệt lại'))],
+    )));
+    if(ok!=true||!mounted||generation!=service.scopeGeneration)return;
+    try{await service.requestAdjustment(slip.id,selected,reason,generation);if(mounted&&generation==service.scopeGeneration)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Đã gửi điều chỉnh chờ duyệt.')));}
+    catch(e){if(mounted&&generation==service.scopeGeneration)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));}
+  }
   void _onRowAction(HarvestSlipDetail slip, HarvestRowAction action) {
     setState(() => _detail = slip);
     switch (action) {
@@ -298,13 +357,17 @@ class _HarvestTabState extends State<HarvestTab> {
       case HarvestRowAction.pdf:
         _toastSlip(slip, 'Tải PDF');
       case HarvestRowAction.edit:
-        _create();
+        _approve(slip);
       case HarvestRowAction.cancel:
         _cancel(slip);
       case HarvestRowAction.sale:
         _transfer(slip);
       case HarvestRowAction.complete:
         _complete(slip);
+      case HarvestRowAction.delete:
+        _delete(slip);
+      case HarvestRowAction.adjust:
+        _adjust(slip);
     }
   }
 

@@ -5,30 +5,8 @@ abstract final class UserRoles {
   static const farmManager = 'FarmManager';
   static const farmStaff = 'FarmStaff';
 
-  static String normalize(String raw) {
-    final v = raw.trim();
-    switch (v.toLowerCase()) {
-      case 'systemadministrator':
-      case 'systemadmin':
-      case 'admin':
-        return systemAdministrator;
-      case 'farmadministrator':
-      case 'farmowner':
-      case 'owner':
-        return farmAdministrator;
-      case 'farmmanager':
-      case 'manager':
-      case 'operator':
-        return farmManager;
-      case 'farmstaff':
-      case 'staff':
-      case 'viewer':
-      case 'sales':
-        return farmStaff;
-      default:
-        return v;
-    }
-  }
+  // Accept exact wire values; do not promote legacy aliases.
+  static String normalize(String raw) => raw;
 
   static bool isFarmOwner(String role) => normalize(role) == farmAdministrator;
 
@@ -36,11 +14,8 @@ abstract final class UserRoles {
 
   static bool isStaff(String role) => normalize(role) == farmStaff;
 
-  /// Desktop = portal trại (không dùng System Administrator).
-  static bool canUseDesktop(String role) {
-    final n = normalize(role);
-    return n == farmAdministrator || n == farmManager || n == farmStaff;
-  }
+  /// Desktop is exclusively for Farm Manager.
+  static bool canUseDesktop(String role) => role == farmManager;
 }
 
 class AuthUser {
@@ -75,7 +50,7 @@ class AuthUser {
           ? fullName
           : (display.isNotEmpty ? display : (uname ?? 'User')),
       role: UserRoles.normalize(
-        _str(json, 'role', 'Role', fallback: 'FarmStaff'),
+        _str(json, 'role', 'Role', fallback: ''),
       ),
       username: uname,
       orgId: _optionalStr(json, 'orgId', 'OrgId'),
@@ -158,10 +133,10 @@ class AuthMePayload {
       user: AuthUser.fromJson(json),
       farms: farms,
       isOrgAdmin: UserRoles.isSystemAdmin(
-        _str(json, 'role', 'Role', fallback: 'FarmStaff'),
+        _str(json, 'role', 'Role', fallback: ''),
       ),
       canViewAllFarms: UserRoles.isSystemAdmin(
-        _str(json, 'role', 'Role', fallback: 'FarmStaff'),
+        _str(json, 'role', 'Role', fallback: ''),
       ),
     );
   }
@@ -272,7 +247,7 @@ class AuthSession {
               id: '',
               email: '',
               displayName: '',
-              role: UserRoles.farmStaff,
+              role: '',
             ),
       farms: farms,
       selectedFarm: selectedRaw is Map

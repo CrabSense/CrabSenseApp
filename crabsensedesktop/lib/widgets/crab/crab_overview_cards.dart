@@ -151,7 +151,7 @@ class CrabBasicInfoCard extends StatelessWidget {
     return OverviewCard(
       icon: Icons.info_outline_rounded,
       title: 'Thông tin cơ bản',
-      trailing: MgmtOutlineButton(
+      trailing: onEdit == null ? null : MgmtOutlineButton(
         icon: Icons.edit_outlined,
         label: 'Chỉnh sửa',
         onTap: onEdit,
@@ -255,7 +255,7 @@ class CrabFeedingSummaryCard extends StatelessWidget {
 
   final CrabFeedingActivityController controller;
   final VoidCallback onOpenAnalysis;
-  final VoidCallback onAddFeeding;
+  final VoidCallback? onAddFeeding;
 
   @override
   Widget build(BuildContext context) {
@@ -304,7 +304,7 @@ class CrabFeedingSummaryCard extends StatelessWidget {
                   style: bvText(fontSize: 12, color: DashboardColors.textMuted),
                 ),
                 const SizedBox(height: 10),
-                MgmtOutlineButton(icon: Icons.add_rounded, label: 'Ghi nhận cho ăn', onTap: onAddFeeding, height: 32),
+                if (onAddFeeding != null) MgmtOutlineButton(icon: Icons.add_rounded, label: 'Ghi nhận cho ăn', onTap: onAddFeeding, height: 32),
               ],
             ),
           );
@@ -888,7 +888,7 @@ class CrabNoteCard extends StatelessWidget {
   const CrabNoteCard({super.key, required this.note, required this.onEdit, this.loading = false});
 
   final String? note;
-  final VoidCallback onEdit;
+  final VoidCallback? onEdit;
   final bool loading;
 
   @override
@@ -897,7 +897,7 @@ class CrabNoteCard extends StatelessWidget {
     return OverviewCard(
       icon: Icons.notes_rounded,
       title: 'Ghi chú',
-      trailing: MgmtOutlineButton(
+      trailing: onEdit == null ? null : MgmtOutlineButton(
         icon: has ? Icons.edit_outlined : Icons.add_rounded,
         label: has ? 'Chỉnh sửa' : 'Thêm ghi chú',
         onTap: onEdit,

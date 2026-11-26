@@ -1,9 +1,10 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 /// Scan nearby Wi-Fi SSIDs on the Owner PC. Password is never sent here.
 class WifiSsidScanner {
   static Future<List<String>> scan() async {
-    if (!Platform.isWindows) {
+    if (kIsWeb || !Platform.isWindows) {
       return const [];
     }
 

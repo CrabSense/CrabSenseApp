@@ -146,7 +146,7 @@ void main() {
         bloc.add(const SubmitHarvest(
           operatorId: 'user-007',
           operatorName: 'John Operator',
-          userRole: UserRole.fieldOperator,
+          userRole: UserRole.farmStaff,
         ));
       },
       expect: () => [
@@ -175,7 +175,7 @@ void main() {
         bloc.add(const SubmitHarvest(
           operatorId: 'user-007',
           operatorName: 'John Operator',
-          userRole: UserRole.fieldOperator,
+          userRole: UserRole.farmStaff,
         ));
       },
       expect: () => [
