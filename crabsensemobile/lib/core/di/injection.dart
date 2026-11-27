@@ -587,6 +587,7 @@ Future<void> init() async {
     cache: sl(),
     identity: () => readHistoryIdentity(sl<AuthLocalDataSource>()),
     loadPage: scopedHistoryHttpLoader(sl<ApiClient>()),
+    networkAvailable: () => historyNetworkAvailable(sl<NetworkInfo>()),
     persist: !kIsWeb,
   ));
   sl.registerLazySingleton<WaterQualityRemoteDataSource>(

@@ -2,7 +2,6 @@
 
 import 'dart:async';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -56,21 +55,29 @@ class _WaterQualityView extends StatefulWidget {
   State<_WaterQualityView> createState() => _WaterQualityViewState();
 }
 
-class _WaterQualityViewState extends State<_WaterQualityView> {
+class _WaterQualityViewState extends State<_WaterQualityView>
+    with WidgetsBindingObserver {
   Timer? _refreshTimer;
-  StreamSubscription<ConnectivityResult>? _connectivitySubscription;
-  bool _wasOffline = false;
+  StreamSubscription<List<NetworkType>>? _connectivitySubscription;
+  bool _historyOnline = false;
+  bool _foreground = false;
+  int _networkGeneration = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    _foreground = lifecycle == null || lifecycle == AppLifecycleState.resumed;
     _startAutoRefreshTimer();
     _listenToConnectivity();
+    unawaited(_probeHistoryNetwork());
   }
 
   void _startAutoRefreshTimer() {
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
       if (!mounted) return;
+      await _probeHistoryNetwork();
       final isOnline = await sl<NetworkInfo>().isConnected;
       if (isOnline && mounted) {
         context.read<WaterQualityBloc>().add(const WaterQualityRefreshRequested());
@@ -78,23 +85,52 @@ class _WaterQualityViewState extends State<_WaterQualityView> {
     });
   }
 
+  void _setHistoryNetwork(bool available) {
+    if (!mounted) return;
+    final next = available && _foreground;
+    if (next == _historyOnline) return;
+    setState(() => _historyOnline = next);
+    if (!next) {
+      // Revoke pending/displayed history before waiting for SQLite purge.
+      unawaited(sl<ScopedHistoryService>().invalidate());
+    } else {
+      context.read<WaterQualityBloc>().add(const WaterQualityRefreshRequested());
+    }
+  }
+
+  Future<void> _probeHistoryNetwork() async {
+    final generation = ++_networkGeneration;
+    final available = await historyNetworkAvailable(sl<NetworkInfo>());
+    if (!mounted || generation != _networkGeneration) return;
+    _setHistoryNetwork(available);
+  }
+
   void _listenToConnectivity() {
     _connectivitySubscription =
-        sl<Connectivity>().onConnectivityChanged.listen((result) {
-      if (!mounted) return;
-      final isOnline = result == ConnectivityResult.mobile ||
-          result == ConnectivityResult.wifi ||
-          result == ConnectivityResult.ethernet ||
-          result == ConnectivityResult.vpn;
-      if (isOnline && _wasOffline) {
-        context.read<WaterQualityBloc>().add(const WaterQualityRefreshRequested());
-      }
-      _wasOffline = !isOnline;
+        sl<NetworkInfo>().onNetworkTypesChanged.listen((types) {
+      ++_networkGeneration;
+      _setHistoryNetwork(historyTransportAvailable(types));
+    }, onError: (Object _) {
+      ++_networkGeneration;
+      _setHistoryNetwork(false);
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    ++_networkGeneration;
+    _foreground = state == AppLifecycleState.resumed;
+    if (!_foreground) {
+      _setHistoryNetwork(false);
+    } else {
+      unawaited(_probeHistoryNetwork());
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    ++_networkGeneration;
     _refreshTimer?.cancel();
     _connectivitySubscription?.cancel();
     super.dispose();
@@ -150,7 +186,8 @@ class _WaterQualityViewState extends State<_WaterQualityView> {
                     // The BLoC was closed when the screen was disposed.
                   }
                 },
-                child: _WaterQualityContent(state: state, bottomPad: navPad),
+                child: _WaterQualityContent(state: state, bottomPad: navPad,
+                  historyOnline: _historyOnline),
               );
             }
             return _SkeletonBody(bottom: navPad);
@@ -162,10 +199,12 @@ class _WaterQualityViewState extends State<_WaterQualityView> {
 }
 
 class _WaterQualityContent extends StatefulWidget {
-  const _WaterQualityContent({required this.state, required this.bottomPad});
+  const _WaterQualityContent({required this.state, required this.bottomPad,
+    required this.historyOnline});
 
   final WaterQualityLoaded state;
   final double bottomPad;
+  final bool historyOnline;
 
   @override
   State<_WaterQualityContent> createState() => _WaterQualityContentState();
@@ -387,7 +426,7 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
                 areaId: resolvedFarmId,
                 rowId: widget.state.pondId,
                 readings: readings,
-                online: !widget.state.isOffline,
+                online: widget.historyOnline && !widget.state.isOffline,
                 fetch: sl<ScopedHistoryService>().fetchOnline,
                 revision: () => sl<ScopedHistoryService>().revision,
                 invalidations: sl<ScopedHistoryService>().invalidations,

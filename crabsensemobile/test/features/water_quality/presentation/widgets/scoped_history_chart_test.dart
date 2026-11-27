@@ -132,4 +132,35 @@ void main() {
     expect(find.byKey(const Key('history-measured-plot')), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
+
+  testWidgets('offline hides chart and reconnect requires a new explicit load', (tester) async {
+    final changes = StreamController<int>.broadcast(sync: true);
+    addTearDown(changes.close);
+    var requests = 0;
+    Future<ScopedHistorySnapshot> fetch(ScopedHistoryQuery q) async {
+      requests++;
+      return response(q);
+    }
+    Widget view(bool online) => MaterialApp(home: Scaffold(body: SingleChildScrollView(
+      child: ScopedHistoryChart(areaId: fixture.area, rowId: null,
+        readings: [reading()], online: online, fetch: fetch,
+        revision: () => 0, invalidations: changes.stream),
+    )));
+    await tester.pumpWidget(view(true));
+    await tester.tap(find.byKey(const Key('history-sensor-select')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Độ mặn ·').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('history-fetch')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('history-measured-plot')), findsOneWidget);
+    await tester.pumpWidget(view(false));
+    expect(find.byKey(const Key('history-measured-plot')), findsNothing);
+    expect(find.byKey(const Key('history-fetch')), findsNothing);
+    expect(find.text('Mất kết nối. Không hiển thị cache lịch sử.'), findsOneWidget);
+    await tester.pumpWidget(view(true));
+    expect(find.byKey(const Key('history-measured-plot')), findsNothing);
+    expect(requests, 1);
+    await tester.pumpWidget(const SizedBox());
+  });
 }
