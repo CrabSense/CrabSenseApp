@@ -45,7 +45,7 @@ class LoggingInterceptor extends Interceptor {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    if (kDebugMode) {
+    if (kDebugMode && options.extra['skipSensitiveLogging'] != true) {
       logger.d(
         '→ ${options.method} ${options.uri}\n'
         '  Headers: ${_maskHeaders(options.headers)}\n'
@@ -57,7 +57,7 @@ class LoggingInterceptor extends Interceptor {
 
   @override
   void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) {
-    if (kDebugMode) {
+    if (kDebugMode && response.requestOptions.extra['skipSensitiveLogging'] != true) {
       logger.d(
         '← ${response.statusCode} '
         '${response.requestOptions.method} '
@@ -70,7 +70,7 @@ class LoggingInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    if (kDebugMode) {
+    if (kDebugMode && err.requestOptions.extra['skipSensitiveLogging'] != true) {
       logger.e(
         '✗ ${err.response?.statusCode ?? 'N/A'} '
         '${err.requestOptions.method} '
