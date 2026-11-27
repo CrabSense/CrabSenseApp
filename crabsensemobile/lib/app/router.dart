@@ -65,6 +65,8 @@ import '../features/video_capture/presentation/screens/video_capture_screen.dart
 import '../features/harvest/presentation/screens/harvest_screen.dart';
 import '../features/notifications/presentation/screens/notification_history_screen.dart';
 import '../features/water_quality/presentation/screens/water_quality_screen.dart';
+import '../features/water_bench/presentation/water_bench_screen.dart';
+import '../core/network/api_client.dart';
 import '../features/sales/presentation/screens/sales_screen.dart';
 import '../features/stock_management/presentation/screens/add_crab_screen.dart';
 import '../features/stock_management/presentation/screens/crab_tracking_screen.dart';
@@ -305,6 +307,21 @@ GoRouter createRouter(AuthBloc authBloc) {
             builder: (context, state) => const ProfileScreen(),
           ),
         ],
+      ),
+
+      GoRoute(
+        path: RoutePaths.waterBench,
+        name: RouteNames.waterBench,
+        builder: (context, state) => BlocBuilder<AuthBloc, AuthState>(
+          bloc: authBloc,
+          builder: (context, auth) {
+            if (auth is! Authenticated || !auth.user.role.canUseMobile) {
+              return const Scaffold(body: Center(child: Text('Không có quyền truy cập.')));
+            }
+            return WaterBenchScreen(key: ValueKey(auth.user.id), user: auth.user,
+              api: sl<ApiClient>(), initialAreaId: state.uri.queryParameters['farmingAreaId']);
+          },
+        ),
       ),
 
       // ── /box/:id ─────────────────────────────────────────────────────
