@@ -59,6 +59,9 @@ HistoryPageLoader scopedHistoryHttpLoader(ApiClient api) =>
       if (asOf != null) 'asOf': asOf,
     },
     options: Options(
+      // Never forward a pinned history credential to a redirected target.
+      followRedirects: false,
+      validateStatus: (status) => status == 200,
       headers: {'Authorization': 'Bearer ${identity.accessToken}'},
       extra: const {
         'skipAuthInterceptor': true,
