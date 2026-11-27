@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:async';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
@@ -86,6 +88,8 @@ import '../../features/manual_inspection/presentation/bloc/inspection_bloc.dart'
 
 // Features - Water Quality
 import '../../features/water_quality/data/datasources/water_quality_local_data_source.dart';
+import '../../features/water_quality/data/datasources/scoped_history_cache.dart';
+import '../../features/water_quality/data/repositories/scoped_history_service.dart';
 import '../../features/water_quality/data/datasources/water_quality_remote_data_source.dart';
 import '../../features/water_quality/data/repositories/water_quality_repository_impl.dart';
 import '../../features/water_quality/domain/repositories/water_quality_repository.dart';
@@ -351,7 +355,10 @@ Future<void> init() async {
 
   // Local data source uses FlutterSecureStorage for Keychain/Keystore storage.
   // JWT tokens are NEVER stored in SharedPreferences (req 1.6, 23.4).
-  sl.registerLazySingleton<AuthLocalDataSource>(() => AuthLocalDataSourceImpl(secureStorage: sl()));
+  sl.registerLazySingleton<AuthLocalDataSource>(() => AuthLocalDataSourceImpl(
+    secureStorage: sl(),
+    onCredentialsChanged: () => unawaited(sl<ScopedHistoryService>().invalidate()),
+  ));
 
   // Repository - combines remote + local, maps exceptions to Failures
   sl.registerLazySingleton<AuthRepository>(
@@ -382,6 +389,7 @@ Future<void> init() async {
       logoutUseCase: sl(),
       refreshTokenUseCase: sl(),
       authRepository: sl(),
+      onHistorySessionChanged: (user) => unawaited(sl<ScopedHistoryService>().bindUser(user)),
     ),
   );
 
@@ -574,6 +582,13 @@ Future<void> init() async {
 
   // Data Sources
   // Requirements: 8.1-8.10
+  sl.registerLazySingleton<ScopedHistoryCache>(() => ScopedHistoryCache(sl()));
+  sl.registerLazySingleton<ScopedHistoryService>(() => ScopedHistoryService(
+    cache: sl(),
+    identity: () => readHistoryIdentity(sl<AuthLocalDataSource>()),
+    loadPage: scopedHistoryHttpLoader(sl<ApiClient>()),
+    persist: !kIsWeb,
+  ));
   sl.registerLazySingleton<WaterQualityRemoteDataSource>(
     () => WaterQualityRemoteDataSourceImpl(apiClient: sl(), logger: sl()),
   );
