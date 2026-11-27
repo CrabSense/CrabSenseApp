@@ -195,6 +195,7 @@ void main() {
   test('RAS route from any row loads area reference, preserving source locations', () async {
     WaterQuality reading(String id,String area,String? row,double value) =>
       WaterQuality(id:id,sensorId:id,farmId:area,pondId:row,
+        temperature:null,ph:null,dissolvedOxygen:null,
         salinity:value,timestamp:DateTime.now(),isAlertTriggered:false);
     mockRepo.readingsResult=Right([
       reading('inlet','area-a','row-1',0),
