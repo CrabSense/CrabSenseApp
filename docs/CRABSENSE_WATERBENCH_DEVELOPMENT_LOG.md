@@ -123,16 +123,16 @@
 |---|---|---|
 | hardware-water-quality-analysis | b552498 | Mốc audit; chưa flash/test thật |
 | CrabSenseKiosk | 65b781d | Main CI #74 PASS; pin BE còn 14ccffd, cần cập nhật pin sau khi ổn định |
-| CrabSenseBE | 59ce2c5 | CI #421 / VPS #225 PASS; PR #111 fd987bb CI #423 FAIL tại cấu hình migration history test PostgreSQL |
+| CrabSenseBE | 59ce2c5 | CI #421 / VPS #225 PASS; PR #111 323f373 đã sửa cấu hình test; CI #424 đang chạy, chưa merge |
 | CrabSenseAIWaterQualityAnalysis | 43931ea | PR #7 merged; AI CI #29 và private cross #7 PASS |
 | CrabSenseFE | 0e1178d | Main deployment #123 PASS |
-| CrabSenseApp | f904c09 | Nhật ký #44 merged; Sonar #164, Mobile #47, Desktop #56 PASS; Pages #65 đang chạy |
+| CrabSenseApp | f904c09 | Nhật ký #44 merged; Sonar #164, Mobile #47, Desktop #56 PASS; Pages #65 PASS |
 
 | Mã | Ưu tiên | Việc còn lại | Điều kiện hoàn thành |
 |---|---|---|---|
 | T01 | P0 | DONE: AI #7 merged, AI main #29 và private cross #7 PASS | Exact BE main pin, main CI PASS |
 | T02 | P0 | DONE: App main #61/#52/#43 và Sonar #156 PASS | Tất cả PASS đúng main 83e7eec |
-| T03 | P0 | BE #111 CI #423 FAIL: unit 740 PASS; test PostgreSQL đọc sai schema migration history. Chưa merge | Sửa cấu hình test Npgsql, chạy đủ HTTP/PostgreSQL, CI PASS, review migration, deploy, App chart thật |
+| T03 | P0 | BE #111 đã sửa cấu hình migration history test; CI #424 đang chạy. Chưa merge | Sửa cấu hình test Npgsql, chạy đủ HTTP/PostgreSQL, CI PASS, review migration, deploy, App chart thật |
 | T04 | P1 | Cache offline nullable, có user/area scope, invalidation khi logout/revoke, retention/migration | Kiểm thử offline và isolation; phục hồi chart/cache an toàn |
 | T05 | P1 | Kiểm tra toàn bộ current metric UI, status/threshold/unit, dữ liệu stale và scope; bổ sung production smoke | Không label sai hoặc hiển thị số liệu ngoài quyền |
 | T06 | P1 | 19 npm vulnerabilities theo log trước (cần audit lại) | Phân loại direct/transitive/dev/runtime, sửa an toàn, CI PASS |
@@ -143,7 +143,7 @@
 | T11 | P2 | Tổng kiểm thử bảo mật, CI/CD và quy trình test thực tế | P2.4.6.6 |
 | T12 | P3 | Thiết bị thật, UART, đo chuẩn, mẫu thật, vệ sinh, vận hành lâu dài | Chỉ sau P2.4.6 PASS |
 
-**Việc kế tiếp:** sửa cấu hình migration history test PostgreSQL của BE #111 theo Infrastructure DI, kiểm tra CI và marker bắt buộc; chỉ merge sau đủ điều kiện và review migration, rồi T03/T04 (App). Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
+**Việc kế tiếp:** kiểm tra CI #424 của BE #111 sau bản sửa cấu hình migration history và marker bắt buộc; chỉ merge sau đủ điều kiện và review migration, rồi T03/T04 (App). Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
 
 ## 6. Quy định cập nhật file sau mỗi lượt
 
@@ -205,3 +205,9 @@
 - [BE #111](https://github.com/CrabSense/CrabSenseBE/pull/111): commit sửa [323f373](https://github.com/CrabSense/CrabSenseBE/commit/323f3736a6b08f5057eb56993e93640fd8660b49), fix(test): align scoped history PostgreSQL migration configuration. Chỉ sửa ScopedSensorHistoryPostgresTests.cs: dùng chung ConfigurePostgres cho seed/verify/move và DI TestServer, khai báo migrations assembly, history table be.__EFMigrationsHistory, timeout 120 giây giống production. Giữ toàn bộ assertion, kiểm migration và marker bắt buộc; không sửa API/schema production.
 - Một commit sửa BE trong lượt này, không rewrite lịch sử PR. CI mới chưa xuất hiện khi kiểm tra lần đầu; chưa xác nhận build hoặc HTTP/PostgreSQL PASS. CI #423 cũ vẫn FAIL. Không rerun commit cũ, không merge/deploy, không triển khai cache Mobile hoặc P3.
 - Tiếp theo: xác nhận CI của đúng head 323f373, marker SCOPED_SENSOR_HISTORY_HTTP_POSTGRES_PASSED=1, kiểm tra review và các gate còn lại trước merge BE; tiếp tục nhật ký chung.
+
+### 16 — Đối chiếu tiến độ tổng thể P0–P3 (27/11/2026)
+- Đọc nhật ký và docs/water-bench-cross-repo-audit-p2.4.6.1.md, kiểm tra PR BE #111, App #45 và CI mới. Theo 13 nhóm người dùng liệt kê: 6 PASS phần mềm theo baseline/nhật ký (P0, P1, P2.1–3, P2.4.1–5 gộp), 1 đang làm (P2.4.6.1), 6 chưa nghiệm thu (P2.4.6.2–6, P3). Đây chỉ là đếm nhóm không trọng số; không phải tỷ lệ hoàn thành dự án hoặc nghiệm thu vật lý. P0/P1 dựa trên nhật ký lịch sử, không chạy lại firmware trong lượt này. Các mục 6.2–6.5 đã có một số test thành phần, chưa nghiệm thu toàn diện.
+- [BE #111](https://github.com/CrabSense/CrabSenseBE/pull/111) OPEN head 323f3736a6b08f5057eb56993e93640fd8660b49; [CI #424](https://github.com/CrabSense/CrabSenseBE/actions/runs/45979930154) IN_PROGRESS: Build và PostgreSQL concurrency/integrity PASS; unit test đang chạy; production publish/bundle đang chạy; full migration + HTTP/PostgreSQL marker chưa xác nhận. Chưa merge/deploy. App Pages #65 (45979361935) build/deploy PASS. App #45 OPEN trước cập nhật.
+- P2.4.6.1: đã rà sáu repo, loại biểu đồ giả, sửa NH3 502, AI pin BE main PASS, sửa nullable/zero và race request Mobile. API scoped history đã code, đang nghiệm thu; cache SQLite/biểu đồ thật còn thiếu. Còn rà UI current metrics, dependency audit npm, migration/index và race relocation; chưa đóng P2.4.6.1.
+- Lượt chỉ rà tiến độ và cập nhật nhật ký, không thay đổi chức năng. Tiếp theo CI #424, marker HTTP/PostgreSQL, review migration, merge/deploy BE nếu đủ gate, đồng bộ pin Kiosk/AI, Mobile cache/chart, rồi đóng 6.1 trước 6.2. Không chuyển P3.
