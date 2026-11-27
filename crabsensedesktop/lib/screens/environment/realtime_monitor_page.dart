@@ -47,12 +47,13 @@ class RealtimeMonitorPage extends StatefulWidget {
   State<RealtimeMonitorPage> createState() => _RealtimeMonitorPageState();
 }
 
-class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
+class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> with WidgetsBindingObserver {
   WaterQualityService get _svc => widget.service;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _svc.addListener(_onUpdate);
     widget.alertService.addListener(_onUpdate);
     widget.controllerService?.addListener(_onUpdate);
@@ -63,11 +64,22 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _svc.stopLiveUpdates();
     _svc.removeListener(_onUpdate);
     widget.alertService.removeListener(_onUpdate);
     widget.controllerService?.removeListener(_onUpdate);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _svc.startLiveUpdates();
+    } else {
+      _svc.stopLiveUpdates();
+      _onUpdate();
+    }
   }
 
   void _onUpdate() {
@@ -400,16 +412,16 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
     final metric = _svc.chartMetric;
     final segs = _svc.chartSegments;
     final points = _svc.chartSeries;
-    final reading = metric == null ? null : _svc.readingOf(metric);
+    final reading = _svc.chartReading;
     final minV = points.isEmpty ? null : points.map((e) => e.value).reduce((a, b) => a < b ? a : b);
     final maxV = points.isEmpty ? null : points.map((e) => e.value).reduce((a, b) => a > b ? a : b);
     final avg = points.isEmpty ? null : points.map((e) => e.value).reduce((a, b) => a + b) / points.length;
     var over = 0;
     final lo = reading?.threshold.min;
     final hi = reading?.threshold.max;
-    if (lo != null && hi != null) {
+    if (lo != null || hi != null) {
       for (final p in points) {
-        if (p.value < lo || p.value > hi) over++;
+        if ((lo != null && p.value < lo) || (hi != null && p.value > hi)) over++;
       }
     }
     return Container(
@@ -432,21 +444,22 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _drop<WaterSensorType>(
-                label: 'Chỉ số',
-                value: metric ?? (_svc.availableMetrics.isEmpty ? null : _svc.availableMetrics.first),
-                items: [
-                  for (final m in _svc.availableMetrics) (m, m.label),
+              _drop<String?>(
+                label: 'Cảm biến cụ thể',
+                value: _svc.historySensorId,
+                items: [(null,'Chọn cảm biến'),
+                  for (final r in _svc.historySensors)
+                    (r.sensorId,'${r.type.label} · ${r.sensorCode} · ${r.sensorId}'),
                 ],
-                onChanged: (v) {
-                  if (v != null) _svc.setChartMetric(v);
-                },
+                onChanged: _svc.selectHistorySensor,
               ),
+              MgmtOutlineButton(icon: Icons.refresh, label: 'Tải lịch sử',
+                onTap: reading == null || _svc.chartLoading ? null : () => _svc.refreshTrend()),
               for (var i = 0; i < WaterQualityService.chartRangeLabels.length; i++)
                 _rangeChip(WaterQualityService.chartRangeLabels[i], i == _svc.chartRangeIndex, () => _svc.setChartRangeIndex(i)),
               FilterChip(
                 selected: _svc.showThreshold,
-                label: Text('Hiện ngưỡng', style: bvText(fontWeight: FontWeight.w700, fontSize: 12)),
+                label: Text('Ngưỡng hiện tại', style: bvText(fontWeight: FontWeight.w700, fontSize: 12)),
                 selectedColor: DashboardColors.mint,
                 onSelected: _svc.setShowThreshold,
               ),
@@ -459,9 +472,11 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
               _stat('THẤP NHẤT', _fmt(metric, minV)),
               _stat('TRUNG BÌNH', _fmt(metric, avg)),
               _stat('CAO NHẤT', _fmt(metric, maxV)),
-              _stat('NGOÀI NGƯỠNG', points.isEmpty ? '—' : '$over lần'),
+              _stat('SO VỚI NGƯỠNG HIỆN TẠI', points.isEmpty || (lo == null && hi == null) ? '—' : '$over mẫu'),
             ],
           ),
+          if (_svc.historyAsOf != null && points.isNotEmpty)
+            Text('Mốc xác minh: ${fmtDateTimeVn(_svc.historyAsOf)} · ${points.length} mẫu · không nội suy', style: bvText(color: DashboardColors.textMuted)),
           const SizedBox(height: 12),
           SizedBox(
             height: 260,
@@ -496,7 +511,7 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
   }
 
   Widget _chartEmpty() => Center(
-    child: Text('Tạm khóa biểu đồ lịch sử đến khi API scoped được nghiệm thu.',
+    child: Text(_svc.historyError ?? 'Chọn cảm biến và tải lịch sử đã xác minh phạm vi.',
       style: bvText(color: DashboardColors.textMuted), textAlign: TextAlign.center),
   );
 
@@ -986,9 +1001,9 @@ class HistoryChart extends StatelessWidget {
             spots: [for (final p in seg) FlSpot(p.xMinutes, p.value)],
             isCurved: false,
             color: color,
-            barWidth: 2.2,
-            dotData: const FlDotData(show: false),
-            belowBarData: BarAreaData(show: true, color: color.withValues(alpha: 0.08)),
+            barWidth: 0,
+            dotData: const FlDotData(show: true),
+            belowBarData: BarAreaData(show: false),
           ),
       if (minTh != null)
         LineChartBarData(

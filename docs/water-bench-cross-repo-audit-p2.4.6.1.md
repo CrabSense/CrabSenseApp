@@ -38,3 +38,6 @@ Main CI #189 verified 67 Mobile tests. Proposed Home patch shares qualified live
 
 ## Desktop realtime T05 containment (App main 69d7793)
 Main #191 confirmed 69 Mobile tests. Realtime Desktop service and page changed to strict scoped live decoder, per-sensor cards and backend threshold, generation guards, clear on denial, no legacy historical/CSV data. New Desktop tests pending CI. Area/box panels, dashboard trend bootstrap/smoothing and remaining legacy endpoints not accepted; scoped Desktop history must be implemented before restoration. FE audit remains open.
+
+## Desktop scoped history (App main 536c0d7)
+Main #193: 45 Desktop / 69 Mobile tests verified. Proposed explicit sensor history chart using strict scoped v1 contract, complete bounded pages and selected metadata, no legacy fallback, expiry and generation guards. Combined recent table/CSV still disabled; pending CI, real browser/device and JWT testing. Area/box, dashboard synthetic paths and FE dependencies remain open.
