@@ -33,7 +33,7 @@ import '../services/row_management_service.dart';
 import '../services/box_management_service.dart';
 import 'health/health_monitoring_page.dart';
 import 'environment/realtime_monitor_page.dart';
-import 'environment/water_analysis_page.dart';
+import 'environment/water_bench_monitor_page.dart';
 import '../services/water_analysis_service.dart';
 import '../models/box_list_item.dart';
 import 'box/box_detail_page.dart';
@@ -345,7 +345,8 @@ class _MainShellScreenState extends State<MainShellScreen> {
         _waterQualityService.refresh();
         _areaEnvironmentService.loadByArea(_session.selectedFarm.id);
       case AppRoute.waterAnalysis:
-        _waterAnalysisService.load();
+        // The scoped monitor owns its read-only lifecycle.
+        break;
       case AppRoute.farmLogs:
         _farmLogService.load();
       case AppRoute.harvestSales:
@@ -452,9 +453,6 @@ class _MainShellScreenState extends State<MainShellScreen> {
       _waterQualityService.refresh();
       _controllerService.load();
       _alertService.load();
-    }
-    if (route == AppRoute.waterAnalysis) {
-      _waterAnalysisService.load();
     }
     if (route == AppRoute.alerts) {
       _alertService.load();
@@ -1207,12 +1205,9 @@ class _MainShellScreenState extends State<MainShellScreen> {
           onNavigate: _navigate,
         );
       case AppRoute.waterAnalysis:
-        return WaterAnalysisPage(
-          service: _waterAnalysisService,
-          areaName: _session.selectedFarm.name,
-          areaCode: _session.selectedFarm.code,
+        return WaterBenchMonitorPage(
+          key: ValueKey('water-bench:${_session.user.id}:${_session.selectedFarm.id}'),
           session: _session,
-          onNavigate: _navigate,
         );
       case AppRoute.devices:
         return RasControlPage(
