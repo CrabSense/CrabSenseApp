@@ -11,7 +11,7 @@ import 'migrations/database_migration_manager.dart';
 part 'database.g.dart';
 
 /// Database schema version — increment when making migrations.
-const int kDatabaseVersion = 3;
+const int kDatabaseVersion = 4;
 
 // ============================================================================
 // TABLE DEFINITIONS

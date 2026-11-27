@@ -124,9 +124,9 @@
 | hardware-water-quality-analysis | b552498 | Mốc audit; chưa flash/test thật |
 | CrabSenseKiosk | 3fc897c | PR #29 merged, CI #75/#76 PASS |
 | CrabSenseBE | 40464ce | PR #111 merged; CI #424/#425 và VPS #226 PASS |
-| CrabSenseAIWaterQualityAnalysis | 43931ea | PR #7 merged; AI CI #29/private cross #7 PASS baseline cũ; PR #8 pin mới CI đang chạy |
+| CrabSenseAIWaterQualityAnalysis | 2c63944 | PR #8 merged; AI CI #32/#33 và private cross #8/#9 PASS |
 | CrabSenseFE | 0e1178d | Main deployment #123 PASS |
-| CrabSenseApp | be6b18d | Nhật ký #47 merged, Sonar #171 PASS; baseline 44595d2 main #170, Mobile #49, Desktop #58, Pages #67 PASS |
+| CrabSenseApp | d6f2ff0 | Nhật ký #48 merged; Sonar #174, Mobile #51, Desktop #60, Pages #69 PASS |
 
 | Mã | Ưu tiên | Việc còn lại | Điều kiện hoàn thành |
 |---|---|---|---|
@@ -143,7 +143,7 @@
 | T11 | P2 | Tổng kiểm thử bảo mật, CI/CD và quy trình test thực tế | P2.4.6.6 |
 | T12 | P3 | Thiết bị thật, UART, đo chuẩn, mẫu thật, vệ sinh, vận hành lâu dài | Chỉ sau P2.4.6 PASS |
 
-**Việc kế tiếp:** nghiệm thu AI PR #8 (CI #32/private cross #8), merge và kiểm tra main, rồi T03/T04 (App). Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
+**Việc kế tiếp:** nghiệm thu nền tảng cache scoped Mobile, sau đó nối auth/API/UI và kiểm thử offline/revoke. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
 
 ## 6. Quy định cập nhật file sau mỗi lượt
 
@@ -228,3 +228,8 @@
 - [AI #8](https://github.com/CrabSense/CrabSenseAIWaterQualityAnalysis/pull/8) tạo trong lượt này, một commit 4a0c4b94fd979830ef32b291156d1ee799e9077e, ci(water-bench): validate merged scoped history integration baseline. Hai file: .github/workflows/water-bench-cross-integration.yml (cập nhật cả checkout và SHA assertions từ BE 59ce2c5/Kiosk 65b781d sang BE 40464ce/Kiosk 3fc897c), docs/water-bench-private-integration.md. Giữ nguyên real local AI, PostgreSQL, test fixture, TRX gate và quyền read-only; không đổi runtime/công thức/DB, không thêm secret. Geometry-disabled synthetic fixture vẫn chưa nghiệm thu hình học production.
 - [Water AI CI #32](https://github.com/CrabSense/CrabSenseAIWaterQualityAnalysis/actions/runs/46007447071) và [Private Cross #8](https://github.com/CrabSense/CrabSenseAIWaterQualityAnalysis/actions/runs/46007447085) IN_PROGRESS đúng head 4a0c4b9 lúc kiểm tra. Chưa merge AI #8; main vẫn 43931ea.
 - [App #47](https://github.com/CrabSense/CrabSenseApp/pull/47) Sonar #171 (46007043777) PASS đúng 175fc71; squash merge trong lượt này main be6b18d5e02dad3767593b96c17c095f446a7e89. Main workflow mới chưa kiểm tra. Tiếp tục nhật ký bằng PR docs riêng, một commit. Chưa bật Mobile cache/chart, chưa nghiệm thu JWT thật, SQL production trực tiếp hoặc thiết bị thật. Tiếp theo kiểm tra AI #32/private cross #8, merge đúng head khi đủ gate, kiểm tra main rồi P2.4.6.1.5. Không chuyển 6.2/P3.
+
+### 20 — AI main PASS; P2.4.6.1.5 nền tảng cache Mobile (27/11/2026)
+- AI #8 đã merge 2c63944 trước lượt này; CI #32, private cross #8, main #33 và [main cross #9](https://github.com/CrabSense/CrabSenseAIWaterQualityAnalysis/actions/runs/46007909089) PASS. Log main cross: 1 executed/pass, 0 failed/skipped. App #48 merged d6f2ff0; Sonar #174, Mobile #51, Desktop #60, Pages #69 PASS. Pages #68 cancelled, không đánh dấu PASS.
+- Rà soát API BE scoped-sensor-history-v1 và Mobile legacy cache: bảng cũ default zero, không có user scope; không copy dữ liệu legacy. Thêm migration SQLite v4 tạo bảng cache riêng, strict decoder nhiều page/identity/unit/quality/range/asOf, giữ zero, từ chối page thiếu hoặc duplicate, giới hạn 5000 điểm. Lớp cache theo epoch phiên/user và query chính xác; TTL 5 phút từ asOf, phạm vi lưu 7 ngày, tối đa 32 snapshot, purge khi bắt đầu phiên/logout/revoke, không lưu token. Thêm test decoder và SQLite. Không thay API BE hoặc thuật toán AI.
+- Đây là nền tảng chưa nối vào AuthBloc, remote repository hay giao diện. Không bật offline/chart cho người dùng trước khi wiring và test thực tế; quyền bị thu hồi từ xa khi offline không thể xác nhận ngay. Test migration upgrade, web, tích hợp auth/API, pagination và CI còn phải xác nhận. Không đóng 6.1 hoặc chuyển 6.2/P3.
