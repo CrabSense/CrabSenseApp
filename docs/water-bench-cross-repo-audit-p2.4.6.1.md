@@ -29,3 +29,6 @@ Findings:
 - T07–T12: real JWT 4-role PostgreSQL diagnostics; geometry and private media; cross-platform receipt/review; legacy firmware; security/recovery; physical tests remain separate outstanding acceptance items. No complete P2.4.6.1 sign-off.
 
 HTTP gate: actual ApiClient and interceptors with an isolated Dio adapter; exact URI/query/asOf, pinned bearer, no retry/refresh on 401/403, reject redirect, no sensitive debug logging, invalid envelope. No network/real JWT in this test. Review new CI before merge.
+
+## T05 live provenance and metrics refresh — 2026-11-27
+BE main 5f4415f CI #427/VPS #227, Kiosk main 98458f3 CI #78, AI main 700d5b2 CI #37/private cross #11 verified; all three integration counters passed (one executed test each, no skips). App baseline 6fae55e CI #187 62 tests passed. New Mobile change removes duplicate home-summary request from environment screen, projects qualified per-sensor metadata, exact type/unit, separate TDS, timestamps, status and configured limits, fail-closed reconnect. New CI pending; Home overview still uses a separate summary and requires review. TDS history, missing-sensor inventory, production JWT/real hardware, FE dependency audit remain open. No overall P2.4.6.1 sign-off.

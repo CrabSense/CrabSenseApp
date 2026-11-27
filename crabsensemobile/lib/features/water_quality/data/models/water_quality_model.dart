@@ -34,6 +34,7 @@ class WaterQualityModel extends WaterQuality {
     super.kh,
     super.calcium,
     super.magnesium,
+    super.liveMetric,
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -108,6 +109,7 @@ class WaterQualityModel extends WaterQuality {
     kh: entity.kh,
     calcium: entity.calcium,
     magnesium: entity.magnesium,
+    liveMetric: entity.liveMetric,
     timestamp: entity.timestamp,
     isAlertTriggered: entity.isAlertTriggered,
   );
@@ -162,6 +164,7 @@ class WaterQualityModel extends WaterQuality {
     kh: kh,
     calcium: calcium,
     magnesium: magnesium,
+    liveMetric: liveMetric,
     timestamp: timestamp,
     isAlertTriggered: isAlertTriggered,
   );
@@ -183,6 +186,7 @@ class WaterQualityModel extends WaterQuality {
     double? magnesium,
     DateTime? timestamp,
     bool? isAlertTriggered,
+    LiveWaterMetric? liveMetric,
   }) => WaterQualityModel(
     id: id ?? this.id,
     sensorId: sensorId ?? this.sensorId,
@@ -199,6 +203,7 @@ class WaterQualityModel extends WaterQuality {
     magnesium: magnesium ?? this.magnesium,
     timestamp: timestamp ?? this.timestamp,
     isAlertTriggered: isAlertTriggered ?? this.isAlertTriggered,
+    liveMetric: liveMetric ?? this.liveMetric,
   );
 
   // ──────────────────────────────────────────────────────────────────────────
