@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -90,6 +91,10 @@ class ScopedHistoryService {
   int _generation = 0;
   int? _epoch;
   bool _busy = false;
+  final _invalidations = StreamController<int>.broadcast();
+
+  int get revision => _generation;
+  Stream<int> get invalidations => _invalidations.stream;
 
   /// Called synchronously at auth-event start and when AuthBloc publishes
   /// a new authenticated user. Credentials changing outside the bloc also
@@ -101,6 +106,7 @@ class ScopedHistoryService {
 
   Future<void> invalidate() async {
     ++_generation;
+    _invalidations.add(_generation);
     _epoch = null;
     try {
       await _cache.invalidate();
