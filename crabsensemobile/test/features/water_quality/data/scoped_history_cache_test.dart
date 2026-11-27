@@ -26,8 +26,8 @@ Map<String, dynamic> page(ScopedHistoryQuery q) => {
   'scopeBasis': 'configured_location_at_ingest',
   'physicalLocationVerified': false, 'databaseSnapshotGuaranteed': false,
   'chemicalResultIncluded': false,
-  'items': [
-    {'id': point, 'sensorId': sensor, 'value': 0, 'unit': 'ppt',
+  'items': <Map<String, dynamic>>[
+    <String, dynamic>{'id': point, 'sensorId': sensor, 'value': 0, 'unit': 'ppt',
       'measuredAt': q.from.toIso8601String(),
       'receivedAt': now.toIso8601String(), 'dataQuality': 'Realtime',
       'farmingAreaId': q.areaId, 'farmingRowId': row,
@@ -42,8 +42,19 @@ void main() {
     final snapshot = ScopedHistorySnapshot.fromPages(q, [p]);
     expect(snapshot.pointCount, 1);
     expect(jsonDecode(snapshot.encodedPages)[0]['items'][0]['value'], 0);
-    (p['items'] as List).first['value'] = null;
+    final item = (p['items'] as List<Map<String, dynamic>>).first;
+    item['value'] = null;
     expect(() => ScopedHistorySnapshot.fromPages(q, [p]), throwsFormatException);
+    item.remove('value');
+    expect(() => ScopedHistorySnapshot.fromPages(q, [p]), throwsFormatException);
+    for (final invalid in <Object>[double.nan, double.infinity, '0', false]) {
+      item['value'] = invalid;
+      expect(() => ScopedHistorySnapshot.fromPages(q, [p]), throwsFormatException);
+    }
+    item['value'] = 0;
+    expect(ScopedHistorySnapshot.fromPages(q, [p]).pointCount, 1);
+    final empty = page(q)..['items'] = <Map<String, dynamic>>[];
+    expect(ScopedHistorySnapshot.fromPages(q, [empty]).pointCount, 0);
     expect(() => ScopedHistorySnapshot.fromPages(q, [page(q)..['hasMore'] = true]),
       throwsFormatException);
     expect(() => ScopedHistorySnapshot.fromPages(q, [page(q)..['unit'] = 'mg/L']),
