@@ -90,4 +90,26 @@ void main() {
     expect(await upgraded.customSelect('SELECT * FROM scoped_sensor_history_cache').get(), isEmpty);
     expect(await upgraded.customSelect('SELECT * FROM water_quality_readings').get(), hasLength(1));
   });
+
+  test('invalidates revision synchronously before SQLite purge completes', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final cache = ScopedHistoryCache(db, clock: () => fixture.now);
+    final service = ScopedHistoryService(cache: cache,
+      identity: () async => const HistoryIdentity('a', 'token-a'),
+      loadPage: (q, page, asOf, id) async => fixture.page(q));
+    await service.bindUser(staff('a'));
+    await service.fetchOnline(fixture.query());
+    final seen = <int>[];
+    final sub = service.invalidations.listen(seen.add);
+    addTearDown(sub.cancel);
+    final previous = service.revision;
+    final purge = service.bindUser(null);
+    expect(service.revision, previous + 1);
+    expect(seen, [previous + 1]);
+    await purge;
+    expect(await db.customSelect('SELECT * FROM scoped_sensor_history_cache').get(),
+      isEmpty);
+    await expectLater(service.fetchOnline(fixture.query()), throwsStateError);
+  });
 }

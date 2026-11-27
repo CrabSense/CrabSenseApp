@@ -23,7 +23,8 @@ import '../bloc/water_quality_event.dart';
 import '../bloc/water_quality_state.dart';
 import '../models/farm_filter_model.dart';
 import '../widgets/farm_pond_filter_widget.dart';
-import '../widgets/water_history_unavailable.dart';
+import '../../data/repositories/scoped_history_service.dart';
+import '../widgets/scoped_history_chart.dart';
 import '../widgets/nine_water_metrics.dart';
 
 class WaterQualityScreen extends StatelessWidget {
@@ -367,7 +368,7 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
                 const _Banner(
                   icon: Icons.wifi_off_rounded,
                   title: 'Mất kết nối mạng',
-                  subtitle: 'Đang hiển thị dữ liệu đã lưu',
+                  subtitle: 'Không hiển thị lịch sử khi chưa xác minh quyền.',
                   color: kHomeWarning,
                 ),
                 const SizedBox(height: 10),
@@ -382,7 +383,15 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
                 onRecommend: () => _showThresholds(thresholds),
               ),
               const SizedBox(height: 16),
-              const WaterHistoryUnavailable(),
+              ScopedHistoryChart(
+                areaId: resolvedFarmId,
+                rowId: widget.state.pondId,
+                readings: readings,
+                online: !widget.state.isOffline,
+                fetch: sl<ScopedHistoryService>().fetchOnline,
+                revision: () => sl<ScopedHistoryService>().revision,
+                invalidations: sl<ScopedHistoryService>().invalidations,
+              ),
             ]),
           ),
         ),

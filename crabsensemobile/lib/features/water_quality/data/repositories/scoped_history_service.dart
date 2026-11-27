@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -90,6 +91,12 @@ class ScopedHistoryService {
   int _generation = 0;
   int? _epoch;
   bool _busy = false;
+  // Notify listeners in the same turn as the credential change, before
+  // awaiting SQLite I/O. Listeners must not re-enter invalidate().
+  final _invalidations = StreamController<int>.broadcast(sync: true);
+
+  int get revision => _generation;
+  Stream<int> get invalidations => _invalidations.stream;
 
   /// Called synchronously at auth-event start and when AuthBloc publishes
   /// a new authenticated user. Credentials changing outside the bloc also
@@ -102,6 +109,7 @@ class ScopedHistoryService {
   Future<void> invalidate() async {
     ++_generation;
     _epoch = null;
+    _invalidations.add(_generation);
     try {
       await _cache.invalidate();
     } catch (_) {
