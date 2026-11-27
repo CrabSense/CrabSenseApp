@@ -35,3 +35,6 @@ BE main 5f4415f CI #427/VPS #227, Kiosk main 98458f3 CI #78, AI main 700d5b2 CI 
 
 ## Home metrics follow-up (App main 46664dc)
 Main CI #189 verified 67 Mobile tests. Proposed Home patch shares qualified live decoder, pinned credential and revision, scope/transport checks, no offline metrics fallback, per-sensor labels, configured limits and freshness; prevents obsolete Home request publication. Two additional projection tests mandatory; CI pending. Other Home data/cache and Desktop/FE legacy clients remain outside this patch. No production smoke or complete T05 acceptance.
+
+## Desktop realtime T05 containment (App main 69d7793)
+Main #191 confirmed 69 Mobile tests. Realtime Desktop service and page changed to strict scoped live decoder, per-sensor cards and backend threshold, generation guards, clear on denial, no legacy historical/CSV data. New Desktop tests pending CI. Area/box panels, dashboard trend bootstrap/smoothing and remaining legacy endpoints not accepted; scoped Desktop history must be implemented before restoration. FE audit remains open.
