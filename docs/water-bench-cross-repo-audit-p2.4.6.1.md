@@ -50,3 +50,6 @@ User clarified one recirculating water loop per area; all rows/boxes use shared 
 
 ## Mobile shared RAS area view — App main 1bf313a
 Main #199 confirmed 69 Mobile / 54 Desktop tests, including the three shared RAS area/box regressions. Environment screen chooses area only, avoids row fetch/filter, retains sensor's observed location in scoped history request and validation. Route row remains compatible context in BLoC, not a water measurement filter. Two new tests in existing mandatory suites; CI pending. Chemistry sampling inlet/return location is not confirmed; no schema or metadata assumption. Desktop dashboard/heatmap, FE and physical/production tests remain open.
+
+## Desktop shared RAS overview — App main 628846b
+Main #202: 71 Mobile and 54 Desktop tests verified. Proposed area overview replaces inferred row heatmap with qualified common-area cards. Dashboard reads qualified per-sensor values and disables fabricated seven-day chart and unscoped combined trend/DO fallback; links to scoped history. Two new mandatory tests pending CI. Other summary/KPI paths, unused synthetic helpers, FE dependencies, JWT/browser/physical testing remain open.
