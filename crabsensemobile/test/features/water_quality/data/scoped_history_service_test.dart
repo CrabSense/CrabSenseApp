@@ -112,4 +112,57 @@ void main() {
       isEmpty);
     await expectLater(service.fetchOnline(fixture.query()), throwsStateError);
   });
+
+  test('offline refuses even a previously cached exact query and purges it', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final cache = ScopedHistoryCache(db, clock: () => fixture.now);
+    var online = true;
+    var requests = 0;
+    final service = ScopedHistoryService(cache: cache,
+      networkAvailable: () async => online,
+      identity: () async => const HistoryIdentity('a', 'token-a'),
+      loadPage: (q, page, asOf, id) async {
+        requests++;
+        return fixture.page(q);
+      });
+    await service.bindUser(staff('a'));
+    await service.fetchOnline(fixture.query());
+    expect(requests, 1);
+    expect(await db.customSelect('SELECT * FROM scoped_sensor_history_cache').get(),
+      hasLength(1));
+    online = false;
+    await expectLater(service.fetchOnline(fixture.query()), throwsStateError);
+    expect(requests, 1);
+    expect(await db.customSelect('SELECT * FROM scoped_sensor_history_cache').get(),
+      isEmpty);
+    online = true;
+    expect((await service.fetchOnline(fixture.query())).pointCount, 1);
+    expect(requests, 2);
+  });
+
+  test('disconnect during HTTP response rejects data before saving', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final cache = ScopedHistoryCache(db, clock: () => fixture.now);
+    var online = true;
+    final started = Completer<void>();
+    final pending = Completer<Map<String, dynamic>>();
+    final service = ScopedHistoryService(cache: cache,
+      networkAvailable: () async => online,
+      identity: () async => const HistoryIdentity('a', 'token-a'),
+      loadPage: (q, page, asOf, id) {
+        started.complete();
+        return pending.future;
+      });
+    await service.bindUser(staff('a'));
+    final result = service.fetchOnline(fixture.query());
+    final check = expectLater(result, throwsStateError);
+    await started.future;
+    online = false;
+    pending.complete(fixture.page(fixture.query()));
+    await check;
+    expect(await db.customSelect('SELECT * FROM scoped_sensor_history_cache').get(),
+      isEmpty);
+  });
 }

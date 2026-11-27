@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 import '../../../../core/network/api_client.dart';
+import '../../../../core/network/network_info.dart';
 import '../../../authentication/data/datasources/auth_local_data_source.dart';
 import '../../../authentication/domain/entities/user.dart';
 import '../datasources/scoped_history_cache.dart';
@@ -73,6 +74,22 @@ HistoryPageLoader scopedHistoryHttpLoader(ApiClient api) =>
   return Map<String, dynamic>.from(body['data'] as Map);
 };
 
+/// A transport signal is only a prerequisite, never evidence of permission.
+/// Unknown or absent transport is denied, including on browser previews.
+bool historyTransportAvailable(List<NetworkType> types) => types.any(
+  (type) => type == NetworkType.wifi || type == NetworkType.mobile ||
+      type == NetworkType.ethernet || type == NetworkType.vpn ||
+      type == NetworkType.other,
+);
+
+Future<bool> historyNetworkAvailable(NetworkInfo network) async {
+  try {
+    return historyTransportAvailable(await network.currentNetworkTypes);
+  } catch (_) {
+    return false;
+  }
+}
+
 /// Online-only repository for the new history contract. Cache writes are
 /// optional; no cached data is returned on denial, timeout or offline.
 class ScopedHistoryService {
@@ -81,12 +98,15 @@ class ScopedHistoryService {
     required Future<HistoryIdentity> Function() identity,
     required HistoryPageLoader loadPage,
     this.persist = true,
-  }) : _cache = cache, _identity = identity, _loadPage = loadPage;
+    Future<bool> Function()? networkAvailable,
+  }) : _cache = cache, _identity = identity, _loadPage = loadPage,
+       _networkAvailable = networkAvailable;
 
   final ScopedHistoryCache _cache;
   final Future<HistoryIdentity> Function() _identity;
   final HistoryPageLoader _loadPage;
   final bool persist;
+  final Future<bool> Function()? _networkAvailable;
   String? _user;
   int _generation = 0;
   int? _epoch;
@@ -124,7 +144,15 @@ class ScopedHistoryService {
     }
   }
 
+  Future<void> _requireNetwork() async {
+    if (_networkAvailable != null && !await _networkAvailable!()) {
+      throw StateError('History unavailable without network');
+    }
+  }
+
   Future<void> _checkIdentity(int generation, HistoryIdentity id) async {
+    _checkGeneration(generation, id);
+    await _requireNetwork();
     _checkGeneration(generation, id);
     final current = await _identity();
     _checkGeneration(generation, id);
@@ -136,6 +164,8 @@ class ScopedHistoryService {
     _busy = true;
     final generation = _generation;
     try {
+      await _requireNetwork();
+      if (generation != _generation) throw StateError('History session changed');
       final id = await _identity();
       _checkGeneration(generation, id);
       final pages = <Map<String, dynamic>>[];
