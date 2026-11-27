@@ -122,11 +122,11 @@
 | Repo | Main mới nhất ghi nhận | Ghi chú |
 |---|---|---|
 | hardware-water-quality-analysis | b552498 | Mốc audit; chưa flash/test thật |
-| CrabSenseKiosk | 3fc897c | PR #29 CI #75 PASS, merged; main #76 đang chạy |
+| CrabSenseKiosk | 3fc897c | PR #29 merged, CI #75/#76 PASS |
 | CrabSenseBE | 40464ce | PR #111 merged; CI #424/#425 và VPS #226 PASS |
-| CrabSenseAIWaterQualityAnalysis | 43931ea | PR #7 merged; AI CI #29 và private cross #7 PASS |
+| CrabSenseAIWaterQualityAnalysis | 43931ea | PR #7 merged; AI CI #29/private cross #7 PASS baseline cũ; PR #8 pin mới CI đang chạy |
 | CrabSenseFE | 0e1178d | Main deployment #123 PASS |
-| CrabSenseApp | 44595d2 | Nhật ký #46 merged, Sonar #169 PASS; main #170, Mobile #49, Desktop #58, Pages #67 đang chạy |
+| CrabSenseApp | be6b18d | Nhật ký #47 merged, Sonar #171 PASS; baseline 44595d2 main #170, Mobile #49, Desktop #58, Pages #67 PASS |
 
 | Mã | Ưu tiên | Việc còn lại | Điều kiện hoàn thành |
 |---|---|---|---|
@@ -143,7 +143,7 @@
 | T11 | P2 | Tổng kiểm thử bảo mật, CI/CD và quy trình test thực tế | P2.4.6.6 |
 | T12 | P3 | Thiết bị thật, UART, đo chuẩn, mẫu thật, vệ sinh, vận hành lâu dài | Chỉ sau P2.4.6 PASS |
 
-**Việc kế tiếp:** nghiệm thu Kiosk main #76, cập nhật pin private AI, rồi T03/T04 (App). Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
+**Việc kế tiếp:** nghiệm thu AI PR #8 (CI #32/private cross #8), merge và kiểm tra main, rồi T03/T04 (App). Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
 
 ## 6. Quy định cập nhật file sau mỗi lượt
 
@@ -222,3 +222,9 @@
 - [Kiosk #29](https://github.com/CrabSense/CrabSenseKiosk/pull/29) CI [#75](https://github.com/CrabSense/CrabSenseKiosk/actions/runs/45981237728) PASS đúng head 19590c9; Windows runtime, Edge V2, pin BE và HTTP/controller/PostgreSQL với storage double PASS. Đã merge 20:24:56 UTC+7 trước lượt này, main 3fc897caa558d5186139d2452f3a7b5f3eb4e912. [Main #76](https://github.com/CrabSense/CrabSenseKiosk/actions/runs/46006911492) IN_PROGRESS, ba job đang chạy.
 - [App #46](https://github.com/CrabSense/CrabSenseApp/pull/46) Sonar #169 PASS, merged 20:24:39 UTC+7, main 44595d2b8304b6820510a0680936bbffb711497e. Main [#170](https://github.com/CrabSense/CrabSenseApp/actions/runs/46006872048), [Mobile #49](https://github.com/CrabSense/CrabSenseApp/actions/runs/46006872149), [Desktop #58](https://github.com/CrabSense/CrabSenseApp/actions/runs/46006872085), [Pages #67](https://github.com/CrabSense/CrabSenseApp/actions/runs/46006872033) IN_PROGRESS. Baseline trước main b2d90bd: Mobile #48, Desktop #57, Pages #66 PASS.
 - AI main 43931ea, CI #29 và Private Cross #7 PASS trên pin cũ. Lượt chỉ kiểm tra và cập nhật nhật ký, không sửa chức năng hay pin AI. Tiếp theo xác nhận Kiosk main #76, pin AI sang BE 40464ce/Kiosk 3fc897c, kiểm thử và merge nếu đủ gate; sau đó Mobile cache/chart. Chưa đóng P2.4.6.1, chưa chuyển 6.2/P3.
+
+### 19 — Đồng bộ private Water AI với BE/Kiosk main mới (27/11/2026)
+- [Kiosk main #76](https://github.com/CrabSense/CrabSenseKiosk/actions/runs/46006911492) PASS đúng 3fc897caa558d5186139d2452f3a7b5f3eb4e912: Windows runtime, SonarCloud/Edge V2 và Kiosk+BE+PostgreSQL (storage double), xác minh pin BE. BE 40464ce CI #425 và VPS #226 vẫn PASS. App baseline 44595d2: Sonar #170, Mobile #49, Desktop #58, Pages #67 đều PASS.
+- [AI #8](https://github.com/CrabSense/CrabSenseAIWaterQualityAnalysis/pull/8) tạo trong lượt này, một commit 4a0c4b94fd979830ef32b291156d1ee799e9077e, ci(water-bench): validate merged scoped history integration baseline. Hai file: .github/workflows/water-bench-cross-integration.yml (cập nhật cả checkout và SHA assertions từ BE 59ce2c5/Kiosk 65b781d sang BE 40464ce/Kiosk 3fc897c), docs/water-bench-private-integration.md. Giữ nguyên real local AI, PostgreSQL, test fixture, TRX gate và quyền read-only; không đổi runtime/công thức/DB, không thêm secret. Geometry-disabled synthetic fixture vẫn chưa nghiệm thu hình học production.
+- [Water AI CI #32](https://github.com/CrabSense/CrabSenseAIWaterQualityAnalysis/actions/runs/46007447071) và [Private Cross #8](https://github.com/CrabSense/CrabSenseAIWaterQualityAnalysis/actions/runs/46007447085) IN_PROGRESS đúng head 4a0c4b9 lúc kiểm tra. Chưa merge AI #8; main vẫn 43931ea.
+- [App #47](https://github.com/CrabSense/CrabSenseApp/pull/47) Sonar #171 (46007043777) PASS đúng 175fc71; squash merge trong lượt này main be6b18d5e02dad3767593b96c17c095f446a7e89. Main workflow mới chưa kiểm tra. Tiếp tục nhật ký bằng PR docs riêng, một commit. Chưa bật Mobile cache/chart, chưa nghiệm thu JWT thật, SQL production trực tiếp hoặc thiết bị thật. Tiếp theo kiểm tra AI #32/private cross #8, merge đúng head khi đủ gate, kiểm tra main rồi P2.4.6.1.5. Không chuyển 6.2/P3.
