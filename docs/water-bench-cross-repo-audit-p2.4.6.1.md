@@ -41,3 +41,6 @@ Main #191 confirmed 69 Mobile tests. Realtime Desktop service and page changed t
 
 ## Desktop scoped history (App main 536c0d7)
 Main #193: 45 Desktop / 69 Mobile tests verified. Proposed explicit sensor history chart using strict scoped v1 contract, complete bounded pages and selected metadata, no legacy fallback, expiry and generation guards. Combined recent table/CSV still disabled; pending CI, real browser/device and JWT testing. Area/box, dashboard synthetic paths and FE dependencies remain open.
+
+## Desktop history table/CSV — App main 9f12792
+Main #195 confirmed 48 Desktop / 69 Mobile tests. Proposed chart/table/native CSV from same validated scoped snapshot, 25-row pagination, exact wire timestamps and provenance, recheck revision after save dialog. Shared freshness watchdog; no legacy or browser export. Three additional tests in existing mandatory suite, CI pending. Native picker lifecycle and production JWT/browser/device smoke remain open, as do area/box, dashboard synthetic paths and FE audit.
