@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:crabsensemobile/core/database/database.dart';
+import 'package:crabsensemobile/core/database/database.dart'
+    show AppDatabase;
 import 'package:crabsensemobile/features/authentication/domain/entities/user.dart';
 import 'package:crabsensemobile/features/water_quality/data/datasources/scoped_history_cache.dart';
 import 'package:crabsensemobile/features/water_quality/data/repositories/scoped_history_service.dart';
