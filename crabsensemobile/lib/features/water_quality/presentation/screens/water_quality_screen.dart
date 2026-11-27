@@ -7,6 +7,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../app/routes.dart';
 
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection.dart';
@@ -105,6 +107,17 @@ class _WaterQualityViewState extends State<_WaterQualityView> {
     final navPad = MediaQuery.paddingOf(context).bottom + 88;
     return Scaffold(
       backgroundColor: kHomeBg,
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        backgroundColor: kHomeBg,
+        title: const Text('Giám sát môi trường'),
+        actions: [TextButton.icon(
+          key: const Key('open-water-bench'),
+          onPressed: () => context.push(Uri(path: RoutePaths.waterBench,
+            queryParameters: {if (context.read<WaterQualityBloc>().state is WaterQualityLoaded)
+              'farmingAreaId': (context.read<WaterQualityBloc>().state as WaterQualityLoaded).farmId}).toString()),
+          icon: const Icon(Icons.science_outlined), label: const Text('Phân tích nước'))],
+      ),
       body: SafeArea(
         bottom: false,
         child: BlocBuilder<WaterQualityBloc, WaterQualityState>(
