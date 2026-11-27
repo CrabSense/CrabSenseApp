@@ -10,6 +10,7 @@ import '../../../services/area_environment_service.dart';
 import '../../../theme/dashboard_theme.dart';
 import '../../crab/crab_overview_cards.dart';
 import '../../shared/mgmt_ui.dart';
+import '../../environment/qualified_environment_cards.dart';
 import 'box_labels.dart';
 
 enum SensorTrendRange { h24, d7, d30, custom }
@@ -22,12 +23,6 @@ extension on SensorTrendRange {
         SensorTrendRange.custom => 'Tùy chỉnh',
       };
 
-  Duration? get duration => switch (this) {
-        SensorTrendRange.h24 => const Duration(hours: 24),
-        SensorTrendRange.d7 => const Duration(days: 7),
-        SensorTrendRange.d30 => const Duration(days: 30),
-        SensorTrendRange.custom => null,
-      };
 }
 
 class SensorHistoryPoint {
@@ -103,489 +98,40 @@ class BoxSensorTab extends StatefulWidget {
 }
 
 class _BoxSensorTabState extends State<BoxSensorTab> {
-  SensorTrendRange _range = SensorTrendRange.h24;
-  DateTimeRange? _custom;
-  final _history = <String, List<SensorHistoryPoint>>{};
-  var _chartLoading = false;
-  String? _chartError;
-  String _chartSig = '';
-  List<SensorAlertRow> _sensorAlerts = const [];
-  var _alertLoading = false;
-
-  AreaEnvironmentService get _svc => widget.service;
-
   @override
-  void initState() {
-    super.initState();
-    _svc.addListener(_onSvc);
-    _loadCharts();
-    _loadAlerts();
-  }
-
+  void initState(){super.initState();widget.service.addListener(_onUpdate);}
   @override
-  void didUpdateWidget(covariant BoxSensorTab oldWidget) {
+  void didUpdateWidget(covariant BoxSensorTab oldWidget){
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.box.id != widget.box.id) {
-      _history.clear();
-      _chartSig = '';
-      _loadCharts();
-      _loadAlerts();
+    if(oldWidget.service!=widget.service){
+      oldWidget.service.removeListener(_onUpdate);widget.service.addListener(_onUpdate);
     }
   }
-
+  void _onUpdate(){if(mounted)setState((){});}
   @override
-  void dispose() {
-    _svc.removeListener(_onSvc);
-    super.dispose();
-  }
-
-  void _onSvc() {
-    if (!mounted) return;
-    setState(() {});
-    final sig = _slots().map((s) => s.metric?.sensorId ?? '').join('|');
-    if (sig.isNotEmpty && sig != _chartSig) {
-      _chartSig = sig;
-      _loadCharts();
-    }
-  }
-
-  String get _rangeKey {
-    if (_range == SensorTrendRange.custom && _custom != null) {
-      return 'custom-${_custom!.start.millisecondsSinceEpoch}-${_custom!.end.millisecondsSinceEpoch}';
-    }
-    return _range.name;
-  }
-
-  Future<void> _refresh() => _svc.refreshCurrent();
-
-  Future<void> _loadCharts() async {
-    final slots = _slots().where((s) => s.metric?.sensorId != null && s.metric!.sensorId!.isNotEmpty);
-    if (slots.isEmpty) {
-      setState(() {
-        _chartLoading = false;
-        _chartError = null;
-      });
-      return;
-    }
-    setState(() {
-      _chartLoading = true;
-      _chartError = null;
-    });
-    final now = DateTime.now();
-    final from = _range == SensorTrendRange.custom && _custom != null
-        ? _custom!.start
-        : now.subtract(_range.duration ?? const Duration(hours: 24));
-    final to = _range == SensorTrendRange.custom && _custom != null ? _custom!.end : now;
-    try {
-      for (final s in slots) {
-        final id = s.metric!.sensorId!;
-        final key = '$id|$_rangeKey';
-        if (_history.containsKey(key)) continue;
-        final pts = await _svc.fetchSensorHistory(id, from: from, to: to);
-        _history[key] = _downsample([
-          for (final p in pts) SensorHistoryPoint(p.at, _maybePh(s.key, p.value)),
-        ]);
-      }
-      if (mounted) setState(() => _chartLoading = false);
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _chartLoading = false;
-          _chartError = '$e';
-        });
-      }
-    }
-  }
-
-  Future<void> _loadAlerts() async {
-    setState(() => _alertLoading = true);
-    final rows = <SensorAlertRow>[];
-    try {
-      final raw = await _svc.fetchAlertHistory(farmingAreaId: widget.areaId);
-      for (final a in raw) {
-        final parsed = _alertFromJson(a);
-        if (parsed != null) rows.add(parsed);
-      }
-    } catch (_) {}
-    for (final a in widget.alerts) {
-      if (!_looksSensor(a.message) || a.occurredAt == null) continue;
-      rows.add(SensorAlertRow(
-        at: a.occurredAt!,
-        metric: _metricFromMessage(a.message),
-        valueText: '—',
-        threshold: '—',
-        status: a.statusLabel,
-      ));
-    }
-    rows.sort((a, b) => b.at.compareTo(a.at));
-    final seen = <String>{};
-    final uniq = <SensorAlertRow>[];
-    for (final r in rows) {
-      final k = '${r.at.millisecondsSinceEpoch}|${r.metric}|${r.valueText}';
-      if (seen.add(k)) uniq.add(r);
-    }
-    if (mounted) {
-      setState(() {
-        _sensorAlerts = uniq;
-        _alertLoading = false;
-      });
-    }
-  }
-
-  SensorAlertRow? _alertFromJson(Map<String, dynamic> a) {
-    final at = DateTime.tryParse((a['createdAt'] ?? a['CreatedAt'] ?? '').toString());
-    if (at == null) return null;
-    final type = (a['sensorType'] ?? a['SensorType'] ?? a['category'] ?? a['Category'] ?? '').toString();
-    final title = (a['title'] ?? a['Title'] ?? a['message'] ?? a['Message'] ?? '').toString();
-    if (!_looksSensor('$type $title')) return null;
-    final v = a['triggerValue'] ?? a['TriggerValue'];
-    final val = v is num ? v.toDouble() : double.tryParse('$v');
-    final tMin = a['thresholdMin'] ?? a['ThresholdMin'];
-    final tMax = a['thresholdMax'] ?? a['ThresholdMax'];
-    final mn = tMin is num ? tMin.toDouble() : double.tryParse('$tMin');
-    final mx = tMax is num ? tMax.toDouble() : double.tryParse('$tMax');
-    final slot = _slotForType(type.isEmpty ? title : type);
-    String threshold = '—';
-    if (mn != null && mx != null) {
-      threshold = '${_fmt(slot, mn)} – ${_fmt(slot, mx)}${slot.unit.isEmpty ? '' : ' ${slot.unit}'}';
-    } else if (mx != null) {
-      threshold = '> ${_fmt(slot, mx)}${slot.unit.isEmpty ? '' : ' ${slot.unit}'}';
-    } else if (mn != null) {
-      threshold = '< ${_fmt(slot, mn)}${slot.unit.isEmpty ? '' : ' ${slot.unit}'}';
-    }
-    return SensorAlertRow(
-      at: at.isUtc ? at.toLocal() : at,
-      metric: slot.label,
-      valueText: val == null ? '—' : '${_fmt(slot, val)}${slot.unit.isEmpty ? '' : ' ${slot.unit}'}',
-      threshold: threshold,
-      status: _alertStatus((a['status'] ?? a['Status'] ?? '').toString()),
-    );
-  }
-
-  bool _looksSensor(String raw) {
-    final s = raw.toLowerCase();
-    return s.contains('ph') ||
-        s.contains('tds') ||
-        s.contains('temp') ||
-        s.contains('nhiệt') ||
-        s.contains('do') ||
-        s.contains('oxy') ||
-        s.contains('salin') ||
-        s.contains('sensor') ||
-        s.contains('cảm biến') ||
-        s.contains('nước') ||
-        s.contains('water');
-  }
-
-  String _metricFromMessage(String msg) {
-    final s = msg.toLowerCase();
-    if (s.contains('ph')) return 'pH';
-    if (s.contains('tds')) return 'TDS';
-    if (s.contains('salin') || s.contains('mặn')) return 'Độ mặn';
-    if (s.contains('temp') || s.contains('nhiệt')) return 'Nhiệt độ';
-    if (s.contains('do') || s.contains('oxy')) return 'DO';
-    return 'Sensor';
-  }
-
-  String _alertStatus(String raw) {
-    final s = raw.toLowerCase();
-    return switch (s) {
-      'open' || 'active' => 'Đang mở',
-      'acknowledged' || 'ack' => 'Đã xác nhận',
-      'resolved' => 'Đã xử lý',
-      'recovered' => 'Đã khôi phục',
-      'closed' => 'Đã xử lý',
-      _ => raw.isEmpty ? 'Đang mở' : raw,
-    };
-  }
-
-  AreaEnvironmentMetric? _pick(bool Function(AreaEnvironmentMetric) test) {
-    for (final m in _svc.metrics) {
-      if (test(m)) return m;
-    }
-    return null;
-  }
-
-  List<SensorSlot> _slots() {
-    final ph = _pick((m) => (m.sensorType ?? m.label).toLowerCase().contains('ph'));
-    final sal = _pick((m) => (m.sensorType ?? m.label).toLowerCase().contains('salin'));
-    final tds = _pick((m) => (m.sensorType ?? m.label).toLowerCase().contains('tds'));
-    final temp = _pick((m) {
-      final t = (m.sensorType ?? m.label).toLowerCase();
-      return t.contains('temp') || t.contains('nhiệt');
-    });
-    final dox = _pick((m) {
-      final t = (m.sensorType ?? m.label).toLowerCase();
-      return t == 'do' || t.contains('oxygen') || t.contains('oxy');
-    });
-    return [
-      SensorSlot(
-        key: 'ph',
-        label: 'pH',
-        unit: '',
-        icon: Icons.science_outlined,
-        color: DashboardColors.brand,
-        decimals: 2,
-        min: ph?.minThreshold ?? 7.5,
-        max: ph?.maxThreshold ?? 8.5,
-        metric: ph,
-        thresholdText: '7.5 – 8.5',
-      ),
-      if (sal != null)
-        SensorSlot(
-          key: 'salinity',
-          label: 'Độ mặn',
-          unit: 'ppt',
-          icon: Icons.water_drop_outlined,
-          color: const Color(0xFF2495E8),
-          decimals: 1,
-          min: sal.minThreshold ?? 10,
-          max: sal.maxThreshold ?? 20,
-          metric: sal,
-          thresholdText: '${(sal.minThreshold ?? 10).toStringAsFixed(0)} – ${(sal.maxThreshold ?? 20).toStringAsFixed(0)} ppt',
-        )
-      else
-        SensorSlot(
-          key: 'tds',
-          label: 'TDS',
-          unit: 'ppm',
-          icon: Icons.grain_rounded,
-          color: const Color(0xFF2495E8),
-          decimals: 0,
-          min: null,
-          max: tds?.maxThreshold ?? 1000,
-          metric: tds,
-          thresholdText: '< 1,000 ppm',
-        ),
-      SensorSlot(
-        key: 'temp',
-        label: 'Nhiệt độ',
-        unit: '°C',
-        icon: Icons.thermostat_rounded,
-        color: const Color(0xFFF5B700),
-        decimals: 1,
-        min: temp?.minThreshold ?? 26,
-        max: temp?.maxThreshold ?? 30,
-        metric: temp,
-        thresholdText: '26 – 30 °C',
-      ),
-      SensorSlot(
-        key: 'do',
-        label: 'DO',
-        unit: 'mg/L',
-        icon: Icons.bubble_chart_outlined,
-        color: const Color(0xFF2495E8),
-        decimals: 1,
-        min: dox?.minThreshold ?? 5,
-        max: dox?.maxThreshold ?? 8,
-        metric: dox,
-        thresholdText: '5 – 8 mg/L',
-      ),
-    ];
-  }
-
-  SensorSlot _slotForType(String raw) {
-    final t = raw.toLowerCase();
-    for (final s in _slots()) {
-      if (t.contains(s.key) || t.contains(s.label.toLowerCase())) return s;
-    }
-    if (t.contains('ph')) return _slots().first;
-    return _slots().first;
-  }
-
-  double _maybePh(String key, double v) => key == 'ph' ? (sanitizePh(v) ?? v) : v;
-
-  String _fmt(SensorSlot s, double v) {
-    final n = s.key == 'ph' ? (sanitizePh(v) ?? v) : v;
-    return n.toStringAsFixed(s.decimals);
-  }
-
-  List<SensorHistoryPoint> _pointsFor(SensorSlot s) {
-    final id = s.metric?.sensorId;
-    if (id == null) return const [];
-    return _history['$id|$_rangeKey'] ?? const [];
-  }
-
-  List<SensorHistoryPoint> _downsample(List<SensorHistoryPoint> pts, {int max = 120}) {
-    if (pts.length <= max) return pts;
-    final step = pts.length / max;
-    final out = <SensorHistoryPoint>[];
-    for (var i = 0; i < max; i++) {
-      out.add(pts[(i * step).floor().clamp(0, pts.length - 1)]);
-    }
-    if (out.last.at != pts.last.at) out.add(pts.last);
-    return out;
-  }
-
-  Future<void> _pickCustom() async {
-    final now = DateTime.now();
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: now.subtract(const Duration(days: 180)),
-      lastDate: now,
-      initialDateRange: _custom ?? DateTimeRange(start: now.subtract(const Duration(days: 7)), end: now),
-    );
-    if (picked == null) return;
-    setState(() {
-      _range = SensorTrendRange.custom;
-      _custom = picked;
-    });
-    await _loadCharts();
-  }
-
-  Future<void> _setRange(SensorTrendRange r) async {
-    if (r == SensorTrendRange.custom) {
-      await _pickCustom();
-      return;
-    }
-    setState(() => _range = r);
-    await _loadCharts();
-  }
-
+  void dispose(){widget.service.removeListener(_onUpdate);super.dispose();}
   @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, c) {
-        final w = c.maxWidth;
-        final desktop = w >= 1100;
-        final tablet = w >= 760;
-        final slots = _slots();
-        final realtime = RealtimeSensorMetrics(
-          slots: slots,
-          loading: _svc.loading && _svc.metrics.isEmpty,
-          error: _svc.error,
-          updatedAt: _svc.data?.lastUpdatedAt ?? _svc.lastRefreshedAt,
-          stale: isSensorStale(_svc.data?.lastUpdatedAt ?? _svc.lastRefreshedAt),
-          onRefresh: _refresh,
-          onRetry: _refresh,
-          onCheckSource: widget.onOpenSource,
-        );
-        final status = SensorSystemStatus(
-          sensorStatus: _sensorOnline,
-          controllerStatus: widget.controllerStatus,
-          lastReceivedAt: _svc.data?.lastUpdatedAt ?? _svc.lastRefreshedAt,
-        );
-        final charts = SensorTrendSection(
-          range: _range,
-          custom: _custom,
-          slots: slots,
-          pointsOf: _pointsFor,
-          loading: _chartLoading,
-          error: _chartError,
-          onRange: _setRange,
-          onOpenDetail: widget.onOpenWaterAnalysis,
-        );
-        final alerts = RecentSensorAlerts(
-          rows: _sensorAlerts,
-          loading: _alertLoading || widget.alertsLoading,
-          onOpenAll: widget.onOpenAlerts,
-        );
-        final history = RecentSensorHistory(
-          rows: _historyRows(slots),
-          loading: _chartLoading,
-          onOpen: widget.onOpenWaterAnalysis,
-        );
-
-        return Column(
-          children: [
-            SensorSourceBanner(
-              boxCode: widget.box.boxCode,
-              areaName: widget.areaName,
-              areaCode: widget.areaCode,
-              inherited: _svc.data?.inheritedByBox ?? true,
-              sourceCode: _sourceCode,
-              sourceNote: _sourceNote,
-              onOpen: widget.onOpenSource,
-            ),
-            const SizedBox(height: 12),
-            if (desktop)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 76, child: realtime),
-                  const SizedBox(width: 12),
-                  Expanded(flex: 24, child: status),
-                ],
-              )
-            else if (tablet)
-              Column(children: [realtime, const SizedBox(height: 12), status])
-            else
-              Column(children: [realtime, const SizedBox(height: 12), status]),
-            const SizedBox(height: 12),
-            charts,
-            const SizedBox(height: 12),
-            if (desktop || tablet)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: alerts),
-                  const SizedBox(width: 12),
-                  Expanded(child: history),
-                ],
-              )
-            else
-              Column(children: [alerts, const SizedBox(height: 12), history]),
-          ],
-        );
-      },
-    );
-  }
-
-  String get _sourceCode {
-    for (final m in _svc.metrics) {
-      final c = (m.sensorCode ?? '').trim();
-      if (c.isNotEmpty) return c;
-    }
-    return '—';
-  }
-
-  String get _sourceNote {
-    if (widget.areaName.isNotEmpty || widget.areaCode.isNotEmpty) {
-      return 'Nước tuần hoàn chung khu';
-    }
-    return widget.rowLabel.isEmpty ? 'Nước tuần hoàn của khu vực.' : 'Nước tuần hoàn dãy ${widget.rowLabel}';
-  }
-
-  String get _sensorOnline {
-    if (_svc.error != null && _svc.metrics.isEmpty) return 'offline';
-    if (_svc.metrics.isEmpty) return 'offline';
-    if (isSensorStale(_svc.data?.lastUpdatedAt ?? _svc.lastRefreshedAt)) return 'degraded';
-    return 'online';
-  }
-
-  List<SensorHistoryRow> _historyRows(List<SensorSlot> slots) {
-    SensorSlot? of(String k) => slots.where((s) => s.key == k).firstOrNull;
-    final ph = _pointsFor(of('ph') ?? slots.first);
-    final tds = _pointsFor(of('tds') ?? of('salinity') ?? slots.first);
-    final temp = _pointsFor(of('temp') ?? slots.first);
-    final dox = _pointsFor(of('do') ?? slots.first);
-    final times = <DateTime>{
-      ...ph.map((e) => e.at),
-      ...tds.map((e) => e.at),
-      ...temp.map((e) => e.at),
-      ...dox.map((e) => e.at),
-    }.toList()
-      ..sort((a, b) => b.compareTo(a));
-    double? near(List<SensorHistoryPoint> pts, DateTime at) {
-      SensorHistoryPoint? best;
-      for (final p in pts) {
-        final d = p.at.difference(at).inSeconds.abs();
-        if (d > 15) continue;
-        if (best == null || d < best.at.difference(at).inSeconds.abs()) best = p;
-      }
-      return best?.value;
-    }
-
-    return [
-      for (final t in times.take(8))
-        SensorHistoryRow(
-          at: t,
-          ph: of('ph') == null ? null : near(ph, t),
-          tds: of('tds') == null && of('salinity') == null ? null : near(tds, t),
-          temp: of('temp') == null ? null : near(temp, t),
-          dox: of('do') == null ? null : near(dox, t),
-        ),
-    ];
+  Widget build(BuildContext context){
+    final data=widget.service.dataForBox(widget.areaId,widget.box.id);
+    return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      OverviewCard(icon:Icons.info_outline,title:'Môi trường RAS chung khu',
+        child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text('Hộp '+widget.box.boxCode+' · '+widget.areaName),
+          const Text('Tất cả hộp và dãy cùng khu dùng chung số liệu đại diện từ vòng tuần hoàn. Không đo riêng hộp.'),
+          Wrap(spacing:8,children:[
+            MgmtOutlineButton(icon:Icons.refresh,label:'Tải lại',onTap:widget.service.refreshCurrent),
+            if(widget.onOpenSource!=null)MgmtOutlineButton(label:'Nguồn',onTap:widget.onOpenSource),
+            if(widget.onOpenAlerts!=null)MgmtOutlineButton(label:'Cảnh báo',onTap:widget.onOpenAlerts),
+          ]),
+        ])),
+      const SizedBox(height:12),
+      if(widget.service.loading)const LinearProgressIndicator(),
+      if(widget.service.error!=null)Text(widget.service.error!),
+      QualifiedEnvironmentCards(metrics:data?.metrics ?? const []),
+      const SizedBox(height:12),
+      const Text('Lịch sử và CSV: dùng Giám sát thời gian thực, chọn cảm biến gốc. Không ghép phép đo theo hộp.'),
+      if(widget.onOpenWaterAnalysis!=null)MgmtOutlineButton(label:'Phân tích nước WaterBench',onTap:widget.onOpenWaterAnalysis),
+    ]);
   }
 }
 

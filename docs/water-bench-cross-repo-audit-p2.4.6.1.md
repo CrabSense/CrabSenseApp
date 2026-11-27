@@ -44,3 +44,6 @@ Main #193: 45 Desktop / 69 Mobile tests verified. Proposed explicit sensor histo
 
 ## Desktop history table/CSV — App main 9f12792
 Main #195 confirmed 48 Desktop / 69 Mobile tests. Proposed chart/table/native CSV from same validated scoped snapshot, 25-row pagination, exact wire timestamps and provenance, recheck revision after save dialog. Shared freshness watchdog; no legacy or browser export. Three additional tests in existing mandatory suite, CI pending. Native picker lifecycle and production JWT/browser/device smoke remain open, as do area/box, dashboard synthetic paths and FE audit.
+
+## Shared RAS area reference — App main acc5ebf
+User clarified one recirculating water loop per area; all rows/boxes use shared representative inlet/outlet measurements, not row/box-specific measurements. Keep observed location metadata in history, do not infer sample placement or copy records. New area/box projection shares qualified live decoder, explicit area context, distinct sensor IDs and freshness, no legacy local comparison/history or chemistry fallback. Three regression tests pending CI. Area heatmap, dashboard synthetic paths, Mobile row presentation and FE require alignment with shared RAS semantics. Multiple independent loops would require explicit water-system scope; production and physical verification remain open.

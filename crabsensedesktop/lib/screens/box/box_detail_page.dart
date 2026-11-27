@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import '../../models/box_alert.dart';
 import '../../models/production_models.dart';
+import '../../models/area_environment_metric.dart';
 import '../../navigation/app_route.dart';
 import '../../services/area_environment_service.dart';
 import '../../services/camera_device_service.dart';
@@ -105,7 +106,7 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
   @override
   void didUpdateWidget(covariant BoxDetailPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.box.id != widget.box.id) {
+    if (oldWidget.box.id != widget.box.id || oldWidget.areaId!=widget.areaId) {
       _box = widget.box;
       _reload();
     }
@@ -136,7 +137,7 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
   Future<void> _reload() async {
     setState(() => _pageError = null);
     widget.cameraService.loadCamerasByBox(_box.id);
-    widget.areaEnvironmentService.startLiveRefreshByBox(_box.id);
+    widget.areaEnvironmentService.startLiveRefreshByBox(_box.id,areaId:widget.areaId);
     final ctrl = widget.controllerService;
     if (ctrl != null && ctrl.items.isEmpty && !ctrl.loading) {
       ctrl.load();
@@ -279,9 +280,9 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
       if (seen.add(key)) items.add(e);
     }
 
-    final env = widget.areaEnvironmentService;
-    final envAt = env.data?.lastUpdatedAt ?? env.lastRefreshedAt;
-    if (env.metrics.isNotEmpty && envAt != null) {
+    final env = _boxEnvironment;
+    final envAt = env?.lastUpdatedAt;
+    if (env != null && env.metrics.isNotEmpty && envAt != null) {
       final parts = <String>[];
       for (final m in env.metrics.take(4)) {
         if (m.value == 0 && m.recordedAt == null) continue;
@@ -291,7 +292,7 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
       }
       add(BoxActivityItem(
         at: envAt.isUtc ? envAt.toLocal() : envAt,
-        title: 'Cập nhật số liệu môi trường',
+        title: 'Cập nhật tham chiếu nước chung khu',
         detail: parts.join('  ·  '),
         source: 'Sensor',
       ));
@@ -379,11 +380,12 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
 
   String get _areaCode => (widget.areaCode ?? _box.areaCode ?? '').trim();
 
+  AreaSensorLatestData? get _boxEnvironment => widget.areaEnvironmentService.dataForBox(widget.areaId,_box.id);
+
   String get _sensorStatus {
-    final env = widget.areaEnvironmentService;
-    if (env.error != null && env.metrics.isEmpty) return 'offline';
-    if (env.metrics.isEmpty) return 'offline';
-    if (isSensorStale(env.data?.lastUpdatedAt ?? env.lastRefreshedAt)) return 'degraded';
+    final metrics=_boxEnvironment?.metrics ?? const [];
+    if(metrics.isEmpty)return 'offline';
+    if(metrics.any((m)=>m.offline || m.isStale))return 'degraded';
     return 'online';
   }
 
@@ -395,20 +397,14 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
   }
 
   String? get _sensorSource {
-    for (final m in widget.areaEnvironmentService.metrics) {
+    for (final m in (_boxEnvironment?.metrics ?? const [])) {
       final code = (m.sensorCode ?? '').trim();
       if (code.isNotEmpty) return code;
     }
     return null;
   }
 
-  String get _sensorNote {
-    final row = _rowLabel;
-    if (widget.areaEnvironmentService.data?.inheritedByBox == true || widget.areaEnvironmentService.metrics.isNotEmpty) {
-      return row.isEmpty ? 'Nước tuần hoàn của khu vực.' : 'Nước tuần hoàn dãy $row';
-    }
-    return 'Nguồn cảm biến của hộp.';
-  }
+  String get _sensorNote => 'Nước tuần hoàn chung khu; không đo riêng hộp.';
 
   Future<void> _editBox() async {
     final prod = widget.productionService;
@@ -651,7 +647,7 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
                     box: _box,
                     areaCode: _areaCode,
                     rowLabel: _rowLabel,
-                    updatedAt: widget.areaEnvironmentService.lastRefreshedAt ?? _box.aiUpdatedAt,
+                    updatedAt: _boxEnvironment?.lastUpdatedAt ?? _box.aiUpdatedAt,
                   ),
                   const SizedBox(height: 8),
                   BoxDetailTabBar(controller: _tabs),
@@ -683,10 +679,10 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
           sensorStatus: _sensorStatus,
           camera: widget.cameraService.cameras.firstOrNull,
           cameraLoading: widget.cameraService.loading && widget.cameraService.cameras.isEmpty,
-          metrics: widget.areaEnvironmentService.metrics,
-          envLoading: widget.areaEnvironmentService.loading && widget.areaEnvironmentService.metrics.isEmpty,
+          metrics: (_boxEnvironment?.metrics ?? const []),
+          envLoading: widget.areaEnvironmentService.loading && (_boxEnvironment?.metrics ?? const []).isEmpty,
           envError: widget.areaEnvironmentService.error,
-          envUpdatedAt: widget.areaEnvironmentService.data?.lastUpdatedAt ?? widget.areaEnvironmentService.lastRefreshedAt,
+          envUpdatedAt: _boxEnvironment?.lastUpdatedAt,
           sensorSourceCode: _sensorSource,
           sensorSourceNote: _sensorNote,
           alerts: _alerts,
@@ -759,10 +755,10 @@ class _BoxDetailPageState extends State<BoxDetailPage> with SingleTickerProvider
           crabCode: _crab?.crabCode ?? _box.crabTag,
           cameraCode: widget.cameraService.cameras.firstOrNull?.cameraCode,
           sensorCodes: [
-            for (final m in widget.areaEnvironmentService.metrics)
+            for (final m in (_boxEnvironment?.metrics ?? const []))
               if ((m.sensorCode ?? '').trim().isNotEmpty) m.sensorCode!,
           ],
-          inheritedSensor: widget.areaEnvironmentService.data?.inheritedByBox ?? true,
+          inheritedSensor: _boxEnvironment?.inheritedByBox ?? true,
           onAlertsChanged: () {
             _loadAlerts();
             _loadActivity();
