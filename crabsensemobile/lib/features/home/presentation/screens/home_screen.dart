@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../app/routes.dart';
 import '../../../../core/errors/error_mapper.dart';
+import '../../../../core/di/injection.dart';
+import '../../../../core/network/network_info.dart';
+import '../../../../core/providers/selected_farm_provider.dart';
+import '../../../water_quality/data/repositories/scoped_history_service.dart';
 import '../providers/home_provider.dart';
 
 import '../widgets/home_header.dart';
@@ -46,6 +50,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final homeAsyncState = ref.watch(homeStateProvider);
+    final sharedArea = ref.watch(selectedFarmProvider).id;
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth >= 600;
 
@@ -251,6 +256,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         // Section B: Water Quality Overview
                         WaterQualityOverview(
                           metrics: data.waterMetrics,
+                          areaId: sharedArea ?? data.selectedFarmId,
+                          online: data.isOnline && !data.isOfflineCached &&
+                              (sharedArea == null || sharedArea == data.selectedFarmId),
+                          session: sl<ScopedHistoryService>(),
+                          network: sl<NetworkInfo>(),
                           onViewDetailsPressed: () {
                             final areaId = data.selectedFarmId;
                             if (areaId != null && areaId.isNotEmpty) {
