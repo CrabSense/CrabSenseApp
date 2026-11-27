@@ -19,6 +19,7 @@ class MockWaterQualityRepository implements WaterQualityRepository {
   Either<Failure, bool>? deviceStatusResult;
   Future<Either<Failure,List<WaterQuality>>> Function(String,String?)? onRead;
   final calls=<String>[];
+  final requestedPonds=<String?>[];
 
   @override
   Future<Either<Failure, List<WaterQuality>>> getCurrentReadings({
@@ -26,6 +27,7 @@ class MockWaterQualityRepository implements WaterQualityRepository {
     String? pondId,
   }) async {
     calls.add(farmId);
+    requestedPonds.add(pondId);
     if(onRead!=null) return onRead!(farmId,pondId);
     return readingsResult ??
         Right([
@@ -189,4 +191,33 @@ void main() {
     expect(mockRepo.calls,['farm-old','farm-new','farm-new','farm-new']);
     expect((bloc.state as WaterQualityLoaded).pondId,'row-new');
   });
+
+  test('RAS route from any row loads area reference, preserving source locations', () async {
+    WaterQuality reading(String id,String area,String? row,double value) =>
+      WaterQuality(id:id,sensorId:id,farmId:area,pondId:row,
+        temperature:null,ph:null,dissolvedOxygen:null,
+        salinity:value,timestamp:DateTime.now(),isAlertTriggered:false);
+    mockRepo.readingsResult=Right([
+      reading('inlet','area-a','row-1',0),
+      reading('outlet','area-a','row-2',18),
+      reading('common','area-a',null,20),
+      reading('wrong','area-b','row-1',99),
+    ]);
+    final bloc=buildBloc();
+    addTearDown(bloc.close);
+    Future<WaterQualityLoaded> load(WaterQualityEvent event) async {
+      final ready=bloc.stream.firstWhere((s)=>s is WaterQualityLoaded);
+      bloc.add(event);
+      return await ready as WaterQualityLoaded;
+    }
+    final first=await load(const WaterQualityLoadRequested(farmId:'area-a',pondId:'row-1'));
+    final second=await load(const WaterQualityFarmChanged(farmId:'area-a',pondId:'row-2'));
+    expect(mockRepo.calls,['area-a','area-a']);
+    expect(mockRepo.requestedPonds,[null,null]);
+    expect(first.readings.map((r)=>r.sensorId),['inlet','outlet','common']);
+    expect(second.readings,first.readings);
+    expect(second.readings.map((r)=>r.pondId),['row-1','row-2',null]);
+    expect(second.readings.first.salinity,0);
+  });
+
 }

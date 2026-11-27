@@ -96,7 +96,7 @@ class WaterQualityBloc extends Bloc<WaterQualityEvent, WaterQualityState> {
 
   // ── WaterQualityFarmChanged ────────────────────────────────────────────
 
-  /// Handles farm/pond selection changes.
+  /// Handles area changes; optional pond ID is navigation context only.
   ///
   /// Treats the change as a brand-new load for the new farmId/pondId
   /// (Requirement 8.9).
@@ -124,7 +124,8 @@ class WaterQualityBloc extends Bloc<WaterQualityEvent, WaterQualityState> {
     _inFlight = true;
     try {
       final result = await getCurrentReadings(
-        GetCurrentReadingsParams(farmId: farmId, pondId: pondId),
+        // Row/pond is navigation context, never a measurement filter for RAS.
+        GetCurrentReadingsParams(farmId: farmId),
       );
       if (!_current(generation,emit)) return;
       await result.fold(
@@ -134,8 +135,7 @@ class WaterQualityBloc extends Bloc<WaterQualityEvent, WaterQualityState> {
         },
         (readings) async {
           final scoped = readings.where((r)=>
-            (farmId=='default'||farmId.isEmpty||r.farmId==farmId) &&
-            (pondId==null||r.pondId==pondId)).toList();
+            (farmId=='default'||farmId.isEmpty||r.farmId==farmId)).toList();
           bool? deviceOnline;
           if (scoped.isNotEmpty && scoped.first.sensorId.isNotEmpty) {
             final statusResult = await repository.checkDeviceStatus(sensorId:scoped.first.sensorId);

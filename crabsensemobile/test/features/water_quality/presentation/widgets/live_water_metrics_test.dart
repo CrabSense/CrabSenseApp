@@ -1,3 +1,5 @@
+import 'package:crabsensemobile/features/water_quality/presentation/models/farm_filter_model.dart';
+import 'package:crabsensemobile/features/water_quality/presentation/widgets/farm_pond_filter_widget.dart';
 import 'package:crabsensemobile/features/water_quality/data/datasources/water_quality_remote_data_source.dart';
 import 'package:crabsensemobile/features/water_quality/domain/entities/water_quality.dart';
 import 'package:crabsensemobile/features/water_quality/presentation/widgets/live_water_metrics.dart';
@@ -85,4 +87,17 @@ void main() {
     expect(find.byKey(const ValueKey('live-sensor-s1')),findsNothing);
     expect(find.text('0 ppt'),findsNothing);
   });
+
+  testWidgets('shared RAS filter offers area only, no row or pond choice', (tester) async {
+    await tester.pumpWidget(MaterialApp(home:Scaffold(body:FarmPondFilterWidget(
+      farms:const [FarmOption(id:'a',name:'Khu A',ponds:[PondOption(id:'r1',name:'Dãy 1')])],
+      selectedFarmId:'a',selectedPondId:'r1',areaOnly:true,
+      onSelectionChanged:(_,__) {},
+    ))));
+    expect(find.text('KHU NUÔI'),findsOneWidget);
+    expect(find.text('DÃY / AO'),findsNothing);
+    expect(find.text('Dãy 1'),findsNothing);
+    expect(find.byType(DropdownButton<String>),findsOneWidget);
+  });
+
 }
