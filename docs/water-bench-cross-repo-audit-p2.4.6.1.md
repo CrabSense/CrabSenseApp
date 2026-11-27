@@ -10,3 +10,22 @@ Findings:
 - P1 security: FE npm reports 19 vulnerabilities (9 moderate/10 high); inspect audit dependency paths before remediation, do not blanket force update.
 - P1 hardware: legacy firmware PR #1 remains open; v2 integration doc explicitly says not to merge legacy code. No hardware flash or chemical validation in this audit.
 - P2 full schema/migration, UART traffic, AI production geometry, Drive privacy, cancellation, stale reads, device test and all remaining legacy code paths require subsequent audit/test. No claim of complete P2.4.6.1 acceptance until refreshed CI and review.
+
+## Refreshed evidence — 2026-11-27 (App main c23e5b8)
+
+| Repository | Verified main SHA | Evidence / boundary |
+|---|---|---|
+| Firmware | b552498695bb12c8267768d58b0759e73c36a10c | Historical P0/P1 software evidence; no flash or physical acceptance |
+| BE | 40464ce34de8384383ff14f7243dc069625f7ebe | Main CI #425 / VPS #226 previously verified; HTTP/PostgreSQL scoped history, test auth rather than real JWT |
+| Kiosk | 3fc897caa558d5186139d2452f3a7b5f3eb4e912 | Main #76 previously verified, exact BE pin |
+| Private Water AI | 2c63944d2717819ba247b24e66d5fdc6a8e62e67 | Main CI #33/private cross #9 previously verified; synthetic fixtures, geometry disabled |
+| FE | 0e1178d93d4689647fb172580d915ad21e713096 | Previous Chromium/deploy evidence; npm audit remediation still open |
+| App | c23e5b81fa9d79ee3933d052a2db90891753f0d4 | Main #185/Pages #80/Mobile #62/Desktop #64 PASS; 57 Mobile tests executed |
+
+- T01–T03: exact pins refreshed, BE scoped history and App measured chart merged. No production JWT or physical sensor proof.
+- T04: SQLite v4 migration, scope, session, expiry and fail-closed offline behavior tested. Offline reading is deliberately NOT enabled. Device/browser lifecycle smoke remains open.
+- T05: HTTP adapter/credential regression gate added in next App PR; current metrics/status/threshold source and actual authenticated smoke remain open.
+- T06: FE dependency audit/review remains open; old count is not a fresh npm audit.
+- T07–T12: real JWT 4-role PostgreSQL diagnostics; geometry and private media; cross-platform receipt/review; legacy firmware; security/recovery; physical tests remain separate outstanding acceptance items. No complete P2.4.6.1 sign-off.
+
+HTTP gate: actual ApiClient and interceptors with an isolated Dio adapter; exact URI/query/asOf, pinned bearer, no retry/refresh on 401/403, reject redirect, no sensitive debug logging, invalid envelope. No network/real JWT in this test. Review new CI before merge.
