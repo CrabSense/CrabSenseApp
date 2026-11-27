@@ -1,0 +1,171 @@
+# CrabSense — Nhật ký triển khai WaterBench
+
+**Cập nhật:** 27/11/2026 (UTC+7) · **Mốc hiện tại:** P2.4.6.1  
+**Phạm vi:** hardware-water-quality-analysis, CrabSenseKiosk, CrabSenseBE, CrabSenseAIWaterQualityAnalysis, CrabSenseFE, CrabSenseApp.  
+**Nguồn:** nội dung cuộc trao đổi hiện có, PR/commit/workflow GitHub đã đối chiếu ngày 27/11/2026. Các giai đoạn trước phần lịch sử hội thoại còn truy xuất được được ghi ở mức tổng hợp, không khẳng định đã tái dựng đầy đủ từng thao tác. Các kết quả CI lịch sử không thay thế nghiệm thu thiết bị thật.
+
+## 1. Mục tiêu và nguyên tắc
+
+- Hệ thống phân tích nước RAS cho cua lột: NO2 (Sera), NO3 (VASTOCEAN), NH3/NH4 (Thủy Phước). Định kỳ ba kênh song song; thủ công theo kênh hoặc cả ba.
+- Luồng: ESP32 Master/Slave → Kiosk nhận/lưu biên nhận và ảnh riêng tư → BE/PostgreSQL → Water AI → Farm Admin đối chứng, xét duyệt và công bố → Manager Desktop, Staff Mobile đọc kết quả. System Admin Web chỉ giám sát kỹ thuật.
+- Không đồng nhất kết quả AI ước tính, hồ sơ đối chứng đã công bố, và phép đo cảm biến production. Không tự động ghi kết quả AI vào WaterMeasurement, không tự phát lệnh xử lý nước.
+- Phân biệt thiếu dữ liệu với số 0 thật; không tạo timestamp, ảnh, số đo giả; không suy ra đơn vị hóa học, trạng thái trực tuyến hoặc hoàn tất vật lý từ biên nhận.
+- Giữ phạm vi dữ liệu theo role/khu nuôi; không nới quyền để làm CI PASS.
+- Mỗi PR một Conventional Commit; không force-push main. Chỉ merge khi CI cần thiết đã PASS đúng head SHA; kiểm tra CI main/deployment sau merge.
+- Không chuyển sang P3 trước khi hoàn tất toàn bộ P2.4.6; chemical accuracy, cleaning, sample alignment, physical execution và chạy liên tục cần nghiệm thu thật.
+
+## 2. Trạng thái lộ trình
+
+| Mốc | Phạm vi | Trạng thái tại lần kiểm tra này |
+|---|---|---|
+| P0 | Firmware, liên kết Master/Slave | PASS theo nghiệm thu phần mềm trước đó; thiết bị thật chưa nghiệm thu |
+| P1 | Xả/rửa và an toàn firmware | PASS theo nghiệm thu phần mềm trước đó; chưa xác minh vật lý |
+| P2.1 | Kiosk đồng bộ cấu hình, bằng chứng | Đã triển khai |
+| P2.2 | BE/DB và khôi phục an toàn | Đã triển khai |
+| P2.3 | AI và tích hợp liên repo | PASS CI, cập nhật pin theo main đang hoàn tất |
+| P2.4.1 | Nền tảng API | PASS CI/CD |
+| P2.4.2 | Farm Admin Web | PASS CI/CD |
+| P2.4.3 | Farm Manager Desktop | PASS CI/CD |
+| P2.4.4 | Farm Staff Mobile | PASS CI/CD |
+| P2.4.5 | System Admin Web | PASS CI/CD |
+| P2.4.6.1 | Rà soát hợp đồng, DB, repo | ĐANG LÀM — lịch sử/cached dữ liệu thật và bảo mật chưa hoàn tất |
+| P2.4.6.2 | JWT thật và phân quyền bốn role | CHƯA NGHIỆM THU |
+| P2.4.6.3 | Hardware–Kiosk–BE–AI | CHƯA NGHIỆM THU toàn diện; CI mô phỏng đã có |
+| P2.4.6.4 | Đồng bộ kết quả Web/Desktop/Mobile | CHƯA NGHIỆM THU xuyên nền tảng |
+| P2.4.6.5 | Mất kết nối/retry/khôi phục | CHƯA NGHIỆM THU toàn diện; CI có kịch bản hồi phục |
+| P2.4.6.6 | Bảo mật và nghiệm thu CI/CD | CHƯA LÀM |
+| P3.1–P3.4 | Thiết bị thật, hiệu chuẩn, đối chứng, vận hành liên tục | CHƯA LÀM |
+
+## 3. Nhật ký theo thứ tự triển khai
+
+### 01 — Nền tảng firmware, Kiosk, BE, AI (bối cảnh trước P2.4)
+- Firmware v2: nhận diện station/boot/batch/session/capture, sự kiện biên nhận, xử lý theo kênh; tài liệu v2-integration/v2-gateway. Firmware main rà soát: b552498. Legacy PR #1 không được tự merge theo tài liệu v2.
+- Kiosk: cấu hình lịch/trạm, spool bằng chứng, đồng bộ idempotent, mất phản hồi và gửi lại không upload trùng. [Kiosk #27](https://github.com/CrabSense/CrabSenseKiosk/pull/27), head 150f9d5 → main ceb194a; CI #71/#72 PASS.
+- Water AI: mô hình hiệu chuẩn đơn điệu, QC ảnh/ROI, truy vết calibration/media, NH3 equilibrium và bảng tra Thủy Phước. [AI #5](https://github.com/CrabSense/CrabSenseAIWaterQualityAnalysis/pull/5) → main 51de29a; Water AI CI #20/#21 và Private Cross Integration #1/#2 PASS. CI dùng dữ liệu tổng hợp, chưa phải độ chính xác hóa học.
+- Không có đủ chi tiết để tái dựng mọi commit P0–P2.3; đọc tài liệu và lịch sử Git của từng repo khi cần.
+
+### 02 — P2.4.1: Hoàn thiện Backend cho quản trị phân tích
+- [BE #108](https://github.com/CrabSense/CrabSenseBE/pull/108), 75bcab4 → 5954075, 1 commit, merge 27/11.
+- Thêm lưu RequestJson cho retry bền vững (migration 20261127080000_WaterBenchRetryRequest), endpoint retry-request, danh sách độ mặn hợp lệ và ảnh camera riêng tư; xét duyệt độc lập và công bố hồ sơ đối chứng.
+- Phạm vi FarmManage và khu nuôi, hash/idempotency, khóa session; kết quả công bố không được tự đưa vào sensor production.
+- [CI #416](https://github.com/CrabSense/CrabSenseBE/actions/runs/45956436011), [main #417](https://github.com/CrabSense/CrabSenseBE/actions/runs/45956898440), [VPS #223](https://github.com/CrabSense/CrabSenseBE/actions/runs/45957368251) PASS. Chưa kiểm tra migration production trực tiếp.
+
+### 03 — P2.4.2: Farm Admin Web
+- API/media picker, ROI trực quan, bộ chọn độ mặn, khôi phục request retry, duyệt/công bố. Gate role FarmAdministrator; dữ liệu theo khu.
+- [FE #29](https://github.com/CrabSense/CrabSenseFE/pull/29): Chromium #4 lỗi ammonia payload not submitted; tách refresh station/batch, giữ identity và nội dung form khi response calibration đến muộn, validate ammonia payload rõ ràng.
+- Head ban đầu a9c0e8e → bản sửa b603c52 → main 5c7ba9c. 1 commit. Sonar #131/#132, [Chromium #5](https://github.com/CrabSense/CrabSenseFE/actions/runs/45961559086), Pages #119/#120 PASS. Workflow deploy bắt buộc browser test.
+- Chromium kiểm thử API giả lập; chưa thay thế smoke production.
+
+### 04 — P2.4.3: Farm Manager Desktop
+- [App #37](https://github.com/CrabSense/CrabSenseApp/pull/37), 5ea91b5 → main 283a24c; một commit.
+- Theo dõi trạm/lịch, danh sách 50 batch, biên nhận, timeline, NO2/NO3/NH3, AI/retry/review và đối chứng đã công bố; đọc theo khu được cấp, refresh 30 giây, không có thao tác quản trị.
+- Sonar #147/#148, Desktop Hosted #48/#49, Desktop Local #24, App Pages #52/#53, Mobile Hosted #35 PASS theo các lần kiểm tra trước.
+- Kiểm thử liên nền tảng thật còn lại P2.4.6.
+
+### 05 — P2.4.4: Farm Staff Mobile
+- [App #38](https://github.com/CrabSense/CrabSenseApp/pull/38): trang Phân tích nước read-only, danh sách khu theo BE, identity batch nghiêm ngặt, dữ liệu cũ/chưa có, yêu cầu đo lại, kết quả đối chứng.
+- Commit 873e656: Sonar #149 FAIL do test import tương đối ../../../lib trùng định danh User/UserRole với package imports. Lỗi getter canUseMobile và incompatible User.
+- Sửa sang package:crabsensemobile/, giữ nguyên quyền; thêm widget test deep-link sai khu, revoked area, stale/retest, publication và nút trái quyền. Commit cedf802 → main ae93674, một commit.
+- [Sonar #150](https://github.com/CrabSense/CrabSenseApp/actions/runs/45966759649), Mobile #37, main Sonar #151, Mobile #38, Desktop #50, Pages #55/#56 PASS. Log báo 36 test Mobile PASS, gồm 5 WaterBench mới.
+- Chưa nghiệm thu trên thiết bị thật.
+
+### 06 — P2.4.5: System Admin Web
+- [BE #109](https://github.com/CrabSense/CrabSenseBE/pull/109), 121b467 → main 14ccffd; một commit. GET /api/system/water-bench/stations phân trang, platform-only, chỉ metadata Kiosk/ESP32/config, biên nhận kỹ thuật, camera/clock và bộ đếm AI 24h. Không payload/ảnh/nồng độ/khóa/điều khiển; không migration.
+- [CI #418](https://github.com/CrabSense/CrabSenseBE/actions/runs/45967322827), main #419, [VPS #224](https://github.com/CrabSense/CrabSenseBE/actions/runs/45968218436) PASS.
+- [FE #30](https://github.com/CrabSense/CrabSenseFE/pull/30): /system/water-bench, danh sách trạm, freshness, lịch sử lỗi, phân trang, refresh 30 giây. FE draft chờ BE. Head b74fc5f: Chromium #6 FAIL do test mong /login trong khi guard chuyển System Admin về /system.
+- Sửa test chuyển hướng /system và /dashboard, đo số request trái quyền bằng 0, giữ phiên đăng nhập, chụp đúng trang lỗi. Head 40d6ab8 → main 0e1178d, một commit.
+- Sonar #133/#134/#135, Build #121/#122, [Chromium #7](https://github.com/CrabSense/CrabSenseFE/actions/runs/45969632724), [Deploy Web #123](https://github.com/CrabSense/CrabSenseFE/actions/runs/45969931825) PASS.
+- System Admin chỉ kỹ thuật. Số lỗi 24h không đồng nghĩa sự cố đang mở; biên nhận gần đây không chứng minh phần cứng hoạt động.
+
+### 07 — P2.4.6.1: Rà soát sáu repo và xử lý drift CI/biểu đồ giả
+- Baseline: firmware b552498, Kiosk ceb194a, BE 14ccffd, AI 51de29a, FE 0e1178d, App ae93674. Main CI riêng lẻ PASS nhưng chưa đảm bảo tương thích.
+- [Kiosk #28](https://github.com/CrabSense/CrabSenseKiosk/pull/28), 8947507 → main 65b781d. Pin BE từ a9d62d0 lên 14ccffd. [Sonar #73](https://github.com/CrabSense/CrabSenseKiosk/actions/runs/45971603978), [main #74](https://github.com/CrabSense/CrabSenseKiosk/actions/runs/45971972536) PASS.
+- [AI #6](https://github.com/CrabSense/CrabSenseAIWaterQualityAnalysis/pull/6), ban đầu 576534d: cập nhật Kiosk/BE, Water AI CI #23 PASS nhưng [Private Cross Integration #3](https://github.com/CrabSense/CrabSenseAIWaterQualityAnalysis/actions/runs/45971633941) FAIL HTTP 502 tại NH3/ammonia-reference equilibrium, dòng 435 test tích hợp. Xử lý ở mục 08.
+- [App #39](https://github.com/CrabSense/CrabSenseApp/pull/39), 150ea36 → main 575f5cf. Xóa _mockChartHistory sinh sin/cos, tạm hiển thị thông báo lịch sử chưa xác minh; chặn response metrics cũ. Sonar #152/#153, Mobile #39/#40, Pages #57/#58, Desktop #51 PASS.
+- Audit phát hiện thêm thiếu/zero, race BLoC, cache không đủ provenance, history chưa bảo toàn quality/units/pagination, 19 cảnh báo npm (10 high/9 moderate tại log cũ), chưa test JWT thật, geometry QC của fixture tích hợp chưa bắt buộc. Chi tiết: docs/water-bench-cross-repo-audit-p2.4.6.1.md.
+
+### 08 — P2.4.6.1: Sửa NH3 HTTP 502
+- Nguyên nhân xác nhận qua tích hợp: .NET tick 100ns, Python datetime microsecond; BE trước đây đòi echo timestamp nguyên bản tuyệt đối. Sửa tại ranh giới wire, chuẩn UTC microsecond, giữ nguyên timestamp evidence gốc và kiểm tra echo chính xác. Không đổi công thức hóa học/DB/phân quyền.
+- [BE #110](https://github.com/CrabSense/CrabSenseBE/pull/110), 3a24a73 → main 59ce2c5; một commit. Bổ sung test TAN-N, NH4, printed_table và tamper timestamp. [CI #420](https://github.com/CrabSense/CrabSenseBE/actions/runs/45972569075), [main #421](https://github.com/CrabSense/CrabSenseBE/actions/runs/45973297739), [VPS #225](https://github.com/CrabSense/CrabSenseBE/actions/runs/45973758294) PASS.
+- AI #6 sửa pin Kiosk main 65b781d và BE candidate 3a24a73; fixture bắt buộc chữ số phần giây thứ 7, assert evidence gốc. Head b85f379 → main 18ae0de; Water AI #24/#25/#26, [Private Cross #4](https://github.com/CrabSense/CrabSenseAIWaterQualityAnalysis/actions/runs/45972646433) và [main #5](https://github.com/CrabSense/CrabSenseAIWaterQualityAnalysis/actions/runs/45973263596) PASS.
+- BE candidate và main cùng tree 7c8679ab7f52563f9c841563c1b4955f0d727eaf. [AI #7](https://github.com/CrabSense/CrabSenseAIWaterQualityAnalysis/pull/7), f918915: pin chính xác BE main 59ce2c5. [Water AI #28](https://github.com/CrabSense/CrabSenseAIWaterQualityAnalysis/actions/runs/45974908159) và [Private Cross #6](https://github.com/CrabSense/CrabSenseAIWaterQualityAnalysis/actions/runs/45974908026) PASS. PR #7 còn OPEN tại lần kiểm tra tạo nhật ký; chưa merge trong lượt này.
+
+### 09 — P2.4.6.1: Model dữ liệu cảm biến và request Mobile
+- [App #40](https://github.com/CrabSense/CrabSenseApp/pull/40), 091ecff → bản cuối 89e97f1 → main 83e7eec; 1 commit, 12 file.
+- Chuyển WaterQuality sang nullable, giữ zero thật, bỏ giá trị thiếu/sai/nonfinite và timestamp giả; live per-sensor với Realtime, đơn vị và khu/dãy. Không trộn snapshot nhiều cảm biến; giữ WaterBench độc lập với lab cũ.
+- BLoC generation mới nhất thắng, bỏ refresh chồng, retry giữ khu/dãy; chặn response cũ, không dùng Home summary sai phạm vi; không suy diễn toàn khu online từ một sensor. Ngưỡng mặc định ghi rõ tham khảo.
+- Tạm vô hiệu hóa lịch sử và SQLite cache legacy để tránh mất presence/provenance. Đây là biện pháp an toàn tạm thời, chưa hoàn thiện chart và offline; chưa migration.
+- Test missing vs zero, sai đơn vị/khu/dãy, request cũ, retry. [Sonar #155](https://github.com/CrabSense/CrabSenseApp/actions/runs/45975358393), [Mobile #42](https://github.com/CrabSense/CrabSenseApp/actions/runs/45975358401), [Pages #60](https://github.com/CrabSense/CrabSenseApp/actions/runs/45975358363) PASS. PR đã merge. [Sonar main #156](https://github.com/CrabSense/CrabSenseApp/actions/runs/45975788829) PASS.
+- Main [Pages #61](https://github.com/CrabSense/CrabSenseApp/actions/runs/45975788695), [Desktop #52](https://github.com/CrabSense/CrabSenseApp/actions/runs/45975788644), [Mobile #43](https://github.com/CrabSense/CrabSenseApp/actions/runs/45975788676) IN_PROGRESS lúc kiểm tra. Chưa nghiệm thu UI production.
+- Tài liệu chi tiết: docs/water-quality-mobile-data-integrity-p2.4.6.1.md.
+
+### 10 — Khởi tạo nhật ký chung (27/11/2026)
+- Đối chiếu PR/commit/main/workflow và ghi lại các mốc ở trên theo yêu cầu người dùng.
+- Không thay đổi chức năng trong lượt lập nhật ký; không merge AI #7 trong lượt này.
+- File này là nhật ký duy nhất cần cập nhật xuyên suốt. Các tài liệu kỹ thuật chuyên biệt cũ giữ nguyên làm bằng chứng bổ trợ.
+
+## 4. Bảng phân quyền mục tiêu
+
+| Chức năng | System Admin Web | Farm Admin Web | Manager Desktop | Staff Mobile |
+|---|---|---|---|---|
+| Giám sát kỹ thuật toàn hệ thống | Có | Không | Không | Không |
+| Đọc WaterBench nghiệp vụ theo khu | Không | Có | Có | Có |
+| Cấu hình trạm/lịch, hiệu chuẩn, retry | Không | Có | Không | Không |
+| Xét duyệt, công bố đối chứng | Không | Có | Không | Không |
+| Xem hồ sơ đối chứng đã công bố | Không | Có | Có | Có |
+| Tự động đưa estimate vào cảm biến production/điều khiển nước | Không | Không | Không | Không |
+
+Đây là quyền mục tiêu theo thiết kế và mã đã kiểm tra. Cần xác nhận thật bằng JWT và API/DB, kể cả truy cập khu ngoài phạm vi và thu hồi quyền, trong P2.4.6.2.
+
+## 5. Snapshot mã nguồn và các việc còn lại
+
+| Repo | Main mới nhất ghi nhận | Ghi chú |
+|---|---|---|
+| hardware-water-quality-analysis | b552498 | Mốc audit; chưa flash/test thật |
+| CrabSenseKiosk | 65b781d | Main CI #74 PASS; pin BE còn 14ccffd, cần cập nhật pin sau khi ổn định |
+| CrabSenseBE | 59ce2c5 | CI #421 / VPS #225 PASS |
+| CrabSenseAIWaterQualityAnalysis | 18ae0de | PR #7 f918915 PASS nhưng OPEN |
+| CrabSenseFE | 0e1178d | Main deployment #123 PASS |
+| CrabSenseApp | 83e7eec | Sonar #156 PASS; các deployment main đang chạy tại snapshot |
+
+| Mã | Ưu tiên | Việc còn lại | Điều kiện hoàn thành |
+|---|---|---|---|
+| T01 | P0 | Kiểm tra AI #7, merge khi đủ CI, xác nhận main integration | Exact BE main pin, CI PASS |
+| T02 | P0 | Kiểm tra App main #61/#52/#43 | Tất cả PASS đúng main |
+| T03 | P1 | Thiết kế history per-sensor có unit, quality, timestamp, area/row, pagination; không lấy missing làm 0 | BE contract + tests + UI chart thật |
+| T04 | P1 | Cache offline nullable, có user/area scope, invalidation khi logout/revoke, retention/migration | Kiểm thử offline và isolation; phục hồi chart/cache an toàn |
+| T05 | P1 | Kiểm tra toàn bộ current metric UI, status/threshold/unit, dữ liệu stale và scope; bổ sung production smoke | Không label sai hoặc hiển thị số liệu ngoài quyền |
+| T06 | P1 | 19 npm vulnerabilities theo log trước (cần audit lại) | Phân loại direct/transitive/dev/runtime, sửa an toàn, CI PASS |
+| T07 | P1 | Kiểm thử PostgreSQL technical diagnostics, JWT bốn role | P2.4.6.2; 401/403 và scoped access |
+| T08 | P1 | Geometry QC bắt buộc với fixture phù hợp; kiểm tra private media/Drive | P2.4.6.3 |
+| T09 | P1 | Cùng batch/receipt/estimate/review trên ba nền tảng, retry/cancellation/stale | P2.4.6.4–5 |
+| T10 | P2 | Kiểm tra firmware legacy PR #1; không merge vội; rà migration và hợp đồng còn lại | Không đưa code legacy vào v2 |
+| T11 | P2 | Tổng kiểm thử bảo mật, CI/CD và quy trình test thực tế | P2.4.6.6 |
+| T12 | P3 | Thiết bị thật, UART, đo chuẩn, mẫu thật, vệ sinh, vận hành lâu dài | Chỉ sau P2.4.6 PASS |
+
+**Việc kế tiếp:** xác nhận T01/T02; tiếp tục T03/T04 và hoàn thiện P2.4.6.1. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
+
+## 6. Quy định cập nhật file sau mỗi lượt
+
+Đọc file này trước khi bắt đầu mọi đợt kiểm tra/sửa/triển khai WaterBench. Sau khi thực hiện xong trong lượt đó:
+1. Append một mục mới ở phần 7, kể cả lượt chỉ kiểm tra CI không sửa code. Không xóa lịch sử hay ghi đè kết quả cũ; sửa sai bằng mục đính chính.
+2. Ghi ngày giờ theo UTC+7 nếu đã xác minh; mốc, yêu cầu, repo, file/API/DB đã đổi, PR và head SHA, main SHA, CI run links/kết quả đúng SHA, merge/deploy, test thực tế và vấn đề còn tồn tại.
+3. Cập nhật snapshot và bảng trạng thái/công việc còn lại ở phần 2 và 5. Phân biệt CODED, CI PASS, MERGED, DEPLOYED, PRODUCTION VERIFIED và PHYSICAL VERIFIED.
+4. Một Conventional Commit cho mỗi PR; nếu làm App trong cùng đợt, ưu tiên đưa nhật ký vào cùng commit. Nếu chỉ repo khác thay đổi, cập nhật nhật ký bằng một commit docs riêng trên App, không thêm nhiều commit vụn.
+5. Không ghi secrets, token, dữ liệu ảnh riêng tư, URL chứa credential hoặc dữ liệu người dùng. Không claim CI/deploy/test nếu chưa thấy kết quả.
+6. Trước khi kết thúc lượt trả lời, cung cấp link file và ghi rõ mục mới. Nếu không thể cập nhật GitHub, nói rõ blocker; không tự nhận đã lưu.
+7. Quy trình áp dụng cho các lượt tiếp theo khi người dùng yêu cầu triển khai/kiểm tra; không có tác vụ chạy tự động ngoài lượt chat.
+
+## 7. Nhật ký bổ sung (append-only)
+
+### Mẫu cho mỗi lượt tiếp theo
+- Thời điểm:
+- Mốc / yêu cầu:
+- Kết quả rà soát:
+- Thay đổi code/API/DB (hoặc không thay đổi):
+- Repository / PR / commit / main:
+- CI và deployment (link + trạng thái):
+- Test đã làm và giới hạn:
+- Quyết định kỹ thuật, lỗi còn lại:
+- Việc tiếp theo:
+
