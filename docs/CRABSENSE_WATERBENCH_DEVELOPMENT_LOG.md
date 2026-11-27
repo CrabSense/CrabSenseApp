@@ -123,16 +123,16 @@
 |---|---|---|
 | hardware-water-quality-analysis | b552498 | Mốc audit; chưa flash/test thật |
 | CrabSenseKiosk | 65b781d | Main CI #74 PASS; pin BE còn 14ccffd, cần cập nhật pin sau khi ổn định |
-| CrabSenseBE | 59ce2c5 | CI #421 / VPS #225 PASS |
-| CrabSenseAIWaterQualityAnalysis | 18ae0de | PR #7 f918915 PASS nhưng OPEN |
+| CrabSenseBE | 59ce2c5 | CI #421 / VPS #225 PASS; PR #111 lịch sử scoped đang chạy CI |
+| CrabSenseAIWaterQualityAnalysis | 43931ea | PR #7 merged; AI CI #29 PASS; private cross #7 đang chạy |
 | CrabSenseFE | 0e1178d | Main deployment #123 PASS |
-| CrabSenseApp | 83e7eec | Sonar #156 PASS; các deployment main đang chạy tại snapshot |
+| CrabSenseApp | 149f7be | App #40 deployment PASS; nhật ký #41 merged, main Pages #62 đang chạy |
 
 | Mã | Ưu tiên | Việc còn lại | Điều kiện hoàn thành |
 |---|---|---|---|
-| T01 | P0 | Kiểm tra AI #7, merge khi đủ CI, xác nhận main integration | Exact BE main pin, CI PASS |
-| T02 | P0 | Kiểm tra App main #61/#52/#43 | Tất cả PASS đúng main |
-| T03 | P1 | Thiết kế history per-sensor có unit, quality, timestamp, area/row, pagination; không lấy missing làm 0 | BE contract + tests + UI chart thật |
+| T01 | P0 | AI #7 đã merge; chờ main private cross #7 | Exact BE main pin, main CI PASS |
+| T02 | P0 | DONE: App main #61/#52/#43 và Sonar #156 PASS | Tất cả PASS đúng main 83e7eec |
+| T03 | P0 | BE #111 đã code API scoped history + migration; chờ CI/PostgreSQL/deployment, sau đó App | BE contract + tests + UI chart thật |
 | T04 | P1 | Cache offline nullable, có user/area scope, invalidation khi logout/revoke, retention/migration | Kiểm thử offline và isolation; phục hồi chart/cache an toàn |
 | T05 | P1 | Kiểm tra toàn bộ current metric UI, status/threshold/unit, dữ liệu stale và scope; bổ sung production smoke | Không label sai hoặc hiển thị số liệu ngoài quyền |
 | T06 | P1 | 19 npm vulnerabilities theo log trước (cần audit lại) | Phân loại direct/transitive/dev/runtime, sửa an toàn, CI PASS |
@@ -143,7 +143,7 @@
 | T11 | P2 | Tổng kiểm thử bảo mật, CI/CD và quy trình test thực tế | P2.4.6.6 |
 | T12 | P3 | Thiết bị thật, UART, đo chuẩn, mẫu thật, vệ sinh, vận hành lâu dài | Chỉ sau P2.4.6 PASS |
 
-**Việc kế tiếp:** xác nhận T01/T02; tiếp tục T03/T04 và hoàn thiện P2.4.6.1. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
+**Việc kế tiếp:** kiểm tra BE #111, AI main private cross #7, nhật ký App main; chỉ merge BE khi đủ CI và xem xét migration PostgreSQL; rồi T03/T04 (App). Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
 
 ## 6. Quy định cập nhật file sau mỗi lượt
 
@@ -169,3 +169,14 @@
 - Quyết định kỹ thuật, lỗi còn lại:
 - Việc tiếp theo:
 
+
+### 11 — P2.4.6.1.1–6.1.4: Nhật ký main, AI main, API lịch sử scoped (27/11/2026)
+- Đọc file nhật ký trước khi làm. [App #41](https://github.com/CrabSense/CrabSenseApp/pull/41) head 08d81b0, Sonar #157 PASS, squash merge main 149f7be28a2efc83b93efddaf9b464195b6ac71f trong lượt này. Main Sonar #158, Mobile #44, Desktop #53 PASS; Pages #62 (45977077389) đang chạy lúc ghi.
+- [AI #7](https://github.com/CrabSense/CrabSenseAIWaterQualityAnalysis/pull/7) head f918915, Water AI #27/#28 và private cross #6 PASS đúng BE main 59ce2c5; squash merge main 43931eab49f36968511d37572e64421fdc964de6. [AI main #29](https://github.com/CrabSense/CrabSenseAIWaterQualityAnalysis/actions/runs/45977092768) PASS; [Private Cross main #7](https://github.com/CrabSense/CrabSenseAIWaterQualityAnalysis/actions/runs/45977092771) đang chạy.
+- App #40 main 83e7eec: Sonar #156, Pages #61, Mobile #43, Desktop #52 đều PASS (deployment workflow, không phải kiểm thử người dùng production).
+- Rà soát BE: /api/iot/history tạo aggregate snapshot thiếu presence/quality; /api/iot/sensor-data/{sensorId} thiếu chất lượng và phạm vi đo lịch sử. WaterMeasurement chỉ lưu SensorId/WaterSystemId, không đủ chứng minh khu/dãy lịch sử khi thiết bị chuyển vị trí.
+- Tạo [BE #111](https://github.com/CrabSense/CrabSenseBE/pull/111), head 232fc3bc71555d76d34a3e755d00bf01efb42538, 1 commit feat(iot): add provenance-scoped sensor history contract, 9 file. [CI #422](https://github.com/CrabSense/CrabSenseBE/actions/runs/45977407173) đang chạy; chưa merge hoặc deploy.
+- API GET /api/areas/{areaId}/sensors/{sensorId}/history: FarmPortal + DB assignment, scope khu/dãy/cảm biến hiện tại không mâu thuẫn; chỉ đọc dữ liệu lưu đúng scope tại ingest, Realtime, type và unit khớp, timestamp thực, zero giữ nguyên. Range [from,to) tối đa 31 ngày, 500 rows/page, asOf bắt buộc từ page 2. Không lộ raw edge event ID, không đưa AI estimate vào history, no-store. Offset pagination có cutoff, không bảo đảm transaction snapshot; client cần dedup/reload nếu không nhất quán.
+- Migration 20261127100000_ScopedSensorHistory thêm nullable ObservedAreaId, ObservedRowId, ObservedSensorType và index lọc; không backfill/đổi dữ liệu cũ. Chỉ stamp authenticated fresh ingest có timestamp rõ, unit tường minh, cấu hình scope không mâu thuẫn. Không khẳng định vị trí vật lý hoặc độ chính xác hiệu chuẩn. Dữ liệu cũ thiếu provenance không được đưa vào API mới; biểu đồ có thể rỗng cho đến khi có telemetry mới đủ điều kiện. Ingest thêm lookup cấu hình khi có liên kết row/system/component; cần test tải và tương thích. Index có thể cần kiểm tra lock/time trên bảng production lớn.
+- Test mới InMemory: farm-only route, zero thật, sai khu/dãy/unit/quality, loại legacy, page/hasMore, không lộ ID edge, chuyển row không gán dữ liệu cũ, System Admin bị từ chối và scope cấu hình mâu thuẫn. Chưa xác nhận test PASS, chưa có test PostgreSQL migration/ingest thực cho PR #111. Cần rà thêm race relocation và query plan. Không thay đổi API legacy/FE/App/Kiosk/AI chức năng trong đợt này; chart/cache Mobile vẫn unavailable.
+- Tiếp theo: kiểm tra BE CI #422, AI main cross #7 và App Pages #62; bổ sung kiểm thử PostgreSQL/ingest & migration trước merge BE, sau đó App cache nullable có scope và biểu đồ thật. Không chuyển P2.4.6.2/P3.
