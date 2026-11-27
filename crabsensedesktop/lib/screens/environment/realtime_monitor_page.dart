@@ -119,26 +119,15 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
     if (r == null) return _Fresh.notConfigured;
     if (r.measuredAt == null) return _Fresh.noSignal;
     final age = DateTime.now().difference(r.measuredAt!.toLocal());
-    if (!_controllerOnline) return _Fresh.stale;
+    if (r.offline || r.receivedAt == null || !_svc.cloudLive) return _Fresh.stale;
+    if (DateTime.now().difference(r.receivedAt!) > _kDelayed) return _Fresh.stale;
     if (age <= _kLive) return _Fresh.live;
     if (age <= _kDelayed) return _Fresh.delayed;
     return _Fresh.stale;
   }
 
-  int get _liveCount => [
-        WaterSensorType.temperature,
-        WaterSensorType.ph,
-        WaterSensorType.tds,
-      ].where((t) => _freshOf(_svc.readingOf(t)) == _Fresh.live).length;
-
-  int get _sensorTotal {
-    final n = [
-      _svc.readingOf(WaterSensorType.temperature),
-      _svc.readingOf(WaterSensorType.ph),
-      _svc.readingOf(WaterSensorType.tds),
-    ].whereType<WaterSensorReading>().length;
-    return n == 0 ? 3 : n;
-  }
+  int get _liveCount => _svc.readings.where((r) => _freshOf(r) == _Fresh.live).length;
+  int get _sensorTotal => _svc.readings.length;
 
   List<FarmAlert> get _relatedAlerts {
     final code = (_svc.deviceFilter ?? _svc.deviceCode ?? '').toLowerCase();
@@ -362,7 +351,6 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
 
   Widget _sensorCards() {
     if (_svc.readings.isEmpty && !_svc.isLoading) {
-      final never = _svc.lastRealtimeAt == null;
       return Container(
         padding: const EdgeInsets.all(22),
         decoration: mgmtCardDeco(radius: 16),
@@ -371,7 +359,7 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
             Icon(Icons.sensors_off, color: DashboardColors.textMuted, size: 32),
             const SizedBox(height: 8),
             Text(
-              never ? 'Controller chưa có Sensor.' : 'Chưa nhận được dữ liệu từ sensor.',
+              'Chưa có phép đo đủ điều kiện hiển thị.',
               style: bvText(fontWeight: FontWeight.w800, color: DashboardColors.textPrimary),
             ),
             const SizedBox(height: 8),
@@ -383,26 +371,24 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
         ),
       );
     }
-    final types = _svc.sensorGroup == 'other'
-        ? _svc.readings.map((r) => r.type).toList()
-        : const [WaterSensorType.temperature, WaterSensorType.ph, WaterSensorType.tds];
+    final items = _svc.readings;
     return LayoutBuilder(
       builder: (context, c) {
-        final cols = c.maxWidth > 900 ? (types.length.clamp(1, 3)) : (c.maxWidth > 560 ? 2 : 1);
+        final cols = c.maxWidth > 900 ? (items.length.clamp(1, 3)) : (c.maxWidth > 560 ? 2 : 1);
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: types.length,
+          itemCount: items.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: cols,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 1.85,
+            mainAxisExtent: 230,
           ),
           itemBuilder: (_, i) => _SensorCard(
-            type: types[i],
-            reading: _svc.readingOf(types[i]),
-            fresh: _freshOf(_svc.readingOf(types[i])),
+            type: items[i].type,
+            reading: items[i],
+            fresh: _freshOf(items[i]),
             controllerOnline: _controllerOnline,
           ),
         );
@@ -473,7 +459,7 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
               _stat('THẤP NHẤT', _fmt(metric, minV)),
               _stat('TRUNG BÌNH', _fmt(metric, avg)),
               _stat('CAO NHẤT', _fmt(metric, maxV)),
-              _stat('NGOÀI NGƯỠNG', '$over lần'),
+              _stat('NGOÀI NGƯỠNG', points.isEmpty ? '—' : '$over lần'),
             ],
           ),
           const SizedBox(height: 12),
@@ -489,11 +475,7 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
                         color: metric?.accent ?? DashboardColors.brand,
                         minTh: _svc.showThreshold ? lo : null,
                         maxTh: _svc.showThreshold ? hi : null,
-                        unit: metric == WaterSensorType.temperature
-                            ? '°C'
-                            : metric == WaterSensorType.tds
-                                ? 'ppt'
-                                : '',
+                        unit: reading?.unit ?? '',
                       ),
           ),
           const SizedBox(height: 8),
@@ -513,42 +495,10 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
     );
   }
 
-  Widget _chartEmpty() {
-    final had = _svc.lastRealtimeAt != null;
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            had
-                ? 'Không có dữ liệu trong ${_svc.chartRangeLabel} gần đây'
-                : 'Sensor chưa ghi nhận dữ liệu.',
-            style: bvText(fontWeight: FontWeight.w800, color: DashboardColors.textPrimary),
-            textAlign: TextAlign.center,
-          ),
-          if (had) ...[
-            const SizedBox(height: 4),
-            Text(
-              '${_svc.deviceFilter ?? _svc.deviceCode ?? 'Controller'} đã mất kết nối từ ${_svc.lastUpdateClock}.',
-              style: bvText(color: DashboardColors.textMuted),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              children: [
-                MgmtOutlineButton(label: 'Xem 24 giờ', onTap: () => _svc.setChartRangeIndex(2)),
-                MgmtOutlineButton(
-                  label: 'Kiểm tra Controller',
-                  onTap: () => widget.onNavigate?.call(AppRoute.controllers),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
+  Widget _chartEmpty() => Center(
+    child: Text('Tạm khóa biểu đồ lịch sử đến khi API scoped được nghiệm thu.',
+      style: bvText(color: DashboardColors.textMuted), textAlign: TextAlign.center),
+  );
 
   Widget _recentTable() {
     final rows = _svc.recentRows;
@@ -566,7 +516,7 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
           ),
           const SizedBox(height: 10),
           if (rows.isEmpty)
-            Text('Chưa có mẫu trong 1 giờ gần đây.', style: bvText(color: DashboardColors.textMuted))
+            Text('Tạm khóa lịch sử chưa xác minh phạm vi; chưa hỗ trợ xuất CSV.', style: bvText(color: DashboardColors.textMuted))
           else
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -891,7 +841,7 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
     if (v == null || t == null) return '—';
     if (t == WaterSensorType.temperature) return '${v.toStringAsFixed(1)}°C';
     if (t == WaterSensorType.ph) return v.toStringAsFixed(2);
-    if (t == WaterSensorType.tds) return '${v.toStringAsFixed(2)} ppt';
+    if (t == WaterSensorType.tds) return '${v.toStringAsFixed(2)} ${_svc.readingOf(t)?.unit ?? ''}';
     return v.toStringAsFixed(1);
   }
 
@@ -935,17 +885,16 @@ class _SensorCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = reading;
-    final out = r != null &&
-        r.threshold.min != null &&
-        r.threshold.max != null &&
-        (r.value < r.threshold.min! || r.value > r.threshold.max!);
+    final out = r?.status == WaterSensorStatus.exceeded;
+    final configured = r?.threshold.min != null || r?.threshold.max != null;
     final (badge, color) = switch (fresh) {
       _Fresh.live when out => ('Vượt ngưỡng', _kRed),
-      _Fresh.live => ('Bình thường', DashboardColors.brand),
+      _Fresh.live when !configured => ('Chưa có ngưỡng', _kAmber),
+      _Fresh.live => ('Trong ngưỡng cấu hình', DashboardColors.brand),
       _Fresh.delayed => ('Dữ liệu chậm', _kAmber),
       _Fresh.stale => ('Dữ liệu cũ', _kAmber),
       _Fresh.noSignal => ('Mất tín hiệu', _kRed),
-      _Fresh.notConfigured => ('Chưa cấu hình', _kSlate),
+      _Fresh.notConfigured => ('Chưa xác minh', _kSlate),
     };
     final staleLook = fresh == _Fresh.stale || fresh == _Fresh.delayed || !controllerOnline;
     return Container(
@@ -958,7 +907,7 @@ class _SensorCard extends StatelessWidget {
             children: [
               Icon(type.icon, size: 18, color: out ? _kRed : DashboardColors.brand),
               const SizedBox(width: 6),
-              Expanded(child: Text(type.label, style: bvText(fontWeight: FontWeight.w800, color: DashboardColors.textPrimary))),
+              Expanded(child: Text('${type.label} · ${r?.sensorCode ?? '—'}', style: bvText(fontWeight: FontWeight.w800, color: DashboardColors.textPrimary))),
               MgmtStatusBadge(label: badge, color: color),
             ],
           ),
@@ -977,27 +926,21 @@ class _SensorCard extends StatelessWidget {
             ),
           ],
           const Spacer(),
-          if (r?.threshold.min != null && r?.threshold.max != null)
-            Text('Ngưỡng: ${_range(type, r!.threshold.min!, r.threshold.max!)}', style: bvText(fontSize: 12, color: DashboardColors.textMuted)),
+          Text('Ngưỡng: ${r?.threshold.goodRangeLabel ?? 'Chưa cấu hình'}', style: bvText(fontSize: 12, color: DashboardColors.textMuted)),
+          if (r != null) Text('Đo: ${fmtDateTimeVn(r.measuredAt)} · Nhận: ${fmtDateTimeVn(r.receivedAt)}', style: bvText(fontSize: 11, color: DashboardColors.textMuted)),
           Text(
             switch (fresh) {
               _Fresh.live => 'Cập nhật: ${_ago(r?.measuredAt)}',
               _Fresh.delayed => 'Cập nhật: ${_ago(r?.measuredAt)}',
-              _Fresh.stale => 'Nhận lúc: ${r?.measuredAt == null ? '—' : fmtDateTimeVn(r!.measuredAt)} · ${_ago(r?.measuredAt)}${controllerOnline ? '' : '\nNguyên nhân: Controller mất kết nối'}',
+              _Fresh.stale => 'Đo lúc: ${r?.measuredAt == null ? '—' : fmtDateTimeVn(r!.measuredAt)} · ${_ago(r?.measuredAt)}${controllerOnline ? '' : '\nNguyên nhân: Controller mất kết nối'}',
               _Fresh.noSignal => 'Chưa nhận được dữ liệu từ sensor.',
-              _Fresh.notConfigured => 'Sensor chưa được gắn trên Controller.',
+              _Fresh.notConfigured => 'Chưa có phép đo hợp lệ.',
             },
             style: bvText(fontSize: 11.5, color: DashboardColors.textMuted, height: 1.35),
           ),
         ],
       ),
     );
-  }
-
-  String _range(WaterSensorType t, double min, double max) {
-    if (t == WaterSensorType.temperature) return '${min.toStringAsFixed(0)} – ${max.toStringAsFixed(0)}°C';
-    if (t == WaterSensorType.tds) return '${min.toStringAsFixed(1)} – ${max.toStringAsFixed(1)} ppt';
-    return '${min.toStringAsFixed(1)} – ${max.toStringAsFixed(1)}';
   }
 
   String _ago(DateTime? at) {

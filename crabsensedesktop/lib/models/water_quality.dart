@@ -136,6 +136,8 @@ class WaterSensorReading {
     this.deviceCode,
     this.deviceStatus,
     this.measuredAt,
+    this.receivedAt,
+    this.sensorCode,
   });
 
   final WaterSensorType type;
@@ -150,6 +152,8 @@ class WaterSensorReading {
   final String? deviceCode;
   final String? deviceStatus;
   final DateTime? measuredAt;
+  final DateTime? receivedAt;
+  final String? sensorCode;
 
   double? get delta =>
       previousValue == null ? null : value - previousValue!;
