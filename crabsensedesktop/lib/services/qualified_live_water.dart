@@ -67,7 +67,11 @@ List<WaterSensorReading> decodeQualifiedDesktopLive(
       threshold:SensorThreshold(goodRangeLabel:range,min:min,max:max),
       offline:offline,sensorId:id,sensorCode:row['sensorCode']?.toString() ?? id,
       location:row['locationName']?.toString(),deviceCode:row['deviceCode']?.toString(),
-      deviceStatus:row['deviceStatus']?.toString(),measuredAt:at,receivedAt:received));
+      deviceStatus:row['deviceStatus']?.toString(),measuredAt:at,receivedAt:received,
+      observedRowId:row['farmingRowId'] is String ? row['farmingRowId'] as String : null,
+      wireSensorType:row['sensorType']?.toString(),wireUnit:unit is String ? unit : null,
+      historyScopeKnown:row.containsKey('farmingRowId') &&
+          (row['farmingRowId']==null || row['farmingRowId'] is String)));
   }
   final counts = <String,int>{};
   for (final r in out) { counts[r.sensorId!] = (counts[r.sensorId!] ?? 0)+1; }

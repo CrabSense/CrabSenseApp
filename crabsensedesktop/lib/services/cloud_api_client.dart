@@ -1153,6 +1153,33 @@ class CloudApiClient {
   }) =>
       _getDataList(token, '/api/iot/live', farmingAreaId: farmingAreaId);
 
+  /// Scoped history: explicit bearer, exact success envelope, no retry or redirect.
+  Future<Map<String,dynamic>> fetchScopedHistoryPage(String token, {
+    required String areaId, required String sensorId, String? rowId,
+    required DateTime from, required DateTime to, required int page,
+    String? asOf,
+  }) async {
+    final uri = Uri.parse('$_base/api/areas/$areaId/sensors/$sensorId/history')
+        .replace(queryParameters: {
+      'from':from.toIso8601String(),'to':to.toIso8601String(),
+      if (rowId != null) 'farmingRowId':rowId,
+      'page':'$page','pageSize':'250',if(asOf != null) 'asOf':asOf,
+    });
+    final request = http.Request('GET',uri)
+      ..followRedirects = false
+      ..headers.addAll(authHeaders(token,farmId:areaId));
+    final response = await _client.send(request).then(http.Response.fromStream)
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200) {
+      throw CloudApiException('Không thể xác minh lịch sử.',statusCode:response.statusCode);
+    }
+    final body = _decode(response);
+    if (body['success'] != true || body['data'] is! Map<String,dynamic>) {
+      throw const FormatException('Invalid scoped history envelope');
+    }
+    return body['data'] as Map<String,dynamic>;
+  }
+
   /// CrabSenseBE `GET /api/iot/sensor-data/{sensorId}`
   Future<List<Map<String, dynamic>>> fetchSensorHistory(
     String token, {

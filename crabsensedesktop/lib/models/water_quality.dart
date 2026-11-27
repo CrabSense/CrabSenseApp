@@ -138,6 +138,10 @@ class WaterSensorReading {
     this.measuredAt,
     this.receivedAt,
     this.sensorCode,
+    this.observedRowId,
+    this.wireSensorType,
+    this.wireUnit,
+    this.historyScopeKnown = false,
   });
 
   final WaterSensorType type;
@@ -154,6 +158,10 @@ class WaterSensorReading {
   final DateTime? measuredAt;
   final DateTime? receivedAt;
   final String? sensorCode;
+  final String? observedRowId;
+  final String? wireSensorType;
+  final String? wireUnit;
+  final bool historyScopeKnown;
 
   double? get delta =>
       previousValue == null ? null : value - previousValue!;
