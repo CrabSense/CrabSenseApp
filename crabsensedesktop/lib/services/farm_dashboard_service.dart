@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../models/auth_models.dart';
+import '../models/water_quality.dart';
+import 'qualified_live_water.dart';
 import '../models/dashboard_ui.dart';
 import '../models/farm_dashboard_overview.dart';
 import '../services/dashboard_env_trend_service.dart';
@@ -35,6 +37,22 @@ class FarmDashboardService extends ChangeNotifier {
   int _liveTicks = 0;
   List<EnvParameter> _liveEnvParams = const [];
   final List<double> _liveDoSeries = [];
+  List<WaterSensorReading> _qualified = const [];
+  DateTime? _qualifiedAt;
+  String? _qualifiedArea;
+  int _pollGeneration=0;
+  bool _pollBusy=false;
+
+  List<WaterSensorReading> qualifiedReadingsFor(String area) {
+    final age=_qualifiedAt==null ? null : DateTime.now().difference(_qualifiedAt!);
+    return area.isNotEmpty && area==farmId && area==_qualifiedArea && age!=null &&
+        !age.isNegative && age<const Duration(seconds:15) ? List.unmodifiable(_qualified) : const [];
+  }
+
+  void _clearQualified() {
+    _qualified=const [];_qualifiedAt=null;_qualifiedArea=null;
+    lastSensorAt=null;_liveEnvParams=const [];_liveDoSeries.clear();
+  }
 
   String get token => _session.token;
   String get farmId => _session.selectedFarm.id;
@@ -95,48 +113,43 @@ class FarmDashboardService extends ChangeNotifier {
     _liveTimer?.cancel();
     _liveTimer = null;
     _liveTicks = 0;
+    ++_pollGeneration;_pollBusy=false;_clearQualified();
   }
 
   Future<void> _pollSensors({bool silent = true}) async {
+    if(_pollBusy)return;
+    final generation=_pollGeneration,area=farmId,bearer=token;
+    if(area.isEmpty || area=='default' || bearer.isEmpty){_clearQualified();return;}
+    _pollBusy=true;
+    bool current()=>generation==_pollGeneration && area==farmId && bearer==token;
     try {
-      final live = await _api.fetchIotLive(token, farmingAreaId: farmId);
-      if (live.isEmpty) return;
-
-      _liveEnvParams = FarmDashboardOverview.envFromLive(live)
-          .map(mapEnvParam)
-          .toList();
-      DateTime? latest;
-      for (final row in live) {
-        final raw = row['latestMeasuredAt'] ?? row['LatestMeasuredAt'];
-        final dt = raw == null ? null : DateTime.tryParse(raw.toString());
-        if (dt != null && (latest == null || dt.isAfter(latest))) latest = dt;
+      final live=await _api.fetchIotLive(bearer,farmingAreaId:area).timeout(const Duration(seconds:10));
+      if(!current())return;
+      _qualified=decodeQualifiedDesktopLive(live,areaId:area,now:DateTime.now().toUtc());
+      _qualifiedAt=DateTime.now();_qualifiedArea=area;
+      lastSensorAt=null;
+      for(final r in _qualified){
+        if(lastSensorAt==null || r.measuredAt!.isAfter(lastSensorAt!))lastSensorAt=r.measuredAt;
       }
-      lastSensorAt = latest ?? DateTime.now();
-
-      double? doVal;
-      for (final row in live) {
-        final type = (row['sensorType'] ?? '').toString().toLowerCase();
-        if (type.contains('do') || type.contains('oxy')) {
-          doVal = (row['latestValue'] as num?)?.toDouble();
-          break;
-        }
-      }
-      if (doVal != null) {
-        _liveDoSeries.add(doVal);
-        while (_liveDoSeries.length > 12) {
-          _liveDoSeries.removeAt(0);
-        }
-      }
-
+      // Legacy status widget cannot express unknown as green: use warning
+      // unless a current configured limit explicitly qualifies the value.
+      _liveEnvParams=[
+        for(final r in _qualified)
+          EnvParameter(icon:r.type.icon,label:r.type.label+' · '+(r.sensorCode??r.sensorId??'—'),
+            value:(r.value==0?'0':r.value.toString())+' '+r.unit,
+            status:r.status==WaterSensorStatus.normal ? ParamStatus.good : ParamStatus.warning),
+      ];
       notifyListeners();
-    } catch (e) {
-      if (e is CloudApiException && e.statusCode == 401) {
-        // Token hết hạn: dừng poll, nếu không Timer sẽ gọi 401 mãi mãi.
-        error = 'Phiên đăng nhập hết hạn';
-        stopLiveRefresh();
-      } else if (!silent) {
-        rethrow;
+    } catch(e) {
+      if(!current())return;
+      _clearQualified();
+      if(e is CloudApiException && e.statusCode==401){
+        error='Phiên đăng nhập hết hạn';stopLiveRefresh();
       }
+      notifyListeners();
+      if(!silent)rethrow;
+    } finally {
+      if(current())_pollBusy=false;
     }
   }
 
@@ -188,11 +201,7 @@ class FarmDashboardService extends ChangeNotifier {
       : _emptyStatusSegments;
 
   List<EnvParameter> get environmentParams =>
-      _liveEnvParams.isNotEmpty
-          ? _liveEnvParams
-          : (hasApiData && overview!.environmentParams.isNotEmpty
-              ? overview!.environmentParams.map(mapEnvParam).toList()
-              : const []);
+      qualifiedReadingsFor(farmId).isNotEmpty ? _liveEnvParams : const [];
 
   List<AlertItem> get alerts => hasApiData && overview!.alerts.isNotEmpty
       ? overview!.alerts.map(mapAlert).toList()

@@ -40,12 +40,7 @@ class _ChartsSectionState extends State<ChartsSection> {
   FarmDashboardService get svc => widget.dashboardService;
   bool get fromApiLive => svc.envTrend.isLiveApi;
 
-  List<double> get _doData {
-    if (svc.liveDoSeries.isNotEmpty) return svc.liveDoSeries;
-    final charts = svc.charts;
-    if (charts != null && charts.do24h.isNotEmpty) return charts.do24h;
-    return const [];
-  }
+  List<double> get _doData => const []; // No unqualified combined DO trend.
 
   List<double> get _growthData {
     final charts = svc.charts;

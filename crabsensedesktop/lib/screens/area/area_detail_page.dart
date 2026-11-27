@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../models/camera_device.dart';
+import '../../models/area_environment_metric.dart';
+import '../../widgets/environment/qualified_environment_cards.dart';
 import '../../models/production_models.dart';
 import '../../models/row_list_item.dart';
 import '../../navigation/app_route.dart';
@@ -78,7 +80,7 @@ class AreaDetailPage extends StatefulWidget {
   State<AreaDetailPage> createState() => _AreaDetailPageState();
 }
 
-class _AreaDetailPageState extends State<AreaDetailPage> {
+class _AreaDetailPageState extends State<AreaDetailPage> with WidgetsBindingObserver {
   final _api = CloudApiClient();
   final _rowSearch = TextEditingController();
 
@@ -90,23 +92,35 @@ class _AreaDetailPageState extends State<AreaDetailPage> {
   String? _error;
 
   // Sơ đồ nhiệt / camera / lịch sử (tải nền, không chặn trang).
-  List<Map<String, dynamic>> _live = const [];
+  List<AreaEnvironmentMetric> _live = const [];
+  DateTime? _liveVerifiedAt;
+  String? _liveArea, _liveToken;
+  bool _liveBusy=false, _foreground=false;
+  int _liveGeneration=0;
   List<CameraDevice> _cameras = const [];
   int _camIndex = 0;
   Timer? _liveTimer;
-  String _heatMetric = 'temp';
 
   String get _token => widget.service.token;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    final life=WidgetsBinding.instance.lifecycleState;
+    _foreground=life==null || life==AppLifecycleState.resumed;
     _load();
-    _liveTimer = Timer.periodic(const Duration(seconds: 15), (_) => _loadLive());
+    _liveTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if(!mounted)return;
+      setState((){});
+      if(_foreground && !_liveBusy)unawaited(_loadLive());
+    });
   }
 
   @override
   void dispose() {
+    ++_liveGeneration;
+    WidgetsBinding.instance.removeObserver(this);
     _liveTimer?.cancel();
     widget.rasFlowService.stopLiveRefresh(notify: false);
     _rowSearch.dispose();
@@ -138,11 +152,49 @@ class _AreaDetailPageState extends State<AreaDetailPage> {
     }
   }
 
+  void _clearLive() {
+    ++_liveGeneration;_liveBusy=false;_live=const [];
+    _liveVerifiedAt=null;_liveArea=null;_liveToken=null;
+  }
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if(!mounted)return;
+    setState((){_foreground=state==AppLifecycleState.resumed;_clearLive();});
+    if(_foreground)unawaited(_loadLive());
+  }
+  @override
+  void didUpdateWidget(covariant AreaDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if(oldWidget.areaId!=widget.areaId || oldWidget.service!=widget.service) {
+      _clearLive();
+      if(_foreground)unawaited(_loadLive());
+    }
+  }
+
   Future<void> _loadLive() async {
+    if(!_foreground || _liveBusy || widget.areaId.isEmpty || _token.isEmpty)return;
+    final generation=++_liveGeneration;
+    final area=widget.areaId,token=_token;
+    _liveBusy=true;
+    bool current()=>mounted && _foreground && generation==_liveGeneration &&
+        area==widget.areaId && token==_token;
     try {
-      final live = await _api.fetchIotLive(_token, farmingAreaId: widget.areaId);
-      if (mounted) setState(() => _live = live);
-    } catch (_) {}
+      final live=await _api.fetchIotLive(token,farmingAreaId:area).timeout(const Duration(seconds:10));
+      if(current())setState((){
+        _live=AreaSensorLatestData.fromIotLive(areaId:area,live:live).metrics;
+        _liveVerifiedAt=DateTime.now();_liveArea=area;_liveToken=token;
+      });
+    } catch (_) {
+      if(current())setState(_clearLive);
+    } finally {
+      if(mounted && generation==_liveGeneration)_liveBusy=false;
+    }
+  }
+
+  List<AreaEnvironmentMetric> get _visibleLive {
+    final age=_liveVerifiedAt==null ? null : DateTime.now().difference(_liveVerifiedAt!);
+    return _foreground && _liveArea==widget.areaId && _liveToken==_token &&
+        age!=null && !age.isNegative && age<const Duration(seconds:15) ? _live : const [];
   }
 
   Future<void> _addCamera() async {
@@ -471,12 +523,10 @@ class _AreaDetailPageState extends State<AreaDetailPage> {
           const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, c) {
-              final heat = _HeatmapCard(
+              final heat = _SharedRasCard(
                 areaName: d.areaName,
-                rows: _rows,
-                live: _live,
-                metric: _heatMetric,
-                onMetric: (m) => setState(() => _heatMetric = m),
+                rowCount: _rows.length,
+                metrics: _visibleLive,
               );
               final cam = _CameraCard(
                 areaName: d.areaName,
@@ -1200,203 +1250,24 @@ class _IconBtn extends StatelessWidget {
 
 // ── Sơ đồ nhiệt ────────────────────────────────────────────────────────────
 
-class _HeatmapCard extends StatelessWidget {
-  const _HeatmapCard({
-    required this.areaName,
-    required this.rows,
-    required this.live,
-    required this.metric,
-    required this.onMetric,
-  });
-
+class _SharedRasCard extends StatelessWidget {
+  const _SharedRasCard({required this.areaName,required this.rowCount,required this.metrics});
   final String areaName;
-  final List<RowRecord> rows;
-  final List<Map<String, dynamic>> live;
-  final String metric;
-  final ValueChanged<String> onMetric;
-
-  static const _metrics = <(String, String, String, double, double)>[
-    // key, label, unit, scaleMin, scaleMax
-    ('temp', 'Nhiệt độ (°C)', '°C', 20, 32),
-    ('ph', 'pH', '', 6.5, 9),
-    ('do', 'Oxy hòa tan (mg/L)', 'mg/L', 3, 9),
-    ('salin', 'Độ mặn (‰)', '‰', 5, 35),
-  ];
-
-  (String, String, String, double, double) get _m =>
-      _metrics.firstWhere((e) => e.$1 == metric, orElse: () => _metrics.first);
-
-  /// Sensor phù hợp metric: theo sensorType.
-  bool _matches(Map<String, dynamic> s) {
-    final t = (s['sensorType'] ?? s['SensorType'] ?? '').toString().toLowerCase();
-    return switch (metric) {
-      'temp' => t.contains('temp'),
-      'ph' => t == 'ph' || t.contains('ph_'),
-      'do' => t == 'do' || t.contains('oxy'),
-      'salin' => t.contains('salin'),
-      _ => false,
-    };
-  }
-
-  double? _value(Map<String, dynamic> s) {
-    final v = s['latestValue'] ?? s['LatestValue'];
-    return v is num ? v.toDouble() : double.tryParse('$v');
-  }
-
+  final int rowCount;
+  final List<AreaEnvironmentMetric> metrics;
   @override
-  Widget build(BuildContext context) {
-    final m = _m;
-    final sensors = live.where(_matches).toList();
-    // Giá trị chung khu (không gắn vị trí) + giá trị theo vị trí (LocationName).
-    final byLocation = <String, double>{};
-    final general = <double>[];
-    for (final s in sensors) {
-      final v = _value(s);
-      if (v == null) continue;
-      final loc = (s['locationName'] ?? s['LocationName'] ?? '')
-          .toString()
-          .trim()
-          .toLowerCase();
-      if (loc.isEmpty) {
-        general.add(v);
-      } else {
-        byLocation[loc] = v;
-      }
-    }
-    final areaAvg = general.isEmpty
-        ? null
-        : general.reduce((a, b) => a + b) / general.length;
-
-    double? tempFor(RowRecord r) {
-      final k1 = r.rowName.trim().toLowerCase();
-      final k2 = r.rowCode.trim().toLowerCase();
-      return byLocation[k1] ?? byLocation[k2] ?? areaAvg;
-    }
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
-      decoration: mgmtCardDeco(radius: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Sơ đồ nhiệt $areaName',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: bvText(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: DashboardColors.textPrimary,
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 34,
-                child: MgmtDropdown<String>(
-                  width: 170,
-                  valueLabel: m.$2,
-                  items: [for (final e in _metrics) (e.$1, e.$2)],
-                  onSelected: onMetric,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Nền: ảnh khu nhìn từ trên (ảnh trại thật), làm tối nhẹ.
-                        Image.asset(
-                          _kCamFallback,
-                          fit: BoxFit.cover,
-                          alignment: const Alignment(-0.4, -0.5),
-                          errorBuilder: (_, __, ___) =>
-                              Container(color: DashboardColors.mint),
-                        ),
-                        Container(color: Colors.black.withValues(alpha: 0.18)),
-                        Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: rows.isEmpty
-                              ? Center(
-                                  child: Text('Chưa có dãy để hiển thị',
-                                      style: bvText(color: Colors.white)))
-                              : _HeatGrid(
-                                  rows: rows,
-                                  valueFor: tempFor,
-                                  unit: m.$3,
-                                  min: m.$4,
-                                  max: m.$5,
-                                ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                _HeatScale(min: m.$4, max: m.$5, unit: m.$3),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 18,
-            children: [
-              _legend(DashboardColors.brandGreen, _goodLabel(metric)),
-              _legend(const Color(0xFFF59E0B), _highLabel(metric)),
-              _legend(kMgmtBlue, _lowLabel(metric)),
-              if (sensors.isEmpty)
-                Text('Chưa có cảm biến ${m.$2.toLowerCase()} cho khu này',
-                    style: bvText(fontSize: 11.5, color: DashboardColors.textMuted)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  static String _goodLabel(String k) => switch (k) {
-        'temp' => 'Tốt (24–28°C)',
-        'ph' => 'Tốt (7.5–8.5)',
-        'do' => 'Tốt (>5 mg/L)',
-        _ => 'Tốt (15–25‰)',
-      };
-  static String _highLabel(String k) => switch (k) {
-        'temp' => 'Cao (>28°C)',
-        'ph' => 'Cao (>8.5)',
-        'do' => 'Cao (>8 mg/L)',
-        _ => 'Cao (>25‰)',
-      };
-  static String _lowLabel(String k) => switch (k) {
-        'temp' => 'Thấp (<24°C)',
-        'ph' => 'Thấp (<7.5)',
-        'do' => 'Thấp (<5 mg/L)',
-        _ => 'Thấp (<15‰)',
-      };
-
-  Widget _legend(Color c, String label) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 9,
-            height: 9,
-            decoration: BoxDecoration(color: c, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 6),
-          Text(label, style: bvText(fontSize: 11.5, color: DashboardColors.textMuted)),
-        ],
-      );
+  Widget build(BuildContext context) => Container(
+    padding:const EdgeInsets.all(16),decoration:mgmtCardDeco(radius:18),
+    child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      Text('Nước RAS chung · '+areaName,style:bvText(fontSize:15,fontWeight:FontWeight.w800)),
+      const SizedBox(height:8),
+      Text('Dùng chung cho '+rowCount.toString()+' dãy và các hộp. Không có phép đo riêng từng dãy.'),
+      const SizedBox(height:8),
+      Expanded(child:SingleChildScrollView(child:QualifiedEnvironmentCards(metrics:metrics))),
+    ]),
+  );
 }
 
-/// Gradient nhiệt: xanh dương → xanh lá → vàng → cam → đỏ.
 Color heatColor(double t) {
   const stops = <(double, Color)>[
     (0.0, Color(0xFF2495E8)),
@@ -1414,171 +1285,6 @@ Color heatColor(double t) {
     }
   }
   return stops.last.$2;
-}
-
-class _HeatGrid extends StatelessWidget {
-  const _HeatGrid({
-    required this.rows,
-    required this.valueFor,
-    required this.unit,
-    required this.min,
-    required this.max,
-  });
-
-  final List<RowRecord> rows;
-  final double? Function(RowRecord) valueFor;
-  final String unit;
-  final double min;
-  final double max;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, c) {
-        final n = rows.length;
-        final cols = n <= 3 ? n : (n <= 6 ? 3 : 4);
-        final lines = (n / cols).ceil();
-        const gap = 10.0;
-        final w = (c.maxWidth - gap * (cols - 1)) / cols;
-        final h = (c.maxHeight - gap * (lines - 1)) / lines;
-        return Wrap(
-          spacing: gap,
-          runSpacing: gap,
-          children: [
-            for (final r in rows)
-              SizedBox(
-                width: w,
-                height: h,
-                child: _HeatTile(
-                  label: r.rowName,
-                  value: valueFor(r),
-                  unit: unit,
-                  min: min,
-                  max: max,
-                ),
-              ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _HeatTile extends StatelessWidget {
-  const _HeatTile({
-    required this.label,
-    required this.value,
-    required this.unit,
-    required this.min,
-    required this.max,
-  });
-
-  final String label;
-  final double? value;
-  final String unit;
-  final double min;
-  final double max;
-
-  @override
-  Widget build(BuildContext context) {
-    final v = value;
-    final t = v == null ? null : ((v - min) / (max - min)).clamp(0.0, 1.0);
-    final base = t == null ? kMgmtSlate : heatColor(t);
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 1.5),
-        gradient: RadialGradient(
-          center: const Alignment(0.15, -0.1),
-          radius: 1.1,
-          colors: [
-            base.withValues(alpha: 0.92),
-            Color.lerp(base, kMgmtBlue, 0.35)!.withValues(alpha: 0.85),
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            left: 8,
-            top: 6,
-            child: Text(
-              label,
-              style: bvText(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w700,
-                color: Colors.white.withValues(alpha: 0.9),
-              ),
-            ),
-          ),
-          Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.92),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                v == null ? '—' : '${_fmtNum(v)}$unit',
-                style: bvText(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w800,
-                  color: DashboardColors.textPrimary,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeatScale extends StatelessWidget {
-  const _HeatScale({required this.min, required this.max, required this.unit});
-  final double min;
-  final double max;
-  final String unit;
-
-  @override
-  Widget build(BuildContext context) {
-    final labels = [
-      for (var i = 0; i <= 3; i++) max - (max - min) * i / 3,
-    ];
-    return Row(
-      children: [
-        Container(
-          width: 10,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(999),
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [for (var i = 10; i >= 0; i--) heatColor(i / 10)],
-            ),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            for (final l in labels)
-              Text(
-                '${_fmtNum(l)}$unit',
-                style: bvText(fontSize: 10.5, color: DashboardColors.textMuted),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
 }
 
 // ── Camera AI card ─────────────────────────────────────────────────────────
