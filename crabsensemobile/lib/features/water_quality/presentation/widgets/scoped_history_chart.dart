@@ -61,6 +61,7 @@ class _ScopedHistoryChartState extends State<ScopedHistoryChart> {
       if (!mounted) return;
       setState(() {
         _clear();
+        _selected = null;
         _message = 'Phiên hoặc quyền truy cập thay đổi. Hãy tải lại.';
       });
     });
@@ -110,7 +111,15 @@ class _ScopedHistoryChartState extends State<ScopedHistoryChart> {
     try {
       final query = sensor.query(DateTime.now().toUtc(), _period);
       final snapshot = await widget.fetch(query);
-      if (!mounted || request != _request || revision != widget.revision()) return;
+      if (!mounted || request != _request) return;
+      if (revision != widget.revision() || !widget.online) {
+        setState(() {
+          _clear();
+          _selected = null;
+          _message = 'Phiên hoặc kết nối thay đổi. Hãy tải lại.';
+        });
+        return;
+      }
       if (snapshot.query.key != query.key) {
         throw const FormatException('History request mismatch');
       }
@@ -144,8 +153,8 @@ class _ScopedHistoryChartState extends State<ScopedHistoryChart> {
     final sensors = _sensors;
     final matching = sensors.where((s) => s.key == _selected);
     final selected = matching.isEmpty ? null : matching.first;
-    final series = _displayRevision == widget.revision() && widget.online
-        ? _series : null;
+    final series = _displayRevision == widget.revision() && widget.online &&
+        selected != null ? _series : null;
     return Container(
       key: const Key('scoped-history-chart'),
       padding: const EdgeInsets.all(16),

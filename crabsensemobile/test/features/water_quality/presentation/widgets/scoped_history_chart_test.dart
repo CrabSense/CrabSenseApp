@@ -40,7 +40,7 @@ void main() {
   });
 
   testWidgets('plots real zero, then clears on credential invalidation and scope change', (tester) async {
-    final changes = StreamController<int>.broadcast();
+    final changes = StreamController<int>.broadcast(sync: true);
     addTearDown(changes.close);
     var revision = 0;
     Future<ScopedHistorySnapshot> fetch(ScopedHistoryQuery q) async => response(q);
@@ -59,8 +59,12 @@ void main() {
     expect(find.byKey(const Key('history-measured-plot')), findsOneWidget);
     revision++;
     changes.add(revision);
+    // The production stream is synchronous. Exactly the next frame must
+    // remove the old plot; do not wait for the one-minute expiry timer.
     await tester.pump();
     expect(find.byKey(const Key('history-measured-plot')), findsNothing);
+    expect(find.text('Phiên hoặc quyền truy cập thay đổi. Hãy tải lại.'),
+      findsOneWidget);
     await tester.pumpWidget(view(fixture.point));
     expect(find.byKey(const Key('history-measured-plot')), findsNothing);
     expect(find.byKey(const Key('history-fetch')), findsNothing);
@@ -68,7 +72,7 @@ void main() {
   });
 
   testWidgets('ignores old response after switching scope', (tester) async {
-    final changes = StreamController<int>.broadcast();
+    final changes = StreamController<int>.broadcast(sync: true);
     addTearDown(changes.close);
     final pending = Completer<ScopedHistorySnapshot>();
     ScopedHistoryQuery? sent;
@@ -90,6 +94,39 @@ void main() {
     await tester.pump();
     expect(sent, isNotNull);
     await tester.pumpWidget(view(fixture.point));
+    pending.complete(response(sent!));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('history-measured-plot')), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('ignores pending response after credential invalidation', (tester) async {
+    final changes = StreamController<int>.broadcast(sync: true);
+    addTearDown(changes.close);
+    var revision = 0;
+    final pending = Completer<ScopedHistorySnapshot>();
+    ScopedHistoryQuery? sent;
+    Future<ScopedHistorySnapshot> fetch(ScopedHistoryQuery q) {
+      sent = q;
+      return pending.future;
+    }
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: SingleChildScrollView(
+      child: ScopedHistoryChart(areaId: fixture.area, rowId: null,
+        readings: [reading()], online: true, fetch: fetch,
+        revision: () => revision, invalidations: changes.stream),
+    ))));
+    await tester.tap(find.byKey(const Key('history-sensor-select')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Độ mặn ·').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('history-fetch')));
+    await tester.pump();
+    expect(sent, isNotNull);
+    revision++;
+    changes.add(revision);
+    await tester.pump();
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(find.byKey(const Key('history-measured-plot')), findsNothing);
     pending.complete(response(sent!));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('history-measured-plot')), findsNothing);
