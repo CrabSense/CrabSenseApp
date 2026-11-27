@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'package:bloc_test/bloc_test.dart';
+import 'package:crabsensemobile/features/water_quality/data/datasources/water_quality_remote_data_source.dart';
+import 'package:crabsensemobile/features/water_quality/data/models/water_quality_model.dart';
 import 'package:crabsensemobile/core/errors/failures.dart';
 import 'package:crabsensemobile/features/water_quality/domain/entities/water_quality.dart';
 import 'package:crabsensemobile/features/water_quality/domain/repositories/water_quality_repository.dart';
@@ -14,12 +17,16 @@ class MockWaterQualityRepository implements WaterQualityRepository {
   Either<Failure, List<WaterQuality>>? readingsResult;
   Either<Failure, List<WaterQuality>>? historicalResult;
   Either<Failure, bool>? deviceStatusResult;
+  Future<Either<Failure,List<WaterQuality>>> Function(String,String?)? onRead;
+  final calls=<String>[];
 
   @override
   Future<Either<Failure, List<WaterQuality>>> getCurrentReadings({
     required String farmId,
     String? pondId,
   }) async {
+    calls.add(farmId);
+    if(onRead!=null) return onRead!(farmId,pondId);
     return readingsResult ??
         Right([
           WaterQuality(
@@ -138,5 +145,48 @@ void main() {
             .having((e) => e.message, 'message', contains('No connection')),
       ],
     );
+  });
+
+  test('missing is null, true zero retained, invalid or wrong-scope data rejected', (){
+    final row={'sensorId':'sensor','farmingAreaId':'farm','farmingRowId':'row','sensorType':'Salinity',
+      'unit':'ppt','latestValue':0,'latestMeasuredAt':'2026-11-01T00:00:00Z','isActive':true,'dataQuality':'Realtime'};
+    final r=decodeLiveWaterReading(row,farmId:'farm',pondId:'row')!;
+    expect(r.salinity,0); expect(r.ph,isNull); expect(r.ammonia,isNull);
+    for(final change in [{'latestValue':null},{'latestValue':'bad'},{'latestMeasuredAt':null},
+      {'farmingAreaId':'other'},{'farmingRowId':'other'},{'unit':'ppm'},{'dataQuality':'Unknown'}]){
+      expect(decodeLiveWaterReading({...row,...change},farmId:'farm',pondId:'row'),isNull);
+    }
+    expect(WaterQualityModel.fromJson({'timestamp':'2026-11-01T00:00:00Z','ph':'invalid','salinity':0}).ph,isNull);
+    expect(()=>WaterQualityModel.fromJson({'ph':8}),throwsFormatException);
+  });
+
+  test('latest farm wins, refresh during load ignored, failure retry retains selected scope',()async{
+    final old=Completer<Either<Failure,List<WaterQuality>>>();
+    final fresh=Completer<Either<Failure,List<WaterQuality>>>();
+    mockRepo.onRead=(farm,pond)=>farm=='farm-old'?old.future:fresh.future;
+    final bloc=buildBloc();
+    addTearDown(bloc.close);
+    bloc.add(const WaterQualityLoadRequested(farmId:'farm-old'));
+    await Future<void>.delayed(Duration.zero);
+    bloc.add(const WaterQualityFarmChanged(farmId:'farm-new',pondId:'row-new'));
+    await Future<void>.delayed(Duration.zero);
+    bloc.add(const WaterQualityRefreshRequested());
+    await Future<void>.delayed(Duration.zero);
+    expect(mockRepo.calls,['farm-old','farm-new']);
+    final ready=bloc.stream.firstWhere((s)=>s is WaterQualityLoaded);
+    fresh.complete(const Right([])); await ready;
+    old.complete(const Left(NetworkFailure('old request')));
+    await Future<void>.delayed(Duration.zero);
+    expect((bloc.state as WaterQualityLoaded).farmId,'farm-new');
+    expect((bloc.state as WaterQualityLoaded).deviceStatusKnown,false);
+    mockRepo.onRead=(farm,pond)async=>const Left(NetworkFailure('new request'));
+    final failed=bloc.stream.firstWhere((s)=>s is WaterQualityError);
+    bloc.add(const WaterQualityRefreshRequested()); await failed;
+    await Future<void>.delayed(Duration.zero);
+    mockRepo.onRead=(farm,pond)async=>const Right([]);
+    final retried=bloc.stream.firstWhere((s)=>s is WaterQualityLoaded);
+    bloc.add(const WaterQualityRefreshRequested()); await retried;
+    expect(mockRepo.calls,['farm-old','farm-new','farm-new','farm-new']);
+    expect((bloc.state as WaterQualityLoaded).pondId,'row-new');
   });
 }
