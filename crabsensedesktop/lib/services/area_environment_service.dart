@@ -47,16 +47,25 @@ class AreaEnvironmentService extends ChangeNotifier {
   bool get isLiveActive => _liveTimer != null;
   bool get isRefreshing => _refreshInFlight;
   String? get error => _error;
-  AreaSensorLatestData? get data => _data;
+  AreaSensorLatestData? get data {
+    final at=_lastRefreshedAt;
+    if(at==null)return null;
+    final age=DateTime.now().difference(at);
+    return !age.isNegative && age<const Duration(seconds:15) ? _data : null;
+  }
+  AreaSensorLatestData? dataForBox(String areaId,String boxId) {
+    final value=data;
+    return value?.areaId==areaId && value?.boxId==boxId && value?.scope=='box' ? value : null;
+  }
   DateTime? get lastRefreshedAt => _lastRefreshedAt;
-  List<AreaEnvironmentMetric> get metrics => _data?.metrics ?? const [];
+  List<AreaEnvironmentMetric> get metrics => data?.metrics ?? const [];
 
   void startLiveRefresh(
     String areaId, {
     Duration interval = livePollInterval,
   }) {
     if (_disposed || areaId.trim().isEmpty) return;
-    if (_liveAreaId == areaId && _liveTimer != null) return;
+    if (_liveAreaId == areaId && _liveBoxId == null && _liveTimer != null) return;
 
     stopLiveRefresh(notify: false);
     _data = null;
@@ -72,22 +81,21 @@ class AreaEnvironmentService extends ChangeNotifier {
     _notifyDeferred();
   }
 
-  void startLiveRefreshByBox(
-    String boxId, {
-    Duration interval = livePollInterval,
-  }) {
-    if (_disposed || boxId.trim().isEmpty) return;
-    if (_liveBoxId == boxId && _liveTimer != null) return;
-
-    stopLiveRefresh(notify: false);
-    _data = null;
-    _lastRefreshedAt = null;
-    _liveBoxId = boxId;
-    _liveAreaId = null;
-    unawaited(loadByBox(boxId));
-    _liveTimer = Timer.periodic(interval, (_) {
-      if (_liveBoxId == boxId) {
-        unawaited(loadByBox(boxId, silent: true));
+  void startLiveRefreshByBox(String boxId,{String? areaId,
+      Duration interval=livePollInterval}) {
+    if(_disposed)return;
+    if(boxId.trim().isEmpty || areaId==null || areaId.isEmpty) {
+      clear();
+      return;
+    }
+    if(_liveBoxId==boxId && _liveAreaId==areaId && _liveTimer!=null)return;
+    stopLiveRefresh(notify:false);
+    _liveBoxId=boxId;
+    _liveAreaId=areaId;
+    unawaited(loadByBox(boxId,areaId:areaId));
+    _liveTimer=Timer.periodic(interval,(_){
+      if(_liveBoxId==boxId && _liveAreaId==areaId) {
+        unawaited(loadByBox(boxId,areaId:areaId,silent:true));
       }
     });
     _notifyDeferred();
@@ -101,6 +109,8 @@ class AreaEnvironmentService extends ChangeNotifier {
     _liveTimer = null;
     _liveAreaId = null;
     _liveBoxId = null;
+    _data = null;
+    _lastRefreshedAt = null;
     if (notify) _notifyDeferred();
   }
 
@@ -108,27 +118,25 @@ class AreaEnvironmentService extends ChangeNotifier {
     if (_disposed || areaId.trim().isEmpty) return;
     await _fetchLive(
       areaId,
-      liveKey: areaId,
       silent: silent,
       emptyMessage: 'Chưa có cảm biến / dữ liệu cho khu này',
     );
   }
 
-  /// Chỉ số bể chung khu — hộp kế thừa từ `/api/iot/live`.
-  Future<void> loadByBox(String boxId, {bool silent = false}) async {
-    if (_disposed || boxId.trim().isEmpty) return;
-    await _fetchLive(
-      _session.selectedFarm.id,
-      liveKey: boxId,
-      silent: silent,
-      emptyMessage: 'Chưa có chỉ số môi trường cho hộp này',
-      boxId: boxId,
-    );
+  /// All boxes inherit the same area-level RAS reference, not a selected
+  /// farm fallback or an individual box/row sample.
+  Future<void> loadByBox(String boxId,{String? areaId,bool silent=false}) async {
+    if(_disposed)return;
+    if(boxId.isEmpty || areaId==null || areaId.isEmpty) {
+      clear();
+      return;
+    }
+    await _fetchLive(areaId,silent:silent,emptyMessage:'Chưa có phép đo chung của khu.',
+      boxId:boxId);
   }
 
   Future<void> _fetchLive(
     String areaId, {
-    required String? liveKey,
     required bool silent,
     required String emptyMessage,
     String? boxId,
@@ -136,8 +144,17 @@ class AreaEnvironmentService extends ChangeNotifier {
     if (_disposed || (silent && (_refreshInFlight || _loading))) return;
     final generation = _generation;
     final version = ++_version;
+    if(!UserRoles.canUseDesktop(_session.user.role) || areaId=='default' ||
+        (!_session.farms.any((f)=>f.id==areaId) && _session.selectedFarm.id!=areaId)) {
+      _data=null;_lastRefreshedAt=null;_loading=false;_refreshInFlight=false;
+      _error='Chưa xác minh quyền khu nuôi.';
+      _notifyDeferred();
+      return;
+    }
 
-    if (!silent) {
+    if (!silent || _data?.areaId!=areaId || _data?.boxId!=boxId) {
+      _data=null;
+      _lastRefreshedAt=null;
       _loading = true;
       _error = null;
       _notifyDeferred();
@@ -148,24 +165,14 @@ class AreaEnvironmentService extends ChangeNotifier {
 
     try {
       final live =
-          await _api.fetchIotLive(_session.token, farmingAreaId: areaId);
+          await _api.fetchIotLive(_session.token, farmingAreaId: areaId)
+              .timeout(const Duration(seconds:10));
       if (!_current(generation, version)) return;
-      var data = AreaSensorLatestData.fromIotLive(areaId: areaId, live: live);
-      if (boxId != null) {
-        data = AreaSensorLatestData(
-          areaId: data.areaId,
-          areaCode: data.areaCode,
-          areaName: data.areaName,
-          scope: 'box',
-          inheritedByBox: true,
-          lastUpdatedAt: data.lastUpdatedAt,
-          metrics: data.metrics,
-          boxId: boxId,
-        );
-      }
+      final data=AreaSensorLatestData.fromIotLive(areaId:areaId,live:live,boxId:boxId);
       if (data.metrics.isEmpty) {
         _data = null;
-        if (!silent) _error = emptyMessage;
+        _lastRefreshedAt=null;
+        _error = emptyMessage;
       } else {
         _data = data;
         _error = null;
@@ -180,9 +187,10 @@ class AreaEnvironmentService extends ChangeNotifier {
         _data = null;
         _lastRefreshedAt = null;
         _notifyDeferred();
-      } else if (!silent) {
+      } else {
         _data = null;
-        _error = '$e';
+        _lastRefreshedAt=null;
+        _error = 'Không xác minh được dữ liệu môi trường.';
       }
     } finally {
       if (_current(generation, version)) {
@@ -193,27 +201,10 @@ class AreaEnvironmentService extends ChangeNotifier {
     }
   }
 
-  Future<List<({DateTime at, double value})>> fetchSensorHistory(
-    String sensorId, {
-    required DateTime from,
-    required DateTime to,
-  }) async {
-    final raw = await _api.fetchSensorHistory(
-      _session.token,
-      sensorId: sensorId,
-      from: from,
-      to: to,
-    );
-    final pts = <({DateTime at, double value})>[];
-    for (final m in raw) {
-      final v = m['value'] ?? m['Value'];
-      final at = DateTime.tryParse((m['measuredAt'] ?? m['MeasuredAt'] ?? '').toString());
-      if (v is! num || at == null) continue;
-      pts.add((at: at.isUtc ? at.toLocal() : at, value: v.toDouble()));
-    }
-    pts.sort((a, b) => a.at.compareTo(b.at));
-    return pts;
-  }
+  // Legacy history cannot prove the measurement's observed scope.
+  Future<List<({DateTime at,double value})>> fetchSensorHistory(String sensorId,{
+    required DateTime from,required DateTime to,
+  }) async => const [];
 
   Future<List<Map<String, dynamic>>> fetchAlertHistory({String? farmingAreaId}) {
     return _api.fetchAlertHistory(
@@ -226,7 +217,7 @@ class AreaEnvironmentService extends ChangeNotifier {
   Future<void> refreshCurrent() async {
     final boxId = _liveBoxId;
     if (boxId != null) {
-      await loadByBox(boxId);
+      await loadByBox(boxId,areaId:_liveAreaId);
       return;
     }
     final areaId = _liveAreaId;
@@ -234,7 +225,7 @@ class AreaEnvironmentService extends ChangeNotifier {
   }
 
   void clear() {
-    ++_generation;
+    stopLiveRefresh(notify:false);
     _refreshInFlight = false;
     _lastRefreshedAt = null;
     _data = null;

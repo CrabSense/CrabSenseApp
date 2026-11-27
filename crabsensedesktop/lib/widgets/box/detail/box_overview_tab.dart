@@ -567,27 +567,8 @@ class EnvironmentRealtimeCard extends StatelessWidget {
   final String sourceNote;
   final VoidCallback? onOpen;
 
-  AreaEnvironmentMetric? _pick(bool Function(AreaEnvironmentMetric) test) {
-    for (final m in metrics) {
-      if (test(m)) return m;
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final ph = _pick((m) => (m.sensorType ?? m.label).toLowerCase().contains('ph'));
-    final sal = _pick((m) => (m.sensorType ?? m.label).toLowerCase().contains('salin'));
-    final tds = _pick((m) => (m.sensorType ?? m.label).toLowerCase().contains('tds'));
-    final temp = _pick((m) {
-      final t = (m.sensorType ?? m.label).toLowerCase();
-      return t.contains('temp') || t.contains('nhiệt');
-    });
-    final dox = _pick((m) {
-      final t = (m.sensorType ?? m.label).toLowerCase();
-      return t == 'do' || t.contains('oxygen') || t.contains('oxy');
-    });
-
     return OverviewCard(
       icon: Icons.sensors_outlined,
       title: 'Môi trường realtime',
@@ -604,14 +585,10 @@ class EnvironmentRealtimeCard extends StatelessWidget {
           else
             LayoutBuilder(
               builder: (context, c) {
-                final tiles = <Widget>[
-                  EnvironmentMetricCard(label: 'pH', metric: ph, format: (v) => fmtPh(sanitizePh(v) ?? v), unit: ''),
-                  if (sal != null)
-                    EnvironmentMetricCard(label: 'Độ mặn', metric: sal, format: fmtSalinity, unit: 'ppt')
-                  else
-                    EnvironmentMetricCard(label: 'TDS', metric: tds, format: fmtTds, unit: 'ppm'),
-                  EnvironmentMetricCard(label: 'Nhiệt độ', metric: temp, format: fmtTemp, unit: '°C'),
-                  EnvironmentMetricCard(label: 'DO', metric: dox, format: fmtDo, unit: 'mg/L'),
+                final tiles=<Widget>[
+                  for(final m in metrics) EnvironmentMetricCard(
+                    label:m.label+' · '+(m.sensorCode??m.sensorId??'—'),
+                    metric:m,format:(v)=>v==0?'0':v.toString(),unit:m.unit),
                 ];
                 return Wrap(
                   spacing: 8,
@@ -658,8 +635,8 @@ class EnvironmentMetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = metric;
-    final missing = m == null || m.value == 0 && m.recordedAt == null;
-    final status = missing ? 'no_data' : m.status;
+    final missing = m == null || m.isMissing;
+    final status = missing ? 'no_data' : m.isStale || m.offline ? 'watch' : m.status;
     final color = sensorSemanticColor(status);
     return Container(
       padding: const EdgeInsets.all(10),
@@ -686,7 +663,7 @@ class EnvironmentMetricCard extends StatelessWidget {
               children: [
                 Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
                 const SizedBox(width: 5),
-                Text(sensorSemanticLabel(status), style: bvText(fontSize: 10.5, fontWeight: FontWeight.w700, color: color)),
+                Text(missing ? 'Chưa có dữ liệu' : m.assessment, style: bvText(fontSize: 10.5, fontWeight: FontWeight.w700, color: color)),
               ],
             ),
           ),
