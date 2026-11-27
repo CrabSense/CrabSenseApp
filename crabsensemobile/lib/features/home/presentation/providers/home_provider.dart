@@ -32,16 +32,20 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
 
   final HomeRepository _repository;
   final Ref _ref;
+  int _generation = 0;
+  bool _current(int generation) => mounted && generation == _generation;
 
   /// Refetch khi tab khác đổi khu — không ghi selectedFarmProvider.
   Future<void> _reloadQuiet(String farmId) async {
     if (!state.hasValue) return;
+    final generation = ++_generation;
     try {
       final data = await _repository.getHomeSummary(
         forceRefresh: true,
         farmingAreaId: farmId,
       );
-      if (data.selectedFarmId == farmId) {
+      if (_current(generation) && data.selectedFarmId == farmId &&
+          _ref.read(selectedFarmProvider).id == farmId) {
         state = AsyncValue.data(data);
       }
     } catch (_) {}
@@ -49,7 +53,9 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
 
   /// Nạp dữ liệu — ưu tiên trại đang điều hành global.
   Future<void> loadData({bool forceRefresh = false}) async {
+    final generation = ++_generation;
     await _ref.read(selectedFarmProvider.notifier).ready;
+    if (!_current(generation)) return;
     final sharedId = _ref.read(selectedFarmProvider).id;
     final currentId = state.hasValue ? state.value!.selectedFarmId : null;
     final farmingAreaId = sharedId ?? currentId;
@@ -65,6 +71,8 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
         forceRefresh: forceRefresh,
         farmingAreaId: farmingAreaId,
       );
+      if (!_current(generation)) return;
+      if (farmingAreaId != null && data.selectedFarmId != farmingAreaId) return;
       final keepId = farmingAreaId ?? data.selectedFarmId;
       state = AsyncValue.data(data);
       await _ref.read(selectedFarmProvider.notifier).syncFromLoaded(
@@ -72,13 +80,15 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
             name: data.selectedFarmName,
           );
     } catch (error, stackTrace) {
-      state = AsyncValue.error(error, stackTrace);
+      if (_current(generation)) state = AsyncValue.error(error, stackTrace);
     }
   }
 
   /// Pull-to-refresh — giữ farm đang chọn
   Future<void> refresh() async {
+    final generation = ++_generation;
     await _ref.read(selectedFarmProvider.notifier).ready;
+    if (!_current(generation)) return;
     final sharedId = _ref.read(selectedFarmProvider).id;
     final currentId = state.hasValue ? state.value!.selectedFarmId : null;
     final farmingAreaId = sharedId ?? currentId;
@@ -88,12 +98,15 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
         forceRefresh: true,
         farmingAreaId: farmingAreaId,
       );
+      if (!_current(generation)) return;
+      if (farmingAreaId != null && data.selectedFarmId != farmingAreaId) return;
       state = AsyncValue.data(data);
       await _ref.read(selectedFarmProvider.notifier).syncFromLoaded(
             id: farmingAreaId ?? data.selectedFarmId,
             name: data.selectedFarmName,
           );
     } catch (error, stackTrace) {
+      if (!_current(generation)) return;
       if (state.hasValue) {
         final oldData = state.value!;
         state = AsyncValue.data(HomeStateData(
@@ -107,7 +120,7 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
           healthScore: oldData.healthScore,
           aiRecommendation: oldData.aiRecommendation,
           topAlerts: oldData.topAlerts,
-          waterMetrics: oldData.waterMetrics,
+          waterMetrics: const [],
           todayTasks: oldData.todayTasks,
           deviceSummary: oldData.deviceSummary,
           recentActivities: oldData.recentActivities,
@@ -125,6 +138,7 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
     if (!state.hasValue) return;
     final current = state.value!;
     if (farmId == current.selectedFarmId) return;
+    final generation = ++_generation;
 
     final farmName = current.availableFarms
         .where((f) => f.id == farmId)
@@ -143,7 +157,7 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
       healthScore: current.healthScore,
       aiRecommendation: current.aiRecommendation,
       topAlerts: current.topAlerts,
-      waterMetrics: current.waterMetrics,
+      waterMetrics: const [],
       todayTasks: current.todayTasks,
       deviceSummary: current.deviceSummary,
       recentActivities: current.recentActivities,
@@ -157,14 +171,13 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
         );
 
     try {
+      if (!_current(generation)) return;
       final updated = await _repository.switchFarm(farmId);
+      if (!_current(generation)) return;
       if (updated.selectedFarmId == farmId) {
         state = AsyncValue.data(updated);
       }
-      await _ref.read(selectedFarmProvider.notifier).select(
-            farmId,
-            name: farmName ?? updated.selectedFarmName,
-          );
+      // Selection was already broadcast before the request; never repin it from a late response.
     } catch (_) {
       // Giữ khu vừa chọn — không kéo về khu trước.
     }
@@ -173,8 +186,10 @@ class HomeNotifier extends StateNotifier<AsyncValue<HomeStateData>> {
   Future<void> dismissRecommendation(String id) async {
     if (!state.hasValue) return;
     final current = state.value!;
+    final generation = _generation;
     try {
       await _repository.dismissRecommendation(id);
+      if (!_current(generation) || !identical(state.value, current)) return;
       state = AsyncValue.data(HomeStateData(
         operatorName: current.operatorName,
         selectedFarmId: current.selectedFarmId,
