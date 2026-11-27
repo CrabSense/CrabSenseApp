@@ -71,6 +71,9 @@ class LiveWaterMetrics extends StatelessWidget {
           const Text('Chỉ số từng cảm biến', style: TextStyle(
             fontSize: 15, fontWeight: FontWeight.w800, color: kHomeTextMain)),
           const SizedBox(height: 6),
+          const Text('Dữ liệu đại diện vòng nước RAS dùng chung cho các dãy và hộp trong khu; không đo riêng từng hộp.',
+            style: TextStyle(color: kHomeTextSub)),
+          const SizedBox(height: 6),
           const Text('Ngưỡng lấy từ cấu hình cảm biến tại Backend, không phải kết luận nước an toàn.',
             style: TextStyle(color: kHomeTextSub)),
           const SizedBox(height: 10),

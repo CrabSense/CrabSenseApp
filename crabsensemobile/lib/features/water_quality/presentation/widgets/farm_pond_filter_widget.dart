@@ -13,6 +13,7 @@ class FarmPondFilterWidget extends StatefulWidget {
     this.selectedPondId,
     this.isLoading = false,
     this.embedded = false,
+    this.areaOnly = false,
   });
 
   final List<FarmOption> farms;
@@ -20,6 +21,7 @@ class FarmPondFilterWidget extends StatefulWidget {
   final String? selectedPondId;
   final bool isLoading;
   final bool embedded;
+  final bool areaOnly;
   final void Function(String farmId, String? pondId) onSelectionChanged;
 
   @override
@@ -57,6 +59,7 @@ class _FarmPondFilterWidgetState extends State<FarmPondFilterWidget> {
             onChanged: _onFarmChanged,
           ),
         ),
+        if (!widget.areaOnly) ...[
         const SizedBox(width: 12),
         Expanded(
           child: _FilterDropdown<String?>(
@@ -71,6 +74,7 @@ class _FarmPondFilterWidgetState extends State<FarmPondFilterWidget> {
             onChanged: _onPondChanged,
           ),
         ),
+        ],
       ],
     );
     if (widget.embedded) return row;
@@ -138,7 +142,8 @@ class _FilterDropdown<T> extends StatelessWidget {
                   Expanded(
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<T>(
-                        value: value,
+                        value: items.any((e) => e.value == value) ? value : null,
+                        hint: const Text('Chọn khu'),
                         isExpanded: true,
                         isDense: true,
                         icon: const Icon(

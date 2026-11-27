@@ -34,18 +34,15 @@ class WaterQualityScreen extends StatelessWidget {
           ..add(
             WaterQualityLoadRequested(
               farmId: farmId ?? 'default',
-              pondId: pondId,
+              // A row/box route inherits the area RAS reference.
             ),
           ),
-        child: _WaterQualityView(farmId: farmId, pondId: pondId),
+        child: const _WaterQualityView(),
       );
 }
 
 class _WaterQualityView extends StatefulWidget {
-  const _WaterQualityView({this.farmId, this.pondId});
-
-  final String? farmId;
-  final String? pondId;
+  const _WaterQualityView();
 
   @override
   State<_WaterQualityView> createState() => _WaterQualityViewState();
@@ -226,8 +223,6 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
     try {
       final areasResult = await sl<ApiClient>()
           .safeGet<Map<String, dynamic>>(ApiConstants.farmingAreas);
-      final rowsResult = await sl<ApiClient>()
-          .safeGet<Map<String, dynamic>>(ApiConstants.farmingRows);
 
       List<dynamic> extract(Map<String, dynamic>? body) {
         if (body == null) return const [];
@@ -237,20 +232,6 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
       }
 
       final areas = extract(areasResult.data.data);
-      final rows = extract(rowsResult.data.data);
-
-      final pondsByArea = <String, List<PondOption>>{};
-      for (final raw in rows) {
-        final map = Map<String, dynamic>.from(raw as Map);
-        final areaId =
-            (map['farmingAreaId'] ?? map['FarmingAreaId'] ?? '').toString();
-        if (areaId.isEmpty) continue;
-        pondsByArea.putIfAbsent(areaId, () => <PondOption>[]).add(PondOption(
-          id: (map['id'] ?? '').toString(),
-          name: (map['name'] ?? map['code'] ?? 'Dãy').toString(),
-        ));
-      }
-
       final farms = <FarmOption>[];
       for (final raw in areas) {
         final map = Map<String, dynamic>.from(raw as Map);
@@ -259,7 +240,6 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
         farms.add(FarmOption(
           id: id,
           name: (map['name'] ?? map['code'] ?? 'Khu').toString(),
-          ponds: pondsByArea[id] ?? const [],
         ));
       }
 
@@ -279,9 +259,9 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
     }
   }
 
-  void _onFilterChanged(String farmId, String? pondId) {
+  void _onFilterChanged(String farmId, String? _) {
     context.read<WaterQualityBloc>().add(
-          WaterQualityFarmChanged(farmId: farmId, pondId: pondId),
+          WaterQualityFarmChanged(farmId: farmId),
         );
   }
 
@@ -309,7 +289,7 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
                 : FarmPondFilterWidget(
                     farms: _farms,
                     selectedFarmId: resolvedFarmId,
-                    selectedPondId: widget.state.pondId,
+                    areaOnly: true,
                     isLoading: widget.state.isRefreshing,
                     embedded: true,
                     onSelectionChanged: _onFilterChanged,
@@ -331,7 +311,7 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
               ],
               LiveWaterMetrics(
                 areaId: resolvedFarmId,
-                rowId: widget.state.pondId,
+                rowId: null,
                 readings: readings,
                 online: online && !widget.state.isRefreshing,
                 now: DateTime.now(),
@@ -339,7 +319,7 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
               const SizedBox(height: 16),
               ScopedHistoryChart(
                 areaId: resolvedFarmId,
-                rowId: widget.state.pondId,
+                rowId: null,
                 readings: readings,
                 online: widget.historyOnline && !widget.state.isOffline,
                 fetch: sl<ScopedHistoryService>().fetchOnline,
@@ -444,7 +424,7 @@ class _HeroHeader extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  'Cảm biến khu nuôi',
+                                  'Nước tuần hoàn chung khu',
                                   style: TextStyle(
                                     color: Color(0xFF5A7A6C),
                                     fontSize: 12,

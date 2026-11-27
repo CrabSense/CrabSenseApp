@@ -165,7 +165,7 @@ class _ScopedHistoryChartState extends State<ScopedHistoryChart> {
           const Text('Biểu đồ theo dõi', style: TextStyle(
             fontWeight: FontWeight.w800, color: kHomeTextMain)),
           const SizedBox(height: 8),
-          const Text('Lịch sử từng cảm biến · chỉ dữ liệu đo đã xác minh.',
+          const Text('Lịch sử cảm biến gốc của khu · giữ nguyên vị trí ghi nhận.',
             style: TextStyle(color: kHomeTextSub)),
           if (!widget.online)
             const Text('Mất kết nối. Không hiển thị cache lịch sử.')
