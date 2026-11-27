@@ -8,6 +8,7 @@ import '../models/water_quality.dart';
 import 'cloud_api_client.dart';
 import 'qualified_live_water.dart';
 import '../models/scoped_history_snapshot.dart';
+import '../models/verified_history_table.dart';
 import 'water_quality_cloud_merge.dart';
 
 /// Poll `/api/iot/live` — chỉ giữ cảm biến thật, không mock.
@@ -49,6 +50,7 @@ class WaterQualityService extends ChangeNotifier {
   bool _historyBusy = false;
   DateTime? _historyAsOf;
   DateTime? _historyLoadedAt;
+  VerifiedHistoryTable? _historyTable;
   Timer? _historyExpiry;
   String? _historyError;
   int _chartRangeIndex = 0;
@@ -91,11 +93,25 @@ class WaterQualityService extends ChangeNotifier {
 
   List<WaterSensorReading> get readings => List.unmodifiable(_scoped(_readings));
   List<WaterSensorReading> get allReadings => List.unmodifiable(_readings);
-  List<RealtimeChartPoint> get chartSeries => _historyLoadedAt != null &&
-      DateTime.now().difference(_historyLoadedAt!) < const Duration(minutes: 1) &&
-      _cloudLive && _lastCloudOkAt != null &&
-      DateTime.now().difference(_lastCloudOkAt!) < const Duration(seconds: 15) &&
-      chartReading != null ? List.unmodifiable(_chartSeries) : const [];
+  bool _within(DateTime? at, Duration limit) {
+    if(at==null) return false;
+    final age=DateTime.now().difference(at);
+    return !age.isNegative && age<limit;
+  }
+  bool get _liveProofFresh => _cloudLive &&
+      _within(_lastCloudOkAt,const Duration(seconds:15));
+  int get historyRevision => _historyGeneration;
+  VerifiedHistoryTable? get historyTable => !_disposed &&
+      _within(_historyLoadedAt,const Duration(minutes:1)) &&
+      _liveProofFresh && chartReading!=null ? _historyTable : null;
+  List<RealtimeChartPoint> get chartSeries =>
+      historyTable!=null ? List.unmodifiable(_chartSeries) : const [];
+
+  String? exportScopedCsv(int expectedRevision) {
+    final table=historyTable;
+    if(expectedRevision!=historyRevision || table==null || table.rows.isEmpty) return null;
+    return table.toCsv();
+  }
   List<RealtimeTableRow> get recentRows => List.unmodifiable(_recentRows);
   List<RealtimeDeviceLink> get devices => List.unmodifiable(_devices);
   String? get areaFilterId => _areaFilterId ?? _session.selectedFarm.id;
@@ -245,10 +261,12 @@ class WaterQualityService extends ChangeNotifier {
       _notifyDeferred();
     }
     try {
-      final live = await _api.fetchIotLive(token, farmingAreaId: area);
+      final live = await _api.fetchIotLive(token, farmingAreaId: area)
+          .timeout(const Duration(seconds:10));
       if (!_current(generation)) return;
       final now = DateTime.now().toUtc();
       final previousSelection = _historyKey(chartReading);
+      final hadFreshLive = _liveProofFresh;
       _readings = decodeQualifiedDesktopLive(live, areaId: area, now: now);
       _devices = _devicesFromLive(live.where((r) => r['farmingAreaId'] == area).toList());
       _deviceCode = _devices.isEmpty ? null : _devices.first.code;
@@ -265,7 +283,7 @@ class WaterQualityService extends ChangeNotifier {
       _cloudLive = true;
       _cloudError = null;
       _lastCloudOkAt = now;
-      if (previousSelection != _historyKey(chartReading)) {
+      if (!hadFreshLive || previousSelection != _historyKey(chartReading)) {
         _clearHistory(resetSelection: true);
       }
     } catch (_) {
@@ -327,6 +345,7 @@ class WaterQualityService extends ChangeNotifier {
     _chartSeries = [];
     _historyAsOf = null;
     _historyLoadedAt = null;
+    _historyTable = null;
     _historyError = null;
     if (resetSelection) _historySensorId = null;
   }
@@ -340,7 +359,7 @@ class WaterQualityService extends ChangeNotifier {
   /// Explicit request only. The independent history generation is not advanced
   /// by successful polling of the same sensor scope.
   Future<void> refreshTrend({bool quiet = false}) async {
-    if (_disposed || _historyBusy || !_cloudLive) return;
+    if (_disposed || _historyBusy || !_liveProofFresh) return;
     final reading = chartReading;
     final area = areaFilterId;
     if (reading == null || area == null) return;
@@ -364,10 +383,12 @@ class WaterQualityService extends ChangeNotifier {
       String? cutoff;
       for (var page = 1; page <= 20; page++) {
         if (!current()) return;
+        if (!_liveProofFresh) throw const FormatException('Live proof expired');
         final data = await _api.fetchScopedHistoryPage(token,areaId:area,
           sensorId:query.sensorId,rowId:query.rowId,from:query.from,to:query.to,
           page:page,asOf:cutoff);
         if (!current()) return;
+        if (!_liveProofFresh) throw const FormatException('Live proof expired');
         if (data['asOf'] is! String || data['hasMore'] is! bool ||
             data['pageSize'] != 250 || data['sensorActive'] != true ||
             data['farmingRowId'] != reading.observedRowId ||
@@ -384,32 +405,32 @@ class WaterQualityService extends ChangeNotifier {
       if (snapshot.asOf.isAfter(DateTime.now().toUtc().add(const Duration(seconds:1)))) {
         throw const FormatException('Invalid history cutoff');
       }
-      final points = <RealtimeChartPoint>[];
-      for (final page in jsonDecode(snapshot.encodedPages) as List) {
-        for (final item in (page as Map)['items'] as List) {
-          final row = item as Map;
-          final at = DateTime.parse(row['measuredAt'] as String).toUtc();
-          points.add(RealtimeChartPoint(xMinutes:at.difference(query.from).inMicroseconds/60000000,
-            label:WaterQualityCloudMerge.axisLabelFor(at,range),timestamp:at,
-            value:(row['value'] as num).toDouble()));
-        }
-      }
+      final table=VerifiedHistoryTable.fromSnapshot(snapshot);
+      final points=[
+        for(final row in table.rows) RealtimeChartPoint(
+          xMinutes:DateTime.parse(row.measuredAt).toUtc().difference(query.from).inMicroseconds/60000000,
+          label:WaterQualityCloudMerge.axisLabelFor(DateTime.parse(row.measuredAt),range),
+          timestamp:DateTime.parse(row.measuredAt).toUtc(),value:row.value.toDouble()),
+      ];
       points.sort((a,b)=>a.timestamp.compareTo(b.timestamp));
       if (!current()) return;
       _chartSeries = points;
+      _historyTable = table;
       _historyAsOf = snapshot.asOf;
       _historyLoadedAt = DateTime.now();
-      _historyExpiry = Timer(const Duration(minutes:1), () {
-        if (!current()) return;
-        _clearHistory();
-        _historyError = 'Lịch sử hết thời hạn hiển thị. Hãy tải lại.';
-        _notifyDeferred();
+      _historyExpiry = Timer.periodic(const Duration(seconds:1), (_) {
+        if (!current() || historyTable == null) {
+          _clearHistory();
+          _historyError = 'Lịch sử hết hạn hoặc mất xác minh online. Hãy tải lại.';
+          _notifyDeferred();
+        }
       });
     } catch (_) {
       if (current()) {
         _chartSeries = [];
         _historyAsOf = null;
         _historyLoadedAt = null;
+        _historyTable = null;
         _historyError = 'Không xác minh được lịch sử hoặc vượt giới hạn 5.000 mẫu.';
       }
     } finally {

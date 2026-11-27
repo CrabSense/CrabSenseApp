@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../../models/auth_models.dart';
 import '../../models/farm_alert.dart';
@@ -49,6 +50,9 @@ class RealtimeMonitorPage extends StatefulWidget {
 
 class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> with WidgetsBindingObserver {
   WaterQualityService get _svc => widget.service;
+  int _tablePage=0;
+  int _tableRevision=-1;
+  bool _exporting=false;
 
   @override
   void initState() {
@@ -161,19 +165,33 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> with WidgetsB
   }
 
   Future<void> _exportCsv() async {
-    final csv = _svc.exportRecentCsv();
-    final path = await FilePicker.platform.saveFile(
-      dialogTitle: 'Xuất dữ liệu gần đây',
-      fileName: 'crabsense-realtime-${_svc.deviceFilter ?? _svc.deviceCode ?? 'controller'}.csv',
-      type: FileType.custom,
-      allowedExtensions: const ['csv'],
-    );
-    if (path == null) return;
-    await File(path).writeAsString(csv);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Đã xuất CSV theo Controller đang xem.')),
-    );
+    if(kIsWeb || _exporting) return;
+    final revision=_svc.historyRevision;
+    final sensor=_svc.historyTable?.sensorId;
+    if(sensor==null || _svc.historyTable!.rows.isEmpty) return;
+    setState(()=>_exporting=true);
+    try {
+      final path=await FilePicker.platform.saveFile(
+        dialogTitle:'Xuất lịch sử cảm biến',
+        fileName:'crabsense-history-$sensor.csv',
+        type:FileType.custom,allowedExtensions:const ['csv']);
+      if(path==null || !mounted) return;
+      final csv=_svc.exportScopedCsv(revision);
+      if(csv==null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content:Text('Phiên hoặc dữ liệu đã thay đổi. Hãy tải lại lịch sử.')));
+        return;
+      }
+      await File(path).writeAsString(csv,flush:true);
+      if(!mounted)return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content:Text('Đã xuất lịch sử cảm biến. Hãy bảo vệ file đã lưu.')));
+    } catch (_) {
+      if(!mounted)return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Không thể lưu CSV.')));
+    } finally {
+      if(mounted)setState(()=>_exporting=false);
+    }
   }
 
   @override
@@ -516,52 +534,54 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> with WidgetsB
   );
 
   Widget _recentTable() {
-    final rows = _svc.recentRows;
+    final table=_svc.historyTable;
+    final count=table?.rows.length ?? 0;
+    const pageSize=25;
+    final revision=_svc.historyRevision;
+    final currentPage=_tableRevision==revision ? _tablePage : 0;
+    final start=currentPage*pageSize;
+    final rows=table?.rows.skip(start).take(pageSize).toList() ?? [];
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: mgmtCardDeco(radius: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(child: Text('Dữ liệu gần đây', style: bvText(fontSize: 15, fontWeight: FontWeight.w800, color: DashboardColors.textPrimary))),
-              MgmtOutlineButton(icon: Icons.download_outlined, label: 'Xuất CSV', onTap: rows.isEmpty ? null : _exportCsv),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (rows.isEmpty)
-            Text('Tạm khóa lịch sử chưa xác minh phạm vi; chưa hỗ trợ xuất CSV.', style: bvText(color: DashboardColors.textMuted))
-          else
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                headingTextStyle: bvText(fontWeight: FontWeight.w800, fontSize: 11.5, color: DashboardColors.textMuted),
-                dataTextStyle: bvText(fontWeight: FontWeight.w600, color: DashboardColors.textPrimary),
-                columns: const [
-                  DataColumn(label: Text('THỜI GIAN')),
-                  DataColumn(label: Text('NHIỆT ĐỘ (°C)')),
-                  DataColumn(label: Text('pH')),
-                  DataColumn(label: Text('TDS (ppt)')),
-                  DataColumn(label: Text('TRẠNG THÁI')),
-                ],
-                rows: [
-                  for (final r in rows)
-                    DataRow(cells: [
-                      DataCell(Text(fmtDateTimeVn(r.at))),
-                      DataCell(Text(r.temperature?.toStringAsFixed(1) ?? '—')),
-                      DataCell(Text(r.ph == null ? '—' : r.ph!.toStringAsFixed(2))),
-                      DataCell(Text(r.tds?.round().toString() ?? '—')),
-                      DataCell(MgmtStatusBadge(
-                        label: r.status,
-                        color: r.outOfRange ? _kRed : DashboardColors.brand,
-                      )),
-                    ]),
-                ],
-              ),
-            ),
+      padding:const EdgeInsets.all(16),decoration:mgmtCardDeco(radius:16),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        Row(children:[
+          Expanded(child:Text('Lịch sử cảm biến đã chọn',style:bvText(fontSize:15,fontWeight:FontWeight.w800))),
+          MgmtOutlineButton(icon:Icons.download_outlined,label:'Xuất CSV',
+            onTap:kIsWeb || count==0 || _exporting ? null : _exportCsv),
+        ]),
+        const SizedBox(height:8),
+        if(table==null)
+          const Text('Chọn cảm biến và tải lịch sử đã xác minh.')
+        else ...[
+          Text('${table.sensorType} · ${table.sensorId} · ${table.unit}'),
+          Text('Khu: ${table.areaId} · Dãy: ${table.rowId ?? 'Không gán dãy'}'),
+          Text('Từ ${table.from} đến ${table.to} · asOf ${table.asOf}',style:bvText(fontSize:11.5)),
+          if(rows.isEmpty) const Text('Không có phép đo trong khoảng đã tải.')
+          else ...[
+            SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(
+              columns:const [DataColumn(label:Text('ĐO')),DataColumn(label:Text('NHẬN')),
+                DataColumn(label:Text('GIÁ TRỊ')),DataColumn(label:Text('NGUỒN'))],
+              rows:[for(final r in rows)DataRow(cells:[
+                DataCell(Text(r.measuredAt)),DataCell(Text(r.receivedAt)),
+                DataCell(Text('${r.value} ${table.unit}')),DataCell(Text(r.source)),
+              ])])),
+            Row(children:[
+              Expanded(child:Text('${start+1}–${start+rows.length} / $count mẫu')),
+              IconButton(tooltip:'Trang trước',onPressed:currentPage==0 ? null : ()=>setState((){
+                _tableRevision=revision;_tablePage=currentPage-1;
+              }),icon:const Icon(Icons.chevron_left)),
+              IconButton(tooltip:'Trang sau',onPressed:start+rows.length>=count ? null : ()=>setState((){
+                _tableRevision=revision;_tablePage=currentPage+1;
+              }),icon:const Icon(Icons.chevron_right)),
+            ]),
+          ],
         ],
-      ),
+        Text(kIsWeb ? 'Xuất CSV hiện chỉ hỗ trợ Desktop native.'
+          : 'CSV gồm toàn bộ mẫu đã tải của một cảm biến, không chứa token.',
+          style:bvText(fontSize:11.5,color:DashboardColors.textMuted)),
+        Text('Phạm vi theo cấu hình lúc ghi nhận; chưa xác minh vị trí vật lý hoặc snapshot DB.',
+          style:bvText(fontSize:11.5,color:DashboardColors.textMuted)),
+      ]),
     );
   }
 

@@ -103,4 +103,104 @@ void main(){
     expect(svc.historySensorId,isNull);
     expect(svc.chartLoading,isFalse);
   });
+
+  test('table and CSV share scoped snapshot and reject obsolete revision',() async {
+    final svc=WaterQualityService(session:session,api:CloudApiClient(client:MockClient((r)async{
+      if(r.url.path=='/api/iot/live')return ok([live()]);
+      return ok(page(r.url.queryParameters));
+    })));
+    addTearDown(svc.dispose);
+    await svc.refresh();
+    svc.selectHistorySensor(sensor);
+    await svc.refreshTrend();
+    final table=svc.historyTable!;
+    final row=table.rows.single;
+    expect(table.sensorId,sensor);
+    expect(table.rowId,rowId);
+    expect(row.value,0);
+    expect(svc.chartSeries.single.timestamp,DateTime.parse(row.measuredAt));
+    expect(svc.chartSeries.single.value,row.value);
+    final revision=svc.historyRevision;
+    final csv=svc.exportScopedCsv(revision)!;
+    expect(csv,contains('"$area","$rowId","$sensor","Salinity","ppt"'));
+    expect(csv,contains(',0,"Realtime","edge"'));
+    expect(csv,isNot(contains('fixture')));
+    svc.setChartRangeIndex(2);
+    expect(svc.historyTable,isNull);
+    expect(svc.exportScopedCsv(revision),isNull);
+    await svc.refreshTrend();
+    expect(svc.historyTable,isNotNull);
+    expect(svc.exportScopedCsv(revision),isNull);
+    final next=svc.historyRevision;
+    svc.updateSession(session.copyWith(token:'new-session'));
+    expect(svc.historyTable,isNull);
+    expect(svc.exportScopedCsv(next),isNull);
+  });
+
+  test('complete two-page table and CSV retain all rows and raw cutoff',() async {
+    var requests=0;
+    String? cutoff;
+    final svc=WaterQualityService(session:session,api:CloudApiClient(client:MockClient((r)async{
+      if(r.url.path=='/api/iot/live')return ok([live()]);
+      final q=r.url.queryParameters;
+      final data=page(q);
+      final seed=(data['items'] as List).single as Map<String,dynamic>;
+      final end=DateTime.parse(q['to']!);
+      Map<String,dynamic> item(int i) => {
+        ...seed,
+        'id':'44444444-4444-4444-4444-'+(i+1).toString().padLeft(12,'0'),
+        'measuredAt':end.subtract(Duration(seconds:i+1)).toIso8601String(),
+        'receivedAt':end.subtract(Duration(seconds:i+1)).toIso8601String(),
+        'value':i==0 ? 0 : -i,
+      };
+      requests++;
+      if(q['page']=='1'){
+        cutoff=q['to']!.replaceFirst('Z','0Z');
+        return ok({...data,'asOf':cutoff,'hasMore':true,
+          'items':[for(var i=0;i<250;i++)item(i)]});
+      }
+      expect(q['page'],'2');
+      expect(q['asOf'],cutoff);
+      return ok({...data,'asOf':cutoff,'page':2,'items':[item(250)]});
+    })));
+    addTearDown(svc.dispose);
+    await svc.refresh();
+    svc.selectHistorySensor(sensor);
+    await svc.refreshTrend();
+    expect(requests,2);
+    final table=svc.historyTable!;
+    expect(table.rows.length,251);
+    expect(table.asOf,cutoff);
+    expect(svc.chartSeries.length,251);
+    expect(table.rows.last.value,-250);
+    final csv=svc.exportScopedCsv(svc.historyRevision)!;
+    expect(csv.trimRight().split('\r\n').length,252);
+    expect(csv,contains(',-250,"Realtime"'));
+    svc.stopLiveUpdates();
+    expect(svc.historyTable,isNull);
+    expect(svc.exportScopedCsv(svc.historyRevision),isNull);
+  });
+
+  test('denial on second page never exposes partial table or CSV',() async {
+    final svc=WaterQualityService(session:session,api:CloudApiClient(client:MockClient((r)async{
+      if(r.url.path=='/api/iot/live')return ok([live()]);
+      final q=r.url.queryParameters;
+      if(q['page']=='2')return http.Response('denied',403);
+      final data=page(q);
+      final seed=(data['items'] as List).single as Map<String,dynamic>;
+      return ok({...data,'hasMore':true,'items':[
+        for(var i=0;i<250;i++) {...seed,
+          'id':'44444444-4444-4444-4444-'+(i+1).toString().padLeft(12,'0')},
+      ]});
+    })));
+    addTearDown(svc.dispose);
+    await svc.refresh();
+    svc.selectHistorySensor(sensor);
+    await svc.refreshTrend();
+    expect(svc.chartSeries,isEmpty);
+    expect(svc.historyTable,isNull);
+    expect(svc.exportScopedCsv(svc.historyRevision),isNull);
+    expect(svc.historyError,isNotNull);
+  });
+
 }
