@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:crabsensemobile/features/water_quality/presentation/widgets/water_history_unavailable.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:crabsensemobile/features/water_bench/presentation/water_bench_screen.dart';
 import 'package:crabsensemobile/features/authentication/domain/entities/user.dart';
@@ -111,5 +112,12 @@ void main(){
     assigned=false;
     expect(await svc.areas(user),isEmpty);
     await expectLater(svc.overview(user,area),throwsStateError);
+  });
+
+  testWidgets('legacy history explicitly unavailable rather than synthetic values', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: WaterHistoryUnavailable())));
+    expect(find.byKey(const Key('water-history-unavailable')),findsOneWidget);
+    expect(find.text('Chưa đủ dữ liệu lịch sử đã xác minh để vẽ biểu đồ.'),findsOneWidget);
+    expect(find.textContaining('Không sử dụng dữ liệu giả'),findsOneWidget);
   });
 }
