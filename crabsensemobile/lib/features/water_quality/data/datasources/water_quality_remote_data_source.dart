@@ -7,6 +7,7 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/network/api_client.dart';
+import '../../domain/entities/water_quality.dart' show LiveWaterKind, LiveWaterMetric;
 import '../../domain/repositories/water_quality_repository.dart' show HistoricalPeriod;
 import '../models/water_quality_model.dart';
 
@@ -233,9 +234,34 @@ WaterQualityModel? decodeLiveWaterReading(Map<String,dynamic> row, {
   final ph = (type == 'ph' && (unit == null || unit == '' || unit == 'pH')) ? value : null;
   final oxygen = ((type == 'do' || type == 'dissolvedoxygen' || type == 'dissolved_oxygen') && unit == 'mg/L') ? value : null;
   final salinity = type == 'salinity' && unit == 'ppt' ? value : null;
-  if (temperature == null && ph == null && oxygen == null && salinity == null) return null;
+  final tds = type == 'tds' && (unit == 'ppm' || unit == 'mg/L') ? value : null;
+  final kind = temperature != null ? LiveWaterKind.temperature :
+      ph != null ? LiveWaterKind.ph : oxygen != null ? LiveWaterKind.oxygen :
+      salinity != null ? LiveWaterKind.salinity : tds != null ? LiveWaterKind.tds : null;
+  if (kind == null) return null;
+  final received = DateTime.tryParse(row['lastReceivedAt']?.toString() ?? '');
+  final now = DateTime.now().toUtc();
+  final rawMin = row['minThreshold'], rawMax = row['maxThreshold'];
+  double? threshold(Object? raw) => raw is num && raw.isFinite ? raw.toDouble() : null;
+  final min = threshold(rawMin), max = threshold(rawMax);
+  final validRange = (rawMin == null || min != null) && (rawMax == null || max != null) &&
+      (min == null || max == null || min < max);
+  final status = row['status'];
+  final alarm = row['alarm'];
+  final metric = row['latestValue'] is num && at.isUtc && received != null &&
+      received.isUtc && !received.isBefore(at) &&
+      !received.isAfter(now.add(const Duration(seconds: 1)))
+      ? LiveWaterMetric(kind: kind, value: value, unit: kind == LiveWaterKind.ph ? 'pH' : unit as String,
+          receivedAt: received, status: ['Online','Offline','Error','Disabled'].contains(status)
+              ? status as String : 'Unknown',
+          sensorCode: row['sensorCode'] is String && (row['sensorCode'] as String).isNotEmpty
+              ? row['sensorCode'] as String : sensor,
+          min: validRange ? min : null, max: validRange ? max : null,
+          alarm: alarm is String && alarm.isNotEmpty ? alarm : null)
+      : null;
+  if (kind == LiveWaterKind.tds && metric == null) return null;
   return WaterQualityModel(id: '$sensor-${at.toUtc().toIso8601String()}',sensorId:sensor,
       farmId:area,pondId:row['farmingRowId']?.toString(),temperature:temperature,ph:ph,
       dissolvedOxygen:oxygen,salinity:salinity,timestamp:at,
-      isAlertTriggered:(row['alarm']?.toString().isNotEmpty ?? false));
+      liveMetric:metric, isAlertTriggered:(row['alarm']?.toString().isNotEmpty ?? false));
 }

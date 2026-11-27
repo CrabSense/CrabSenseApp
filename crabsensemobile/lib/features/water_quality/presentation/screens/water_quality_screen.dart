@@ -4,7 +4,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../app/routes.dart';
 
@@ -13,10 +12,7 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/network_info.dart';
 import '../../../../core/utils/app_back.dart';
-import '../../../home/data/repositories/home_repository_impl.dart';
-import '../../../home/domain/models/home_models.dart' show WaterMetricItem;
 import '../../../home/presentation/widgets/home_palette.dart';
-import '../../domain/entities/water_quality_thresholds.dart';
 import '../bloc/water_quality_bloc.dart';
 import '../bloc/water_quality_event.dart';
 import '../bloc/water_quality_state.dart';
@@ -24,7 +20,7 @@ import '../models/farm_filter_model.dart';
 import '../widgets/farm_pond_filter_widget.dart';
 import '../../data/repositories/scoped_history_service.dart';
 import '../widgets/scoped_history_chart.dart';
-import '../widgets/nine_water_metrics.dart';
+import '../widgets/live_water_metrics.dart';
 
 class WaterQualityScreen extends StatelessWidget {
   const WaterQualityScreen({super.key, this.farmId, this.pondId});
@@ -62,6 +58,7 @@ class _WaterQualityViewState extends State<_WaterQualityView>
   bool _historyOnline = false;
   bool _foreground = false;
   int _networkGeneration = 0;
+  DateTime? _onlineSince;
 
   @override
   void initState() {
@@ -89,7 +86,10 @@ class _WaterQualityViewState extends State<_WaterQualityView>
     if (!mounted) return;
     final next = available && _foreground;
     if (next == _historyOnline) return;
-    setState(() => _historyOnline = next);
+    setState(() {
+      _historyOnline = next;
+      _onlineSince = next ? DateTime.now() : null;
+    });
     if (!next) {
       // Revoke pending/displayed history before waiting for SQLite purge.
       unawaited(sl<ScopedHistoryService>().invalidate());
@@ -187,7 +187,9 @@ class _WaterQualityViewState extends State<_WaterQualityView>
                   }
                 },
                 child: _WaterQualityContent(state: state, bottomPad: navPad,
-                  historyOnline: _historyOnline),
+                  historyOnline: _historyOnline && _onlineSince != null &&
+                    state.lastRefreshedAt != null &&
+                    !state.lastRefreshedAt!.isBefore(_onlineSince!)),
               );
             }
             return _SkeletonBody(bottom: navPad);
@@ -212,47 +214,12 @@ class _WaterQualityContent extends StatefulWidget {
 
 class _WaterQualityContentState extends State<_WaterQualityContent> {
   List<FarmOption> _farms = const [];
-  List<WaterMetricItem> _metrics = const [];
   bool _farmsLoading = true;
-  int _metricsGeneration = 0;
 
   @override
   void initState() {
     super.initState();
     _loadFarms();
-    _loadMetrics();
-  }
-
-  @override
-  void didUpdateWidget(covariant _WaterQualityContent oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.state.farmId != widget.state.farmId ||
-        oldWidget.state.pondId != widget.state.pondId ||
-        oldWidget.state.lastRefreshedAt != widget.state.lastRefreshedAt) {
-      _metrics = const [];
-      _loadMetrics();
-    }
-  }
-
-  Future<void> _loadMetrics() async {
-    final farmId = widget.state.farmId;
-    final generation = ++_metricsGeneration;
-    if (widget.state.pondId != null || farmId.isEmpty || farmId == 'default') {
-      if (mounted) setState(() => _metrics = const []);
-      return; // Home summary is not row-scoped.
-    }
-    try {
-      final data = await HomeRepositoryImpl(api: sl<ApiClient>()).getHomeSummary(
-        forceRefresh: true,
-        farmingAreaId:
-            farmId.isEmpty || farmId == 'default' ? null : farmId,
-      );
-      if (!mounted || generation != _metricsGeneration) return;
-      setState(() => _metrics = data.selectedFarmId == farmId && !data.isOfflineCached ? data.waterMetrics : const []);
-    } on Exception {
-      if (!mounted || generation != _metricsGeneration) return;
-      setState(() => _metrics = const []);
-    }
   }
 
   Future<void> _loadFarms() async {
@@ -318,52 +285,11 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
         );
   }
 
-  void _showThresholds(WaterQualityThresholds t) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: kHomeSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Ngưỡng khuyến nghị',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 16,
-                color: kHomePrimaryDark,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Ngưỡng tham khảo mặc định; chưa xác minh cấu hình của khu.',
-              style: TextStyle(color: kHomeTextSub, fontSize: 13),
-            ),
-            const SizedBox(height: 14),
-            Text('pH: ${t.minPh} – ${t.maxPh}'),
-            Text('Oxy hòa tan: ≥ ${t.minDissolvedOxygen} mg/L'),
-            Text('Nhiệt độ: ${t.minTemperature} – ${t.maxTemperature} °C'),
-            Text('Độ mặn: ${t.minSalinity} – ${t.maxSalinity} ppt'),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final readings = widget.state.readings;
-    final thresholds = widget.state.thresholds;
-    final latestTimestamp =
-        readings.isNotEmpty ? readings.first.timestamp : null;
     final resolvedFarmId = widget.state.farmId;
-    final bool? online = widget.state.isOffline ? false : null;
-    // A single sensor status cannot establish connectivity for the entire area.
+    final online = widget.historyOnline && !widget.state.isOffline;
 
     return CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -394,15 +320,6 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
           padding: EdgeInsets.fromLTRB(16, 8, 16, widget.bottomPad),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              if (widget.state.isDeviceOffline) ...[
-                const _Banner(
-                  icon: Icons.sensors_off_rounded,
-                  title: 'Cảm biến ngoại tuyến',
-                  subtitle: 'Thiết bị IoT không phản hồi',
-                  color: kHomeDanger,
-                ),
-                const SizedBox(height: 10),
-              ],
               if (widget.state.isOffline) ...[
                 const _Banner(
                   icon: Icons.wifi_off_rounded,
@@ -412,14 +329,12 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
                 ),
                 const SizedBox(height: 10),
               ],
-              _SensorStatusRow(
-                timestamp: latestTimestamp,
-                online: online,
-              ),
-              const SizedBox(height: 16),
-              _CurrentMetricsSection(
-                metrics: _metrics,
-                onRecommend: () => _showThresholds(thresholds),
+              LiveWaterMetrics(
+                areaId: resolvedFarmId,
+                rowId: widget.state.pondId,
+                readings: readings,
+                online: online && !widget.state.isRefreshing,
+                now: DateTime.now(),
               ),
               const SizedBox(height: 16),
               ScopedHistoryChart(
@@ -593,107 +508,6 @@ class _HeroHeader extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _SensorStatusRow extends StatelessWidget {
-  const _SensorStatusRow({
-    required this.timestamp,
-    required this.online,
-  });
-
-  final DateTime? timestamp;
-  final bool? online;
-
-  @override
-  Widget build(BuildContext context) {
-    final time = timestamp == null
-        ? 'Chưa có dữ liệu'
-        : DateFormat('dd/MM/yyyy HH:mm').format(timestamp!.toLocal());
-    return Row(
-      children: [
-        const Icon(Icons.access_time_rounded, size: 14, color: kHomeTextSub),
-        const SizedBox(width: 4),
-        Expanded(
-          child: Text(
-            'Cập nhật: $time',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12, color: kHomeTextSub),
-          ),
-        ),
-        Icon(
-          Icons.circle,
-          size: 8,
-          color: online == true ? const Color(0xFF2BB673) : online == false ? kHomeDanger : kHomeTextSub,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          online == true ? 'Trực tuyến' : online == false ? 'Ngoại tuyến' : 'Chưa xác minh',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: online == true ? kHomePrimaryDark : online == false ? kHomeDanger : kHomeTextSub,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _CurrentMetricsSection extends StatelessWidget {
-  const _CurrentMetricsSection({
-    required this.metrics,
-    required this.onRecommend,
-  });
-
-  final List<WaterMetricItem> metrics;
-  final VoidCallback onRecommend;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: homeCardDecoration(radius: 22),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.monitor_heart_outlined,
-                  size: 18, color: kHomePrimaryDark),
-              const SizedBox(width: 6),
-              const Expanded(
-                child: Text(
-                  'Chỉ số hiện tại',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: kHomeTextMain,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: onRecommend,
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  foregroundColor: kHomeTextSub,
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.info_outline, size: 14),
-                    SizedBox(width: 4),
-                    Text('Ngưỡng khuyến nghị >'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          NineWaterMetrics(metrics: metrics),
-        ],
-      ),
     );
   }
 }
