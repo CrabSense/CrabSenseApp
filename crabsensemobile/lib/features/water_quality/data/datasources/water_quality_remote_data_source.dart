@@ -99,15 +99,10 @@ class WaterQualityRemoteDataSourceImpl implements WaterQualityRemoteDataSource {
       'getCurrentReadings',
     );
 
-    // BE /iot/live returns per-sensor rows (SensorLiveDto). Aggregate into
-    // one WaterQuality snapshot the UI/chart layer expects.
-    if (items.isNotEmpty && items.first is Map && (items.first as Map).containsKey('sensorType')) {
-      return [_aggregateLiveSensors(items, farmId)];
-    }
-
-    return items
-        .map((e) => WaterQualityModel.fromJson(_asStringKeyedMap(e)))
-        .toList(growable: false);
+    return items.map(_asStringKeyedMap)
+        .map((row) => decodeLiveWaterReading(row, farmId: farmId, pondId: pondId))
+        .whereType<WaterQualityModel>().toList()
+      ..sort((a,b) => b.timestamp.compareTo(a.timestamp));
   }
 
   Map<String, dynamic>? _asMap(dynamic value) {
@@ -126,161 +121,13 @@ class WaterQualityRemoteDataSourceImpl implements WaterQualityRemoteDataSource {
     throw const ParseException(message: 'Expected JSON object for water quality row');
   }
 
-  WaterQualityModel _aggregateLiveSensors(List<dynamic> items, String farmId) {
-    double temperature = 0;
-    double ph = 0;
-    double dissolvedOxygen = 0;
-    double salinity = 0;
-    var hasAlert = false;
-    String sensorId = '';
-    DateTime timestamp = DateTime.now();
-
-    for (final raw in items) {
-      final map = _asStringKeyedMap(raw);
-      final type = (map['sensorType'] ?? map['SensorType'] ?? '').toString().toLowerCase();
-      final value = (map['latestValue'] ?? map['LatestValue'] ?? map['value'] ?? 0) as num;
-      final alarm = map['alarm']?.toString() ?? map['Alarm']?.toString();
-      if (alarm != null && alarm.isNotEmpty) hasAlert = true;
-
-      final measuredAt = map['latestMeasuredAt'] ?? map['LatestMeasuredAt'];
-      if (measuredAt != null) {
-        timestamp = DateTime.tryParse(measuredAt.toString()) ?? timestamp;
-      }
-
-      sensorId = map['sensorId']?.toString() ??
-          map['SensorId']?.toString() ??
-          sensorId;
-
-      if (type.contains('float') || type.contains('relay')) continue;
-
-      if (type.contains('temp')) {
-        final t = value.toDouble();
-        if (t >= 5 && t <= 40) temperature = t;
-      } else if (type.contains('ph') || type == 'pH'.toLowerCase()) {
-        ph = value.toDouble();
-      } else if (type == 'do' ||
-          type.contains('oxygen') ||
-          type.contains('oxy')) {
-        dissolvedOxygen = value.toDouble();
-      } else if (type.contains('salin') ||
-          type.contains('salt') ||
-          type.contains('tds')) {
-        salinity = value.toDouble();
-      }
-    }
-
-    return WaterQualityModel(
-      id: 'live_${farmId.isEmpty ? 'all' : farmId}',
-      sensorId: sensorId,
-      farmId: farmId,
-      temperature: temperature,
-      ph: ph,
-      dissolvedOxygen: dissolvedOxygen,
-      salinity: salinity,
-      timestamp: timestamp,
-      isAlertTriggered: hasAlert,
-    );
-  }
-
   @override
   Future<List<WaterQualityModel>> getHistoricalData({
     required String farmId,
     required HistoricalPeriod period,
     String? pondId,
   }) async {
-    _logger.d(
-      'WaterQualityRemote: getHistoricalData '
-      'farmId=$farmId period=${period.name} pondId=$pondId',
-    );
-
-    final now = DateTime.now();
-    final from = now.subtract(_periodDuration(period));
-    final liveQuery = <String, dynamic>{};
-    if (farmId.isNotEmpty && farmId != 'default') {
-      final looksLikeGuid = RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(farmId);
-      if (looksLikeGuid) {
-        liveQuery['farmingAreaId'] = farmId;
-      } else {
-        liveQuery['farmId'] = farmId;
-      }
-    }
-    if (pondId != null) liveQuery['pondId'] = pondId;
-
-    final live = await _apiClient.safeGet<Map<String, dynamic>>(
-      ApiConstants.iotLive,
-      queryParameters: liveQuery.isEmpty ? null : liveQuery,
-    );
-    _checkFailure(live.failure, 'water quality sensor list');
-
-    final liveItems = _extractListPayload(live.data.data, 'getHistoricalData');
-    final sensorTypes = <String, String>{};
-    for (final raw in liveItems) {
-      final row = _asStringKeyedMap(raw);
-      final id =
-          (row['sensorId'] ?? row['SensorId'] ?? row['id'] ?? row['Id'])
-              ?.toString();
-      final type = (row['sensorType'] ?? row['SensorType'])?.toString();
-      if (id == null || id.isEmpty || type == null || type.isEmpty) continue;
-      final t = type.toLowerCase();
-      if (t.contains('float') || t.contains('relay')) continue;
-      sensorTypes[id] = type;
-    }
-
-    final history = <WaterQualityModel>[];
-    for (final entry in sensorTypes.entries) {
-      if (!RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(entry.key)) continue;
-      var rows = await _fetchSensorRows(
-        entry.key,
-        from: from,
-        to: now,
-      );
-      if (rows.isEmpty) {
-        rows = await _fetchSensorRows(entry.key);
-      }
-      for (final row in rows) {
-        final rawVal = row['value'] ?? row['Value'];
-        final value =
-            rawVal is num ? rawVal.toDouble() : double.tryParse('$rawVal');
-        final measuredAt = row['measuredAt'] ?? row['MeasuredAt'];
-        final timestamp = measuredAt == null
-            ? null
-            : DateTime.tryParse(measuredAt.toString());
-        if (value == null || timestamp == null) continue;
-        history.add(_sensorReadingAsWaterQuality(
-          row,
-          entry.key,
-          entry.value,
-          value,
-          timestamp,
-          farmId,
-        ));
-      }
-    }
-
-    history.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-    return history;
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchSensorRows(
-    String sensorId, {
-    DateTime? from,
-    DateTime? to,
-  }) async {
-    final query = <String, dynamic>{
-      'page': 1,
-      'pageSize': 2000,
-    };
-    if (from != null) query['from'] = from.toIso8601String();
-    if (to != null) query['to'] = to.toIso8601String();
-    final result = await _apiClient.safeGet<Map<String, dynamic>>(
-      ApiConstants.sensorData(sensorId),
-      queryParameters: query,
-    );
-    if (result.failure != null) return const [];
-    return _extractListPayload(result.data.data, 'sensor history $sensorId')
-        .whereType<Map>()
-        .map(_asStringKeyedMap)
-        .toList();
+    throw const ParseException(message: 'Historical per-sensor contract not verified');
   }
 
   @override
@@ -304,9 +151,11 @@ class WaterQualityRemoteDataSourceImpl implements WaterQualityRemoteDataSource {
 
     if (data['online'] is bool) return data['online'] as bool;
     if (data['isOnline'] is bool) return data['isOnline'] as bool;
-    if (data['isActive'] is bool) return data['isActive'] as bool;
+    // Configuration is not a live connectivity observation.
     final status = data['status']?.toString().toLowerCase();
-    return status == 'online' || status == 'active';
+    if (status == 'online') return true;
+    if (status == 'offline') return false;
+    throw const ParseException(message: 'Unknown device connectivity');
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -365,55 +214,28 @@ class WaterQualityRemoteDataSourceImpl implements WaterQualityRemoteDataSource {
     return [];
   }
 
-  /// Like [_extractList] but also accepts a raw [List] payload.
-  List<dynamic> _extractListPayload(dynamic body, String operationName) {
-    if (body is List) return body;
-    if (body is Map<String, dynamic>) return _extractList(body, operationName);
-    if (body is Map) {
-      return _extractList(
-        body.map((k, v) => MapEntry(k.toString(), v)),
-        operationName,
-      );
-    }
-    _logger.w('WaterQualityRemote: unexpected shape in $operationName');
-    return [];
-  }
+}
 
-  Duration _periodDuration(HistoricalPeriod period) => switch (period) {
-        HistoricalPeriod.last24Hours => const Duration(hours: 24),
-        HistoricalPeriod.last7Days => const Duration(days: 7),
-        HistoricalPeriod.last30Days => const Duration(days: 30),
-      };
-
-  WaterQualityModel _sensorReadingAsWaterQuality(
-    Map<String, dynamic> row,
-    String sensorId,
-    String sensorType,
-    double value,
-    DateTime timestamp,
-    String farmId,
-  ) {
-    final type = sensorType.toLowerCase();
-    return WaterQualityModel(
-      id: (row['id'] ?? row['Id'] ?? '$sensorId-${timestamp.toIso8601String()}')
-          .toString(),
-      sensorId: sensorId,
-      farmId: farmId,
-      temperature: type.contains('temp') ? value : 0,
-      ph: type == 'ph' || type.contains('ph') ? value : 0,
-      dissolvedOxygen:
-          type == 'do' ||
-                  type.contains('oxygen') ||
-                  type.contains('oxy')
-              ? value
-              : 0,
-      salinity: type.contains('salin') ||
-              type.contains('salt') ||
-              type.contains('tds')
-          ? value
-          : 0,
-      timestamp: timestamp,
-      isAlertTriggered: false,
-    );
-  }
+WaterQualityModel? decodeLiveWaterReading(Map<String,dynamic> row, {
+  required String farmId, String? pondId,
+}) {
+  if (row['isActive'] != true || row['dataQuality'] != 'Realtime') return null;
+  final area = row['farmingAreaId'], sensor = row['sensorId'];
+  if (area is! String || area.isEmpty || sensor is! String || sensor.isEmpty) return null;
+  if (farmId.isNotEmpty && farmId != 'default' && area != farmId) return null;
+  if (pondId != null && row['farmingRowId'] != pondId) return null;
+  final type = row['sensorType']?.toString().toLowerCase();
+  final unit = row['unit'];
+  final value = parseMeasuredValue(row['latestValue']);
+  final at = DateTime.tryParse(row['latestMeasuredAt']?.toString() ?? '');
+  if (value == null || at == null || at.isAfter(DateTime.now().add(const Duration(seconds: 1)))) return null;
+  final temperature = (type == 'temperature' && unit == '°C') ? value : null;
+  final ph = (type == 'ph' && (unit == null || unit == '' || unit == 'pH')) ? value : null;
+  final oxygen = ((type == 'do' || type == 'dissolvedoxygen' || type == 'dissolved_oxygen') && unit == 'mg/L') ? value : null;
+  final salinity = type == 'salinity' && unit == 'ppt' ? value : null;
+  if (temperature == null && ph == null && oxygen == null && salinity == null) return null;
+  return WaterQualityModel(id: '$sensor-${at.toUtc().toIso8601String()}',sensorId:sensor,
+      farmId:area,pondId:row['farmingRowId']?.toString(),temperature:temperature,ph:ph,
+      dissolvedOxygen:oxygen,salinity:salinity,timestamp:at,
+      isAlertTriggered:(row['alarm']?.toString().isNotEmpty ?? false));
 }

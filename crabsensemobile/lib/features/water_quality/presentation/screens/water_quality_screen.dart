@@ -127,10 +127,7 @@ class _WaterQualityViewState extends State<_WaterQualityView> {
                 isOffline: state.isOffline,
                 message: state.message,
                 onRetry: () => context.read<WaterQualityBloc>().add(
-                      WaterQualityLoadRequested(
-                        farmId: widget.farmId ?? 'default',
-                        pondId: widget.pondId,
-                      ),
+                      const WaterQualityRefreshRequested(),
                     ),
               );
             }
@@ -138,14 +135,19 @@ class _WaterQualityViewState extends State<_WaterQualityView> {
               return RefreshIndicator(
                 color: kHomePrimary,
                 onRefresh: () async {
-                  context.read<WaterQualityBloc>().add(
-                        const WaterQualityRefreshRequested(),
-                      );
-                  await context.read<WaterQualityBloc>().stream.firstWhere(
-                        (s) =>
-                            (s is WaterQualityLoaded && !s.isRefreshing) ||
-                            s is WaterQualityError,
-                      );
+                  final bloc = context.read<WaterQualityBloc>();
+                  // Subscribe before dispatch; bounded UI wait even on route disposal.
+                  final finished = bloc.stream.firstWhere(
+                    (s) => (s is WaterQualityLoaded && !s.isRefreshing) || s is WaterQualityError,
+                  );
+                  bloc.add(const WaterQualityRefreshRequested());
+                  try {
+                    await finished.timeout(const Duration(seconds: 60));
+                  } on TimeoutException {
+                    // The BLoC continues to own the in-flight request.
+                  } on StateError {
+                    // The BLoC was closed when the screen was disposed.
+                  }
                 },
                 child: _WaterQualityContent(state: state, bottomPad: navPad),
               );
@@ -185,7 +187,8 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
   void didUpdateWidget(covariant _WaterQualityContent oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.state.farmId != widget.state.farmId ||
-        oldWidget.state.pondId != widget.state.pondId) {
+        oldWidget.state.pondId != widget.state.pondId ||
+        oldWidget.state.lastRefreshedAt != widget.state.lastRefreshedAt) {
       _metrics = const [];
       _loadMetrics();
     }
@@ -194,6 +197,10 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
   Future<void> _loadMetrics() async {
     final farmId = widget.state.farmId;
     final generation = ++_metricsGeneration;
+    if (widget.state.pondId != null || farmId.isEmpty || farmId == 'default') {
+      if (mounted) setState(() => _metrics = const []);
+      return; // Home summary is not row-scoped.
+    }
     try {
       final data = await HomeRepositoryImpl(api: sl<ApiClient>()).getHomeSummary(
         forceRefresh: true,
@@ -201,7 +208,7 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
             farmId.isEmpty || farmId == 'default' ? null : farmId,
       );
       if (!mounted || generation != _metricsGeneration) return;
-      setState(() => _metrics = data.waterMetrics);
+      setState(() => _metrics = data.selectedFarmId == farmId && !data.isOfflineCached ? data.waterMetrics : const []);
     } on Exception {
       if (!mounted || generation != _metricsGeneration) return;
       setState(() => _metrics = const []);
@@ -294,7 +301,7 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Ngưỡng đang dùng trên khu (từ cấu hình hệ thống).',
+              'Ngưỡng tham khảo mặc định; chưa xác minh cấu hình của khu.',
               style: TextStyle(color: kHomeTextSub, fontSize: 13),
             ),
             const SizedBox(height: 14),
@@ -315,7 +322,8 @@ class _WaterQualityContentState extends State<_WaterQualityContent> {
     final latestTimestamp =
         readings.isNotEmpty ? readings.first.timestamp : null;
     final resolvedFarmId = widget.state.farmId;
-    final online = !widget.state.isOffline && !widget.state.isDeviceOffline;
+    final bool? online = widget.state.isOffline ? false : null;
+    // A single sensor status cannot establish connectivity for the entire area.
 
     return CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -548,7 +556,7 @@ class _SensorStatusRow extends StatelessWidget {
   });
 
   final DateTime? timestamp;
-  final bool online;
+  final bool? online;
 
   @override
   Widget build(BuildContext context) {
@@ -570,15 +578,15 @@ class _SensorStatusRow extends StatelessWidget {
         Icon(
           Icons.circle,
           size: 8,
-          color: online ? const Color(0xFF2BB673) : kHomeDanger,
+          color: online == true ? const Color(0xFF2BB673) : online == false ? kHomeDanger : kHomeTextSub,
         ),
         const SizedBox(width: 4),
         Text(
-          online ? 'Trực tuyến' : 'Ngoại tuyến',
+          online == true ? 'Trực tuyến' : online == false ? 'Ngoại tuyến' : 'Chưa xác minh',
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: online ? kHomePrimaryDark : kHomeDanger,
+            color: online == true ? kHomePrimaryDark : online == false ? kHomeDanger : kHomeTextSub,
           ),
         ),
       ],

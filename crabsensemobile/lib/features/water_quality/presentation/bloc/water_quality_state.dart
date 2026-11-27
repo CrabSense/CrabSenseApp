@@ -54,6 +54,7 @@ class WaterQualityLoaded extends WaterQualityState {
     this.pondId,
     this.isOffline = false,
     this.isDeviceOffline = false,
+    this.deviceStatusKnown = false,
     this.isRefreshing = false,
     this.lastRefreshedAt,
   });
@@ -82,6 +83,7 @@ class WaterQualityLoaded extends WaterQualityState {
   ///
   /// Displays a sensor offline banner when true (Requirement 8.8).
   final bool isDeviceOffline;
+  final bool deviceStatusKnown;
 
   /// True while a background refresh is in flight.
   ///
@@ -101,6 +103,7 @@ class WaterQualityLoaded extends WaterQualityState {
     String? pondId,
     bool? isOffline,
     bool? isDeviceOffline,
+    bool? deviceStatusKnown,
     bool? isRefreshing,
     DateTime? lastRefreshedAt,
   }) =>
@@ -112,6 +115,7 @@ class WaterQualityLoaded extends WaterQualityState {
         pondId: pondId ?? this.pondId,
         isOffline: isOffline ?? this.isOffline,
         isDeviceOffline: isDeviceOffline ?? this.isDeviceOffline,
+        deviceStatusKnown: deviceStatusKnown ?? this.deviceStatusKnown,
         isRefreshing: isRefreshing ?? this.isRefreshing,
         lastRefreshedAt: lastRefreshedAt ?? this.lastRefreshedAt,
       );
@@ -125,6 +129,7 @@ class WaterQualityLoaded extends WaterQualityState {
         pondId,
         isOffline,
         isDeviceOffline,
+        deviceStatusKnown,
         isRefreshing,
         lastRefreshedAt,
       ];

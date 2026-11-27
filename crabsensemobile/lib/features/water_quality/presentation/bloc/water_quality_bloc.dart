@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/errors/failures.dart';
-import '../../domain/entities/water_quality.dart';
 import '../../domain/entities/water_quality_thresholds.dart';
 import '../../domain/repositories/water_quality_repository.dart';
 import '../../domain/usecases/get_current_readings_usecase.dart';
@@ -43,6 +42,12 @@ class WaterQualityBloc extends Bloc<WaterQualityEvent, WaterQualityState> {
 
   /// Default thresholds used for all readings (const, no network fetch).
   static const _thresholds = WaterQualityThresholds();
+  int _generation = 0;
+  bool _inFlight = false;
+  String _farmId = 'default';
+  String? _pondId;
+  bool _current(int generation, Emitter<WaterQualityState> emit) =>
+      !isClosed && !emit.isDone && generation == _generation;
 
   // ── WaterQualityLoadRequested ──────────────────────────────────────────
 
@@ -57,8 +62,10 @@ class WaterQualityBloc extends Bloc<WaterQualityEvent, WaterQualityState> {
     WaterQualityLoadRequested event,
     Emitter<WaterQualityState> emit,
   ) async {
+    _farmId = event.farmId; _pondId = event.pondId;
+    final generation = ++_generation;
     emit(const WaterQualityLoading());
-    await _fetchAndEmit(emit, farmId: event.farmId, pondId: event.pondId);
+    await _fetchAndEmit(emit, farmId: _farmId, pondId: _pondId, generation: generation);
   }
 
   // ── WaterQualityRefreshRequested ───────────────────────────────────────
@@ -77,17 +84,14 @@ class WaterQualityBloc extends Bloc<WaterQualityEvent, WaterQualityState> {
     WaterQualityRefreshRequested event,
     Emitter<WaterQualityState> emit,
   ) async {
-    var farmId = 'default';
-    String? pondId;
-
+    if (_inFlight) return;
+    final generation = ++_generation;
     if (state is WaterQualityLoaded) {
-      final loaded = state as WaterQualityLoaded;
-      farmId = loaded.farmId;
-      pondId = loaded.pondId;
-      emit(loaded.copyWith(isRefreshing: true));
+      emit((state as WaterQualityLoaded).copyWith(isRefreshing: true));
+    } else {
+      emit(const WaterQualityLoading());
     }
-
-    await _fetchAndEmit(emit, farmId: farmId, pondId: pondId);
+    await _fetchAndEmit(emit, farmId: _farmId, pondId: _pondId, generation: generation);
   }
 
   // ── WaterQualityFarmChanged ────────────────────────────────────────────
@@ -102,8 +106,10 @@ class WaterQualityBloc extends Bloc<WaterQualityEvent, WaterQualityState> {
     WaterQualityFarmChanged event,
     Emitter<WaterQualityState> emit,
   ) async {
+    _farmId = event.farmId; _pondId = event.pondId;
+    final generation = ++_generation;
     emit(const WaterQualityLoading());
-    await _fetchAndEmit(emit, farmId: event.farmId, pondId: event.pondId);
+    await _fetchAndEmit(emit, farmId: _farmId, pondId: _pondId, generation: generation);
   }
 
   // ── Shared fetch helper ────────────────────────────────────────────────
@@ -113,58 +119,38 @@ class WaterQualityBloc extends Bloc<WaterQualityEvent, WaterQualityState> {
     Emitter<WaterQualityState> emit, {
     required String farmId,
     String? pondId,
+    required int generation,
   }) async {
-    final result = await getCurrentReadings(
-      GetCurrentReadingsParams(farmId: farmId, pondId: pondId),
-    );
-
-    // History for charts — load 30d once; UI filters by selected period.
-    final historyResult = await getHistoricalData(
-      GetHistoricalDataParams(
-        farmId: farmId,
-        pondId: pondId,
-        period: HistoricalPeriod.last30Days,
-      ),
-    );
-    final historical = historyResult.fold<List<WaterQuality>>(
-      (_) => const <WaterQuality>[],
-      (list) => list,
-    );
-
-    await result.fold(
-      (failure) async => emit(
-        WaterQualityError(
-          message: failure.message,
-          isOffline: failure is NetworkFailure,
-        ),
-      ),
-      (readings) async {
-        // Check device status for the first sensor found (Req 8.8).
-        // Default to false if no readings (device is unknown, not offline).
-        // ignore: omit_local_variable_types
-        var isDeviceOffline = false;
-        if (readings.isNotEmpty && readings.first.sensorId.isNotEmpty) {
-          final statusResult = await repository.checkDeviceStatus(
-            sensorId: readings.first.sensorId,
-          );
-          statusResult.fold(
-            (_) => isDeviceOffline = false, // Cannot determine — show as online
-            (isOnline) => isDeviceOffline = !isOnline,
-          );
-        }
-
-        emit(
-          WaterQualityLoaded(
-            readings: readings,
-            historicalReadings: historical,
-            thresholds: _thresholds,
-            farmId: farmId,
-            pondId: pondId,
-            isDeviceOffline: isDeviceOffline,
-            lastRefreshedAt: DateTime.now(),
-          ),
-        );
-      },
-    );
+    _inFlight = true;
+    try {
+      final result = await getCurrentReadings(
+        GetCurrentReadingsParams(farmId: farmId, pondId: pondId),
+      );
+      if (!_current(generation,emit)) return;
+      await result.fold(
+        (failure) async {
+          if (_current(generation,emit)) emit(WaterQualityError(
+            message: failure.message, isOffline: failure is NetworkFailure));
+        },
+        (readings) async {
+          final scoped = readings.where((r)=>
+            (farmId=='default'||farmId.isEmpty||r.farmId==farmId) &&
+            (pondId==null||r.pondId==pondId)).toList();
+          bool? deviceOnline;
+          if (scoped.isNotEmpty && scoped.first.sensorId.isNotEmpty) {
+            final statusResult = await repository.checkDeviceStatus(sensorId:scoped.first.sensorId);
+            deviceOnline=statusResult.fold<bool?>((_)=>null,(v)=>v);
+          }
+          if (!_current(generation,emit)) return;
+          emit(WaterQualityLoaded(readings:scoped,thresholds:_thresholds,
+            farmId:farmId,pondId:pondId,isDeviceOffline:deviceOnline==false,
+            deviceStatusKnown:deviceOnline!=null,lastRefreshedAt:DateTime.now()));
+        },
+      );
+    } catch (_) {
+      if (_current(generation,emit)) emit(const WaterQualityError(message:'Không tải được dữ liệu cảm biến.'));
+    } finally {
+      if (generation==_generation) _inFlight=false;
+    }
   }
 }

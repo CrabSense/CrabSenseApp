@@ -446,9 +446,9 @@ class HomeRepositoryImpl implements HomeRepository {
               map['currentValue'] ??
               map['reading'];
           if (rawVal == null) continue;
-          final val = rawVal is num
-              ? rawVal.toDouble()
-              : double.tryParse('$rawVal') ?? 0.0;
+          final val = rawVal is num ? rawVal.toDouble() : double.tryParse('$rawVal');
+          if (val == null || !val.isFinite || map['isActive'] != true || map['dataQuality'] != 'Realtime') continue;
+          if (farmingAreaId == null || map['farmingAreaId'] != farmingAreaId) continue;
           if (tl.contains('temp') && (val < 5 || val > 40)) continue;
           final alarm = map['alarm']?.toString().toLowerCase() ?? '';
           final min = (map['minThreshold'] as num?)?.toDouble();
@@ -464,16 +464,15 @@ class HomeRepositoryImpl implements HomeRepository {
           }
 
           final measuredAt = map['latestMeasuredAt'] ?? map['measuredAt'];
-          final updated = measuredAt != null
-              ? DateTime.tryParse(measuredAt.toString()) ?? now
-              : now;
+          final updated = measuredAt == null ? null : DateTime.tryParse(measuredAt.toString());
+          if (updated == null || updated.isAfter(now.add(const Duration(seconds: 1)))) continue;
 
           items.add(
             WaterMetricItem(
               code: type.toLowerCase(),
               name: _waterMetricLabel(type),
               currentValue: val,
-              unit: map['unit']?.toString() ?? _waterMetricUnit(type),
+              unit: map['unit']?.toString() ?? '',
               status: status,
               trend: MetricTrend.stable,
               lastUpdated: updated,
@@ -482,58 +481,11 @@ class HomeRepositoryImpl implements HomeRepository {
             ),
           );
         }
-        await _mergeWaterLab(farmingAreaId, items);
+        // Legacy lab rows lack qualified measurand and publication provenance. Keep WaterBench separate.
         return items;
       }
     }
     return null;
-  }
-
-  Future<void> _mergeWaterLab(
-    String? farmingAreaId,
-    List<WaterMetricItem> items,
-  ) async {
-    if (farmingAreaId == null || farmingAreaId.isEmpty) return;
-    try {
-      final res = await _api.get(ApiConstants.waterAnalysis(farmingAreaId));
-      if (res.statusCode != 200 || res.data == null) return;
-      final root = _asStringKeyedMap(res.data);
-      final data = _asStringKeyedMap(root?['data']) ?? root;
-      if (data == null) return;
-      final latest =
-          _asStringKeyedMap(data['latest']) ?? _asStringKeyedMap(data['Latest']);
-      final raw = latest?['metrics'] ??
-          latest?['Metrics'] ??
-          data['metrics'] ??
-          data['Metrics'];
-      if (raw is! List) return;
-      final now = DateTime.now();
-      for (final row in raw) {
-        final map = _asStringKeyedMap(row);
-        if (map == null) continue;
-        final code = (map['code'] ?? map['Code'] ?? '').toString();
-        final val = map['value'] ?? map['Value'];
-        if (code.isEmpty || val == null) continue;
-        final n = val is num ? val.toDouble() : double.tryParse('$val');
-        if (n == null) continue;
-        final t = code.toLowerCase();
-        if (items.any((m) =>
-            m.code.contains(t) || m.name.toLowerCase().contains(t))) {
-          continue;
-        }
-        items.add(
-          WaterMetricItem(
-            code: t,
-            name: _waterMetricLabel(code),
-            currentValue: n,
-            unit: map['unit']?.toString() ?? _waterMetricUnit(code),
-            status: MetricStatus.optimal,
-            trend: MetricTrend.stable,
-            lastUpdated: now,
-          ),
-        );
-      }
-    } catch (_) {}
   }
 
   String _waterMetricLabel(String type) {
@@ -551,16 +503,6 @@ class HomeRepositoryImpl implements HomeRepository {
     if (t.contains('magnes') || t == 'mg') return 'Mg';
     if (type.trim().isEmpty) return 'Thông số nước';
     return type;
-  }
-
-  String _waterMetricUnit(String type) {
-    final t = type.toLowerCase();
-    if (t.contains('temp')) return '°C';
-    if (t.contains('ph')) return '';
-    if (t.contains('do') || t.contains('oxygen')) return 'mg/L';
-    if (t.contains('salin') || t.contains('salt')) return 'ppt';
-    if (t.contains('tds')) return 'ppm';
-    return '';
   }
 
   Future<DeviceSummary?> _fetchDevices(String? farmingAreaId) async {

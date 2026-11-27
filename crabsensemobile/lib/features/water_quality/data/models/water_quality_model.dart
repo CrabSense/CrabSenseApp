@@ -12,6 +12,11 @@ import '../../domain/entities/water_quality.dart';
 /// entity so it can be used directly as a [WaterQuality] wherever needed.
 ///
 /// Requirements: 8.1-8.10
+double? parseMeasuredValue(Object? raw) {
+  final n = raw is num ? raw.toDouble() : raw is String ? double.tryParse(raw) : null;
+  return n != null && n.isFinite ? n : null;
+}
+
 class WaterQualityModel extends WaterQuality {
   const WaterQualityModel({
     required super.id,
@@ -44,20 +49,15 @@ class WaterQualityModel extends WaterQuality {
     sensorId: (json['sensorId'] ?? json['SensorId'] ?? json['sensor_id'] ?? '').toString(),
     farmId: (json['farmId'] ?? json['FarmId'] ?? json['farm_id'] ?? '').toString(),
     pondId: json['pondId']?.toString() ?? json['PondId']?.toString() ?? json['pond_id']?.toString(),
-    temperature: (json['temperature'] as num?)?.toDouble() ??
-        (json['Temperature'] as num?)?.toDouble() ??
-        0.0,
-    ph: (json['ph'] as num?)?.toDouble() ??
-        (json['Ph'] as num?)?.toDouble() ??
-        0.0,
-    dissolvedOxygen:
-        (json['dissolvedOxygen'] as num?)?.toDouble() ??
-        (json['DissolvedOxygen'] as num?)?.toDouble() ??
-        (json['dissolved_oxygen'] as num?)?.toDouble() ??
-        0.0,
-    salinity: (json['salinity'] as num?)?.toDouble() ??
-        (json['Salinity'] as num?)?.toDouble() ??
-        0.0,
+    temperature: parseMeasuredValue(json['temperature'] ?? json['Temperature']),
+    ph: parseMeasuredValue(json['ph'] ?? json['Ph']),
+    dissolvedOxygen: parseMeasuredValue(json['dissolvedOxygen'] ?? json['DissolvedOxygen'] ?? json['dissolved_oxygen']),
+    salinity: parseMeasuredValue(json['salinity'] ?? json['Salinity']),
+    ammonia: parseMeasuredValue(json['ammonia']),
+    nitrite: parseMeasuredValue(json['nitrite']),
+    kh: parseMeasuredValue(json['kh']),
+    calcium: parseMeasuredValue(json['calcium']),
+    magnesium: parseMeasuredValue(json['magnesium']),
     timestamp: _parseDateTime(
       (json['timestamp'] ?? json['Timestamp'] ?? json['recorded_at'])?.toString(),
     ),
@@ -126,6 +126,7 @@ class WaterQualityModel extends WaterQuality {
     'ph': ph,
     'dissolvedOxygen': dissolvedOxygen,
     'salinity': salinity,
+    'ammonia': ammonia, 'nitrite': nitrite, 'kh': kh, 'calcium': calcium, 'magnesium': magnesium,
     'timestamp': timestamp.toIso8601String(),
     'isAlertTriggered': isAlertTriggered,
   };
@@ -137,10 +138,10 @@ class WaterQualityModel extends WaterQuality {
         sensorId: Value(sensorId),
         farmId: Value(farmId),
         pondId: Value(pondId),
-        temperature: Value(temperature),
-        ph: Value(ph),
-        dissolvedOxygen: Value(dissolvedOxygen),
-        salinity: Value(salinity),
+        temperature: Value(temperature ?? (throw StateError('Legacy cache cannot represent missing temperature'))),
+        ph: Value(ph ?? (throw StateError('Legacy cache cannot represent missing ph'))),
+        dissolvedOxygen: Value(dissolvedOxygen ?? (throw StateError('Legacy cache cannot represent missing dissolvedOxygen'))),
+        salinity: Value(salinity ?? (throw StateError('Legacy cache cannot represent missing salinity'))),
         timestamp: Value(timestamp),
         isAlertTriggered: Value(isAlertTriggered),
         isDirty: Value(isDirty),
@@ -206,7 +207,7 @@ class WaterQualityModel extends WaterQuality {
 
   static DateTime _parseDateTime(String? value) {
     if (value == null || value.isEmpty) {
-      return DateTime.now().toUtc();
+      throw const FormatException('Missing measurement timestamp');
     }
     return DateTime.parse(value);
   }
