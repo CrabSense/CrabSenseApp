@@ -210,3 +210,6 @@ Private AI #15 a325b0d Python PASS but both cross modes FAIL pg_restore 18.7 -> 
 
 ## REC05 isolated test PASS, artifact blocked — 2026-11-28
 Private AI #15 7105dc6 #56 PASS, cross #23 both real test steps PASS and both emit REC05_ISOLATED_RECOVERY_PASSED=1, TRX counters 1/1/no skip per mode, 3 media/16 receipts, PG client 16.16, exact new pins. Both required uploads fail storage quota; no downloadable artifacts and overall FAIL, unmerged. Raw content hash guard remains false and real Drive unverified. App #108 merged 446fe84 all main checks PASS. Journal 91. Resolve quota, rerun and verify downloadable evidence before merge; then M05 backend guard.
+
+## REC05 rerun after premature merge — 2026-11-28
+Private AI #15 already merged externally at 20f75bb despite #23 quota failure. Water AI main #57 PASS, cross #24 running; failed-job rerun of #23 accepted, both new jobs running. Neither run has artifacts at review. Billing/storage endpoints unsupported by connector, no quota change or deletion. App #109 merged a6071ef and all main checks PASS. Journal 92. Require actual main and retry markers and downloadable evidence before M05 guard work; production gates unchanged.
