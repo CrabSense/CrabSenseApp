@@ -296,6 +296,29 @@ class BoxDeviceStatus {
     required this.totalCount,
   });
 
+  // The legacy bool is meaningful only when a nonempty, consistent
+  // inventory is known. Zero devices is not evidence of disconnection.
+  bool get hasKnownConnectivity => totalCount > 0 &&
+      onlineCount >= 0 && onlineCount <= totalCount &&
+      isOnline == (onlineCount > 0);
+  bool? get verifiedOnline => hasKnownConnectivity ? isOnline : null;
+  String get connectivityLabel => switch (verifiedOnline) {
+    true => 'Online',
+    false => 'Offline',
+    null => 'Chưa xác định',
+  };
+
+  factory BoxDeviceStatus.fromApi(Map<String, dynamic>? json) {
+    final total = json?['totalCount'];
+    final online = json?['onlineCount'];
+    final connected = json?['isOnline'];
+    if (total is! int || online is! int || connected is! bool ||
+        total < 0 || online < 0 || online > total ||
+        connected != (online > 0)) return offline;
+    return BoxDeviceStatus(isOnline: connected, onlineCount: online,
+      totalCount: total);
+  }
+
   static const offline = BoxDeviceStatus(
     isOnline: false,
     onlineCount: 0,

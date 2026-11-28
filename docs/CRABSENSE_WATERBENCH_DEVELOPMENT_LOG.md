@@ -123,10 +123,10 @@
 |---|---|---|
 | hardware-water-quality-analysis | b552498 | Mốc audit; chưa flash/test thật |
 | CrabSenseKiosk | 98458f3 | Main CI #78 PASS |
-| CrabSenseBE | 5f4415f | Main CI #427 / VPS #227 PASS; #113 T05 area isolation pending |
+| CrabSenseBE | 949927b | #113 merged; main CI #430 / VPS #228 PASS |
 | CrabSenseAIWaterQualityAnalysis | 700d5b2 | AI CI #37 / private cross #11 PASS |
 | CrabSenseFE | 2b9aa32 | #39 merged; main Audit #18/Sonar #155/Pages #143 PASS; RAS Chromium 6/6 groups PASS |
-| CrabSenseApp | d9adbc0 | #73/#74 merged; main #232/Mobile #90/Desktop #92/Pages #114 PASS |
+| CrabSenseApp | 70324b0 | #75 merged; main #234/Mobile #91/Desktop #93/Pages #115 PASS |
 
 | Mã | Ưu tiên | Việc còn lại | Điều kiện hoàn thành |
 |---|---|---|---|
@@ -134,7 +134,7 @@
 | T02 | P0 | DONE: App main #61/#52/#43 và Sonar #156 PASS | Tất cả PASS đúng main 83e7eec |
 | T03 | P0 | Đã merge BE scoped history và khôi phục chart scoped Mobile/Desktop; chưa production smoke | Sửa cấu hình test Npgsql, chạy đủ HTTP/PostgreSQL, CI PASS, review migration, deploy, App chart thật |
 | T04 | P1 | SQLite v4 scope/session/expiry fail-closed; #73 generation guard/chart lifecycle PASS; offline reading tắt, native còn mở | Kiểm thử offline và isolation; phục hồi chart/cache an toàn |
-| T05 | P1 | RAS Chromium 6/6 nhóm PASS; BE #113 sửa first-area/global device fallback trong boxes/overview pending; KPI/legacy/production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
+| T05 | P1 | RAS Chromium PASS; BE #113 merged/VPS PASS; FE #40 và Mobile device inventory pending; legacy fallback/health/production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
 | T06 | P1 | FE #37 merged, main Audit #14 và Pages #139 gate full/omit-dev 0 PASS; required branch check chưa xác minh | Phân loại direct/transitive/dev/runtime, sửa an toàn, CI PASS |
 | T07 | P1 | Kiểm thử PostgreSQL technical diagnostics, JWT bốn role | P2.4.6.2; 401/403 và scoped access |
 | T08 | P1 | Geometry QC bắt buộc với fixture phù hợp; kiểm tra private media/Drive | P2.4.6.3 |
@@ -143,7 +143,7 @@
 | T11 | P2 | Tổng kiểm thử bảo mật, CI/CD và quy trình test thực tế | P2.4.6.6 |
 | T12 | P3 | Thiết bị thật, UART, đo chuẩn, mẫu thật, vệ sinh, vận hành lâu dài | Chỉ sau P2.4.6 PASS |
 
-**Việc kế tiếp:** nghiệm thu BE #113 area isolation, rà consumer Web/Mobile/Desktop và legacy health/AI KPI; native T04 và required status check với quyền admin còn mở. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
+**Việc kế tiếp:** nghiệm thu FE #40 và Mobile device inventory, xử lý legacy fallback/cache/health/AI KPI và rà Desktop; native T04 và required status check với quyền admin còn mở. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
 
 ## 6. Quy định cập nhật file sau mỗi lượt
 
@@ -368,3 +368,8 @@
 ### 50 — T04: session/lifecycle PASS; T05: sửa scope legacy boxes/overview (28/11/2026)
 - App #73 head ff15ea9 CI #229/Mobile #88/Pages #112 PASS, merged e3cc1bf. Mobile job 140872041041 log xác nhận hai regression obsolete pending request cannot block or unlock a new session và background clears chart and late response cannot restore it. App #74 CI #230 PASS, merged d9adbc0; main #232/Mobile #90/Desktop #92/Pages #114 PASS. Offline cache vẫn tắt, native device/JWT production chưa nghiệm thu.
 - BE BoxOverviewService phát hiện first-box area dùng cho mọi hộp, fallback toàn bộ device nếu không liên kết, không có device trả online, legacy scalar thiếu provenance và ghi đè sensor cùng loại. BE [#113](https://github.com/CrabSense/CrabSenseBE/pull/113) head c6dbba1, một commit fix(ras): isolate box overview telemetry by farming area. Header chỉ explicit area/row; All Areas không có snapshot đại diện. Mỗi hộp lấy riêng khu theo row, canonical SensorHistoryScope, device cấu hình area/row nhất quán, alert captured area. Scalar legacy chỉ nhận unique qualified Realtime với observed scope/type, unit, receipt và freshness 5 phút; zero giữ nguyên; timestamp null khi khác thời điểm. Cảnh báo ngưỡng của mẫu hợp lệ giữ lại. Không fallback global; zero device trả false/0 theo DTO bool cũ, consumer cần phân biệt unknown. Test hai khu, zero, ngưỡng, không có device, header empty; chưa CI head mới. Head trước 0c4c790 CI #428 đang chạy, thay bằng lease trên nhánh riêng để giữ 1 commit, không force main. Legacy health/AI confidence, semantics client, PostgreSQL/JWT integration vẫn mở. Không migration/schema/role/sampling changes. Next kiểm tra #113, App journal, cross-client consumers. Không đóng P2.4.6.1/P3.
+
+### 51 — T05: BE #113 PASS/VPS; phân biệt inventory unknown và offline (28/11/2026)
+- BE #113 c6dbba1 CI #429 PASS, merged 949927b; main CI #430 và VPS #228 PASS. Unit job 140875395127 xác nhận Boxes_overview_never_reuses_first_area_or_global_devices PASS; PostgreSQL/publish/migration job 140875395288 PASS. App #75 CI #233 merged 70324b0; main #234/Mobile #91/Desktop #93/Pages #115 PASS. Chưa gọi production JWT.
+- FE [#40](https://github.com/CrabSense/CrabSenseFE/pull/40) 30475be, fix(monitoring): distinguish unknown device inventory from offline. Strict count/boolean consistency, explicit matching header area, zero devices unknown, actual zero offline percentage only nonempty inventory, row/filter same policy, missing alert and summary counts dash. Relabel old health/score heuristic, not validated AI. Three Node regressions, CI pending. No dependency/role changes.
+- Mobile change in same PR as journal: BoxDeviceStatus.fromApi strict integer/bool, verifiedOnline nullable and label, card and Offline filter consistent; no device fallback false/0 but label unknown. Add model regression to mandatory Sonar mobile tests. Scope limited to inventory display/filter; discovered older /overview fallback composes unverified water/alerts and synthetic score, cached error fallback and legacy AI health/confidence still open, must not claim full T05. Desktop review remains. No new schema/API/role or sampling location changes; native T04, production/JWT, required branch check open. One commit in each repo. Next CI FE #40 and App, then disable unsafe legacy fallback and audit consumers before closing T05.

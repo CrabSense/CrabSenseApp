@@ -8,6 +8,31 @@ import 'package:flutter_test/flutter_test.dart';
 /// tiếng Anh không hề có trên desktop ("Healthy", "Warning", "Critical",
 /// "Offline") và tô màu lệch tông với app desktop.
 void main() {
+  test('device inventory distinguishes unknown, offline and online', () {
+    for (final json in <Map<String, dynamic>?>[
+      null, {}, {'totalCount': 0, 'onlineCount': 0, 'isOnline': false},
+      {'totalCount': 0, 'onlineCount': 0, 'isOnline': true},
+      {'totalCount': 2, 'onlineCount': null, 'isOnline': false},
+      {'totalCount': 2, 'onlineCount': 3, 'isOnline': true},
+      {'totalCount': '2', 'onlineCount': 0, 'isOnline': false},
+      {'totalCount': 2, 'onlineCount': 1, 'isOnline': false},
+    ]) {
+      final status = BoxDeviceStatus.fromApi(json);
+      expect(status.verifiedOnline, isNull);
+      expect(status.connectivityLabel, 'Chưa xác định');
+    }
+    final offline = BoxDeviceStatus.fromApi({
+      'totalCount': 2, 'onlineCount': 0, 'isOnline': false,
+    });
+    expect(offline.verifiedOnline, isFalse);
+    expect(offline.connectivityLabel, 'Offline');
+    final online = BoxDeviceStatus.fromApi({
+      'totalCount': 2, 'onlineCount': 1, 'isOnline': true,
+    });
+    expect(online.verifiedOnline, isTrue);
+    expect(online.connectivityLabel, 'Online');
+  });
+
   group('nhãn — không còn chữ tiếng Anh sót lại', () {
     test('đúng bộ chữ của app desktop', () {
       expect(BoxStatus.normal.label, 'Bình thường');
