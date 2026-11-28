@@ -1,7 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
@@ -29,6 +32,9 @@ class _HarvestAssignmentsScreenState extends State<HarvestAssignmentsScreen> {
   String? _owner;
   String? _area;
   int _version = 0;
+  List<Map<String, dynamic>> _completedLabels = [];
+  final Map<String, Uint8List> _barcodeImages = {};
+  final Map<String, String> _barcodeImageErrors = {};
 
   User? get _user {
     final auth = context.read<AuthBloc>().state;
@@ -86,6 +92,9 @@ class _HarvestAssignmentsScreenState extends State<HarvestAssignmentsScreen> {
       setState(() {
         _tasks = [];
         _detail = null;
+        _completedLabels = [];
+        _barcodeImages.clear();
+        _barcodeImageErrors.clear();
         _error = 'Phiên Staff đã thay đổi.';
       });
       return;
@@ -146,6 +155,11 @@ class _HarvestAssignmentsScreenState extends State<HarvestAssignmentsScreen> {
       setState(() => _detail = null);
       throw StateError('Nhiệm vụ ngoài phạm vi.');
     }
+    if (_detail?['id']?.toString() != id) {
+      _completedLabels = [];
+      _barcodeImages.clear();
+      _barcodeImageErrors.clear();
+    }
     setState(() => _detail = row);
   }
 
@@ -166,11 +180,149 @@ class _HarvestAssignmentsScreenState extends State<HarvestAssignmentsScreen> {
           '/harvest-assignments/$id/$action',
           data: body,
         );
-        _data(res.data);
+        final responseData = _data(res.data);
+        if (action == 'complete') {
+          final result = Map<String, dynamic>.from(responseData as Map);
+          final rawLabels = result['crabLabels'] ?? result['CrabLabels'];
+          final labels = rawLabels is List
+              ? rawLabels
+                    .whereType<Map>()
+                    .map((label) => Map<String, dynamic>.from(label))
+                    .toList()
+              : <Map<String, dynamic>>[];
+          if (mounted) {
+            setState(() {
+              _completedLabels = labels;
+              _barcodeImages.clear();
+              _barcodeImageErrors.clear();
+            });
+            // Barcode chỉ được tải về để Staff xem/chia sẻ sau khi BE hoàn
+            // tất Assignment và trả danh sách nhãn tương ứng.
+            await Future.wait(labels.map(_loadBarcodeImage));
+          }
+        }
         if (!mounted || _user?.id != _owner) return;
         await _fetchDetail(id);
         await _fetchList();
       });
+
+  String _labelValue(Map<String, dynamic> label, String key) =>
+      (label[key] ?? label['${key[0].toUpperCase()}${key.substring(1)}'] ?? '')
+          .toString();
+
+  Future<void> _loadBarcodeImage(Map<String, dynamic> label) async {
+    final barcode = _labelValue(label, 'barcodeValue');
+    if (barcode.isEmpty) return;
+    try {
+      final response = await _api.dio.get<List<int>>(
+        '/frozen-lots/crab-items/barcode/$barcode/image.png',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final bytes = response.data;
+      if (bytes == null || bytes.isEmpty) {
+        throw StateError('Ảnh barcode rỗng.');
+      }
+      if (mounted) {
+        setState(() => _barcodeImages[barcode] = Uint8List.fromList(bytes));
+      }
+    } catch (e) {
+      // Mã chữ vẫn được hiển thị và có thể sao chép khi ảnh không tải được.
+      if (mounted) setState(() => _barcodeImageErrors[barcode] = '$e');
+    }
+  }
+
+  Future<void> _shareBarcode(
+    Map<String, dynamic> label,
+    Uint8List image,
+  ) async {
+    final barcode = _labelValue(label, 'barcodeValue');
+    final crabCode = _labelValue(label, 'crabCode');
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile.fromData(
+              image,
+              mimeType: 'image/png',
+              name: '${crabCode.isEmpty ? barcode : crabCode}_barcode.png',
+            ),
+          ],
+          text: 'Barcode cua ${crabCode.isEmpty ? barcode : crabCode}',
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể chia sẻ ảnh barcode: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildCompletedLabels() {
+    if (_completedLabels.isEmpty) return const SizedBox.shrink();
+    final lotId = _labelValue(_completedLabels.first, 'frozenLotId');
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Barcode cua vừa thu hoạch${lotId.isEmpty ? '' : ' · Lô $lotId'}',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const Text(
+              'Chia sẻ hoặc lưu ảnh để in và dán lên từng cua. Mã chữ bên dưới '
+              'có thể dùng nếu ảnh chưa tải được.',
+            ),
+            for (final label in _completedLabels) ...[
+              const Divider(),
+              Text(
+                'Cua: ${_labelValue(label, 'crabCode')}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              SelectableText(_labelValue(label, 'barcodeValue')),
+              if (_barcodeImages[_labelValue(label, 'barcodeValue')]
+                  case final image?)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Image.memory(
+                        image,
+                        height: 100,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => const Text(
+                          'Không hiển thị được ảnh barcode; hãy dùng mã chữ.',
+                        ),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _shareBarcode(label, image),
+                        icon: const Icon(Icons.share),
+                        label: const Text('Chia sẻ ảnh để in'),
+                      ),
+                    ),
+                  ],
+                )
+              else if (_barcodeImageErrors.containsKey(
+                _labelValue(label, 'barcodeValue'),
+              ))
+                Text(
+                  'Không tải được ảnh; hãy dùng mã chữ phía trên. '
+                  '${_barcodeImageErrors[_labelValue(label, 'barcodeValue')]}',
+                )
+              else
+                const LinearProgressIndicator(),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
   Future<void> _edit(Map<String, dynamic> line) async {
     // Chỉ sửa cua khi Staff đã nhận Assignment và dòng cua còn được xử lý.
@@ -412,6 +564,8 @@ class _HarvestAssignmentsScreenState extends State<HarvestAssignmentsScreen> {
                 onPressed: _busy || !_readyToSubmit ? null : _complete,
                 child: const Text('Hoàn tất nhiệm vụ'),
               ),
+            // Hiển thị các mã BE vừa tạo để Staff in và dán lên cua.
+            _buildCompletedLabels(),
             if (detail['vouchers'] is List)
               for (final voucher in _rows(detail['vouchers']))
                 ListTile(

@@ -475,31 +475,49 @@ class CloudApiClient {
         .toList();
   }
 
-  Future<Object?> fetchManagerReport(String token, String report, {
+  Future<Object?> fetchManagerReport(
+    String token,
+    String report, {
     required String areaId,
     DateTime? from,
     DateTime? to,
   }) async {
-    const allowed = {'harvest', 'harvest/period', 'inventory/filtered',
-      'survival-rate', 'molting/filtered', 'operational-efficiency', 'crab-lots/compare'};
+    const allowed = {
+      'harvest',
+      'harvest/period',
+      'inventory/filtered',
+      'survival-rate',
+      'molting/filtered',
+      'operational-efficiency',
+      'crab-lots/compare'
+    };
     if (!allowed.contains(report) || areaId.isEmpty) {
       throw CloudApiException('Báo cáo hoặc khu nuôi không hợp lệ.');
     }
     final query = <String, String>{
       'farmingAreaId': areaId,
-      if (report == 'survival-rate' || report == 'molting/filtered') 'areaId': areaId,
+      if (report == 'survival-rate' || report == 'molting/filtered')
+        'areaId': areaId,
       if (report == 'harvest/period') 'period': 'Day',
-      if (from != null && report != 'inventory/filtered' && report != 'crab-lots/compare')
+      if (from != null &&
+          report != 'inventory/filtered' &&
+          report != 'crab-lots/compare')
         'fromDate': from.toUtc().toIso8601String(),
-      if (to != null && report != 'inventory/filtered' && report != 'crab-lots/compare')
+      if (to != null &&
+          report != 'inventory/filtered' &&
+          report != 'crab-lots/compare')
         'toDate': to.toUtc().toIso8601String(),
-      if (to != null && report == 'inventory/filtered') 'asOfDate': to.toUtc().toIso8601String(),
+      if (to != null && report == 'inventory/filtered')
+        'asOfDate': to.toUtc().toIso8601String(),
     };
-    final uri = Uri.parse('$_base/api/reports/$report').replace(queryParameters: query);
-    final res = await _client.get(uri, headers: authHeaders(token, farmId: areaId));
+    final uri =
+        Uri.parse('$_base/api/reports/$report').replace(queryParameters: query);
+    final res =
+        await _client.get(uri, headers: authHeaders(token, farmId: areaId));
     final body = _decode(res);
     if (_isApiFailure(res, body)) {
-      throw CloudApiException(_errorMessage(body) ?? 'Không tải được báo cáo', statusCode: res.statusCode);
+      throw CloudApiException(_errorMessage(body) ?? 'Không tải được báo cáo',
+          statusCode: res.statusCode);
     }
     return _dataOf(body) ?? body;
   }
@@ -699,63 +717,102 @@ class CloudApiClient {
   }
 
   Future<Map<String, dynamic>> decideHarvestVoucher(
-    String token, String id, {
-    required String action, String? reason, String? farmingAreaId,
+    String token,
+    String id, {
+    required String action,
+    String? reason,
+    String? farmingAreaId,
   }) async {
     if (!const {'approve', 'reject', 'confirm'}.contains(action) ||
-        id.trim().isEmpty || (action == 'reject' && (reason ?? '').trim().isEmpty)) {
+        id.trim().isEmpty ||
+        (action == 'reject' && (reason ?? '').trim().isEmpty)) {
       throw CloudApiException('Thao tác hoặc lý do không hợp lệ.');
     }
     final uri = Uri.parse('$_base/api/harvest-vouchers/$id/$action');
     final res = await _client.post(uri,
-      headers: {...authHeaders(token, farmId: farmingAreaId), 'Content-Type': 'application/json'},
-      body: jsonEncode({if (action == 'reject') 'reason': reason!.trim()}));
+        headers: {
+          ...authHeaders(token, farmId: farmingAreaId),
+          'Content-Type': 'application/json'
+        },
+        body: jsonEncode({if (action == 'reject') 'reason': reason!.trim()}));
     final body = _decode(res);
     _throwIfFailed(res, body, uri.path);
     return _asMap(_dataOf(body) ?? body);
   }
 
-  Future<Map<String,dynamic>> fetchHarvestAdjustmentSource(String token,String id,{required String areaId}) =>
-    _getDataMap(token,'/api/harvest-vouchers/$id',farmingAreaId:areaId);
+  Future<Map<String, dynamic>> fetchHarvestAdjustmentSource(
+          String token, String id,
+          {required String areaId}) =>
+      _getDataMap(token, '/api/harvest-vouchers/$id', farmingAreaId: areaId);
 
-  Future<void> requestHarvestAdjustment(String token,String id,{required String areaId,required String reason,required List<Map<String,dynamic>> lines}) async {
-    if(id.isEmpty||areaId.isEmpty||reason.trim().isEmpty||lines.isEmpty)throw CloudApiException('Thiếu dữ liệu điều chỉnh.');
-    final uri=Uri.parse('$_base/api/harvest-vouchers/$id/adjustment-request');
-    final res=await _client.post(uri,headers:{...authHeaders(token,farmId:areaId),'Content-Type':'application/json'},body:jsonEncode({'reason':reason.trim(),'lines':lines}));
-    _throwIfFailed(res,_decode(res),uri.path);
+  Future<void> requestHarvestAdjustment(String token, String id,
+      {required String areaId,
+      required String reason,
+      required List<Map<String, dynamic>> lines}) async {
+    if (id.isEmpty || areaId.isEmpty || reason.trim().isEmpty || lines.isEmpty)
+      throw CloudApiException('Thiếu dữ liệu điều chỉnh.');
+    final uri = Uri.parse('$_base/api/harvest-vouchers/$id/adjustment-request');
+    final res = await _client.post(uri,
+        headers: {
+          ...authHeaders(token, farmId: areaId),
+          'Content-Type': 'application/json'
+        },
+        body: jsonEncode({'reason': reason.trim(), 'lines': lines}));
+    _throwIfFailed(res, _decode(res), uri.path);
   }
 
-  Future<List<Map<String, dynamic>>> fetchHarvestAssignments(String token, {
+  Future<List<Map<String, dynamic>>> fetchHarvestAssignments(
+    String token, {
     required String farmingAreaId,
-  }) => _getDataList(token, '/api/harvest-assignments', farmingAreaId: farmingAreaId);
-  
+  }) =>
+      _getDataList(token, '/api/harvest-assignments',
+          farmingAreaId: farmingAreaId);
 
-  Future<Map<String, dynamic>> fetchHarvestAssignmentDetail(String token, String id, {
+  Future<Map<String, dynamic>> fetchHarvestAssignmentDetail(
+    String token,
+    String id, {
     required String farmingAreaId,
-  }) => _getDataMap(token, '/api/harvest-assignments/$id', farmingAreaId: farmingAreaId);
+  }) =>
+      _getDataMap(token, '/api/harvest-assignments/$id',
+          farmingAreaId: farmingAreaId);
 
-  Future<void> reviewHarvestAssignment(String token, String id, {
-    required String farmingAreaId, required bool confirm, String? notes,
+  Future<void> reviewHarvestAssignment(
+    String token,
+    String id, {
+    required String farmingAreaId,
+    required bool confirm,
+    String? notes,
   }) async {
-    if(id.trim().isEmpty || farmingAreaId.trim().isEmpty ||
+    if (id.trim().isEmpty ||
+        farmingAreaId.trim().isEmpty ||
         (!confirm && (notes ?? '').trim().isEmpty)) {
       throw CloudApiException('Thiếu nhiệm vụ, khu hoặc lý do bổ sung.');
     }
     final action = confirm ? 'confirm' : 'return';
     final uri = Uri.parse('$_base/api/harvest-assignments/$id/$action');
     final response = await _client.post(uri,
-      headers: {...authHeaders(token, farmId: farmingAreaId), 'Content-Type': 'application/json'},
-      body: jsonEncode({'notes': notes?.trim()}));
+        headers: {
+          ...authHeaders(token, farmId: farmingAreaId),
+          'Content-Type': 'application/json'
+        },
+        body: jsonEncode({'notes': notes?.trim()}));
     _throwIfFailed(response, _decode(response), uri.path);
   }
 
-  Future<void> handleHarvestAssignmentException(String token, String id, {
-    required String farmingAreaId, required String action, required String reason,
-    String? staffId, String? lineId,
+  Future<void> handleHarvestAssignmentException(
+    String token,
+    String id, {
+    required String farmingAreaId,
+    required String action,
+    required String reason,
+    String? staffId,
+    String? lineId,
   }) async {
-    if (id.trim().isEmpty || farmingAreaId.trim().isEmpty ||
-        reason.trim().isEmpty || reason.trim().length > 1000 ||
-        !const {'cancel','reassign','skip'}.contains(action) ||
+    if (id.trim().isEmpty ||
+        farmingAreaId.trim().isEmpty ||
+        reason.trim().isEmpty ||
+        reason.trim().length > 1000 ||
+        !const {'cancel', 'reassign', 'skip'}.contains(action) ||
         (action == 'reassign' && (staffId ?? '').trim().isEmpty) ||
         (action == 'skip' && (lineId ?? '').trim().isEmpty)) {
       throw CloudApiException('Thiếu thông tin xử lý nhiệm vụ.');
@@ -763,151 +820,280 @@ class CloudApiClient {
     final suffix = action == 'skip' ? 'lines/$lineId/skip' : action;
     final uri = Uri.parse('$_base/api/harvest-assignments/$id/$suffix');
     final response = await _client.post(uri,
-      headers: {...authHeaders(token, farmId: farmingAreaId), 'Content-Type': 'application/json'},
-      body: jsonEncode({
-        if (action == 'cancel') 'notes': reason.trim() else 'reason': reason.trim(),
-        if (action == 'reassign') 'assignedToUserId': staffId,
-      }));
+        headers: {
+          ...authHeaders(token, farmId: farmingAreaId),
+          'Content-Type': 'application/json'
+        },
+        body: jsonEncode({
+          if (action == 'cancel')
+            'notes': reason.trim()
+          else
+            'reason': reason.trim(),
+          if (action == 'reassign') 'assignedToUserId': staffId,
+        }));
     _throwIfFailed(response, _decode(response), uri.path);
   }
 
-  Future<Set<String>> fetchOpenHarvestAssignmentCrabIds(String token, {required String farmingAreaId}) async {
-    if(farmingAreaId.isEmpty) throw CloudApiException('Thiếu khu nuôi.');
-    final assignments=await fetchHarvestAssignments(token,farmingAreaId:farmingAreaId);
-    final ids=<String>{};
-    for(final task in assignments) {
-      if((task['farmingAreaId']??task['FarmingAreaId']).toString()!=farmingAreaId) continue;
-      final state=(task['status']??task['Status']).toString().toLowerCase();
-      if(!const {'assigned','inprogress','pendingreview'}.contains(state)) continue;
-      final taskId=(task['id']??task['Id']??'').toString();
-      if(taskId.isEmpty) throw CloudApiException('Nhiệm vụ thiếu ID.');
-      final detail=await fetchHarvestAssignmentDetail(token,taskId,farmingAreaId:farmingAreaId);
-      if((detail['farmingAreaId']??detail['FarmingAreaId']).toString()!=farmingAreaId) throw CloudApiException('Nhiệm vụ không thuộc khu.');
-      final lines=detail['lines']??detail['Lines'];
-      if(lines is! List) throw CloudApiException('Thiếu danh sách cua đã giao.');
-      for(final row in lines.whereType<Map>()) {
-        final id=(row['crabId']??row['CrabId']??'').toString();
+  Future<Set<String>> fetchOpenHarvestAssignmentCrabIds(String token,
+      {required String farmingAreaId}) async {
+    if (farmingAreaId.isEmpty) throw CloudApiException('Thiếu khu nuôi.');
+    final assignments =
+        await fetchHarvestAssignments(token, farmingAreaId: farmingAreaId);
+    final ids = <String>{};
+    for (final task in assignments) {
+      if ((task['farmingAreaId'] ?? task['FarmingAreaId']).toString() !=
+          farmingAreaId) continue;
+      final state = (task['status'] ?? task['Status']).toString().toLowerCase();
+      if (!const {'assigned', 'inprogress', 'pendingreview'}.contains(state))
+        continue;
+      final taskId = (task['id'] ?? task['Id'] ?? '').toString();
+      if (taskId.isEmpty) throw CloudApiException('Nhiệm vụ thiếu ID.');
+      final detail = await fetchHarvestAssignmentDetail(token, taskId,
+          farmingAreaId: farmingAreaId);
+      if ((detail['farmingAreaId'] ?? detail['FarmingAreaId']).toString() !=
+          farmingAreaId) throw CloudApiException('Nhiệm vụ không thuộc khu.');
+      final lines = detail['lines'] ?? detail['Lines'];
+      if (lines is! List)
+        throw CloudApiException('Thiếu danh sách cua đã giao.');
+      for (final row in lines.whereType<Map>()) {
+        final id = (row['crabId'] ?? row['CrabId'] ?? '').toString();
         // Resolved exceptions are no longer reserved; unknown states fail closed.
-        final lineState = (row['status'] ?? row['Status'] ?? '').toString().toLowerCase();
-        if(id.isNotEmpty && !const {'skipped','cancelled'}.contains(lineState)) ids.add(id);
+        final lineState =
+            (row['status'] ?? row['Status'] ?? '').toString().toLowerCase();
+        if (id.isNotEmpty &&
+            !const {'skipped', 'cancelled'}.contains(lineState)) ids.add(id);
       }
     }
     return ids;
   }
 
-  Future<List<Map<String, dynamic>>> fetchFrozenLots(String token, {required String farmingAreaId}) =>
+  Future<List<Map<String, dynamic>>> fetchFrozenLots(String token,
+          {required String farmingAreaId}) =>
       _getDataList(token, '/api/frozen-lots', farmingAreaId: farmingAreaId);
-  Future<List<Map<String, dynamic>>> fetchFrozenTransactions(String token, {required String farmingAreaId}) =>
-      _getDataList(token, '/api/frozen-storage-transactions', farmingAreaId: farmingAreaId);
+  Future<List<Map<String, dynamic>>> fetchFrozenTransactions(String token,
+          {required String farmingAreaId}) =>
+      _getDataList(token, '/api/frozen-storage-transactions',
+          farmingAreaId: farmingAreaId);
 
-  Future<List<Map<String, dynamic>>> fetchFrozenCrabItems(String token, String lotId, {required String farmingAreaId}) =>
-      _getDataList(token, '/api/frozen-lots/$lotId/crab-items', farmingAreaId: farmingAreaId);
+  Future<List<Map<String, dynamic>>> fetchFrozenCrabItems(
+          String token, String lotId, {required String farmingAreaId}) =>
+      _getDataList(token, '/api/frozen-lots/$lotId/crab-items',
+          farmingAreaId: farmingAreaId);
 
-  Future<List<Map<String, dynamic>>> fetchFrozenAdjustments(String token, String lotId, {required String farmingAreaId}) =>
-      _getDataList(token, '/api/frozen-inventory-adjustments', farmingAreaId: farmingAreaId,
-        extraQuery: {'frozenLotId': lotId});
+  Future<List<Map<String, dynamic>>> fetchFrozenAdjustments(
+          String token, String lotId, {required String farmingAreaId}) =>
+      _getDataList(token, '/api/frozen-inventory-adjustments',
+          farmingAreaId: farmingAreaId, extraQuery: {'frozenLotId': lotId});
 
-  Future<List<Map<String, dynamic>>> fetchFrozenOpeningBalances(String token, {required String farmingAreaId}) =>
-      _getDataList(token, '/api/frozen-opening-balances', farmingAreaId: farmingAreaId);
+  Future<List<Map<String, dynamic>>> fetchFrozenOpeningBalances(String token,
+          {required String farmingAreaId}) =>
+      _getDataList(token, '/api/frozen-opening-balances',
+          farmingAreaId: farmingAreaId);
 
-  Future<void> createFrozenLot(String token, {required String farmingAreaId,
-    required String lotCode, String? harvestVoucherId, required DateTime frozenDate,
-    required DateTime expiryDate, String? grade, String? storageLocation,
-  }) => _writeFrozen(token, 'POST', '/api/frozen-lots', farmingAreaId, {
-    'lotCode': lotCode, 'harvestVoucherId': harvestVoucherId,
-    'farmingAreaId': farmingAreaId, 'frozenDate': frozenDate.toIso8601String(),
-    'expiryDate': expiryDate.toIso8601String(), 'grade': grade,
-    'storageLocation': storageLocation, 'quantity': 0, 'weightKg': 0,
-  });
+  Future<void> createFrozenLot(
+    String token, {
+    required String farmingAreaId,
+    required String lotCode,
+    String? harvestVoucherId,
+    required DateTime frozenDate,
+    required DateTime expiryDate,
+    String? grade,
+    String? storageLocation,
+    bool isOpenForInbound = false, // Lô nhận cua tự động từ Assignment
+  }) =>
+      _writeFrozen(
+        token,
+        'POST',
+        '/api/frozen-lots',
+        farmingAreaId,
+        {
+          'lotCode': lotCode,
+          'harvestVoucherId': isOpenForInbound ? null : harvestVoucherId,
+          'farmingAreaId': farmingAreaId,
+          'frozenDate': frozenDate.toIso8601String(),
+          'expiryDate': expiryDate.toIso8601String(),
+          'grade': grade,
+          'storageLocation': storageLocation,
+          'quantity': 0,
+          'weightKg': 0,
 
-  Future<void> updateFrozenLot(String token, String id, {required String farmingAreaId,
-    required DateTime frozenDate, required DateTime expiryDate, String? grade,
-    String? storageLocation, required int quantity, required num weightKg, required String status,
-  }) => _writeFrozen(token, 'PUT', '/api/frozen-lots/$id', farmingAreaId, {
-    'frozenDate': frozenDate.toIso8601String(), 'expiryDate': expiryDate.toIso8601String(),
-    'grade': grade, 'storageLocation': storageLocation,
-    'quantity': quantity, 'weightKg': weightKg, 'status': status,
-  });
+          // Báo cho BE biết đây là lô nhận cua tự động từ Assignment.
+          'isOpenForInbound': isOpenForInbound,
+        },
+      );
 
-  Future<void> deleteFrozenLot(String token, String id, {required String farmingAreaId}) =>
-      _writeFrozen(token, 'DELETE', '/api/frozen-lots/$id', farmingAreaId, null);
+  Future<void> updateFrozenLot(
+    String token,
+    String id, {
+    required String farmingAreaId,
+    required DateTime frozenDate,
+    required DateTime expiryDate,
+    String? grade,
+    String? storageLocation,
+    required int quantity,
+    required num weightKg,
+    required String status,
+  }) =>
+      _writeFrozen(token, 'PUT', '/api/frozen-lots/$id', farmingAreaId, {
+        'frozenDate': frozenDate.toIso8601String(),
+        'expiryDate': expiryDate.toIso8601String(),
+        'grade': grade,
+        'storageLocation': storageLocation,
+        'quantity': quantity,
+        'weightKg': weightKg,
+        'status': status,
+      });
 
-  Future<void> reconcileFrozenCrabItems(String token, String lotId, {
-    required String farmingAreaId, required List<String> availableItemIds, required String reason,
-  }) => _writeFrozen(token, 'POST', '/api/frozen-lots/$lotId/crab-items/reconcile', farmingAreaId, {
-    'availableItemIds': availableItemIds, 'reason': reason,
-  });
+  Future<void> deleteFrozenLot(String token, String id,
+          {required String farmingAreaId}) =>
+      _writeFrozen(
+          token, 'DELETE', '/api/frozen-lots/$id', farmingAreaId, null);
 
-  Future<void> verifyFrozenOpeningBalance(String token, String id, {
-    required String farmingAreaId, required int quantity, required num weightKg, required String reason,
-  }) => _writeFrozen(token, 'POST', '/api/frozen-opening-balances/$id/verify', farmingAreaId, {
-    'openingQuantity': quantity, 'openingWeightKg': weightKg, 'reason': reason,
-  });
+  Future<void> reconcileFrozenCrabItems(
+    String token,
+    String lotId, {
+    required String farmingAreaId,
+    required List<String> availableItemIds,
+    required String reason,
+  }) =>
+      _writeFrozen(token, 'POST',
+          '/api/frozen-lots/$lotId/crab-items/reconcile', farmingAreaId, {
+        'availableItemIds': availableItemIds,
+        'reason': reason,
+      });
 
-  Future<List<Map<String, dynamic>>> fetchCorrectionHistory(String token, {
-    required String areaId, required String entityId, required bool byBox, required String kind,
+  Future<void> verifyFrozenOpeningBalance(
+    String token,
+    String id, {
+    required String farmingAreaId,
+    required int quantity,
+    required num weightKg,
+    required String reason,
+  }) =>
+      _writeFrozen(token, 'POST', '/api/frozen-opening-balances/$id/verify',
+          farmingAreaId, {
+        'openingQuantity': quantity,
+        'openingWeightKg': weightKg,
+        'reason': reason,
+      });
+
+  Future<List<Map<String, dynamic>>> fetchCorrectionHistory(
+    String token, {
+    required String areaId,
+    required String entityId,
+    required bool byBox,
+    required String kind,
   }) {
-    if (areaId.isEmpty || entityId.isEmpty ||
-        !const {'allocations','moltings','status-history'}.contains(kind) ||
+    if (areaId.isEmpty ||
+        entityId.isEmpty ||
+        !const {'allocations', 'moltings', 'status-history'}.contains(kind) ||
         (!byBox && kind == 'status-history')) {
       throw CloudApiException('Phạm vi lịch sử không hợp lệ.');
     }
-    return _getDataList(token, '/api/${byBox ? 'boxes' : 'crabs'}/$entityId/$kind', farmingAreaId: areaId);
+    return _getDataList(
+        token, '/api/${byBox ? 'boxes' : 'crabs'}/$entityId/$kind',
+        farmingAreaId: areaId);
   }
 
-  Future<void> correctAllocation(String token, String id, String area, {
-    required String notes, DateTime? startTime, DateTime? endTime,
-  }) => _writeFrozen(token,'PUT','/api/allocations/$id',area,{
-    'notes':notes, if (startTime != null) 'startTime':startTime.toUtc().toIso8601String(),
-    if (endTime != null) 'endTime':endTime.toUtc().toIso8601String(),
-  });
+  Future<void> correctAllocation(
+    String token,
+    String id,
+    String area, {
+    required String notes,
+    DateTime? startTime,
+    DateTime? endTime,
+  }) =>
+      _writeFrozen(token, 'PUT', '/api/allocations/$id', area, {
+        'notes': notes,
+        if (startTime != null) 'startTime': startTime.toUtc().toIso8601String(),
+        if (endTime != null) 'endTime': endTime.toUtc().toIso8601String(),
+      });
 
-  Future<void> correctMolting(String token, String id, String area, {
-    required String reason, required String notes, String? result, DateTime? moltTime, double? weightAfterGram,
-  }) => _writeFrozen(token,'PUT','/api/moltings/$id',area,{
-    'correctionReason':reason,'notes':notes,if (result != null) 'result':result,
-    if (moltTime != null) 'moltTime':moltTime.toUtc().toIso8601String(),
-    if (weightAfterGram != null) 'weightAfterGram':weightAfterGram,
-  });
+  Future<void> correctMolting(
+    String token,
+    String id,
+    String area, {
+    required String reason,
+    required String notes,
+    String? result,
+    DateTime? moltTime,
+    double? weightAfterGram,
+  }) =>
+      _writeFrozen(token, 'PUT', '/api/moltings/$id', area, {
+        'correctionReason': reason,
+        'notes': notes,
+        if (result != null) 'result': result,
+        if (moltTime != null) 'moltTime': moltTime.toUtc().toIso8601String(),
+        if (weightAfterGram != null) 'weightAfterGram': weightAfterGram,
+      });
 
-  Future<void> voidMolting(String token, String id, String area, String reason) =>
-    _writeFrozen(token,'POST','/api/moltings/$id/void',area,{'reason':reason});
+  Future<void> voidMolting(
+          String token, String id, String area, String reason) =>
+      _writeFrozen(
+          token, 'POST', '/api/moltings/$id/void', area, {'reason': reason});
 
-  Future<void> correctBoxHistory(String token, String id, String area, {
-    required String reason, String? newStatus, DateTime? changedAt, bool? newIsOccupied,
-  }) => _writeFrozen(token,'PUT','/api/box-status-histories/$id',area,{
-    'reason':reason,if (newStatus != null) 'newStatus':newStatus,
-    if (changedAt != null) 'changedAt':changedAt.toUtc().toIso8601String(),
-    if (newIsOccupied != null) 'newIsOccupied':newIsOccupied,
-  });
+  Future<void> correctBoxHistory(
+    String token,
+    String id,
+    String area, {
+    required String reason,
+    String? newStatus,
+    DateTime? changedAt,
+    bool? newIsOccupied,
+  }) =>
+      _writeFrozen(token, 'PUT', '/api/box-status-histories/$id', area, {
+        'reason': reason,
+        if (newStatus != null) 'newStatus': newStatus,
+        if (changedAt != null) 'changedAt': changedAt.toUtc().toIso8601String(),
+        if (newIsOccupied != null) 'newIsOccupied': newIsOccupied,
+      });
 
-  Future<void> _writeFrozen(String token, String method, String path, String area, Map<String, dynamic>? payload) async {
+  Future<void> _writeFrozen(String token, String method, String path,
+      String area, Map<String, dynamic>? payload) async {
     if (area.trim().isEmpty) throw CloudApiException('Thiếu khu nuôi.');
     final uri = Uri.parse('$_base$path');
-    final headers = {...authHeaders(token, farmId: area), 'Content-Type': 'application/json'};
+    final headers = {
+      ...authHeaders(token, farmId: area),
+      'Content-Type': 'application/json'
+    };
     final body = payload == null ? null : jsonEncode(payload);
     final http.Response res;
     switch (method) {
-      case 'POST': res = await _client.post(uri, headers: headers, body: body); break;
-      case 'PUT': res = await _client.put(uri, headers: headers, body: body); break;
-      case 'DELETE': res = await _client.delete(uri, headers: headers); break;
-      default: throw CloudApiException('Thao tác kho không hợp lệ.');
+      case 'POST':
+        res = await _client.post(uri, headers: headers, body: body);
+        break;
+      case 'PUT':
+        res = await _client.put(uri, headers: headers, body: body);
+        break;
+      case 'DELETE':
+        res = await _client.delete(uri, headers: headers);
+        break;
+      default:
+        throw CloudApiException('Thao tác kho không hợp lệ.');
     }
     _throwIfFailed(res, _decode(res), uri.path);
   }
 
-  Future<void> decideFrozenTransaction(String token, String id, {
-    required String farmingAreaId, required bool approve, String? reason,
+  Future<void> decideFrozenTransaction(
+    String token,
+    String id, {
+    required String farmingAreaId,
+    required bool approve,
+    String? reason,
   }) async {
-    if (id.trim().isEmpty || farmingAreaId.trim().isEmpty ||
+    if (id.trim().isEmpty ||
+        farmingAreaId.trim().isEmpty ||
         (!approve && (reason ?? '').trim().isEmpty)) {
       throw CloudApiException('Thiếu phiếu, khu nuôi hoặc lý do từ chối.');
     }
     final action = approve ? 'approve' : 'reject';
     final uri = Uri.parse('$_base/api/frozen-storage-transactions/$id/$action');
     final res = await _client.post(uri,
-      headers: {...authHeaders(token, farmId: farmingAreaId), 'Content-Type': 'application/json'},
-      body: jsonEncode({if (!approve) 'reason': reason!.trim()}));
+        headers: {
+          ...authHeaders(token, farmId: farmingAreaId),
+          'Content-Type': 'application/json'
+        },
+        body: jsonEncode({if (!approve) 'reason': reason!.trim()}));
     _throwIfFailed(res, _decode(res), uri.path);
   }
 
@@ -1155,30 +1341,41 @@ class CloudApiClient {
       _getDataList(token, '/api/iot/live', farmingAreaId: farmingAreaId);
 
   /// Scoped history: explicit bearer, exact success envelope, no retry or redirect.
-  Future<Map<String,dynamic>> fetchScopedHistoryPage(String token, {
-    required String areaId, required String sensorId, String? rowId,
-    required DateTime from, required DateTime to, required int page,
+  Future<Map<String, dynamic>> fetchScopedHistoryPage(
+    String token, {
+    required String areaId,
+    required String sensorId,
+    String? rowId,
+    required DateTime from,
+    required DateTime to,
+    required int page,
     String? asOf,
   }) async {
     final uri = Uri.parse('$_base/api/areas/$areaId/sensors/$sensorId/history')
         .replace(queryParameters: {
-      'from':from.toIso8601String(),'to':to.toIso8601String(),
-      if (rowId != null) 'farmingRowId':rowId,
-      'page':'$page','pageSize':'250',if(asOf != null) 'asOf':asOf,
+      'from': from.toIso8601String(),
+      'to': to.toIso8601String(),
+      if (rowId != null) 'farmingRowId': rowId,
+      'page': '$page',
+      'pageSize': '250',
+      if (asOf != null) 'asOf': asOf,
     });
-    final request = http.Request('GET',uri)
+    final request = http.Request('GET', uri)
       ..followRedirects = false
-      ..headers.addAll(authHeaders(token,farmId:areaId));
-    final response = await _client.send(request).then(http.Response.fromStream)
+      ..headers.addAll(authHeaders(token, farmId: areaId));
+    final response = await _client
+        .send(request)
+        .then(http.Response.fromStream)
         .timeout(const Duration(seconds: 15));
     if (response.statusCode != 200) {
-      throw CloudApiException('Không thể xác minh lịch sử.',statusCode:response.statusCode);
+      throw CloudApiException('Không thể xác minh lịch sử.',
+          statusCode: response.statusCode);
     }
     final body = _decode(response);
-    if (body['success'] != true || body['data'] is! Map<String,dynamic>) {
+    if (body['success'] != true || body['data'] is! Map<String, dynamic>) {
       throw const FormatException('Invalid scoped history envelope');
     }
-    return body['data'] as Map<String,dynamic>;
+    return body['data'] as Map<String, dynamic>;
   }
 
   /// CrabSenseBE `GET /api/iot/sensor-data/{sensorId}`
@@ -1630,14 +1827,16 @@ class CloudApiClient {
   /// Upload a private sample to a server-selected batch/channel folder.
   /// The caller must separately confirm capture using the returned media ID.
   Future<String> uploadWaterBatchSample(
-    String token, String areaId, String batchId, String analyte,
-    {required List<int> bytes, required String filename, required String mimeType}
-  ) async {
+      String token, String areaId, String batchId, String analyte,
+      {required List<int> bytes,
+      required String filename,
+      required String mimeType}) async {
     final chemical = analyte.trim().toUpperCase();
     if (!const {'NO2', 'NO3', 'NH3', 'PH'}.contains(chemical)) {
       throw CloudApiException('Chỉ tiêu phân tích không hợp lệ.');
     }
-    if (bytes.isEmpty || bytes.length > 5 * 1024 * 1024 ||
+    if (bytes.isEmpty ||
+        bytes.length > 5 * 1024 * 1024 ||
         !const {'image/jpeg', 'image/png', 'image/webp'}.contains(mimeType)) {
       throw CloudApiException('Ảnh mẫu không hợp lệ hoặc vượt 5 MiB.');
     }
@@ -1647,7 +1846,8 @@ class CloudApiClient {
       ..headers.addAll(authHeaders(token, farmId: areaId))
       ..files.add(http.MultipartFile.fromBytes('file', bytes,
           filename: filename, contentType: MediaType.parse(mimeType)));
-    final response = await http.Response.fromStream(await _client.send(request));
+    final response =
+        await http.Response.fromStream(await _client.send(request));
     final body = _decode(response);
     if (_isApiFailure(response, body)) {
       throw CloudApiException(_errorMessage(body) ?? 'Không tải được ảnh mẫu.',
@@ -2005,5 +2205,4 @@ class CloudApiClient {
 
     return _asMap(_dataOf(body) ?? body);
   }
-  
 }

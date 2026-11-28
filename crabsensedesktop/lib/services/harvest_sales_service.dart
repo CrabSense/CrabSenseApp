@@ -23,51 +23,135 @@ class HarvestSalesService extends ChangeNotifier {
   final Set<String> _pendingWrites = {};
   int get scopeGeneration => _generation;
   bool _current(int generation) => !_disposed && generation == _generation;
-  bool get canManageHarvest => !_disposed && _session.user.role == UserRoles.farmManager && areaId.isNotEmpty && _session.farms.any((f) => f.id == areaId);
-  bool canDecide(HarvestSlipDetail slip) => canManageHarvest && !harvestsLoading && harvestsError == null && slip.farmingAreaId == areaId && slip.canApprove && slip.createdBy != null && slip.createdBy != _session.user.id && slip.adjustmentRequestedByUserId != _session.user.id && !_pendingWrites.contains(slip.id);
-  bool canConfirm(HarvestSlipDetail slip) => canManageHarvest && !harvestsLoading && harvestsError == null && slip.farmingAreaId == areaId && slip.canComplete && !_pendingWrites.contains(slip.id);
-  bool canDeleteHarvest(HarvestSlipDetail slip) => canManageHarvest && !harvestsLoading && harvestsError == null && slip.farmingAreaId == areaId && slip.canDelete && !_pendingWrites.contains(slip.id);
-  bool canAdjustHarvest(HarvestSlipDetail slip) => canManageHarvest && !harvestsLoading && !readyLoading && harvestsError==null && readyError==null && slip.farmingAreaId==areaId && slip.status.toLowerCase()=='approved' && slip.executionCompletedAt==null && !_pendingWrites.contains(slip.id);
-  Future<void> requestAdjustment(String id,Set<String> selectedIds,String reason,int generation) async {
+  bool get canManageHarvest =>
+      !_disposed &&
+      _session.user.role == UserRoles.farmManager &&
+      areaId.isNotEmpty &&
+      _session.farms.any((f) => f.id == areaId);
+  bool canDecide(HarvestSlipDetail slip) =>
+      canManageHarvest &&
+      !harvestsLoading &&
+      harvestsError == null &&
+      slip.farmingAreaId == areaId &&
+      slip.canApprove &&
+      slip.createdBy != null &&
+      slip.createdBy != _session.user.id &&
+      slip.adjustmentRequestedByUserId != _session.user.id &&
+      !_pendingWrites.contains(slip.id);
+  bool canConfirm(HarvestSlipDetail slip) =>
+      canManageHarvest &&
+      !harvestsLoading &&
+      harvestsError == null &&
+      slip.farmingAreaId == areaId &&
+      slip.canComplete &&
+      !_pendingWrites.contains(slip.id);
+  bool canDeleteHarvest(HarvestSlipDetail slip) =>
+      canManageHarvest &&
+      !harvestsLoading &&
+      harvestsError == null &&
+      slip.farmingAreaId == areaId &&
+      slip.canDelete &&
+      !_pendingWrites.contains(slip.id);
+  bool canAdjustHarvest(HarvestSlipDetail slip) =>
+      canManageHarvest &&
+      !harvestsLoading &&
+      !readyLoading &&
+      harvestsError == null &&
+      readyError == null &&
+      slip.farmingAreaId == areaId &&
+      slip.status.toLowerCase() == 'approved' &&
+      slip.executionCompletedAt == null &&
+      !_pendingWrites.contains(slip.id);
+  Future<void> requestAdjustment(
+      String id, Set<String> selectedIds, String reason, int generation) async {
     _requireHarvestArea();
-    final slip=_harvests.where((v)=>v.id==id).firstOrNull;
-    if(slip==null||!canAdjustHarvest(slip)||!_current(generation)||selectedIds.isEmpty||reason.trim().isEmpty)throw CloudApiException('Phiếu hoặc yêu cầu điều chỉnh không hợp lệ.');
-    final oldIds=slip.lines.map((l)=>l.crabId).whereType<String>().toSet();
-    final candidates={for(final c in _harvestable)if(c.areaId==areaId&&c.canSelect)c.id:c};
-    if(!selectedIds.every((id)=>oldIds.contains(id)||candidates.containsKey(id)))throw CloudApiException('Danh sách cua đã thay đổi.');
-    final area=areaId;
-    final capturedToken=token;
-    _pendingWrites.add(id);notifyListeners();
-    try{
-      final source=await _api.fetchHarvestAdjustmentSource(capturedToken,id,areaId:area);
-      if(!_current(generation)||frozenText(source,'farmingAreaId')!=area||frozenText(source,'status').toLowerCase()!='approved'||frozenField(source,'executionCompletedAt')!=null)throw CloudApiException('Phiếu đã thay đổi; hãy tải lại.');
-      final raw=frozenField(source,'lines');
-      if(raw is! List)throw CloudApiException('Không đọc được dòng phiếu.');
-      final originals=<String,Map<String,dynamic>>{};
-      for(final row in raw.whereType<Map>()){
-        final m=Map<String,dynamic>.from(row);
-        final crab=frozenText(m,'crabId');
-        if(crab.isEmpty||originals.containsKey(crab))throw CloudApiException('Phiếu có dòng legacy cần đối soát.');
-        originals[crab]=m;
+    final slip = _harvests.where((v) => v.id == id).firstOrNull;
+    if (slip == null ||
+        !canAdjustHarvest(slip) ||
+        !_current(generation) ||
+        selectedIds.isEmpty ||
+        reason.trim().isEmpty)
+      throw CloudApiException('Phiếu hoặc yêu cầu điều chỉnh không hợp lệ.');
+    final oldIds = slip.lines.map((l) => l.crabId).whereType<String>().toSet();
+    final candidates = {
+      for (final c in _harvestable)
+        if (c.areaId == areaId && c.canSelect) c.id: c
+    };
+    if (!selectedIds
+        .every((id) => oldIds.contains(id) || candidates.containsKey(id)))
+      throw CloudApiException('Danh sách cua đã thay đổi.');
+    final area = areaId;
+    final capturedToken = token;
+    _pendingWrites.add(id);
+    notifyListeners();
+    try {
+      final source = await _api.fetchHarvestAdjustmentSource(capturedToken, id,
+          areaId: area);
+      if (!_current(generation) ||
+          frozenText(source, 'farmingAreaId') != area ||
+          frozenText(source, 'status').toLowerCase() != 'approved' ||
+          frozenField(source, 'executionCompletedAt') != null)
+        throw CloudApiException('Phiếu đã thay đổi; hãy tải lại.');
+      final raw = frozenField(source, 'lines');
+      if (raw is! List) throw CloudApiException('Không đọc được dòng phiếu.');
+      final originals = <String, Map<String, dynamic>>{};
+      for (final row in raw.whereType<Map>()) {
+        final m = Map<String, dynamic>.from(row);
+        final crab = frozenText(m, 'crabId');
+        if (crab.isEmpty || originals.containsKey(crab))
+          throw CloudApiException('Phiếu có dòng legacy cần đối soát.');
+        originals[crab] = m;
       }
-      if(originals.keys.toSet().difference(oldIds).isNotEmpty||oldIds.difference(originals.keys.toSet()).isNotEmpty)throw CloudApiException('Danh sách phiếu đã thay đổi.');
-      final lines=<Map<String,dynamic>>[];
-      for(final crab in selectedIds){
-        final old=originals[crab];
-        if(old!=null){
-          lines.add({'crabId':crab,for(final key in ['weightGram','grade','isSoftshell','notes','conditionLabel','photoUrls','result'])if(frozenField(old,key)!=null)key:frozenField(old,key)});
-        }else{
-          final c=candidates[crab]!;
-          lines.add({'crabId':crab,'weightGram':0,'grade':'A','isSoftshell':c.isSoftshell,'conditionLabel':c.condition});
+      if (originals.keys.toSet().difference(oldIds).isNotEmpty ||
+          oldIds.difference(originals.keys.toSet()).isNotEmpty)
+        throw CloudApiException('Danh sách phiếu đã thay đổi.');
+      final lines = <Map<String, dynamic>>[];
+      for (final crab in selectedIds) {
+        final old = originals[crab];
+        if (old != null) {
+          lines.add({
+            'crabId': crab,
+            for (final key in [
+              'weightGram',
+              'grade',
+              'isSoftshell',
+              'notes',
+              'conditionLabel',
+              'photoUrls',
+              'result'
+            ])
+              if (frozenField(old, key) != null) key: frozenField(old, key)
+          });
+        } else {
+          final c = candidates[crab]!;
+          lines.add({
+            'crabId': crab,
+            'weightGram': 0,
+            'grade': 'A',
+            'isSoftshell': c.isSoftshell,
+            'conditionLabel': c.condition
+          });
         }
       }
-      if(!_current(generation))throw CloudApiException('Khu đã thay đổi.');
-      await _api.requestHarvestAdjustment(capturedToken,id,areaId:area,reason:reason,lines:lines);
-      if(_current(generation))await load();
-    }finally{if(_current(generation)){_pendingWrites.remove(id);notifyListeners();}}
+      if (!_current(generation)) throw CloudApiException('Khu đã thay đổi.');
+      await _api.requestHarvestAdjustment(capturedToken, id,
+          areaId: area, reason: reason, lines: lines);
+      if (_current(generation)) await load();
+    } finally {
+      if (_current(generation)) {
+        _pendingWrites.remove(id);
+        notifyListeners();
+      }
+    }
   }
-  void _requireHarvestArea() { if (!canManageHarvest) throw CloudApiException('Chỉ Manager trong khu được phân công.'); }
-  bool _assignedArea(String id) => id.isNotEmpty && _session.farms.any((f) => f.id == id);
+
+  void _requireHarvestArea() {
+    if (!canManageHarvest)
+      throw CloudApiException('Chỉ Manager trong khu được phân công.');
+  }
+
+  bool _assignedArea(String id) =>
+      id.isNotEmpty && _session.farms.any((f) => f.id == id);
 
   List<HarvestableCrab> _harvestable = [];
   List<InventoryCrab> _inventory = [];
@@ -190,7 +274,8 @@ class HarvestSalesService extends ChangeNotifier {
     }
     for (final c in _harvestable) {
       if (c.areaId.isEmpty) continue;
-      map.putIfAbsent(c.areaId, () => c.areaName.isEmpty ? c.areaId : c.areaName);
+      map.putIfAbsent(
+          c.areaId, () => c.areaName.isEmpty ? c.areaId : c.areaName);
     }
     return [
       for (final e in map.entries) HarvestAreaOption(id: e.key, label: e.value),
@@ -287,7 +372,9 @@ class HarvestSalesService extends ChangeNotifier {
       list = list.where((o) => o.productType == _salesProductFilter).toList();
     }
     if (_salesCompletedOnly) {
-      list = list.where((o) => o.uiStatus == SalesOrderUiStatus.completed).toList();
+      list = list
+          .where((o) => o.uiStatus == SalesOrderUiStatus.completed)
+          .toList();
     }
     if (_salesTodayOnly || _salesTimeRange == HarvestTimeRange.today) {
       list = list.where((o) => _isToday(o.orderDate)).toList();
@@ -328,9 +415,10 @@ class HarvestSalesService extends ChangeNotifier {
     return all.sublist(start, end);
   }
 
-  List<String> get customerNames =>
-      {for (final o in _orders) if (o.customerName.isNotEmpty) o.customerName}
-          .toList()
+  List<String> get customerNames => {
+        for (final o in _orders)
+          if (o.customerName.isNotEmpty) o.customerName
+      }.toList()
         ..sort();
   List<HarvestSlip> get harvests => List.unmodifiable(_harvests);
   List<HarvestSlipDetail> get harvestSlips => filteredHarvests;
@@ -342,7 +430,8 @@ class HarvestSalesService extends ChangeNotifier {
       list = list.where((h) => _slipMatches(h, q)).toList();
     }
     if (_areaFilterId != null && _areaFilterId!.isNotEmpty) {
-      list = list.where((h) => (h.farmingAreaId ?? '') == _areaFilterId).toList();
+      list =
+          list.where((h) => (h.farmingAreaId ?? '') == _areaFilterId).toList();
     }
     if (_statusFilter != null) {
       list = list.where((h) => h.uiStatus == _statusFilter).toList();
@@ -351,13 +440,14 @@ class HarvestSalesService extends ChangeNotifier {
       list = list.where((h) => h.productType == _productFilter).toList();
     }
     if (_completedTodayOnly) {
-      list = list.where((h) => h.isCompleted && _isToday(h.harvestedAt)).toList();
+      list =
+          list.where((h) => h.isCompleted && _isToday(h.harvestedAt)).toList();
     } else {
       final from = _fromDate(_timeRange);
       if (from != null) {
         list = list
-            .where((h) =>
-                h.harvestedAt == null || !h.harvestedAt!.isBefore(from))
+            .where(
+                (h) => h.harvestedAt == null || !h.harvestedAt!.isBefore(from))
             .toList();
       }
     }
@@ -418,7 +508,8 @@ class HarvestSalesService extends ChangeNotifier {
           customerName: o.customerName,
           customerCode: o.customerPhone,
           orderDate: formatHarvestDate(o.orderDate),
-          totalWeightKg: o.lines.fold<double>(0, (s, l) => s + l.weightG / 1000),
+          totalWeightKg:
+              o.lines.fold<double>(0, (s, l) => s + l.weightG / 1000),
           pricePerKg: o.lines.isEmpty ? 0 : o.lines.first.unitPricePerKg,
           revenueVnd: o.revenueVnd,
           status: o.isCancelled
@@ -454,7 +545,8 @@ class HarvestSalesService extends ChangeNotifier {
         if (l.crabCode.isNotEmpty) l.crabCode.toLowerCase(),
     };
     final found = _inventory
-        .where((c) => ids.contains(c.id) || codes.contains(c.code.toLowerCase()))
+        .where(
+            (c) => ids.contains(c.id) || codes.contains(c.code.toLowerCase()))
         .toList();
     if (found.isNotEmpty) return found;
     return [
@@ -475,9 +567,16 @@ class HarvestSalesService extends ChangeNotifier {
     loading = harvestsLoading = readyLoading = salesLoading = false;
     error = harvestsError = readyError = salesError = null;
     _pendingWrites.clear();
-    _areaFilterId = null; _page = 0; _salesPage = 0;
-    _harvestKpi = const HarvestKpi(harvestable:0,softshellWaiting:0,harvestedToday:0,waitingSale:0,totalWeightKg:0);
-    _salesKpi = const SalesKpi(revenueTodayVnd:0,soldToday:0,inventory:0);
+    _areaFilterId = null;
+    _page = 0;
+    _salesPage = 0;
+    _harvestKpi = const HarvestKpi(
+        harvestable: 0,
+        softshellWaiting: 0,
+        harvestedToday: 0,
+        waitingSale: 0,
+        totalWeightKg: 0);
+    _salesKpi = const SalesKpi(revenueTodayVnd: 0, soldToday: 0, inventory: 0);
     _session = session;
     _harvestable = [];
     _inventory = [];
@@ -488,7 +587,11 @@ class HarvestSalesService extends ChangeNotifier {
   }
 
   @override
-  void dispose() { _disposed = true; ++_generation; super.dispose(); }
+  void dispose() {
+    _disposed = true;
+    ++_generation;
+    super.dispose();
+  }
 
   void setSearch(String v) {
     _search = v;
@@ -673,12 +776,15 @@ class HarvestSalesService extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      await Future.wait([reloadHarvests(),reloadSales()]);
+      await Future.wait([reloadHarvests(), reloadSales()]);
       if (!_current(generation)) return;
       await reloadReady();
       if (_current(generation)) error = harvestsError ?? readyError;
     } finally {
-      if (_current(generation)) { loading = false; notifyListeners(); }
+      if (_current(generation)) {
+        loading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -690,10 +796,11 @@ class HarvestSalesService extends ChangeNotifier {
     harvestsError = null;
     notifyListeners();
     try {
-      await _loadHarvests(areaId,generation,version);
+      await _loadHarvests(areaId, generation, version);
     } finally {
       if (_current(generation) && version == _harvestRead) {
-        harvestsLoading = false; notifyListeners();
+        harvestsLoading = false;
+        notifyListeners();
       }
     }
   }
@@ -706,13 +813,16 @@ class HarvestSalesService extends ChangeNotifier {
     readyError = null;
     notifyListeners();
     try {
-      await _loadReady(areaId,generation,version);
+      await _loadReady(areaId, generation, version);
     } finally {
-      if (_current(generation) && version == _readyRead) { readyLoading = false; notifyListeners(); }
+      if (_current(generation) && version == _readyRead) {
+        readyLoading = false;
+        notifyListeners();
+      }
     }
   }
 
-  Future<void> _loadHarvests(String farmId,int generation,int version) async {
+  Future<void> _loadHarvests(String farmId, int generation, int version) async {
     bool active() => _current(generation) && version == _harvestRead;
     try {
       final results = await Future.wait([
@@ -721,7 +831,10 @@ class HarvestSalesService extends ChangeNotifier {
         _api.fetchSalesInventory(_session.token, farmingAreaId: farmId),
       ]);
       if (!active()) return;
-      final vouchers = (results[0] as List<Map<String, dynamic>>).where((v) => (v['farmingAreaId'] ?? v['FarmingAreaId']).toString() == farmId).toList();
+      final vouchers = (results[0] as List<Map<String, dynamic>>)
+          .where((v) =>
+              (v['farmingAreaId'] ?? v['FarmingAreaId']).toString() == farmId)
+          .toList();
       final harvestOverview = results[1] as Map<String, dynamic>;
       final inventory = results[2] as List<Map<String, dynamic>>;
       _inventory = inventory.map(_inventoryFromJson).toList();
@@ -770,13 +883,16 @@ class HarvestSalesService extends ChangeNotifier {
     salesError = null;
     notifyListeners();
     try {
-      await _loadSales(areaId,generation,version);
+      await _loadSales(areaId, generation, version);
     } finally {
-      if (_current(generation) && version == _salesRead) { salesLoading = false; notifyListeners(); }
+      if (_current(generation) && version == _salesRead) {
+        salesLoading = false;
+        notifyListeners();
+      }
     }
   }
 
-  Future<void> _loadSales(String farmId,int generation,int version) async {
+  Future<void> _loadSales(String farmId, int generation, int version) async {
     bool active() => _current(generation) && version == _salesRead;
     try {
       final results = await Future.wait([
@@ -842,29 +958,42 @@ class HarvestSalesService extends ChangeNotifier {
     }
   }
 
-  Future<void> _loadReady(String farmId,int generation,int version) async {
+  Future<void> _loadReady(String farmId, int generation, int version) async {
     bool active() => _current(generation) && version == _readyRead;
     try {
       final farmCrabs = await _api.fetchFarmCrabs(_session.token, farmId);
       if (!active()) return;
       final busy = _busyCrabIds();
       if (_session.user.role == UserRoles.farmManager) {
-        busy.addAll(await _api.fetchOpenHarvestAssignmentCrabIds(token,farmingAreaId:farmId));
+        busy.addAll(await _api.fetchOpenHarvestAssignmentCrabIds(token,
+            farmingAreaId: farmId));
         if (!active()) return;
       }
-      if (harvestsError != null) { _harvestable = []; readyError = 'Không xác minh được phiếu đang mở.'; return; }
+      if (harvestsError != null) {
+        _harvestable = [];
+        readyError = 'Không xác minh được phiếu đang mở.';
+        return;
+      }
       _harvestable = farmCrabs.crabs
           .where((c) {
             final s = c.status.toLowerCase();
-            return c.areaId == farmId && c.boxId.isNotEmpty && (s == 'alive' || s == 'molting');
+            return c.areaId == farmId &&
+                c.boxId.isNotEmpty &&
+                (s == 'alive' || s == 'molting');
           })
           .map((c) => _mapReadyCrab(c, busy.contains(c.id)))
           .toList();
       readyError = null;
     } on CloudApiException catch (e) {
-      if (active()) { _harvestable = []; readyError = e.message; }
+      if (active()) {
+        _harvestable = [];
+        readyError = e.message;
+      }
     } catch (e) {
-      if (active()) { _harvestable = []; readyError = '$e'; }
+      if (active()) {
+        _harvestable = [];
+        readyError = '$e';
+      }
     }
   }
 
@@ -956,7 +1085,8 @@ class HarvestSalesService extends ChangeNotifier {
     required String performedBy,
     String? note,
   }) async {
-    throw CloudApiException('Cần chọn cá thể cua cụ thể để tạo phiếu thu hoạch.');
+    throw CloudApiException(
+        'Cần chọn cá thể cua cụ thể để tạo phiếu thu hoạch.');
   }
 
   Future<({String id, String code})> createHarvestFromCrabs({
@@ -975,73 +1105,100 @@ class HarvestSalesService extends ChangeNotifier {
     _requireHarvestArea();
     final generation = _generation;
     final selectedArea = areaId;
-    if (crabs.isEmpty || crabs.map((c)=>c.id).toSet().length != crabs.length || harvestDate.isAfter(DateTime.now().add(const Duration(minutes:5)))) {
-      throw CloudApiException('Danh sách cua hoặc ngày thu hoạch không hợp lệ.');
+    if (crabs.isEmpty ||
+        crabs.map((c) => c.id).toSet().length != crabs.length ||
+        harvestDate.isAfter(DateTime.now().add(const Duration(minutes: 5)))) {
+      throw CloudApiException(
+          'Danh sách cua hoặc ngày thu hoạch không hợp lệ.');
     }
-    if (harvestsLoading || readyLoading || harvestsError != null || readyError != null || _pendingWrites.contains('create')) throw CloudApiException('Vui lòng tải lại danh sách trước khi tạo phiếu.');
+    if (harvestsLoading ||
+        readyLoading ||
+        harvestsError != null ||
+        readyError != null ||
+        _pendingWrites.contains('create'))
+      throw CloudApiException(
+          'Vui lòng tải lại danh sách trước khi tạo phiếu.');
     for (final c in crabs) {
-      if (c.areaId != selectedArea || !_harvestable.any((v)=>v.id==c.id && v.canSelect && v.areaId==selectedArea) || !c.canSelect || (weights[c.id] ?? 0)<0) {
-        throw CloudApiException('Cua không còn đủ điều kiện hoặc không thuộc khu hiện tại.');
+      if (c.areaId != selectedArea ||
+          !_harvestable.any(
+              (v) => v.id == c.id && v.canSelect && v.areaId == selectedArea) ||
+          !c.canSelect ||
+          (weights[c.id] ?? 0) < 0) {
+        throw CloudApiException(
+            'Cua không còn đủ điều kiện hoặc không thuộc khu hiện tại.');
       }
     }
     _pendingWrites.add('create');
     try {
-    final created = await _api.createHarvestVoucher(
-      _session.token,
-      harvestDate: harvestDate,
-      notes: note,
-      quantity: crabs.length,
-      totalWeightKg: crabs.fold<double>(
-        0,
-        (s, c) => s + (weights[c.id] ?? 0) / 1000,
-      ),
-      farmingAreaId: _session.selectedFarm.id,
-      performedByName: performedBy,
-      photoUrls: photoUrls,
-      status: 'PendingApproval',
-      lines: [
-        for (final c in crabs)
-          {
-            'crabId': c.id,
-            'weightGram': weights[c.id] ?? 0,
-            'grade': grades[c.id] ?? 'A',
-            'isSoftshell': softshell[c.id] ?? c.isSoftshell,
-            'conditionLabel': conditions[c.id] ?? c.condition,
-            'result': results[c.id] ?? 'passed',
-          },
-      ],
-    );
-    if (_current(generation)) await load();
-    final code = (created['voucherCode'] ??
-            created['VoucherCode'] ??
-            created['code'] ??
-            created['Code'] ??
-            '')
-        .toString();
-    final id = (created['id'] ?? created['Id'] ?? '').toString();
-    if (id.isEmpty || code.isEmpty) throw CloudApiException('Backend không trả mã phiếu; hãy tải lại trước khi thử lại.');
-    return (id: id, code: code);
-    } finally { if (_current(generation)) _pendingWrites.remove('create'); }
+      final created = await _api.createHarvestVoucher(
+        _session.token,
+        harvestDate: harvestDate,
+        notes: note,
+        quantity: crabs.length,
+        totalWeightKg: crabs.fold<double>(
+          0,
+          (s, c) => s + (weights[c.id] ?? 0) / 1000,
+        ),
+        farmingAreaId: _session.selectedFarm.id,
+        performedByName: performedBy,
+        photoUrls: photoUrls,
+        status: 'PendingApproval',
+        lines: [
+          for (final c in crabs)
+            {
+              'crabId': c.id,
+              'weightGram': weights[c.id] ?? 0,
+              'grade': grades[c.id] ?? 'A',
+              'isSoftshell': softshell[c.id] ?? c.isSoftshell,
+              'conditionLabel': conditions[c.id] ?? c.condition,
+              'result': results[c.id] ?? 'passed',
+            },
+        ],
+      );
+      if (_current(generation)) await load();
+      final code = (created['voucherCode'] ??
+              created['VoucherCode'] ??
+              created['code'] ??
+              created['Code'] ??
+              '')
+          .toString();
+      final id = (created['id'] ?? created['Id'] ?? '').toString();
+      if (id.isEmpty || code.isEmpty)
+        throw CloudApiException(
+            'Backend không trả mã phiếu; hãy tải lại trước khi thử lại.');
+      return (id: id, code: code);
+    } finally {
+      if (_current(generation)) _pendingWrites.remove('create');
+    }
   }
 
-  Future<void> _decideHarvest(String id, String action, {String? reason}) async {
+  Future<void> _decideHarvest(String id, String action,
+      {String? reason}) async {
     _requireHarvestArea();
     final slip = _harvests.where((v) => v.id == id).firstOrNull;
     if (slip == null || slip.farmingAreaId != areaId) {
       throw CloudApiException('Phiếu không thuộc danh sách khu hiện tại.');
     }
-    if (!const {'approve','reject','confirm'}.contains(action) ||
+    if (!const {'approve', 'reject', 'confirm'}.contains(action) ||
         (action == 'confirm' ? !canConfirm(slip) : !canDecide(slip)) ||
         (action == 'approve' && slip.lines.isEmpty) ||
         (action == 'reject' && (reason ?? '').trim().isEmpty)) {
-      throw CloudApiException('Không có quyền, đang xử lý hoặc trạng thái phiếu không hợp lệ. Người tạo không được tự duyệt.');
+      throw CloudApiException(
+          'Không có quyền, đang xử lý hoặc trạng thái phiếu không hợp lệ. Người tạo không được tự duyệt.');
     }
     final generation = _generation;
-    _pendingWrites.add(id); notifyListeners();
+    _pendingWrites.add(id);
+    notifyListeners();
     try {
-      await _api.decideHarvestVoucher(token,id,action:action,reason:reason,farmingAreaId:areaId);
+      await _api.decideHarvestVoucher(token, id,
+          action: action, reason: reason, farmingAreaId: areaId);
       if (_current(generation)) await load();
-    } finally { if (_current(generation)) { _pendingWrites.remove(id); notifyListeners(); } }
+    } finally {
+      if (_current(generation)) {
+        _pendingWrites.remove(id);
+        notifyListeners();
+      }
+    }
   }
 
   Future<void> approveHarvest(String id) => _decideHarvest(id, 'approve');
@@ -1053,8 +1210,10 @@ class HarvestSalesService extends ChangeNotifier {
     throw CloudApiException('Vui lòng từ chối phiếu chờ duyệt và nhập lý do.');
   }
 
-  bool get canManageFrozen => _session.user.role == UserRoles.farmManager &&
-      areaId.isNotEmpty && _session.farms.any((f) => f.id == areaId);
+  bool get canManageFrozen =>
+      _session.user.role == UserRoles.farmManager &&
+      areaId.isNotEmpty &&
+      _session.farms.any((f) => f.id == areaId);
 
   void _requireFrozenArea(String expectedArea) {
     if (!canManageFrozen || expectedArea != areaId) {
@@ -1076,154 +1235,256 @@ class HarvestSalesService extends ChangeNotifier {
     return id;
   }
 
-  void _validateFrozenMetadata(DateTime frozen, DateTime expiry, String? grade) {
-    if (!expiry.isAfter(frozen) || (grade != null && grade.isNotEmpty && !const {'S','M','L'}.contains(grade))) {
-      throw CloudApiException('Ngày hết hạn phải sau ngày cấp đông; phân loại chỉ S/M/L.');
+  void _validateFrozenMetadata(
+      DateTime frozen, DateTime expiry, String? grade) {
+    if (!expiry.isAfter(frozen) ||
+        (grade != null &&
+            grade.isNotEmpty &&
+            !const {'S', 'M', 'L'}.contains(grade))) {
+      throw CloudApiException(
+          'Ngày hết hạn phải sau ngày cấp đông; phân loại chỉ S/M/L.');
     }
   }
 
-  Future<void> createFrozenLot({required String expectedArea, required String code,
-    required DateTime frozenDate, required DateTime expiryDate,
-    String? grade, String? location, String? voucherId,
+  Future<void> createFrozenLot({
+    required String expectedArea,
+    required String code,
+    required DateTime frozenDate,
+    required DateTime expiryDate,
+    String? grade,
+    String? location,
+    String? voucherId,
+    bool isOpenForInbound = false,
   }) async {
     _requireFrozenArea(expectedArea);
     _validateFrozenMetadata(frozenDate, expiryDate, grade);
     if (code.trim().isEmpty) throw CloudApiException('Nhập mã lô cấp đông.');
-    if (voucherId != null && voucherId.isNotEmpty &&
-        !_harvests.any((v) => v.id == voucherId && v.farmingAreaId == expectedArea && v.isCompleted)) {
-      throw CloudApiException('Phiếu thu hoạch chưa hoàn tất hoặc không thuộc khu hiện tại.');
+    // BE không cho lô đang mở liên kết sẵn với Voucher.
+    if (isOpenForInbound && voucherId != null) {
+      throw CloudApiException(
+        'Lô đang mở nhận cua không được liên kết sẵn với phiếu thu hoạch.',
+      );
     }
-    await _api.createFrozenLot(token, farmingAreaId: expectedArea,
-      lotCode: code.trim(), harvestVoucherId: voucherId,
-      frozenDate: frozenDate, expiryDate: expiryDate, grade: grade, storageLocation: location);
+    if (voucherId != null &&
+        voucherId.isNotEmpty &&
+        !_harvests.any((v) =>
+            v.id == voucherId &&
+            v.farmingAreaId == expectedArea &&
+            v.isCompleted)) {
+      throw CloudApiException(
+          'Phiếu thu hoạch chưa hoàn tất hoặc không thuộc khu hiện tại.');
+    }
+    await _api.createFrozenLot(token,
+        farmingAreaId: expectedArea,
+        lotCode: code.trim(),
+        harvestVoucherId: voucherId,
+        frozenDate: frozenDate,
+        expiryDate: expiryDate,
+        grade: grade,
+        storageLocation: location,
+        isOpenForInbound: isOpenForInbound);
   }
 
-  Future<void> editFrozenLot(Map<String, dynamic> lot, {
-    required DateTime frozenDate, required DateTime expiryDate, String? grade, String? location,
+  Future<void> editFrozenLot(
+    Map<String, dynamic> lot, {
+    required DateTime frozenDate,
+    required DateTime expiryDate,
+    String? grade,
+    String? location,
   }) async {
     final id = _requireFrozenRow(lot);
     _validateFrozenMetadata(frozenDate, expiryDate, grade);
     final quantity = frozenNumber(lot, 'quantity');
     final weight = frozenNumber(lot, 'weightKg');
     final status = frozenText(lot, 'status');
-    if (quantity == null || quantity < 0 || quantity != quantity.toInt() ||
-        weight == null || !weight.isFinite || weight < 0 || status.isEmpty) {
-      throw CloudApiException('Thiếu dữ liệu tồn kho hiện tại. Hãy tải lại lô.');
+    if (quantity == null ||
+        quantity < 0 ||
+        quantity != quantity.toInt() ||
+        weight == null ||
+        !weight.isFinite ||
+        weight < 0 ||
+        status.isEmpty) {
+      throw CloudApiException(
+          'Thiếu dữ liệu tồn kho hiện tại. Hãy tải lại lô.');
     }
-    await _api.updateFrozenLot(token, id, farmingAreaId: areaId,
-      frozenDate: frozenDate, expiryDate: expiryDate, grade: grade,
-      storageLocation: location, quantity: quantity.toInt(), weightKg: weight, status: status);
+    await _api.updateFrozenLot(token, id,
+        farmingAreaId: areaId,
+        frozenDate: frozenDate,
+        expiryDate: expiryDate,
+        grade: grade,
+        storageLocation: location,
+        quantity: quantity.toInt(),
+        weightKg: weight,
+        status: status);
   }
 
   static bool isEmptyDeletableFrozenLot(Map<String, dynamic> lot) =>
-      frozenNumber(lot, 'quantity') == 0 && frozenNumber(lot, 'weightKg') == 0 &&
-      !const {'reserved','shipped'}.contains(frozenText(lot, 'status').toLowerCase());
+      frozenNumber(lot, 'quantity') == 0 &&
+      frozenNumber(lot, 'weightKg') == 0 &&
+      !const {'reserved', 'shipped'}
+          .contains(frozenText(lot, 'status').toLowerCase());
 
   Future<void> deleteFrozenLot(Map<String, dynamic> lot) async {
     final id = _requireFrozenRow(lot);
-    if (!isEmptyDeletableFrozenLot(lot)) throw CloudApiException('Không thể xóa lô còn tồn hoặc đã xuất/đặt trước.');
+    if (!isEmptyDeletableFrozenLot(lot))
+      throw CloudApiException(
+          'Không thể xóa lô còn tồn hoặc đã xuất/đặt trước.');
     await _api.deleteFrozenLot(token, id, farmingAreaId: areaId);
   }
 
-  Future<List<Map<String, dynamic>>> loadFrozenItems(Map<String, dynamic> lot) async {
+  Future<List<Map<String, dynamic>>> loadFrozenItems(
+      Map<String, dynamic> lot) async {
     final id = _requireFrozenRow(lot);
     final area = areaId;
-    final rows = await _api.fetchFrozenCrabItems(token, id, farmingAreaId: area);
+    final rows =
+        await _api.fetchFrozenCrabItems(token, id, farmingAreaId: area);
     _requireFrozenArea(area);
     return rows;
   }
 
-  Future<List<Map<String, dynamic>>> loadFrozenAdjustments(Map<String, dynamic> lot) async {
+  Future<List<Map<String, dynamic>>> loadFrozenAdjustments(
+      Map<String, dynamic> lot) async {
     final id = _requireFrozenRow(lot);
     final area = areaId;
-    final rows = await _api.fetchFrozenAdjustments(token, id, farmingAreaId: area);
+    final rows =
+        await _api.fetchFrozenAdjustments(token, id, farmingAreaId: area);
     _requireFrozenArea(area);
-    return rows.where((r) => frozenText(r, 'farmingAreaId') == area &&
-      frozenText(r, 'frozenLotId') == id).toList();
+    return rows
+        .where((r) =>
+            frozenText(r, 'farmingAreaId') == area &&
+            frozenText(r, 'frozenLotId') == id)
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> loadFrozenOpeningBalances() async {
     final area = areaId;
     _requireFrozenArea(area);
-    final rows = await _api.fetchFrozenOpeningBalances(token, farmingAreaId: area);
+    final rows =
+        await _api.fetchFrozenOpeningBalances(token, farmingAreaId: area);
     _requireFrozenArea(area);
     return rows.where((r) => frozenText(r, 'farmingAreaId') == area).toList();
   }
 
-  Future<void> reconcileFrozenLot(Map<String, dynamic> lot, List<String> available, String reason) async {
+  Future<void> reconcileFrozenLot(
+      Map<String, dynamic> lot, List<String> available, String reason) async {
     final id = _requireFrozenRow(lot);
     final area = areaId;
-    if (reason.trim().isEmpty || reason.trim().length > 1000 || available.toSet().length != available.length) {
-      throw CloudApiException('Nhập lý do đối soát và danh sách barcode không trùng.');
+    if (reason.trim().isEmpty ||
+        reason.trim().length > 1000 ||
+        available.toSet().length != available.length) {
+      throw CloudApiException(
+          'Nhập lý do đối soát và danh sách barcode không trùng.');
     }
     final items = await loadFrozenItems(lot);
-    final picked = items.where((r) => available.contains(frozenText(r, 'id'))).toList();
-    if (items.isEmpty || items.any((r) => frozenText(r, 'stockState').toLowerCase() != 'unverified') ||
-        picked.length != available.length || picked.length != frozenNumber(lot, 'quantity') ||
+    final picked =
+        items.where((r) => available.contains(frozenText(r, 'id'))).toList();
+    if (items.isEmpty ||
+        items.any(
+            (r) => frozenText(r, 'stockState').toLowerCase() != 'unverified') ||
+        picked.length != available.length ||
+        picked.length != frozenNumber(lot, 'quantity') ||
         picked.any((r) => frozenNumber(r, 'weightGram') == null) ||
-        (picked.fold<num>(0, (sum, r) => sum + frozenNumber(r, 'weightGram')!) / 1000 * 1000).round() !=
-          ((frozenNumber(lot, 'weightKg') ?? -1) * 1000).round()) {
-      throw CloudApiException('Barcode chưa xác minh phải khớp tồn thực tế của lô.');
+        (picked.fold<num>(0, (sum, r) => sum + frozenNumber(r, 'weightGram')!) /
+                    1000 *
+                    1000)
+                .round() !=
+            ((frozenNumber(lot, 'weightKg') ?? -1) * 1000).round()) {
+      throw CloudApiException(
+          'Barcode chưa xác minh phải khớp tồn thực tế của lô.');
     }
     _requireFrozenArea(area);
-    await _api.reconcileFrozenCrabItems(token, id, farmingAreaId: area, availableItemIds: available, reason: reason.trim());
+    await _api.reconcileFrozenCrabItems(token, id,
+        farmingAreaId: area,
+        availableItemIds: available,
+        reason: reason.trim());
   }
 
-  Future<void> verifyFrozenOpeningBalance(Map<String, dynamic> row, int quantity, num weight, String reason) async {
+  Future<void> verifyFrozenOpeningBalance(
+      Map<String, dynamic> row, int quantity, num weight, String reason) async {
     final id = _requireFrozenRow(row);
     if (frozenText(row, 'verificationStatus').toLowerCase() == 'verified' ||
-        quantity < 0 || !weight.isFinite || weight < 0 ||
-        (quantity == 0) != (weight == 0) || reason.trim().isEmpty) {
+        quantity < 0 ||
+        !weight.isFinite ||
+        weight < 0 ||
+        (quantity == 0) != (weight == 0) ||
+        reason.trim().isEmpty) {
       throw CloudApiException('Số dư hoặc lý do xác nhận không hợp lệ.');
     }
     final qDelta = frozenNumber(row, 'recordedQuantityDelta');
     final wDelta = frozenNumber(row, 'recordedWeightDeltaKg');
     final actualQ = frozenNumber(row, 'actualCurrentQuantity');
     final actualW = frozenNumber(row, 'actualCurrentWeightKg');
-    if (qDelta == null || wDelta == null || actualQ == null || actualW == null ||
+    if (qDelta == null ||
+        wDelta == null ||
+        actualQ == null ||
+        actualW == null ||
         quantity + qDelta != actualQ ||
         ((weight + wDelta) * 1000).round() != (actualW * 1000).round()) {
-      throw CloudApiException('Số dư đầu kỳ và biến động phải khớp tồn hiện tại.');
+      throw CloudApiException(
+          'Số dư đầu kỳ và biến động phải khớp tồn hiện tại.');
     }
-    await _api.verifyFrozenOpeningBalance(token, id, farmingAreaId: areaId,
-      quantity: quantity, weightKg: weight, reason: reason.trim());
+    await _api.verifyFrozenOpeningBalance(token, id,
+        farmingAreaId: areaId,
+        quantity: quantity,
+        weightKg: weight,
+        reason: reason.trim());
   }
 
   Future<List<Map<String, dynamic>>> loadFrozenLots() async {
     final area = areaId;
     _requireFrozenArea(area);
-    final rows = await _api.fetchFrozenLots(_session.token, farmingAreaId: area);
+    final rows =
+        await _api.fetchFrozenLots(_session.token, farmingAreaId: area);
     _requireFrozenArea(area);
-    return rows.where((r) => (r['farmingAreaId'] ?? r['FarmingAreaId']).toString() == area).toList();
+    return rows
+        .where((r) =>
+            (r['farmingAreaId'] ?? r['FarmingAreaId']).toString() == area)
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> loadFrozenTransactions() async {
     final area = areaId;
     _requireFrozenArea(area);
-    final rows = await _api.fetchFrozenTransactions(_session.token, farmingAreaId: area);
+    final rows =
+        await _api.fetchFrozenTransactions(_session.token, farmingAreaId: area);
     _requireFrozenArea(area);
-    return rows.where((r) => (r['farmingAreaId'] ?? r['FarmingAreaId']).toString() == area).toList();
+    return rows
+        .where((r) =>
+            (r['farmingAreaId'] ?? r['FarmingAreaId']).toString() == area)
+        .toList();
   }
 
-  Future<void> decideFrozen(Map<String, dynamic> row, {required bool approve, String? reason}) async {
+  Future<void> decideFrozen(Map<String, dynamic> row,
+      {required bool approve, String? reason}) async {
     if (!canManageFrozen ||
         (row['farmingAreaId'] ?? row['FarmingAreaId']).toString() != areaId ||
-        (row['status'] ?? row['Status']).toString().toLowerCase() != 'pendingapproval') {
+        (row['status'] ?? row['Status']).toString().toLowerCase() !=
+            'pendingapproval') {
       throw CloudApiException('Không có quyền hoặc phiếu không còn chờ duyệt.');
     }
-    await _api.decideFrozenTransaction(_session.token, (row['id'] ?? row['Id'] ?? '').toString(),
-      farmingAreaId: areaId, approve: approve, reason: reason);
+    await _api.decideFrozenTransaction(
+        _session.token, (row['id'] ?? row['Id'] ?? '').toString(),
+        farmingAreaId: areaId, approve: approve, reason: reason);
     await load();
   }
 
   Future<void> deleteHarvest(String id) async {
     _requireHarvestArea();
-    final slip = _harvests.where((v)=>v.id==id).firstOrNull;
-    if (slip==null || !canDeleteHarvest(slip)) throw CloudApiException('Phiếu không được phép xóa.');
-    final generation=_generation;
-    _pendingWrites.add(id); notifyListeners();
-    try { await _api.deleteHarvestVoucher(token,id); if (_current(generation)) await load(); }
-    finally { if (_current(generation)) { _pendingWrites.remove(id); notifyListeners(); } }
+    final slip = _harvests.where((v) => v.id == id).firstOrNull;
+    if (slip == null || !canDeleteHarvest(slip))
+      throw CloudApiException('Phiếu không được phép xóa.');
+    final generation = _generation;
+    _pendingWrites.add(id);
+    notifyListeners();
+    try {
+      await _api.deleteHarvestVoucher(token, id);
+      if (_current(generation)) await load();
+    } finally {
+      if (_current(generation)) {
+        _pendingWrites.remove(id);
+        notifyListeners();
+      }
+    }
   }
 
   Future<Customer> upsertCustomer({
@@ -1240,7 +1501,8 @@ class HarvestSalesService extends ChangeNotifier {
       customerType: customerType,
     );
     final customer = _customerFromJson(created);
-    final idx = _customers.indexWhere((c) => c.id == customer.id || c.name == customer.name);
+    final idx = _customers
+        .indexWhere((c) => c.id == customer.id || c.name == customer.name);
     if (idx >= 0) {
       _customers[idx] = customer;
     } else {
@@ -1250,7 +1512,8 @@ class HarvestSalesService extends ChangeNotifier {
     return customer;
   }
 
-  ({int orders, int crabs, int weightG, int revenue}) customerStats(Customer c) {
+  ({int orders, int crabs, int weightG, int revenue}) customerStats(
+      Customer c) {
     final rows = _orders.where((o) =>
         (c.id.isNotEmpty && o.customerId == c.id) ||
         o.customerName.trim().toLowerCase() == c.name.trim().toLowerCase());
@@ -1303,9 +1566,8 @@ class HarvestSalesService extends ChangeNotifier {
       _session.token,
       orderDate: orderDate,
       customerName: customerName.trim(),
-      customerPhone: customerPhone?.trim().isEmpty == true
-          ? null
-          : customerPhone?.trim(),
+      customerPhone:
+          customerPhone?.trim().isEmpty == true ? null : customerPhone?.trim(),
       customerAddress: customerAddress?.trim().isEmpty == true
           ? null
           : customerAddress?.trim(),
@@ -1417,8 +1679,7 @@ class HarvestSalesService extends ChangeNotifier {
             boxCode: (m['boxCode'] ?? m['BoxCode'] ?? '').toString(),
             boxId: (m['boxId'] ?? m['BoxId'] ?? '').toString(),
             batchId: (m['batchId'] ?? m['BatchId'] ?? '').toString(),
-            weightG:
-                (m['weightGram'] ?? m['WeightGram'] as num?)?.toInt() ?? 0,
+            weightG: (m['weightGram'] ?? m['WeightGram'] as num?)?.toInt() ?? 0,
             grade: (m['grade'] ?? m['Grade'] ?? '').toString(),
             condition:
                 (m['conditionLabel'] ?? m['ConditionLabel'] ?? '').toString(),
@@ -1427,8 +1688,7 @@ class HarvestSalesService extends ChangeNotifier {
             rowName: (m['rowName'] ?? m['RowName'] ?? '').toString(),
             lotCode: (m['lotCode'] ?? m['LotCode'] ?? '').toString(),
             result: (m['result'] ?? m['Result'] ?? 'passed').toString(),
-            isSoftshell: m['isSoftshell'] == true ||
-                m['IsSoftshell'] == true,
+            isSoftshell: m['isSoftshell'] == true || m['IsSoftshell'] == true,
           ),
         );
       }
@@ -1447,21 +1707,33 @@ class HarvestSalesService extends ChangeNotifier {
       quantity:
           (json['totalQuantity'] ?? json['TotalQuantity'] as num?)?.toInt() ??
               lines.length,
-      totalWeightKg:
-          (json['totalWeightKg'] ?? json['TotalWeightKg'] as num?)?.toDouble() ??
-              0,
+      totalWeightKg: (json['totalWeightKg'] ?? json['TotalWeightKg'] as num?)
+              ?.toDouble() ??
+          0,
       performedBy:
           (json['performedByName'] ?? json['PerformedByName'] ?? '').toString(),
       note: (json['notes'] ?? json['Notes'])?.toString(),
       status: rawStatus,
       createdBy: (json['createdBy'] ?? json['CreatedBy'])?.toString(),
-      adjustmentRequestedByUserId: (json['adjustmentRequestedByUserId'] ?? json['AdjustmentRequestedByUserId'])?.toString(),
-      adjustmentReason: (json['adjustmentReason'] ?? json['AdjustmentReason'])?.toString(),
-      approvedQuantity: _num(json,const ['approvedQuantity','ApprovedQuantity'])?.toInt(),
-      executionShortfallCount: _num(json,const ['executionShortfallCount','ExecutionShortfallCount'])?.toInt(),
-      executionShortfallReason: (json['executionShortfallReason'] ?? json['ExecutionShortfallReason'])?.toString(),
-      executionCompletedAt: DateTime.tryParse((json['executionCompletedAt'] ?? json['ExecutionCompletedAt'] ?? '').toString()),
-      rejectionReason: (json['rejectionReason'] ?? json['RejectionReason'])?.toString(),
+      adjustmentRequestedByUserId: (json['adjustmentRequestedByUserId'] ??
+              json['AdjustmentRequestedByUserId'])
+          ?.toString(),
+      adjustmentReason:
+          (json['adjustmentReason'] ?? json['AdjustmentReason'])?.toString(),
+      approvedQuantity:
+          _num(json, const ['approvedQuantity', 'ApprovedQuantity'])?.toInt(),
+      executionShortfallCount: _num(json, const [
+        'executionShortfallCount',
+        'ExecutionShortfallCount'
+      ])?.toInt(),
+      executionShortfallReason:
+          (json['executionShortfallReason'] ?? json['ExecutionShortfallReason'])
+              ?.toString(),
+      executionCompletedAt: DateTime.tryParse(
+          (json['executionCompletedAt'] ?? json['ExecutionCompletedAt'] ?? '')
+              .toString()),
+      rejectionReason:
+          (json['rejectionReason'] ?? json['RejectionReason'])?.toString(),
       lines: lines,
       passedCount:
           (json['passedCount'] ?? json['PassedCount'] as num?)?.toInt() ??
@@ -1469,14 +1741,15 @@ class HarvestSalesService extends ChangeNotifier {
       failedCount:
           (json['failedCount'] ?? json['FailedCount'] as num?)?.toInt() ??
               lines.where((l) => !l.passed).length,
-      averageWeightG: (json['averageWeightGram'] ??
-                  json['AverageWeightGram'] as num?)
-              ?.toDouble() ??
-          (lines.isEmpty
-              ? 0
-              : lines.fold<int>(0, (s, l) => s + l.weightG) / lines.length),
+      averageWeightG:
+          (json['averageWeightGram'] ?? json['AverageWeightGram'] as num?)
+                  ?.toDouble() ??
+              (lines.isEmpty
+                  ? 0
+                  : lines.fold<int>(0, (s, l) => s + l.weightG) / lines.length),
       photoUrls: [
-        for (final p in (json['photoUrls'] ?? json['PhotoUrls'] as List? ?? const []))
+        for (final p
+            in (json['photoUrls'] ?? json['PhotoUrls'] as List? ?? const []))
           p.toString(),
       ],
       harvestedAt: at,
@@ -1505,8 +1778,7 @@ class HarvestSalesService extends ChangeNotifier {
             crabType: (m['crabType'] ?? m['CrabType'] ?? '').toString(),
             grade: (m['grade'] ?? m['Grade'] ?? '').toString(),
             quantity: (m['quantity'] ?? m['Quantity'] as num?)?.toInt() ?? 1,
-            weightG:
-                (m['weightGram'] ?? m['WeightGram'] as num?)?.toInt() ?? 0,
+            weightG: (m['weightGram'] ?? m['WeightGram'] as num?)?.toInt() ?? 0,
             unitPricePerKg:
                 (m['unitPricePerKg'] ?? m['UnitPricePerKg'] as num?)?.toInt() ??
                     0,
@@ -1560,8 +1832,7 @@ class HarvestSalesService extends ChangeNotifier {
       lines: lines,
       customerType:
           (json['customerType'] ?? json['CustomerType'] ?? '').toString(),
-      customerId:
-          (json['customerId'] ?? json['CustomerId'] ?? '').toString(),
+      customerId: (json['customerId'] ?? json['CustomerId'] ?? '').toString(),
     );
   }
 
@@ -1592,7 +1863,8 @@ class HarvestSalesService extends ChangeNotifier {
   }
 
   Customer _customerFromJson(Map<String, dynamic> json) {
-    final type = (json['customerType'] ?? json['CustomerType'] ?? '').toString();
+    final type =
+        (json['customerType'] ?? json['CustomerType'] ?? '').toString();
     return Customer(
       id: (json['id'] ?? json['Id']).toString(),
       code: (json['id'] ?? json['Id'] ?? '').toString(),
@@ -1615,13 +1887,18 @@ class HarvestSalesService extends ChangeNotifier {
     final t = '${status.toLowerCase()} ${(health ?? '').toLowerCase()}';
     if (_isSoftshell(status, health, null)) return 'Cua lột';
     if (t.contains('molt') || t.contains('lột')) return 'Đang lột';
-    if (t.contains('monitor') || t.contains('theo dõi') || t.contains('watch')) {
+    if (t.contains('monitor') ||
+        t.contains('theo dõi') ||
+        t.contains('watch')) {
       return 'Cần theo dõi';
     }
     if (t.contains('problem') || t.contains('risk') || t.contains('yếu')) {
       return 'Cần theo dõi';
     }
-    if (t.contains('tốt') || t.contains('good') || t.contains('healthy') || t.contains('khỏe')) {
+    if (t.contains('tốt') ||
+        t.contains('good') ||
+        t.contains('healthy') ||
+        t.contains('khỏe')) {
       return 'Khỏe mạnh';
     }
     return 'Khỏe mạnh';
