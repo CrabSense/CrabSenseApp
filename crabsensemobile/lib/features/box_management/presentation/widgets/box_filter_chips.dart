@@ -25,7 +25,7 @@ class BoxFilterChips extends StatelessWidget {
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
-          ...BoxQuickFilter.values.map((filter) {
+          ...BoxQuickFilter.values.where((filter) => filter.supported).map((filter) {
             final selected = activeFilters.contains(filter) ||
                 (filter == BoxQuickFilter.all &&
                     activeFilters.length == 1 &&

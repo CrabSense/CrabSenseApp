@@ -218,7 +218,7 @@ Future<void> showBoxQuickPreviewSheet(
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          box.aiRecommendation.title ?? 'Đề xuất AI',
+                          box.aiRecommendation.title ?? 'Đề xuất chưa xác minh',
                           style: const TextStyle(
                             color: CrabSenseColors.textSecondary,
                             fontSize: 12,

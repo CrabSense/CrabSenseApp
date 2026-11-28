@@ -6,6 +6,8 @@ import 'dart:typed_data';
 import 'package:crabsensemobile/core/network/api_client.dart';
 import 'package:crabsensemobile/features/authentication/data/datasources/auth_local_data_source.dart';
 import 'package:crabsensemobile/features/box_management/data/repositories/boxes_repository_impl.dart';
+import 'package:crabsensemobile/features/box_management/domain/models/boxes_models.dart';
+import 'package:flutter/material.dart';
 import 'package:crabsensemobile/features/water_quality/data/repositories/scoped_history_service.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,13 +27,17 @@ const areaA = '00000000-0000-0000-0000-000000000001';
 const areaB = '00000000-0000-0000-0000-000000000002';
 
 Map<String, dynamic> envelope(Object data) => {'success': true, 'data': data};
-Map<String, dynamic> overview(String area, {String? itemArea}) => envelope({
+Map<String, dynamic> overview(String area, {String? itemArea, bool legacy = false}) => envelope({
   'farmingAreaId': area,
   'syncedAt': '2026-11-28T05:00:00Z',
   'summary': {'total': 1},
   'items': [{
     'id': 'box-$area', 'code': 'BOX-$area', 'farmingAreaId': itemArea ?? area,
-    'crabCount': 0, 'status': 'empty', 'lastUpdated': '2026-11-28T05:00:00Z',
+    'crabCount': 0, 'status': 'empty',
+    if (!legacy) 'lastUpdated': '2026-11-28T05:00:00Z',
+    if (legacy) 'health': {'score': 91, 'aiConfidence': 99, 'trend': 'improving'},
+    if (legacy) 'aiRecommendation': {'hasRecommendation': true, 'title': 'Legacy AI'},
+    if (legacy) 'priority': 'high',
   }],
 });
 
@@ -41,6 +47,7 @@ class _Adapter implements HttpClientAdapter {
   bool emptyAreas = false;
   bool wrongArea = false;
   bool badEnvelope = false;
+  bool legacy = false;
   Completer<void>? delayA;
   Completer<void>? startedA;
   @override
@@ -62,7 +69,7 @@ class _Adapter implements HttpClientAdapter {
       }
       code = status;
       body = badEnvelope ? {'success': false} :
-          overview(area, itemArea: wrongArea ? areaB : null);
+          overview(area, itemArea: wrongArea ? areaB : null, legacy: legacy);
     } else {
       throw StateError('Unexpected legacy request: $path');
     }
@@ -165,5 +172,28 @@ void main() {
     repo.invalidate();
     adapter.delayA!.complete();
     await rejected;
+  });
+
+  test('unverified legacy assessment never becomes score, AI or priority', () async {
+    adapter.legacy = true;
+    final data = await repo.getBoxesSummary(farmingAreaId: areaA,
+      quickFilters: {BoxQuickFilter.hasAiRecommendation},
+      advancedFilter: const BoxFilterState(
+        healthScoreRange: RangeValues(90, 100),
+        aiConfidenceRange: RangeValues(90, 100),
+        hasAiRecommendation: true, priority: ActionPriorityLevel.high,
+        sortOption: BoxSortOption.aiPriority,
+      ));
+    final box = data.allBoxes.single;
+    expect(box.healthScore.score, isNull);
+    expect(box.healthScore.aiConfidence, isNull);
+    expect(box.healthScore.trend, isNull);
+    expect(box.aiRecommendation.hasRecommendation, isFalse);
+    expect(box.priority, isNull);
+    expect(box.lastUpdated, isNull);
+    expect(data.overview.withAiRecommendation, 0);
+    expect(data.visibleBoxes, hasLength(1));
+    expect(data.quickFilters, {BoxQuickFilter.all});
+    expect(data.advancedFilter.hasActiveAdvancedFilters, isFalse);
   });
 }

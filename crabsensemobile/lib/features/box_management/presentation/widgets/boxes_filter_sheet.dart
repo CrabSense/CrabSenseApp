@@ -45,7 +45,7 @@ class _FilterSheetBodyState extends State<_FilterSheetBody> {
   @override
   void initState() {
     super.initState();
-    _filter = widget.initial;
+    _filter = widget.initial.withoutLegacyAssessment();
   }
 
   void _toggleStatus(BoxStatus status) {
@@ -150,36 +150,8 @@ class _FilterSheetBodyState extends State<_FilterSheetBody> {
                       }).toList(),
                     ),
                     const SizedBox(height: 16),
-                    const _SectionTitle('Health Score'),
-                    RangeSlider(
-                      values: _filter.healthScoreRange,
-                      min: 0,
-                      max: 100,
-                      divisions: 20,
-                      labels: RangeLabels(
-                        _filter.healthScoreRange.start.round().toString(),
-                        _filter.healthScoreRange.end.round().toString(),
-                      ),
-                      activeColor: CrabSenseColors.primary,
-                      onChanged: (v) => setState(
-                        () => _filter = _filter.copyWith(healthScoreRange: v),
-                      ),
-                    ),
-                    const _SectionTitle('AI Confidence'),
-                    RangeSlider(
-                      values: _filter.aiConfidenceRange,
-                      min: 0,
-                      max: 100,
-                      divisions: 20,
-                      labels: RangeLabels(
-                        _filter.aiConfidenceRange.start.round().toString(),
-                        _filter.aiConfidenceRange.end.round().toString(),
-                      ),
-                      activeColor: CrabSenseColors.accent,
-                      onChanged: (v) => setState(
-                        () => _filter = _filter.copyWith(aiConfidenceRange: v),
-                      ),
-                    ),
+                    const Text('Chưa có đánh giá AI xác minh để lọc điểm số.',
+                      style: TextStyle(color: CrabSenseColors.textSecondary, fontSize: 12)),
                     SwitchListTile(
                       title: const Text(
                         'Có cảnh báo',
@@ -210,22 +182,6 @@ class _FilterSheetBodyState extends State<_FilterSheetBody> {
                         () => _filter = v
                             ? _filter.copyWith(deviceOffline: true)
                             : _filter.copyWith(clearDeviceOffline: true),
-                      ),
-                    ),
-                    SwitchListTile(
-                      title: const Text(
-                        'Có đề xuất AI',
-                        style: TextStyle(
-                          color: CrabSenseColors.textPrimary,
-                          fontSize: 14,
-                        ),
-                      ),
-                      value: _filter.hasAiRecommendation == true,
-                      activeThumbColor: CrabSenseColors.primary,
-                      onChanged: (v) => setState(
-                        () => _filter = v
-                            ? _filter.copyWith(hasAiRecommendation: true)
-                            : _filter.copyWith(clearHasAi: true),
                       ),
                     ),
                     SwitchListTile(
@@ -292,6 +248,7 @@ class _FilterSheetBodyState extends State<_FilterSheetBody> {
                         ),
                       ),
                       items: BoxSortOption.values
+                          .where((o) => o.supported)
                           .map(
                             (o) => DropdownMenuItem(
                               value: o,

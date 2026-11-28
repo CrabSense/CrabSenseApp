@@ -1,5 +1,7 @@
 import 'package:crabsensemobile/core/theme/app_colors.dart';
 import 'package:crabsensemobile/features/box_management/domain/models/boxes_models.dart';
+import 'package:crabsensemobile/features/box_management/presentation/widgets/box_card.dart';
+import 'package:crabsensemobile/features/box_management/presentation/widgets/box_status_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -8,6 +10,30 @@ import 'package:flutter_test/flutter_test.dart';
 /// tiếng Anh không hề có trên desktop ("Healthy", "Warning", "Critical",
 /// "Offline") và tô màu lệch tông với app desktop.
 void main() {
+  test('timestamp is source instant or unknown, never now', () {
+    final now = DateTime.utc(2026, 11, 28, 6);
+    for (final raw in [null, '', 'bad', '2026-11-28T05:00:00',
+      '2026-02-30T05:00:00Z', '2026-11-28T08:00:00Z']) {
+      expect(parseBoxUpdateTime(raw, now: now), isNull);
+    }
+    final actual = parseBoxUpdateTime('2026-11-28T12:30:00+07:00', now: now);
+    expect(actual, DateTime.utc(2026, 11, 28, 5, 30));
+    expect(formatRelativeTime(actual, now: now), '30 phút trước');
+    expect(formatRelativeTime(null, now: now), 'chưa có thời gian');
+    expect(formatRelativeTime(now.add(const Duration(minutes: 1)), now: now),
+      'chưa có thời gian');
+  });
+
+  testWidgets('unavailable assessment badge contains no numeric claim', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body:
+      AIHealthBadge(healthScore: BoxHealthScore.unavailable))));
+    expect(find.text('Chưa có đánh giá xác minh'), findsOneWidget);
+    expect(find.textContaining('75%'), findsNothing);
+    expect(find.text('70'), findsNothing);
+    expect(BoxHealthScore.unavailable.scoreLabel, '—');
+    expect(BoxHealthScore.unavailable.confidenceLabel, '—');
+  });
+
   test('device inventory distinguishes unknown, offline and online', () {
     for (final json in <Map<String, dynamic>?>[
       null, {}, {'totalCount': 0, 'onlineCount': 0, 'isOnline': false},

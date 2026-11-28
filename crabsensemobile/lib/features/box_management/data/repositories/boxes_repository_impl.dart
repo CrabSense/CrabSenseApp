@@ -355,8 +355,9 @@ class BoxesRepositoryImpl implements BoxesRepository {
     BoxFilterState? advancedFilter,
   }) {
     final query = (searchQuery ?? current.searchQuery).trim().toLowerCase();
-    final chips = quickFilters ?? current.quickFilters;
-    final adv = advancedFilter ?? current.advancedFilter;
+    final chips = (quickFilters ?? current.quickFilters)
+        .where((filter) => filter.supported).toSet();
+    final adv = (advancedFilter ?? current.advancedFilter).withoutLegacyAssessment();
 
     if (query.isNotEmpty && !_recentSearches.contains(query)) {
       _recentSearches.insert(0, query);
@@ -443,26 +444,11 @@ class BoxesRepositoryImpl implements BoxesRepository {
           )
           .toList();
     }
-    list = list.where((b) {
-      final s = b.healthScore.score.toDouble();
-      final c = b.healthScore.aiConfidence;
-      if (s < adv.healthScoreRange.start || s > adv.healthScoreRange.end) {
-        return false;
-      }
-      if (c < adv.aiConfidenceRange.start || c > adv.aiConfidenceRange.end) {
-        return false;
-      }
-      return true;
-    }).toList();
-
     if (adv.hasAlerts == true) {
       list = list.where((b) => b.alerts.hasAlerts).toList();
     }
     if (adv.deviceOffline == true) {
       list = list.where((b) => b.devices.verifiedOnline == false).toList();
-    }
-    if (adv.hasAiRecommendation == true) {
-      list = list.where((b) => b.aiRecommendation.hasRecommendation).toList();
     }
     if (adv.waterTestDue == true) {
       list = list.where((b) => b.waterTestDue).toList();
@@ -472,9 +458,6 @@ class BoxesRepositoryImpl implements BoxesRepository {
     }
     if (adv.nearHarvest == true) {
       list = list.where((b) => b.isNearHarvest).toList();
-    }
-    if (adv.priority != null) {
-      list = list.where((b) => b.priority == adv.priority).toList();
     }
 
     list = _sortBoxes(list, adv.sortOption);
@@ -496,7 +479,7 @@ class BoxesRepositoryImpl implements BoxesRepository {
       case BoxSortOption.name:
         sorted.sort((a, b) => a.code.compareTo(b.code));
       case BoxSortOption.lowestHealth:
-        sorted.sort((a, b) => a.healthScore.score.compareTo(b.healthScore.score));
+        sorted.sort((a, b) => a.code.compareTo(b.code));
       case BoxSortOption.latestAlert:
         sorted.sort((a, b) {
           final at =
@@ -506,7 +489,7 @@ class BoxesRepositoryImpl implements BoxesRepository {
           return bt.compareTo(at);
         });
       case BoxSortOption.aiPriority:
-        sorted.sort((a, b) => a.priority.index.compareTo(b.priority.index));
+        sorted.sort((a, b) => a.code.compareTo(b.code));
       case BoxSortOption.harvestDate:
         sorted.sort((a, b) {
           final at = a.expectedHarvestAt ?? DateTime(2099);
@@ -514,7 +497,14 @@ class BoxesRepositoryImpl implements BoxesRepository {
           return at.compareTo(bt);
         });
       case BoxSortOption.lastUpdated:
-        sorted.sort((a, b) => b.lastUpdated.compareTo(a.lastUpdated));
+        sorted.sort((a, b) {
+          final at = a.lastUpdated, bt = b.lastUpdated;
+          if (at == null && bt == null) return a.code.compareTo(b.code);
+          if (at == null) return 1;
+          if (bt == null) return -1;
+          final order = bt.compareTo(at);
+          return order != 0 ? order : a.code.compareTo(b.code);
+        });
     }
     return sorted;
   }
@@ -580,22 +570,9 @@ class BoxesRepositoryImpl implements BoxesRepository {
     final code = map['code']?.toString();
     if (id == null || code == null) return null;
 
-    final healthMap = _asMap(map['health']);
     final waterMap = _asMap(map['water']);
     final devicesMap = _asMap(map['devices']);
     final layoutMap = _asMap(map['layout']);
-    final aiMap = _asMap(map['aiRecommendation']);
-
-    final score = (healthMap?['score'] as num?)?.toInt() ?? 70;
-    final confidence =
-        (healthMap?['aiConfidence'] as num?)?.toDouble() ?? 75;
-    final trendStr = healthMap?['trend']?.toString().toLowerCase() ?? 'stable';
-    final trend = switch (trendStr) {
-      'improving' => BoxTrend.improving,
-      'declining' => BoxTrend.declining,
-      _ => BoxTrend.stable,
-    };
-
     final crabCount = (map['crabCount'] as num?)?.toInt() ?? 0;
     final crabCondition = map['crabCondition']?.toString();
     // Trạng thái hộp suy như desktop: ưu tiên tình trạng xấu nhất của cua trong
@@ -605,14 +582,6 @@ class BoxesRepositoryImpl implements BoxesRepository {
       crabCount: crabCount,
       crabCondition: crabCondition,
     );
-    final priorityStr = map['priority']?.toString().toLowerCase() ?? 'low';
-    final priority = switch (priorityStr) {
-      'high' => ActionPriorityLevel.high,
-      'medium' => ActionPriorityLevel.medium,
-      _ => ActionPriorityLevel.low,
-    };
-
-    final hasAi = aiMap?['hasRecommendation'] == true;
     final alertCount = (map['alertCount'] as num?)?.toInt() ?? 0;
 
     return BoxSummary(
@@ -632,15 +601,9 @@ class BoxesRepositoryImpl implements BoxesRepository {
         rowName: map['rowName']?.toString(),
       ),
       status: status,
-      healthScore: BoxHealthScore(
-        score: score,
-        aiConfidence: confidence,
-        trend: trend,
-        statusLabel: healthMap?['statusLabel']?.toString() ??
-            BoxHealthScore.fromScore(score, confidence, trend).statusLabel,
-        explanation: healthMap?['explanation']?.toString() ??
-            'Điểm sức khỏe tổng hợp từ nước, cua và thiết bị.',
-      ),
+      // Current BE health/AI fields are legacy heuristic output, not a
+      // model result with verified provenance. Never expose them as AI.
+      healthScore: BoxHealthScore.unavailable,
       crabCount: crabCount,
       crabType: map['crabType']?.toString(),
       batch: map['batch']?.toString(),
@@ -660,28 +623,15 @@ class BoxesRepositoryImpl implements BoxesRepository {
               ),
             )
           : BoxAlertSummary.none,
-      aiRecommendation: hasAi
-          ? BoxAIRecommendation(
-              hasRecommendation: true,
-              title: aiMap?['title']?.toString(),
-              description: aiMap?['description']?.toString(),
-              priority: switch (aiMap?['priority']?.toString().toLowerCase()) {
-                'high' => ActionPriorityLevel.high,
-                'medium' => ActionPriorityLevel.medium,
-                _ => ActionPriorityLevel.low,
-              },
-            )
-          : BoxAIRecommendation.none,
-      lastUpdated:
-          DateTime.tryParse(map['lastUpdated']?.toString() ?? '') ??
-          DateTime.now(),
+      aiRecommendation: BoxAIRecommendation.none,
+      lastUpdated: parseBoxUpdateTime(map['lastUpdated']),
       expectedHarvestAt: DateTime.tryParse(
         map['expectedHarvestAt']?.toString() ?? '',
       ),
       waterTestDue: map['waterTestDue'] == true,
       videoDue: map['videoDue'] == true,
       syncStatus: BoxSyncStatus.synced,
-      priority: priority,
+      priority: null,
     );
   }
 
