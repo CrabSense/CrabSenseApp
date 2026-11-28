@@ -177,6 +177,7 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         with:
           path: crabsensedesktop/build/web
+          retention-days: 1
 
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
