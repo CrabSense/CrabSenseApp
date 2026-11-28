@@ -41,4 +41,37 @@ void main() {
       online:true,now:now.add(const Duration(minutes:6))).single;
     expect(liveMetricAssessment(old,now.add(const Duration(minutes:6))),'Dữ liệu cũ');
   });
+
+  test('dashboard shared view keeps distinct same-kind sensors and actual readings', () {
+    final now = DateTime.now().toUtc();
+    final metrics = decodeHomeWaterMetrics([
+      row(now, id: 'low', value: 0),
+      row(now, id: 'high', value: 31.25),
+      row(now, id: 'tds', type: 'TDS', unit: 'ppm', value: 900),
+    ], areaId: 'area-a', revision: 7);
+    final readings = visibleHomeWaterReadings(metrics, areaId: 'area-a',
+        revision: 7, online: true, now: now);
+    expect(readings.map((r) => r.sensorId), ['high', 'low', 'tds']);
+    expect(readings.map((r) => r.liveMetric!.value), [31.25, 0, 900]);
+    expect(readings.map((r) => liveMetricRange(r.liveMetric!)),
+        everyElement('Chưa cấu hình'));
+    expect(readings.map((r) => liveMetricAssessment(r, now)),
+        everyElement('Chưa có ngưỡng cấu hình'));
+  });
+
+  test('dashboard shared view uses exact configured limits, never a 10% margin', () {
+    final now = DateTime.now().toUtc();
+    final metrics = decodeHomeWaterMetrics([
+      {...row(now, id: 'inside', value: 10.01),
+        'minThreshold': 10, 'maxThreshold': 20},
+      {...row(now, id: 'outside', value: 20.01),
+        'minThreshold': 10, 'maxThreshold': 20},
+    ], areaId: 'area-a', revision: 7);
+    final readings = visibleHomeWaterReadings(metrics, areaId: 'area-a',
+        revision: 7, online: true, now: now);
+    expect(readings, hasLength(2));
+    expect(liveMetricAssessment(readings.first, now),
+        'Trong giới hạn đã cấu hình');
+    expect(liveMetricAssessment(readings.last, now), 'Cảnh báo từ cấu hình');
+  });
 }
