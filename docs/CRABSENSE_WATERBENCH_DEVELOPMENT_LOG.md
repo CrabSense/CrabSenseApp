@@ -126,7 +126,7 @@
 | CrabSenseBE | a8306ca | #114 merged; main CI #432/VPS #229 PASS |
 | CrabSenseAIWaterQualityAnalysis | 700d5b2 | AI CI #37 / private cross #11 PASS |
 | CrabSenseFE | 7fc170b | #41 merged; main Audit #22/Sonar #159/Pages #147 PASS |
-| CrabSenseApp | d72edf3 | #80 merged; main #247/Mobile #100/Desktop #102/Pages #128 PASS; Home scope fix pending |
+| CrabSenseApp | d72edf3 | #80 merged; main #247/Mobile #100/Desktop #102/Pages #128 PASS; Home #82 CI #248 failed; fixture mismatch |
 
 | Mã | Ưu tiên | Việc còn lại | Điều kiện hoàn thành |
 |---|---|---|---|
@@ -134,7 +134,7 @@
 | T02 | P0 | DONE: App main #61/#52/#43 và Sonar #156 PASS | Tất cả PASS đúng main 83e7eec |
 | T03 | P0 | Đã merge BE scoped history và khôi phục chart scoped Mobile/Desktop; chưa production smoke | Sửa cấu hình test Npgsql, chạy đủ HTTP/PostgreSQL, CI PASS, review migration, deploy, App chart thật |
 | T04 | P1 | SQLite v4 scope/session/expiry fail-closed; #73 generation guard/chart lifecycle PASS; offline reading tắt, native còn mở | Kiểm thử offline và isolation; phục hồi chart/cache an toàn |
-| T05 | P1 | RAS Chromium PASS; BE #113/VPS, FE #40/App #76 PASS; Mobile #77 CI #238 92/92 PASS merged; L03–L06 Mobile #78 PASS; BE #114/VPS và Desktop #79 PASS; Web #41 merged/main Pages PASS; App #80 CI #245 Desktop 60/60 PASS merged; Home H01–H03 fix pending; remaining legacy KPIs and production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
+| T05 | P1 | RAS Chromium PASS; BE #113/VPS, FE #40/App #76 PASS; Mobile #77 CI #238 92/92 PASS merged; L03–L06 Mobile #78 PASS; BE #114/VPS và Desktop #79 PASS; Web #41 merged/main Pages PASS; App #80 CI #245 Desktop 60/60 PASS merged; Home H01–H03 #82 CI #248 failed; remaining legacy KPIs and production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
 | T06 | P1 | FE #37 merged, main Audit #14 và Pages #139 gate full/omit-dev 0 PASS; required branch check chưa xác minh | Phân loại direct/transitive/dev/runtime, sửa an toàn, CI PASS |
 | T07 | P1 | Kiểm thử PostgreSQL technical diagnostics, JWT bốn role | P2.4.6.2; 401/403 và scoped access |
 | T08 | P1 | Geometry QC bắt buộc với fixture phù hợp; kiểm tra private media/Drive | P2.4.6.3 |
@@ -410,3 +410,7 @@
 
 ### 60 — T05: Mobile Home H01–H03 scope/session/cache (28/11/2026)
 - HomeRepositoryImpl removes _cachedData and error fallback; immutable per-load bearer/revision, bound user/network/generation checks before/after reads and before return; strict success envelope; /auth/me identity match, fresh authorized area list, only select authorized area; absent area fails, revoked stored area selects first freshly allowed. Scoped /boxes/overview checks area header, item area, duplicate IDs and summary total. No unscoped feeding/status-history request because current routes lack explicit area filter; no feeding substitution/forward-filled history. Notification count separated from alert count. Provider clears all snapshot data on load/switch/error/auth/network invalidation, guards late generation, only persists verified selected area; screen guards scope mismatch and disables previous data on refresh. Four HTTP adapter regressions added mandatory Mobile CI; no production/native/provider race acceptance yet. H04–H06/H08 and other default count/device/activity semantics remain; no API/DB/role/sampling changes. One commit, CI pending. Next verify all PR CI, then H04–H09, Desktop Health and BE/Web report fixes. Do not close T05.
+
+### 61 — T05: kiểm tra App #82 (28/11/2026)
+- App #82 head 131b9da, main d72edf3 chưa đổi, mergeable true nhưng chưa merge. Sonar [#248](https://github.com/CrabSense/CrabSenseApp/actions/runs/46121415713) FAIL, Mobile Hosted #101 PASS, Pages #129 success tại snapshot. Mobile analysis step PASS, Mobile test job 140906580741 FAIL; Desktop job 140906580953 PASS, aggregate gate 140906955760 FAIL do Mobile test.
+- Log 4 regression Home mới: fresh authorized area và errors/offline/actor mismatch FAIL do DioException unknown: Unexpected Home request /api/operations/scheduled-tasks; late old area FAIL cùng lỗi và timeout 30s; late old credential invalidation PASS. Production _fetchScheduledTasksToday gọi ApiConstants.scheduledTasks (/operations/scheduled-tasks), adapter fixture chỉ chấp nhận /operations/scheduled-tasks/today. Cả hai route có ở BE, không đổi production chỉ để test xanh. Cần đối chiếu ý nghĩa list/today trước khi sửa, mock đúng route đang sử dụng, bảo đảm test pending Completer luôn giải phóng trong finally và rà warning unnecessary_cast home_provider.dart:64:8. Không loại bỏ test/gate. Lượt chỉ kiểm tra, không chỉnh source hoặc merge, lưu journal trên nhánh riêng xuất phát head #82 để không kích hoạt lại CI lỗi; tích hợp mục 61 vào commit sửa #82 tiếp theo. H04–H09 còn mở; native/production JWT/branch protection chưa nghiệm thu. Không đóng T05.
