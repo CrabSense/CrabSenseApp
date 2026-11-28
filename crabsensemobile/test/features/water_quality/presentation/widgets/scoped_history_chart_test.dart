@@ -163,4 +163,53 @@ void main() {
     expect(requests, 1);
     await tester.pumpWidget(const SizedBox());
   });
+
+  testWidgets('background clears chart and late response cannot restore it', (tester) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    final changes = StreamController<int>.broadcast(sync: true);
+    addTearDown(changes.close);
+    final pending = Completer<ScopedHistorySnapshot>();
+    ScopedHistoryQuery? sent;
+    var requests = 0;
+    Future<ScopedHistorySnapshot> fetch(ScopedHistoryQuery q) async {
+      requests++;
+      sent = q;
+      return requests == 1 ? response(q) : pending.future;
+    }
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: SingleChildScrollView(
+      child: ScopedHistoryChart(areaId: fixture.area, rowId: null,
+        readings: [reading()], online: true, fetch: fetch,
+        revision: () => 0, invalidations: changes.stream),
+    ))));
+    Future<void> choose() async {
+      await tester.tap(find.byKey(const Key('history-sensor-select')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.textContaining('Độ mặn ·').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('history-fetch')));
+      await tester.pump();
+    }
+    await choose();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('history-measured-plot')), findsOneWidget);
+    // Simulate OS lifecycle while parent still supplies online=true.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+    expect(find.byKey(const Key('history-measured-plot')), findsNothing);
+    expect(find.byKey(const Key('history-fetch')), findsNothing);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('history-measured-plot')), findsNothing);
+    expect(requests, 1);
+    await choose();
+    expect(requests, 2);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+    pending.complete(response(sent!));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('history-measured-plot')), findsNothing);
+    expect(requests, 2);
+    await tester.pumpWidget(const SizedBox());
+  });
 }

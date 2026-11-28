@@ -36,7 +36,9 @@ class ScopedHistoryChart extends StatefulWidget {
   State<ScopedHistoryChart> createState() => _ScopedHistoryChartState();
 }
 
-class _ScopedHistoryChartState extends State<ScopedHistoryChart> {
+class _ScopedHistoryChartState extends State<ScopedHistoryChart>
+    with WidgetsBindingObserver {
+  bool _foreground = false;
   String? _selected;
   Duration _period = const Duration(hours: 24);
   int _request = 0;
@@ -53,6 +55,9 @@ class _ScopedHistoryChartState extends State<ScopedHistoryChart> {
   @override
   void initState() {
     super.initState();
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    _foreground = lifecycle == null || lifecycle == AppLifecycleState.resumed;
+    WidgetsBinding.instance.addObserver(this);
     _subscribe();
   }
 
@@ -94,14 +99,26 @@ class _ScopedHistoryChartState extends State<ScopedHistoryChart> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final next = state == AppLifecycleState.resumed;
+    if (next == _foreground || !mounted) return;
+    setState(() {
+      _foreground = next;
+      _clear();
+      _selected = null;
+    });
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _expiry?.cancel();
     unawaited(_subscription?.cancel());
     super.dispose();
   }
 
   Future<void> _load(HistorySensor sensor) async {
-    if (!widget.online) return;
+    if (!widget.online || !_foreground) return;
     setState(() {
       _clear();
       _loading = true;
@@ -112,7 +129,7 @@ class _ScopedHistoryChartState extends State<ScopedHistoryChart> {
       final query = sensor.query(DateTime.now().toUtc(), _period);
       final snapshot = await widget.fetch(query);
       if (!mounted || request != _request) return;
-      if (revision != widget.revision() || !widget.online) {
+      if (revision != widget.revision() || !widget.online || !_foreground) {
         setState(() {
           _clear();
           _selected = null;
@@ -153,7 +170,7 @@ class _ScopedHistoryChartState extends State<ScopedHistoryChart> {
     final sensors = _sensors;
     final matching = sensors.where((s) => s.key == _selected);
     final selected = matching.isEmpty ? null : matching.first;
-    final series = _displayRevision == widget.revision() && widget.online &&
+    final series = _displayRevision == widget.revision() && widget.online && _foreground &&
         selected != null ? _series : null;
     return Container(
       key: const Key('scoped-history-chart'),
@@ -167,7 +184,9 @@ class _ScopedHistoryChartState extends State<ScopedHistoryChart> {
           const SizedBox(height: 8),
           const Text('Lịch sử cảm biến gốc của khu · giữ nguyên vị trí ghi nhận.',
             style: TextStyle(color: kHomeTextSub)),
-          if (!widget.online)
+          if (!_foreground)
+            const Text('Ứng dụng đang ở nền. Hãy tải lại khi quay lại.')
+          else if (!widget.online)
             const Text('Mất kết nối. Không hiển thị cache lịch sử.')
           else if (sensors.isEmpty)
             const Text('Chọn khu cụ thể có cảm biến với dữ liệu đo hợp lệ.')
