@@ -125,8 +125,8 @@
 | CrabSenseKiosk | 98458f3 | Main CI #78 PASS |
 | CrabSenseBE | 5f4415f | Main CI #427 / VPS #227 PASS |
 | CrabSenseAIWaterQualityAnalysis | 700d5b2 | AI CI #37 / private cross #11 PASS |
-| CrabSenseFE | 43e4ff9 | Main audit #5/Sonar #142/Deploy #130 PASS; #34 chưa merge |
-| CrabSenseApp | 5e7277d | #66 CI #214 PASS và merged; CI main mới chưa xác minh |
+| CrabSenseFE | 123e5a5 | #34 merged; Audit #7/Sonar #144 PASS, Pages #132 running; #35 thử Vite 8 |
+| CrabSenseApp | a30bcca | #67 CI #216 PASS và merged; main #217/Pages #106/Mobile #82/Desktop #85 running |
 
 | Mã | Ưu tiên | Việc còn lại | Điều kiện hoàn thành |
 |---|---|---|---|
@@ -135,7 +135,7 @@
 | T03 | P0 | Đã merge BE scoped history và khôi phục chart scoped Mobile/Desktop; chưa production smoke | Sửa cấu hình test Npgsql, chạy đủ HTTP/PostgreSQL, CI PASS, review migration, deploy, App chart thật |
 | T04 | P1 | SQLite v4, scope/session/expiry và fail-closed đã test; offline reading chưa bật, native lifecycle còn mở | Kiểm thử offline và isolation; phục hồi chart/cache an toàn |
 | T05 | P1 | Live/history scoped và RAS chung khu đã triển khai; KPI/legacy, RAS browser và production smoke còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
-| T06 | P1 | PR #34 full/omit-dev còn 2; cả 4 workflow PASS, chưa merge; main full 19/omit-dev 17; Vite/plugin và gate còn mở | Phân loại direct/transitive/dev/runtime, sửa an toàn, CI PASS |
+| T06 | P1 | FE #34 merged; main Audit #7 full/omit-dev 2; #35 candidate Vite 8 pending; gate còn mở | Phân loại direct/transitive/dev/runtime, sửa an toàn, CI PASS |
 | T07 | P1 | Kiểm thử PostgreSQL technical diagnostics, JWT bốn role | P2.4.6.2; 401/403 và scoped access |
 | T08 | P1 | Geometry QC bắt buộc với fixture phù hợp; kiểm tra private media/Drive | P2.4.6.3 |
 | T09 | P1 | Cùng batch/receipt/estimate/review trên ba nền tảng, retry/cancellation/stale | P2.4.6.4–5 |
@@ -143,7 +143,7 @@
 | T11 | P2 | Tổng kiểm thử bảo mật, CI/CD và quy trình test thực tế | P2.4.6.6 |
 | T12 | P3 | Thiết bị thật, UART, đo chuẩn, mẫu thật, vệ sinh, vận hành lâu dài | Chỉ sau P2.4.6 PASS |
 
-**Việc kế tiếp:** merge FE #34 sau xác nhận head CI, kiểm tra main/deploy, thử Vite/React plugin riêng và security gate; rà các điều kiện T04/T05 còn mở trước tổng nghiệm thu. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
+**Việc kế tiếp:** nghiệm thu FE main Pages #132, Vite Migration Candidate #35, áp dụng exact artifact sau PASS và đồng bộ Node CI, security gate; rà T04/T05 trước tổng nghiệm thu. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
 
 ## 6. Quy định cập nhật file sau mỗi lượt
 
@@ -337,3 +337,9 @@
 - Đọc nhật ký 01–42, cross-repo audit, Mobile data integrity, Manager Desktop và Staff Mobile acceptance; cập nhật snapshot/mốc T03–T06 vì bảng cũ chưa theo kịp nhật ký append-only. Main firmware b552498 CI #24 PASS; Kiosk 98458f3 CI #78 PASS; BE 5f4415f CI #427/VPS #227 PASS; AI 700d5b2 CI #37/private cross #11 PASS; FE 43e4ff9 Audit #5/Sonar #142/Deploy #130 PASS; App trước merge #66 929c91b Sonar #213/Desktop #83/Mobile #80/Pages #104 PASS, đúng main SHA.
 - FE [#34](https://github.com/CrabSense/CrabSenseFE/pull/34) head 1a9dab5: Audit #6 (46106957479), Sonar #143 (46106957477), Pages #131 (46106957461), Chromium #12 (46106957508) đều PASS, mergeable. Sonar scan thực tế skipped. Main audit #5 job 140858184335 còn full 19 / omit-dev 17, PR còn 2 (Vite High/esbuild Moderate). Chưa merge FE trong lượt kiểm tra tài liệu; không sửa code/dependency/API/DB.
 - App [#66](https://github.com/CrabSense/CrabSenseApp/pull/66) head 3e4f7b5 CI #214 PASS, merged 5e7277d; mục 42 đã vào main, CI main mới chưa xác minh. T04 offline reading vẫn tắt; T05 KPI/legacy/RAS browser/JWT production chưa hoàn tất. T07–T12 giữ nguyên phạm vi. Next: merge FE #34, xác nhận main audit/deploy, Vite/plugin migration, gate; chưa chuyển P2.4.6.2 hay P3. Không xác nhận thiết bị thật.
+
+### 44 — T06: merge bản vá tương thích và thử Vite 8 (28/11/2026)
+- FE #34 head 1a9dab5, Audit #6/Sonar #143/Pages #131/Chromium #12 PASS, mergeable; merged 123e5a5. Main [Audit #7](https://github.com/CrabSense/CrabSenseFE/actions/runs/46107448141) xác nhận full/omit-dev đều 2 (Vite 5.4.21 High, esbuild 0.21.5 Moderate), giảm 17/19; main Sonar #144 PASS, Pages #132 đang chạy. Không tuyên bố production verified; PR Sonar scan thực tế skipped.
+- App #67 head 725588e, CI #216 PASS, merged a30bcca; mục 43 vào main. App main #217/Pages #106/Mobile #82/Desktop #85 đang chạy tại snapshot.
+- FE [#35](https://github.com/CrabSense/CrabSenseFE/pull/35) head 7070609, một commit ci(security): validate isolated Vite 8 migration candidate, thêm scripts/vite-migration-candidate.mjs và .github/workflows/vite-migration-candidate.yml. Dùng Vite 8.4.0 theo npm audit, resolve React plugin stable từ registry, strict peer/engine, Node 22, Ubuntu 24.04, guard chỉ đổi hai direct dev deps trong candidate. npm ci/Node/Pages build/Chromium; yêu cầu full và omit-dev audit 0; artifact exact manifest/lock/delta và metadata. CI chưa xuất hiện lần kiểm tra đầu. Không đổi package/lock trên repo trong #35, không force/legacy-peer-deps, không tự push artifact/deploy candidate. Sonar hiện Node 20 cần đánh giá đồng bộ Node 22 ở PR adoption. Chưa chốt Vite migration, gate thường trực, T04/T05, JWT/production/hardware; chưa chuyển P2.4.6.2/P3.
+- Candidate #1 [run](https://github.com/CrabSense/CrabSenseFE/actions/runs/46107502769) job 140863432748 FAIL ở strict resolve ERESOLVE: React plugin 6.3.0 có optional peer @rolldown/plugin-babel 0.3.2, kéo @babel/plugin-transform-runtime 8.1.2 đòi Babel core 8.1.4, xung đột cây hiện tại. Node 22.23.5, Vite 8.4.0 registry confirmed; npm ci/build/Chromium/audit candidate skipped. Artifact chỉ metadata, không có lock nghiệm thu. Sửa thử major plugin 5 stable cao nhất, lấy peer/engine metadata và giữ strict resolution; head #35 d260097, thay đúng head bằng lease trên nhánh thử nghiệm (không force main), giữ một commit. Candidate #2 chưa nghiệm thu. Không hạ gate hoặc ép peer; chưa áp dụng Vite.
