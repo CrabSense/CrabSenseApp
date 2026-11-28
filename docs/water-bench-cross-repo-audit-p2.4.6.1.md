@@ -56,3 +56,6 @@ Main #202: 71 Mobile and 54 Desktop tests verified. Proposed area overview repla
 
 ## Web Farm Admin shared RAS monitoring — App main 8ee6f46
 Main #205 confirmed 71 Mobile / 56 Desktop tests, including both dashboard provenance tests. FE PR #31 f3a64e3 proposes explicit selected area /iot/live per-sensor cards, box reference labels, no all-area aggregation, dedicated bearer and freshness/visibility/session guards. Four new mandatory Node tests, CI pending. New browser lifecycle and production JWT tests not yet performed. FE dependency audit and other dashboard KPI/legacy surfaces remain open.
+
+## Dependency inventory — FE main be31769
+FE #31 merged; main #137 and Deploy #125 passed, 25 Node tests, 19 affected npm packages (10 high, 9 moderate). Sonar scan skipped; browser #8 validated existing WaterBench/roles, not new RAS lifecycle. App #62 journal merged e551dce. FE PR #32 7adcd5f proposes validated full/omit-dev npm audit inventory, raw evidence and package/path/version/advisory/fix summaries, three parser tests. Valid findings warn; invalid report or registry failure fails the diagnostic job. No package version changes, no forced upgrade, CI and actual package classification pending. T06 not accepted.
