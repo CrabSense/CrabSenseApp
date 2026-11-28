@@ -156,3 +156,6 @@ App #89 merged 92e0b7b; all PR/main checks PASS, 108 Mobile and 64 Desktop. NT01
 
 ## T07 private integration repin — 2026-11-28
 Kiosk #31 merged 9265e1d after #79 PASS; main #80 PASS, public cross PR/main exact BE 7ecaae7 TRX 1/1, no skips. App #90 merged 57d8590, #267/#268 and hosted/Pages main PASS, 108 Mobile/64 Desktop. Private AI #10 5180317 repins both merged public heads, retains existing synthetic HTTP/PostgreSQL fixture and mandatory TRX gate; CI pending. Geometry remains disabled in this compatibility suite. Journal 73; actual JWT, native, geometry, media and physical acceptance remain open.
+
+## T08 geometry-required cross integration — 2026-11-28
+Water AI #10 merged df0d4a6; CI #39/#40 and private cross #12/#13 PASS, exact BE/Kiosk pins, TRX 1/1 no skips, Python main 14 passed (1 warning). App #91 merged 528637a, all PR/main checks PASS. Water AI #11 da7ee46 adds separate mandatory compatibility and strict geometry matrix jobs, deterministic synthetic anchor PNG/JPEG, signed fit and shifted in-range NO3 rejection, preserved accepted channels and persisted geometry evidence, no publication, focus-loss regression. Journal 74; revised CI pending, production geometry enforcement, actual fixture/chemistry, media/Drive, real JWT, native and hardware acceptance remain open.
