@@ -1167,10 +1167,13 @@ class _MainShellScreenState extends State<MainShellScreen> {
           onOpenHealth: (c) => _openHealthMonitoring(c.id),
         );
       case AppRoute.individualDetail:
-        final id = _selectedCrabId ??
-            (_crabService.crabs.isNotEmpty
-                ? _crabService.crabs.first.id
-                : 'CRAB-A01-001');
+        final id = _selectedCrabId;
+        if (id == null || id.trim().isEmpty) {
+          return Center(child: OutlinedButton(
+            onPressed: _backToCrabList,
+            child: const Text('Chọn cua từ danh sách'),
+          ));
+        }
         return CrabDetailPage(
           crabId: id,
           service: _crabService,
@@ -1178,11 +1181,13 @@ class _MainShellScreenState extends State<MainShellScreen> {
           onOpenHealth: () => _openHealthMonitoring(id),
         );
       case AppRoute.individualHealth:
-        final id = _selectedCrabId ?? 'CRAB-A01-001';
+        final id = _selectedCrabId;
+        final hasSelection = id != null && id.trim().isNotEmpty;
         return HealthMonitoringPage(
-          crabId: id,
-          onBack: _backToCrabDetail,
-          onOpenHistory: _backToCrabDetail,
+          key: ValueKey('health:${_session.selectedFarm.id}:$id'),
+          crabId: hasSelection ? id : null,
+          onBack: hasSelection ? _backToCrabDetail : _backToCrabList,
+          onOpenHistory: hasSelection ? _backToCrabDetail : null,
         );
       case AppRoute.reports:
         return ManagerReportsPage(key: ValueKey(_session.selectedFarm.id), session: _session, api: _cloudApi);
