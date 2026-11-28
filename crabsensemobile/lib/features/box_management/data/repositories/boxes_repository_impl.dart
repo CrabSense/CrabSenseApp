@@ -493,7 +493,7 @@ class BoxesRepositoryImpl implements BoxesRepository {
       list = list.where((b) => b.alerts.hasAlerts).toList();
     }
     if (adv.deviceOffline == true) {
-      list = list.where((b) => !b.devices.isOnline).toList();
+      list = list.where((b) => b.devices.verifiedOnline == false).toList();
     }
     if (adv.hasAiRecommendation == true) {
       list = list.where((b) => b.aiRecommendation.hasRecommendation).toList();
@@ -901,11 +901,7 @@ class BoxesRepositoryImpl implements BoxesRepository {
         ph: (waterMap?['ph'] as num?)?.toDouble(),
         dissolvedOxygen: (waterMap?['dissolvedOxygen'] as num?)?.toDouble(),
       ),
-      devices: BoxDeviceStatus(
-        isOnline: devicesMap?['isOnline'] == true,
-        onlineCount: (devicesMap?['onlineCount'] as num?)?.toInt() ?? 0,
-        totalCount: (devicesMap?['totalCount'] as num?)?.toInt() ?? 0,
-      ),
+      devices: BoxDeviceStatus.fromApi(devicesMap),
       alerts: alertCount > 0
           ? BoxAlertSummary(
               count: alertCount,
@@ -966,7 +962,7 @@ class BoxesRepositoryImpl implements BoxesRepository {
 
   BoxDeviceStatus _devicesFromList(List deviceList) {
     if (deviceList.isEmpty) {
-      return const BoxDeviceStatus(isOnline: true, onlineCount: 0, totalCount: 0);
+      return BoxDeviceStatus.offline;
     }
     var online = 0;
     for (final item in deviceList) {

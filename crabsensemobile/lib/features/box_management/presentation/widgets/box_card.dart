@@ -195,19 +195,21 @@ class BoxCard extends StatelessWidget {
                   Row(
                     children: [
                       Icon(
-                        box.devices.isOnline
+                        box.devices.verifiedOnline == true
                             ? Icons.sensors_rounded
-                            : Icons.sensors_off_rounded,
+                            : box.devices.verifiedOnline == false
+                                ? Icons.sensors_off_rounded
+                                : Icons.help_outline_rounded,
                         size: 14,
-                        color: box.devices.isOnline
+                        color: box.devices.verifiedOnline == true
                             ? kHomeGreen
                             : const Color(0xFF5A7184),
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        box.devices.isOnline ? 'Online' : 'Offline',
+                        box.devices.connectivityLabel,
                         style: TextStyle(
-                          color: box.devices.isOnline
+                          color: box.devices.verifiedOnline == true
                               ? kHomeGreen
                               : const Color(0xFF5A7184),
                           fontSize: 10,
