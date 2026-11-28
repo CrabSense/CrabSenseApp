@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/cupertino.dart';
@@ -10,6 +11,10 @@ import 'package:flutter/cupertino.dart';
 import '../../../../app/routes.dart';
 import '../../../../core/providers/selected_farm_provider.dart';
 import '../../../../widgets/branded_loading_screen.dart';
+import '../../../authentication/domain/entities/user.dart';
+import '../../../authentication/presentation/bloc/auth_bloc.dart';
+import '../../../authentication/presentation/bloc/auth_state.dart';
+import '../../../harvest/presentation/screens/harvest_assignments_screen.dart';
 import '../../../home/domain/models/home_models.dart';
 import '../../../home/presentation/providers/home_provider.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
@@ -117,6 +122,10 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
   }
 
   Widget _buildHome(HomeStateData data) {
+    final authState = context.watch<AuthBloc>().state;
+    final isFarmStaff =
+        authState is Authenticated && authState.user.role == UserRole.farmStaff;
+
     return Scaffold(
       backgroundColor: page,
       body: SafeArea(
@@ -130,7 +139,7 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
                 children: [
                   _overview(data),
                   const SizedBox(height: 10),
-                  _tasksAndQuick(data),
+                  _tasksAndQuick(data, isFarmStaff: isFarmStaff),
                   const SizedBox(height: 10),
                   if (data.recentActivities.isNotEmpty) ...[
                     _recentActivityCard(data),
@@ -581,13 +590,12 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
       _boxStatusHistoryCard(data),
     ],
   );
-
-  Widget _tasksAndQuick(HomeStateData data) {
+  Widget _tasksAndQuick(HomeStateData data, {required bool isFarmStaff}) {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _tasksCard(data)),
+          Expanded(child: _tasksCard(data, isFarmStaff: isFarmStaff)),
           const SizedBox(width: 10),
           Expanded(child: _quickActions()),
         ],
@@ -1206,7 +1214,7 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
     ),
   );
 
-  Widget _tasksCard(HomeStateData data) => _card(
+  Widget _tasksCard(HomeStateData data, {bool isFarmStaff = false}) => _card(
     title: 'Việc cần làm hôm nay',
     action: 'Xem tất cả',
     onAction: () => context.push(RoutePaths.scheduledTasks),
@@ -1232,6 +1240,55 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
                 }),
               ),
             ),
+
+        // Đây là lối vào danh sách Assignment; không phải checkbox hoàn thành.
+        // Chỉ Staff mới được hiển thị mục này.
+        if (isFarmStaff) ...[
+          const Divider(height: 14),
+          InkWell(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const HarvestAssignmentsScreen(),
+              ),
+            ),
+            borderRadius: BorderRadius.circular(8),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  Icon(Icons.assignment_outlined, color: blue, size: 18),
+                  SizedBox(width: 7),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Nhiệm vụ thu hoạch',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          'Xem và xử lý nhiệm vụ được giao',
+                          style: TextStyle(
+                            fontSize: 8,
+                            color: Color(0xFF708090),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFF708090),
+                    size: 18,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ],
     ),
   );
