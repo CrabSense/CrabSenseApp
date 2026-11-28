@@ -15,3 +15,6 @@ Status: preliminary review, waiting on Private Water AI #13 PR/main CI. Do not p
 | REC05 External evidence | real Drive/JWT checks not accepted | Verify restored private Media/Receipt/Provenance references with approved test provider; no production access or mutation without separate acceptance |
 
 Sequence: complete private cross PR/main, implement CI merge guard first, add isolated restore integration and negative tests, then administrator verification and controlled recovery drill. Keep production deployment hardware disabled. No automatic production DB rollback. Backup list success and migration success do not demonstrate disaster recovery. Current archive checksum, actual offsite copy and restore verification are not established. No production database credentials needed for CI.
+
+## 2026-11-28 implementation update
+BE #116 (75d705a) implements SEC01, CI portion of SEC03 and SEC04; adds isolated service recovery for REC01–REC03. Mandatory PR CI pending. SEC02 remains blocked by administrator permissions. Do not mark production checksum/offsite backup, live rollback, recovery or RTO/RPO as accepted from CI. See BE docs/t11-security-recovery.md. Repin Kiosk and private AI only after new BE main CI and VPS deploy acceptance.
