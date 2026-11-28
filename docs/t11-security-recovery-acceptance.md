@@ -45,3 +45,6 @@ VPS #232 exact 6e1fd8d accepted; Kiosk #34 repin CI #85 pending. Private AI repi
 
 ## REC05 isolated test implementation
 Kiosk #34 main db9aeb8 accepted with BE 6e1fd8d. Private AI #15 a325b0d repins both and extends existing matrix fixture with actual local database restore, independent synthetic media map, receipt/provenance validation, missing/ACL/corrupt bytes and tampered linkage checks, retained TRX and redacted metrics. CI pending. Raw content GET integrity guard remains open (raw_content_hash_guard=false); real Drive/RTO/RPO/production still unverified. Journal 89.
+
+## REC05 CI #22 failure correction
+Both private cross jobs failed actual restore with client 18.7 against server 16; artifact quota exhausted independently. Private AI #15 replacement 7105dc6 fixes runner/client selection and asserts server version; mandatory artifacts and all integrity tests retained. No artifacts from #22 and no REC05 acceptance. Admin must resolve quota if persistent. Raw content SHA guard deferred until baseline PASS. Journal 90.

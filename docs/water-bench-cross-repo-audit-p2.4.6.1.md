@@ -204,3 +204,6 @@ VPS #232 exact BE 6e1fd8d PASS (health/CORS/hardware disabled, DEPLOY_OK 21:22:0
 
 ## REC05 isolated implementation — 2026-11-28
 Kiosk #34 merged db9aeb8, #85/#86 PASS with exact BE 6e1fd8d, cross 1/1 no skip each, Windows 85/85. App #106 merged 6d3a82e and all main checks PASS. Private AI #15 a325b0d combines both pin updates and actual isolated DB/media restore test, mandatory metrics/TRX for both modes. Raw content SHA guard explicitly remains false; assessment path rejects mismatch. CI pending; actual Drive and production gates remain open. Journal 89.
+
+## REC05 CI #22 correction — 2026-11-28
+Private AI #15 a325b0d Python PASS but both cross modes FAIL pg_restore 18.7 -> server 16 unsupported transaction_timeout; both artifact uploads also failed storage quota, no artifacts. Replacement 7105dc6 explicitly matches PostgreSQL 16 client and verifies server major, retains all gates and required uploads; redacted summary added. App #107 merged 3fa79ca and all main checks PASS. Journal 90. No new REC05 marker or raw-content guard acceptance. Actual Drive and production gates open.
