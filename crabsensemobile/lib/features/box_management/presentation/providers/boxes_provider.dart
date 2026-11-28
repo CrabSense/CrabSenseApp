@@ -4,13 +4,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/network/network_info.dart';
+import '../../../authentication/data/datasources/auth_local_data_source.dart';
+import '../../../water_quality/data/repositories/scoped_history_service.dart';
 import '../../../../core/providers/selected_farm_provider.dart';
 import '../../data/repositories/boxes_repository_impl.dart';
 import '../../domain/models/boxes_models.dart';
 import '../../domain/repositories/boxes_repository.dart';
 
 final boxesRepositoryProvider = Provider<BoxesRepository>(
-  (ref) => BoxesRepositoryImpl(api: sl<ApiClient>()),
+  (ref) {
+    final history = sl<ScopedHistoryService>();
+    final repository = BoxesRepositoryImpl(api: sl<ApiClient>(),
+      identity: () => readHistoryIdentity(sl<AuthLocalDataSource>()),
+      revision: () => history.revision,
+      boundUser: history.isBoundUser,
+      networkAvailable: () => historyNetworkAvailable(sl<NetworkInfo>()));
+    final subscription = history.invalidations.listen((_) => repository.invalidate());
+    ref.onDispose(() { subscription.cancel(); repository.invalidate(); });
+    return repository;
+  },
 );
 
 /// Permissions snapshot applied into Boxes state (from AuthBloc via UI).
@@ -40,11 +53,20 @@ final boxesStateProvider =
 
 class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
   BoxesNotifier(this._repository, this._ref) : super(const AsyncValue.loading()) {
+    _authChanges = sl<ScopedHistoryService>().invalidations.listen((_) {
+      _permissions = BoxesPermissionFlags.viewer;
+      _discard('Phiên đăng nhập đã thay đổi. Hãy tải lại.');
+    });
+    _networkChanges = sl<NetworkInfo>().onNetworkTypesChanged.listen((types) {
+      if (!historyTransportAvailable(types)) {
+        _discard('Không có kết nối. Hãy tải lại khi có mạng.');
+      }
+    }, onError: (Object _) => _discard('Chưa xác minh được kết nối.'));
     _ref.listen<SelectedFarm>(selectedFarmProvider, (prev, next) {
-      if (next.id == null || next.id!.isEmpty) return;
-      if (!state.hasValue) return;
-      if (state.value!.selectedFarmId == next.id) return;
-      switchFarm(next.id!);
+      if (_writingSelection || next.id == null || next.id!.isEmpty ||
+          next.id == prev?.id) return;
+      if (state.valueOrNull?.selectedFarmId == next.id) return;
+      loadData(forceRefresh: true);
     });
     loadData();
   }
@@ -52,8 +74,22 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
   final BoxesRepository _repository;
   final Ref _ref;
   Timer? _searchDebounce;
+  StreamSubscription<int>? _authChanges;
+  StreamSubscription<List<NetworkType>>? _networkChanges;
   BoxesPermissionFlags _permissions = BoxesPermissionFlags.viewer;
   var _loadGen = 0;
+  bool _writingSelection = false;
+
+  void _discard(String message) {
+    ++_loadGen;
+    _searchDebounce?.cancel();
+    if (_repository is BoxesRepositoryImpl) {
+      (_repository as BoxesRepositoryImpl).invalidate();
+    }
+    if (mounted) state = AsyncValue.error(StateError(message), StackTrace.current);
+  }
+
+  bool _current(int gen) => mounted && gen == _loadGen;
 
   void updatePermissions(BoxesPermissionFlags flags) {
     _permissions = flags;
@@ -68,22 +104,18 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
     }
   }
 
-  Future<void> loadData({bool forceRefresh = false}) async {
-    await _ref.read(selectedFarmProvider.notifier).ready;
+  Future<void> loadData({bool forceRefresh = false, String? requestedArea}) async {
     final gen = ++_loadGen;
-    final current = state.hasValue ? state.value : null;
-    final sharedId = _ref.read(selectedFarmProvider).id;
-
-    if (!state.hasValue) {
-      state = const AsyncValue.loading();
-    } else if (forceRefresh) {
-      state = AsyncValue.data(current!.copyWith(isRefreshing: true));
-    }
-
+    final current = state.valueOrNull;
+    _searchDebounce?.cancel();
+    state = const AsyncValue.loading();
     try {
+      await _ref.read(selectedFarmProvider.notifier).ready;
+      if (!_current(gen)) return;
+      final sharedId = requestedArea ?? _ref.read(selectedFarmProvider).id;
       final data = await _repository.getBoxesSummary(
-        farmingAreaId: sharedId ?? current?.selectedFarmId,
-        forceRefresh: forceRefresh,
+        farmingAreaId: sharedId,
+        forceRefresh: true,
         viewMode: current?.viewMode ?? _repository.savedViewMode,
         searchQuery: current?.searchQuery ?? '',
         quickFilters: current?.quickFilters ?? {BoxQuickFilter.all},
@@ -92,95 +124,32 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
         canEditBox: _permissions.canEditBox,
         canPerformActions: _permissions.canPerformActions,
       );
-      if (gen != _loadGen) return;
-      final lockId = sharedId ?? current?.selectedFarmId;
-      state = AsyncValue.data(
-        data.copyWith(
-          isRefreshing: false,
-          selectedFarmId: (lockId != null && lockId.isNotEmpty)
-              ? lockId
-              : data.selectedFarmId,
-          selectedFarmName: (lockId != null &&
-                  lockId.isNotEmpty &&
-                  lockId != data.selectedFarmId)
-              ? (current?.selectedFarmName ?? data.selectedFarmName)
-              : data.selectedFarmName,
-        ),
-      );
-      await _ref.read(selectedFarmProvider.notifier).syncFromLoaded(
-            id: lockId ?? data.selectedFarmId,
-            name: data.selectedFarmName,
-          );
-    } catch (error, stackTrace) {
-      if (current != null) {
-        state = AsyncValue.data(
-          current.copyWith(
-            isOnline: false,
-            isOfflineCached: true,
-            isRefreshing: false,
-            sectionError: error.toString(),
-          ),
-        );
-      } else {
-        state = AsyncValue.error(error, stackTrace);
+      if (!_current(gen)) return;
+      // Never relabel a response with the requested (possibly revoked) area.
+      if (data.selectedFarmId != null) {
+        _writingSelection = true;
+        late Future<void> selection;
+        try {
+          selection = _ref.read(selectedFarmProvider.notifier).select(
+            data.selectedFarmId, name: data.selectedFarmName);
+        } finally { _writingSelection = false; }
+        await selection;
       }
+      if (!_current(gen)) return;
+      state = AsyncValue.data(data.copyWith(
+        canCreateBox: _permissions.canCreateBox,
+        canEditBox: _permissions.canEditBox,
+        canPerformActions: _permissions.canPerformActions));
+    } catch (error, stackTrace) {
+      if (_current(gen)) state = AsyncValue.error(error, stackTrace);
     }
   }
 
   Future<void> refresh() => loadData(forceRefresh: true);
 
   Future<void> switchFarm(String farmId) async {
-    if (!state.hasValue) return;
-    final current = state.value!;
-    if (farmId == current.selectedFarmId) return;
-    final gen = ++_loadGen;
-
-    final farmName = current.availableFarms
-        .where((f) => f.id == farmId)
-        .map((f) => f.name)
-        .firstOrNull;
-
-    state = AsyncValue.data(
-      current.copyWith(
-        selectedFarmId: farmId,
-        selectedFarmName: farmName ?? current.selectedFarmName,
-        isRefreshing: true,
-      ),
-    );
-
-    await _ref.read(selectedFarmProvider.notifier).select(
-          farmId,
-          name: farmName,
-        );
-
-    try {
-      final updated = await _repository.switchFarm(farmId);
-      if (gen != _loadGen) return;
-      state = AsyncValue.data(
-        updated.copyWith(
-          selectedFarmId: farmId,
-          selectedFarmName: farmName ?? updated.selectedFarmName,
-          canCreateBox: _permissions.canCreateBox,
-          canEditBox: _permissions.canEditBox,
-          canPerformActions: _permissions.canPerformActions,
-          isRefreshing: false,
-        ),
-      );
-      await _ref.read(selectedFarmProvider.notifier).select(
-            farmId,
-            name: farmName ?? updated.selectedFarmName,
-          );
-    } catch (error) {
-      if (gen != _loadGen) return;
-      state = AsyncValue.data(
-        current.copyWith(
-          selectedFarmId: farmId,
-          selectedFarmName: farmName ?? current.selectedFarmName,
-          isRefreshing: false,
-          sectionError: error.toString(),
-        ),
-      );
-    }
+    if (state.valueOrNull?.selectedFarmId == farmId) return;
+    await loadData(forceRefresh: true, requestedArea: farmId);
   }
 
   void setSearchQuery(String query) {
@@ -259,14 +228,18 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
   Future<void> setViewMode(BoxesViewMode mode) async {
     if (!state.hasValue) return;
     await _repository.saveViewMode(mode);
-    state = AsyncValue.data(state.value!.copyWith(viewMode: mode));
+    if (mounted && state.hasValue) {
+      state = AsyncValue.data(state.value!.copyWith(viewMode: mode));
+    }
   }
 
   /// Đổi hướng đánh số hộp trên lưới (giữ trong phiên, như chế độ xem).
   Future<void> setBoxLayoutOrder(BoxLayoutOrder order) async {
     if (!state.hasValue) return;
     await _repository.saveBoxLayoutOrder(order);
-    state = AsyncValue.data(state.value!.copyWith(boxLayoutOrder: order));
+    if (mounted && state.hasValue) {
+      state = AsyncValue.data(state.value!.copyWith(boxLayoutOrder: order));
+    }
   }
 
   void selectBox(String? boxId) {
@@ -297,24 +270,18 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
   }
 
   Future<void> _applyMutation(Future<BoxesStateData> Function() action) async {
+    final gen = ++_loadGen;
+    state = const AsyncValue.loading();
     try {
       final updated = await action();
-      if (!mounted) return;
-      state = AsyncValue.data(
-        updated.copyWith(
-          canCreateBox: _permissions.canCreateBox,
-          canEditBox: _permissions.canEditBox,
-          canPerformActions: _permissions.canPerformActions,
-        ),
-      );
+      if (!_current(gen)) return;
+      state = AsyncValue.data(updated.copyWith(
+        canCreateBox: _permissions.canCreateBox,
+        canEditBox: _permissions.canEditBox,
+        canPerformActions: _permissions.canPerformActions,
+      ));
     } catch (error, stackTrace) {
-      if (state.hasValue) {
-        state = AsyncValue.data(
-          state.value!.copyWith(sectionError: error.toString()),
-        );
-      } else {
-        state = AsyncValue.error(error, stackTrace);
-      }
+      if (_current(gen)) state = AsyncValue.error(error, stackTrace);
       rethrow;
     }
   }
@@ -397,6 +364,9 @@ class BoxesNotifier extends StateNotifier<AsyncValue<BoxesStateData>> {
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _authChanges?.cancel();
+    _networkChanges?.cancel();
+    ++_loadGen;
     super.dispose();
   }
 }

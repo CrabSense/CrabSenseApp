@@ -501,14 +501,21 @@ class _BoxesScreenState extends ConsumerState<BoxesScreen> {
     final role = authState is Authenticated
         ? authState.user.role
         : UserRole.unknown;
+    if (authState is! Authenticated || !role.canUseMobile) {
+      _lastRole = null;
+      return const Scaffold(body: Center(child: Text('Cần đăng nhập để xem hộp nuôi.')));
+    }
     _syncPermissions(role);
 
     final asyncState = ref.watch(boxesStateProvider);
+    if (asyncState.hasError) _lastRole = null;
 
     return Scaffold(
       backgroundColor: kHomeBg,
       body: SafeArea(
         child: asyncState.when(
+          skipLoadingOnRefresh: false,
+          skipLoadingOnReload: false,
           loading: () => const BoxesSkeleton(gridColumns: 3),
           error: (e, _) => _buildError(e),
           data: _buildContent,

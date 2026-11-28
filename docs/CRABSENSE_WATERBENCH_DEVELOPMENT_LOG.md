@@ -125,8 +125,8 @@
 | CrabSenseKiosk | 98458f3 | Main CI #78 PASS |
 | CrabSenseBE | 949927b | #113 merged; main CI #430 / VPS #228 PASS |
 | CrabSenseAIWaterQualityAnalysis | 700d5b2 | AI CI #37 / private cross #11 PASS |
-| CrabSenseFE | 2b9aa32 | #39 merged; main Audit #18/Sonar #155/Pages #143 PASS; RAS Chromium 6/6 groups PASS |
-| CrabSenseApp | 70324b0 | #75 merged; main #234/Mobile #91/Desktop #93/Pages #115 PASS |
+| CrabSenseFE | 7647cfa | #40 merged; main Audit #20/Sonar #157/Pages #145 PASS |
+| CrabSenseApp | 6feb489 | #76 merged; main #236/Mobile #93/Desktop #94/Pages #117 PASS |
 
 | Mã | Ưu tiên | Việc còn lại | Điều kiện hoàn thành |
 |---|---|---|---|
@@ -134,7 +134,7 @@
 | T02 | P0 | DONE: App main #61/#52/#43 và Sonar #156 PASS | Tất cả PASS đúng main 83e7eec |
 | T03 | P0 | Đã merge BE scoped history và khôi phục chart scoped Mobile/Desktop; chưa production smoke | Sửa cấu hình test Npgsql, chạy đủ HTTP/PostgreSQL, CI PASS, review migration, deploy, App chart thật |
 | T04 | P1 | SQLite v4 scope/session/expiry fail-closed; #73 generation guard/chart lifecycle PASS; offline reading tắt, native còn mở | Kiểm thử offline và isolation; phục hồi chart/cache an toàn |
-| T05 | P1 | RAS Chromium PASS; BE #113 merged/VPS PASS; FE #40 và Mobile device inventory pending; legacy fallback/health/production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
+| T05 | P1 | RAS Chromium PASS; BE #113/VPS, FE #40/App #76 PASS; Mobile #77 CI #237 failed Hive fixture; sửa test setup, chờ CI mới; legacy health/production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
 | T06 | P1 | FE #37 merged, main Audit #14 và Pages #139 gate full/omit-dev 0 PASS; required branch check chưa xác minh | Phân loại direct/transitive/dev/runtime, sửa an toàn, CI PASS |
 | T07 | P1 | Kiểm thử PostgreSQL technical diagnostics, JWT bốn role | P2.4.6.2; 401/403 và scoped access |
 | T08 | P1 | Geometry QC bắt buộc với fixture phù hợp; kiểm tra private media/Drive | P2.4.6.3 |
@@ -143,7 +143,7 @@
 | T11 | P2 | Tổng kiểm thử bảo mật, CI/CD và quy trình test thực tế | P2.4.6.6 |
 | T12 | P3 | Thiết bị thật, UART, đo chuẩn, mẫu thật, vệ sinh, vận hành lâu dài | Chỉ sau P2.4.6 PASS |
 
-**Việc kế tiếp:** nghiệm thu FE #40 và Mobile device inventory, xử lý legacy fallback/cache/health/AI KPI và rà Desktop; native T04 và required status check với quyền admin còn mở. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
+**Việc kế tiếp:** nghiệm thu Mobile fallback/cache fix, rà legacy health/AI KPI và Desktop; native T04 và required status check với quyền admin còn mở. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
 
 ## 6. Quy định cập nhật file sau mỗi lượt
 
@@ -373,3 +373,11 @@
 - BE #113 c6dbba1 CI #429 PASS, merged 949927b; main CI #430 và VPS #228 PASS. Unit job 140875395127 xác nhận Boxes_overview_never_reuses_first_area_or_global_devices PASS; PostgreSQL/publish/migration job 140875395288 PASS. App #75 CI #233 merged 70324b0; main #234/Mobile #91/Desktop #93/Pages #115 PASS. Chưa gọi production JWT.
 - FE [#40](https://github.com/CrabSense/CrabSenseFE/pull/40) 30475be, fix(monitoring): distinguish unknown device inventory from offline. Strict count/boolean consistency, explicit matching header area, zero devices unknown, actual zero offline percentage only nonempty inventory, row/filter same policy, missing alert and summary counts dash. Relabel old health/score heuristic, not validated AI. Three Node regressions, CI pending. No dependency/role changes.
 - Mobile change in same PR as journal: BoxDeviceStatus.fromApi strict integer/bool, verifiedOnline nullable and label, card and Offline filter consistent; no device fallback false/0 but label unknown. Add model regression to mandatory Sonar mobile tests. Scope limited to inventory display/filter; discovered older /overview fallback composes unverified water/alerts and synthetic score, cached error fallback and legacy AI health/confidence still open, must not claim full T05. Desktop review remains. No new schema/API/role or sampling location changes; native T04, production/JWT, required branch check open. One commit in each repo. Next CI FE #40 and App, then disable unsafe legacy fallback and audit consumers before closing T05.
+
+### 52 — T05: nghiệm thu inventory, loại bỏ fallback/cache Mobile (28/11/2026)
+- FE #40 30475be, Audit #19/Sonar #156/Chromium #19/Pages #144 PASS merged 7647cfa; main Audit #20/Sonar #157/Pages #145 PASS. App #76 6746ffa, Sonar #235/Mobile #92/Pages #116 PASS merged 6feb489; main #236/Mobile #93/Desktop #94/Pages #117 PASS.
+- Mobile Boxes repository loại bỏ _cached snapshot và _fetchOverviewFallback (không gọi waterQualityLatest/devices/alerts/farming-status để ghép số liệu). Mọi lượt tải revalidate online, pin bearer và generation (không tự refresh/redirect/log body), xác minh danh sách khu từ BE, chỉ query overview với khu đã xác minh; nếu khu lưu cũ không còn được phân công chọn khu đầu tiên trong danh sách được phép, không có khu thì không query. Reject envelope, header/item sai khu, duplicate/thiếu box, timestamp sync thiếu. Provider clear khi load/switch/failure/session/network invalidation, guard late response, không relabel khu. Chỉ giữ preference Hive UI; không phục hồi snapshot lỗi. Tái sử dụng credential revision/bound user của ScopedHistoryService; thêm 4 regression tests adapter synthetic vào CI bắt buộc. Cần CI head mới và native/provider race nghiệm thu; chưa production JWT. Health score/AI confidence mặc định, timestamps box và Desktop legacy còn mở; không đổi API/DB/role/vị trí lấy mẫu. Không đóng T05/P2.4.6.1.
+
+### 53 — T05: kiểm tra App #77, sửa fixture Hive (28/11/2026)
+- App #77 head 3f6547f, Sonar [#237](https://github.com/CrabSense/CrabSenseApp/actions/runs/46114073180) FAIL, Mobile job 140883819519: analyze PASS, 88 tests PASS/4 FAIL do HiveError: You need to initialize Hive or provide a path to store the box, tại _loadLayoutOrder. Desktop job 140883819713 PASS, Mobile Preview #94 và Pages #118 PASS. Không merge head lỗi.
+- Sửa test boxes_online_repository_test.dart: mỗi test khởi tạo Hive bằng thư mục tạm riêng, mở ui_prefs thật, đóng Hive và xóa thư mục sau test; giữ nguyên 4 assertions/regressions và code production, không bỏ test/gate. Cập nhật head PR bằng kiểm tra expected SHA trên nhánh riêng, giữ 1 commit, không force main. CI mới chưa nghiệm thu. L03–L06 chưa thực hiện vì cần L01/L02 PASS trước; next kiểm tra CI App #77 rồi merge nếu toàn bộ workflow PASS, mới xử lý legacy scores/AI/timestamps. Native/production/JWT, Desktop review và branch protection còn mở.

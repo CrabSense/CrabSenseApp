@@ -3,12 +3,52 @@ import 'package:hive/hive.dart';
 
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../water_quality/data/repositories/scoped_history_service.dart';
 import '../../domain/models/boxes_models.dart';
 import '../../domain/repositories/boxes_repository.dart';
 
 /// Production Boxes repository — uses GET /boxes/overview (no mock enrichment).
 class BoxesRepositoryImpl implements BoxesRepository {
-  BoxesRepositoryImpl({required ApiClient api}) : _api = api;
+  BoxesRepositoryImpl({required ApiClient api,
+    required Future<HistoryIdentity> Function() identity,
+    required int Function() revision,
+    required bool Function(String) boundUser,
+    required Future<bool> Function() networkAvailable,
+  }) : _api = api, _identity = identity, _revision = revision,
+       _boundUser = boundUser, _networkAvailable = networkAvailable;
+
+  final Future<HistoryIdentity> Function() _identity;
+  final int Function() _revision;
+  final bool Function(String) _boundUser;
+  final Future<bool> Function() _networkAvailable;
+  int _generation = 0;
+  String? _selectedAreaId;
+
+  void invalidate() {
+    ++_generation;
+    _selectedAreaId = null;
+    _recentSearches.clear();
+  }
+
+  Future<void> _verify(int generation, int revision, HistoryIdentity identity) async {
+    if (generation != _generation || revision != _revision() ||
+        !_boundUser(identity.userId) || !await _networkAvailable()) {
+      throw StateError('Boxes session or network changed');
+    }
+    final current = await _identity();
+    if (generation != _generation || revision != _revision() ||
+        !_boundUser(identity.userId) || !identity.matches(current)) {
+      throw StateError('Boxes session changed');
+    }
+  }
+
+  Options _pinned(HistoryIdentity identity) => Options(
+    followRedirects: false,
+    validateStatus: (status) => status == 200,
+    headers: {'Authorization': 'Bearer ${identity.accessToken}'},
+    extra: const {'skipAuthInterceptor': true, 'skipTokenRefresh': true,
+      'skipSensitiveLogging': true},
+  );
 
   final ApiClient _api;
 
@@ -16,7 +56,6 @@ class BoxesRepositoryImpl implements BoxesRepository {
   static const _uiPrefsBox = 'ui_prefs';
   static const _layoutOrderKey = 'boxLayoutOrder';
 
-  BoxesStateData? _cached;
   BoxesViewMode _viewMode = BoxesViewMode.grid;
   BoxLayoutOrder _layoutOrder = BoxLayoutOrder.rowLtr;
   bool _layoutOrderLoaded = false;
@@ -75,19 +114,11 @@ class BoxesRepositoryImpl implements BoxesRepository {
     return _reload();
   }
 
-  Future<BoxesStateData> _reload() {
-    return getBoxesSummary(
-      farmingAreaId: _cached?.selectedFarmId,
-      forceRefresh: true,
-      viewMode: _cached?.viewMode ?? _viewMode,
-      searchQuery: _cached?.searchQuery ?? '',
-      quickFilters: _cached?.quickFilters ?? {BoxQuickFilter.all},
-      advancedFilter: _cached?.advancedFilter ?? BoxFilterState.initial,
-      canCreateBox: _cached?.canCreateBox ?? false,
-      canEditBox: _cached?.canEditBox ?? false,
-      canPerformActions: _cached?.canPerformActions ?? false,
-    );
-  }
+  Future<BoxesStateData> _reload() => getBoxesSummary(
+    farmingAreaId: _selectedAreaId,
+    forceRefresh: true,
+    viewMode: _viewMode,
+  );
 
   @override
   Future<BoxesStateData> updateBox({
@@ -263,123 +294,58 @@ class BoxesRepositoryImpl implements BoxesRepository {
     bool canPerformActions = false,
   }) async {
     _viewMode = viewMode;
-
-    if (_cached != null &&
-        !forceRefresh &&
-        (farmingAreaId == null || farmingAreaId == _cached!.selectedFarmId)) {
-      return applyLocalFilters(
-        current: _cached!.copyWith(
-          canCreateBox: canCreateBox,
-          canEditBox: canEditBox,
-          canPerformActions: canPerformActions,
-          viewMode: viewMode,
-        ),
-        searchQuery: searchQuery,
-        quickFilters: quickFilters,
-        advancedFilter: advancedFilter,
-      );
-    }
-
-    try {
-      await _loadLayoutOrder();
-      var farms = await _fetchFarms();
-      final selected = _resolveFarm(
-        farms,
-        farmingAreaId ?? _cached?.selectedFarmId,
-      );
-      if (selected != null && !farms.any((f) => f.id == selected.id)) {
-        farms = [selected, ...farms];
-      }
-      final areaId = selected?.id;
-
-      final overview = await _fetchOverview(areaId);
-      final boxes = overview.boxes;
-      final areas =
-          boxes.map((b) => b.location.areaName).toSet().toList()..sort();
-
-      final lockedId = (farmingAreaId != null && farmingAreaId.isNotEmpty)
-          ? farmingAreaId
-          : selected?.id;
-      final lockedName = selected?.name ??
-          overview.farmName ??
-          _cached?.selectedFarmName ??
-          'Chưa có trang trại';
-
-      final base = BoxesStateData(
-        selectedFarmId: lockedId ?? overview.farmingAreaId,
-        selectedFarmName: lockedName,
-        availableFarms: farms,
-        availableAreas: areas,
-        allBoxes: boxes,
-        visibleBoxes: boxes,
-        overview: overview.summary,
-        searchQuery: searchQuery,
-        quickFilters: quickFilters.isEmpty
-            ? {BoxQuickFilter.all}
-            : quickFilters,
-        advancedFilter: advancedFilter,
-        viewMode: _viewMode,
-        boxLayoutOrder: _layoutOrder,
-        isOnline: true,
-        isOfflineCached: false,
-        lastSyncedAt: overview.syncedAt ?? DateTime.now(),
-        recentSearches: List.unmodifiable(_recentSearches),
-        canCreateBox: canCreateBox,
-        canEditBox: canEditBox,
-        canPerformActions: canPerformActions,
-      );
-
-      final filtered = applyLocalFilters(
-        current: base,
-        searchQuery: searchQuery,
-        quickFilters: quickFilters,
-        advancedFilter: advancedFilter,
-      );
-      _cached = filtered;
-      return filtered;
-    } catch (e) {
-      // Đổi khu: đừng trả cache khu cũ — UI sẽ nhảy về khu trước và tưởng dropdown hỏng.
-      if (forceRefresh &&
-          farmingAreaId != null &&
-          farmingAreaId.isNotEmpty &&
-          farmingAreaId != _cached?.selectedFarmId) {
-        rethrow;
-      }
-      if (_cached != null) {
-        final offline = _cached!.copyWith(
-          isOnline: false,
-          isOfflineCached: true,
-          canCreateBox: canCreateBox,
-          canEditBox: canEditBox,
-          canPerformActions: canPerformActions,
-          viewMode: viewMode,
-          sectionError: e.toString(),
-        );
-        return applyLocalFilters(
-          current: offline,
-          searchQuery: searchQuery,
-          quickFilters: quickFilters,
-          advancedFilter: advancedFilter,
-        );
-      }
-      rethrow;
-    }
+    // No previous snapshot may authorize a new request or survive a failure.
+    final generation = ++_generation;
+    final revision = _revision();
+    _selectedAreaId = null;
+    if (!await _networkAvailable()) throw StateError('Boxes unavailable offline');
+    final identity = await _identity();
+    await _verify(generation, revision, identity);
+    await _loadLayoutOrder();
+    await _verify(generation, revision, identity);
+    final farms = await _fetchFarms(identity);
+    await _verify(generation, revision, identity);
+    // A stored selection may belong to a previous account or revoked area.
+    // Select only an area present in the freshly authorized inventory.
+    final selected = farms.where((f) =>
+        f.id.toLowerCase() == farmingAreaId?.toLowerCase()).firstOrNull
+        ?? farms.firstOrNull;
+    final areaId = selected?.id;
+    final overview = areaId == null
+        ? const _OverviewPayload(boxes: [], summary: FarmBoxesOverview.empty)
+        : await _fetchOverview(areaId, identity);
+    await _verify(generation, revision, identity);
+    final boxes = overview.boxes;
+    final base = BoxesStateData(
+      selectedFarmId: areaId,
+      selectedFarmName: selected?.name ?? 'Chưa có khu được phân công',
+      availableFarms: List.unmodifiable(farms),
+      availableAreas: boxes.map((b) => b.location.areaName).toSet().toList()..sort(),
+      allBoxes: List.unmodifiable(boxes),
+      visibleBoxes: List.unmodifiable(boxes),
+      overview: overview.summary,
+      searchQuery: searchQuery,
+      quickFilters: quickFilters.isEmpty ? {BoxQuickFilter.all} : quickFilters,
+      advancedFilter: advancedFilter,
+      viewMode: _viewMode,
+      boxLayoutOrder: _layoutOrder,
+      isOnline: true,
+      isOfflineCached: false,
+      lastSyncedAt: overview.syncedAt,
+      recentSearches: List.unmodifiable(_recentSearches),
+      canCreateBox: canCreateBox,
+      canEditBox: canEditBox,
+      canPerformActions: canPerformActions,
+    );
+    _selectedAreaId = areaId;
+    return applyLocalFilters(current: base, searchQuery: searchQuery,
+      quickFilters: quickFilters, advancedFilter: advancedFilter);
   }
 
   @override
-  Future<BoxesStateData> switchFarm(String farmId) {
-    return getBoxesSummary(
-      farmingAreaId: farmId,
-      forceRefresh: true,
-      viewMode: _cached?.viewMode ?? _viewMode,
-      searchQuery: _cached?.searchQuery ?? '',
-      quickFilters: _cached?.quickFilters ?? {BoxQuickFilter.all},
-      advancedFilter: _cached?.advancedFilter ?? BoxFilterState.initial,
-      canCreateBox: _cached?.canCreateBox ?? false,
-      canEditBox: _cached?.canEditBox ?? false,
-      canPerformActions: _cached?.canPerformActions ?? false,
-    );
-  }
+  Future<BoxesStateData> switchFarm(String farmId) => getBoxesSummary(
+    farmingAreaId: farmId, forceRefresh: true, viewMode: _viewMode,
+  );
 
   @override
   BoxesStateData applyLocalFilters({
@@ -553,277 +519,60 @@ class BoxesRepositoryImpl implements BoxesRepository {
     return sorted;
   }
 
-  FarmAreaOption? _resolveFarm(List<FarmAreaOption> farms, String? preferredId) {
-    if (preferredId != null && preferredId.isNotEmpty) {
-      for (final f in farms) {
-        if (f.id.toLowerCase() == preferredId.toLowerCase()) return f;
-      }
-      final knownName = _cached?.availableFarms
-              .where((f) => f.id == preferredId)
-              .map((f) => f.name)
-              .firstOrNull ??
-          (_cached?.selectedFarmId == preferredId
-              ? _cached!.selectedFarmName
-              : null);
-      return FarmAreaOption(
-        id: preferredId,
-        name: (knownName != null && knownName.isNotEmpty) ? knownName : 'Khu nuôi',
-      );
-    }
-    if (farms.isEmpty) return null;
-    return farms.first;
-  }
-
-  Future<List<FarmAreaOption>> _fetchFarms() async {
-    final res = await _api.get(
-      ApiConstants.farmingAreas,
+  Future<List<FarmAreaOption>> _fetchFarms(HistoryIdentity identity) async {
+    final res = await _api.get(ApiConstants.farmingAreas,
       queryParameters: const {'page': 1, 'pageSize': 200},
-    );
-    if (res.statusCode == 200 && res.data != null) {
-      final list = _extractList(res.data);
-      if (list != null) {
-        final farms = <FarmAreaOption>[];
-        final seen = <String>{};
-        for (final item in list) {
-          final map = _asMap(item);
-          if (map == null) continue;
-          final id = map['id']?.toString().trim() ?? '';
-          if (id.isEmpty || !seen.add(id)) continue;
-          final name = (map['name'] ?? map['code'] ?? map['areaName'])
-              ?.toString()
-              .trim();
-          farms.add(FarmAreaOption(
-            id: id,
-            name: (name == null || name.isEmpty) ? 'Khu nuôi' : name,
-          ));
-        }
-        return farms;
-      }
-    }
-    return const [];
-  }
-
-  Future<_OverviewPayload> _fetchOverview(String? farmingAreaId) async {
-    final query = <String, dynamic>{};
-    if (farmingAreaId != null && farmingAreaId.isNotEmpty) {
-      query['farmingAreaId'] = farmingAreaId;
-    }
-
-    try {
-      final res = await _api.get(
-        ApiConstants.boxesOverview,
-        queryParameters: query.isEmpty ? null : query,
-      );
-      if (res.statusCode == 200 && res.data != null) {
-        return _parseOverview(res.data);
-      }
-    } on DioException catch (e) {
-      // Older backends without /overview — compose from farming-status + IoT.
-      if (e.response?.statusCode == 404) {
-        return _fetchOverviewFallback(farmingAreaId);
-      }
-      rethrow;
-    }
-
-    return _fetchOverviewFallback(farmingAreaId);
-  }
-
-  Future<_OverviewPayload> _fetchOverviewFallback(String? farmingAreaId) async {
-    final query = <String, dynamic>{};
-    if (farmingAreaId != null && farmingAreaId.isNotEmpty) {
-      query['farmingAreaId'] = farmingAreaId;
-    }
-
-    final results = await Future.wait([
-      _api.get(
-        ApiConstants.boxesFarmingStatus,
-        queryParameters: query.isEmpty ? null : query,
-      ),
-      _api.get(
-        ApiConstants.waterQualityLatest,
-        queryParameters: query.isEmpty ? null : query,
-      ),
-      _api.get(
-        ApiConstants.alerts,
-        queryParameters: {
-          'activeOnly': true,
-          if (farmingAreaId != null && farmingAreaId.isNotEmpty)
-            'farmingAreaId': farmingAreaId,
-        },
-      ),
-      _api.get(
-        ApiConstants.devices,
-        queryParameters: query.isEmpty ? null : query,
-      ),
-    ]);
-
-    final statusList = _extractList(results[0].data) ?? const [];
-    final liveList = _extractList(results[1].data) ?? const [];
-    final alertList = _extractList(results[2].data) ?? const [];
-    final deviceList = _extractList(results[3].data) ?? const [];
-
-    final water = _waterFromLive(liveList);
-    final devices = _devicesFromList(deviceList);
-    final openAlerts = alertList.length;
-
-    final boxes = <BoxSummary>[];
-    var idx = 0;
-    for (final item in statusList) {
+      options: _pinned(identity));
+    final root = _asMap(res.data);
+    if (root?['success'] != true) throw const FormatException('Invalid areas envelope');
+    final list = _extractList(root!['data']);
+    if (list == null) throw const FormatException('Invalid areas inventory');
+    final farms = <FarmAreaOption>[];
+    final seen = <String>{};
+    for (final item in list) {
       final map = _asMap(item);
-      if (map == null) continue;
-      final id = map['boxId']?.toString() ?? map['id']?.toString();
-      final code = map['code']?.toString();
-      if (id == null || code == null) continue;
-
-      final areaId =
-          map['farmingAreaId']?.toString() ?? farmingAreaId ?? '';
-      final areaName = map['areaName']?.toString() ?? 'Khu nuôi';
-      final rowName = map['rowName']?.toString();
-      final apiStatus = map['status']?.toString();
-      final occupied = map['isOccupied'] == true;
-        final crabCount = (map['currentCrabCount'] as num?)?.toInt() ??
-          (map['crabCount'] as num?)?.toInt() ??
-          (map['currentCrabId'] != null ? 1 : 0);
-
-      final crabCondition = map['crabCondition']?.toString();
-      final boxStatus = _boxStatus(
-        apiStatus: apiStatus,
-        crabCount: crabCount,
-        crabCondition: crabCondition,
-      );
-      // Điểm sức khỏe vẫn lấy từ `healthStatus` của BE (tín hiệu tổng hợp nước
-      // + thiết bị + cua). KHÔNG lấy từ [BoxStatus]: BoxStatus giờ chỉ phản ánh
-      // tình trạng cua nên mọi hộp cua khỏe đều ra 90 điểm như nhau.
-      final score = _scoreFromHealth(
-        map['healthStatus']?.toString(),
-        openAlerts,
-        devices,
-      );
-      final trend = BoxTrend.stable;
-      final needsAttention = boxStatus == BoxStatus.alert;
-      final isCalm =
-          boxStatus == BoxStatus.normal || boxStatus == BoxStatus.empty;
-
-      boxes.add(
-        BoxSummary(
-          id: id,
-          code: code,
-          name: code,
-          qrCode: code,
-          farmId: areaId,
-          farmName: areaName,
-          location: BoxMapLocation(
-            gridX: (idx % 6) + 0.5,
-            gridY: (idx ~/ 6) + 0.5,
-            areaName: areaName,
-            areaId: areaId,
-            rowName: rowName,
-          ),
-          status: boxStatus,
-          healthScore: BoxHealthScore.fromScore(
-            score,
-            devices.totalCount == 0 ? 70 : 75.0 + devices.onlineCount * 5,
-            trend,
-          ),
-          crabCount: crabCount,
-          crabType: map['currentMoltingStage']?.toString(),
-          batch: map['currentCrabTag']?.toString(),
-          crabCondition: crabCondition,
-          water: water,
-          devices: devices,
-          alerts: openAlerts > 0 && occupied
-              ? BoxAlertSummary(
-                  count: needsAttention ? openAlerts.clamp(1, 3) : 1,
-                  latestTitle: 'Cảnh báo khu nuôi',
-                  latestAt: DateTime.now(),
-                )
-              : BoxAlertSummary.none,
-          aiRecommendation: isCalm
-              ? BoxAIRecommendation.none
-              : BoxAIRecommendation(
-                  hasRecommendation: true,
-                  title: needsAttention
-                      ? 'Ưu tiên kiểm tra nước'
-                      : 'Theo dõi box $code',
-                  description: 'Dựa trên trạng thái farming + cảnh báo khu',
-                  priority: needsAttention
-                      ? ActionPriorityLevel.high
-                      : ActionPriorityLevel.medium,
-                ),
-          lastUpdated: DateTime.tryParse(
-                map['lastUpdated']?.toString() ??
-                    map['updatedAt']?.toString() ??
-                    '',
-              ) ??
-              DateTime.now(),
-          expectedHarvestAt: apiStatus?.toLowerCase() == 'molting'
-              ? DateTime.now().add(const Duration(hours: 6))
-              : null,
-          waterTestDue: water.temperature == null && water.ph == null,
-          videoDue: apiStatus?.toLowerCase() == 'molting',
-          syncStatus: BoxSyncStatus.synced,
-          priority: needsAttention
-              ? ActionPriorityLevel.high
-              : ActionPriorityLevel.low,
-        ),
-      );
-      idx++;
+      final id = map?['id']?.toString().trim() ?? '';
+      if (id.isEmpty || !seen.add(id.toLowerCase())) {
+        throw const FormatException('Invalid area identity');
+      }
+      final name = (map?['name'] ?? map?['code'])?.toString().trim();
+      farms.add(FarmAreaOption(id: id,
+        name: name == null || name.isEmpty ? 'Khu nuôi' : name));
     }
-
-    return _OverviewPayload(
-      farmingAreaId: farmingAreaId,
-      farmName: boxes.isNotEmpty ? boxes.first.farmName : null,
-      boxes: boxes,
-      summary: FarmBoxesOverview.fromBoxes(boxes),
-      syncedAt: DateTime.now(),
-    );
+    return farms;
   }
 
-  _OverviewPayload _parseOverview(dynamic data) {
-    final root = _asMap(data);
-    final payload = _asMap(root?['data']) ?? root;
-    if (payload == null) {
-      return const _OverviewPayload(boxes: [], summary: FarmBoxesOverview.empty);
+  Future<_OverviewPayload> _fetchOverview(String areaId, HistoryIdentity identity) async {
+    final res = await _api.get(ApiConstants.boxesOverview,
+      queryParameters: {'farmingAreaId': areaId}, options: _pinned(identity));
+    final root = _asMap(res.data);
+    final payload = _asMap(root?['data']);
+    if (root?['success'] != true || payload == null ||
+        payload['farmingAreaId']?.toString().toLowerCase() != areaId.toLowerCase() ||
+        payload['items'] is! List) {
+      throw const FormatException('Invalid scoped boxes envelope');
     }
-
-    final summaryMap = _asMap(payload['summary']);
-    final items = payload['items'] is List ? payload['items'] as List : const [];
     final boxes = <BoxSummary>[];
-
-    for (final item in items) {
+    final ids = <String>{};
+    for (final item in payload['items'] as List) {
       final map = _asMap(item);
-      if (map == null) continue;
-      try {
-        final box = _mapOverviewItem(map);
-        if (box != null) boxes.add(box);
-      } catch (_) {
-        // Skip malformed items so one bad box doesn't blank the whole tab.
+      if (map == null || map['farmingAreaId']?.toString().toLowerCase() != areaId.toLowerCase()) {
+        throw const FormatException('Box outside selected area');
       }
+      final box = _mapOverviewItem(map);
+      if (box == null || box.id.isEmpty || !ids.add(box.id.toLowerCase())) {
+        throw const FormatException('Invalid box identity');
+      }
+      boxes.add(box);
     }
-
-    // BE còn trả nhóm theo bộ từ vựng cũ (healthy/warning/critical/offline) nên
-    // đọc đúng key đó rồi quy về [BoxStatus]. Nhóm "lột xác" BE chưa có nên đếm
-    // từ chính các hộp đã map để không lệch với lưới.
-    final summary = summaryMap == null
-        ? FarmBoxesOverview.fromBoxes(boxes)
-        : FarmBoxesOverview(
-            total: (summaryMap['total'] as num?)?.toInt() ?? boxes.length,
-            normal: (summaryMap['healthy'] as num?)?.toInt() ?? 0,
-            watch: (summaryMap['warning'] as num?)?.toInt() ?? 0,
-            molting:
-                boxes.where((b) => b.status == BoxStatus.molting).length,
-            alert: (summaryMap['critical'] as num?)?.toInt() ?? 0,
-            withAiRecommendation:
-                (summaryMap['withAiRecommendation'] as num?)?.toInt() ?? 0,
-          );
-
-    return _OverviewPayload(
-      farmingAreaId: payload['farmingAreaId']?.toString(),
-      farmName: payload['farmName']?.toString(),
-      boxes: boxes,
-      summary: summary,
-      syncedAt: DateTime.tryParse(payload['syncedAt']?.toString() ?? ''),
-    );
+    final summary = _asMap(payload['summary']);
+    if (summary?['total'] != boxes.length) {
+      throw const FormatException('Incomplete boxes response');
+    }
+    final syncedAt = DateTime.tryParse(payload['syncedAt']?.toString() ?? '');
+    if (syncedAt == null) throw const FormatException('Missing boxes sync timestamp');
+    return _OverviewPayload(boxes: boxes, summary: FarmBoxesOverview.fromBoxes(boxes),
+      syncedAt: syncedAt);
   }
 
   BoxSummary? _mapOverviewItem(Map<String, dynamic> map) {
@@ -936,47 +685,6 @@ class BoxesRepositoryImpl implements BoxesRepository {
     );
   }
 
-  BoxWaterSnapshot _waterFromLive(List liveList) {
-    double? temp, ph, dout;
-    for (final item in liveList) {
-      final map = _asMap(item);
-      if (map == null) continue;
-      final type = (map['sensorType'] ?? map['type'] ?? '')
-          .toString()
-          .toLowerCase();
-      final raw = map['latestValue'] ?? map['value'] ?? map['currentValue'];
-      final val = raw is num ? raw.toDouble() : double.tryParse('$raw');
-      if (val == null) continue;
-      if (type.contains('temp') || type.contains('nhiệt')) temp = val;
-      if (type == 'ph' || type.contains('ph')) ph = val;
-      if (type == 'do' || type.contains('dissolved') || type.contains('oxy')) {
-        dout = val;
-      }
-    }
-    return BoxWaterSnapshot(
-      temperature: temp,
-      ph: ph,
-      dissolvedOxygen: dout,
-    );
-  }
-
-  BoxDeviceStatus _devicesFromList(List deviceList) {
-    if (deviceList.isEmpty) {
-      return BoxDeviceStatus.offline;
-    }
-    var online = 0;
-    for (final item in deviceList) {
-      final map = _asMap(item);
-      final st = map?['status']?.toString().toLowerCase() ?? '';
-      if (st == 'online') online++;
-    }
-    return BoxDeviceStatus(
-      isOnline: online > 0,
-      onlineCount: online,
-      totalCount: deviceList.length,
-    );
-  }
-
   /// Trạng thái hộp — suy đúng như `toFarmMapBox` bên desktop: hộp đang có cua
   /// thì lấy tình trạng XẤU NHẤT của cua trong hộp, chỉ khi hộp không còn cua
   /// sống mới xét `status` do BE trả.
@@ -998,25 +706,6 @@ class BoxesRepositoryImpl implements BoxesRepository {
           : BoxStatus.empty;
     }
     return boxStatusFromCrabCondition(crabCondition);
-  }
-
-  /// Điểm sức khỏe hộp lấy từ `healthStatus` của BE — tín hiệu tổng hợp nước +
-  /// thiết bị + cua. KHÔNG lấy từ [BoxStatus] vì BoxStatus chỉ phản ánh tình
-  /// trạng cua, dùng nó làm điểm thì mọi hộp cua khỏe đều 90 như nhau.
-  int _scoreFromHealth(
-    String? apiHealth,
-    int openAlerts,
-    BoxDeviceStatus devices,
-  ) {
-    var score = switch ((apiHealth ?? '').trim().toLowerCase()) {
-      'critical' => 40,
-      'offline' => 45,
-      'warning' => 65,
-      _ => 90,
-    };
-    score -= openAlerts.clamp(0, 5) * 2;
-    if (devices.totalCount > 0 && !devices.isOnline) score -= 10;
-    return score.clamp(0, 100);
   }
 
   List? _extractList(dynamic data) {
@@ -1042,13 +731,9 @@ class _OverviewPayload {
   const _OverviewPayload({
     required this.boxes,
     required this.summary,
-    this.farmingAreaId,
-    this.farmName,
     this.syncedAt,
   });
 
-  final String? farmingAreaId;
-  final String? farmName;
   final List<BoxSummary> boxes;
   final FarmBoxesOverview summary;
   final DateTime? syncedAt;
