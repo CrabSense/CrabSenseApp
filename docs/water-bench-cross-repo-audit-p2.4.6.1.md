@@ -162,3 +162,6 @@ Water AI #10 merged df0d4a6; CI #39/#40 and private cross #12/#13 PASS, exact BE
 
 ## T08 media acceptance — 2026-11-28
 Water AI #11 merged 3fa11fe; Python #43 15 passed/1 warning, private cross #14/#15 both modes passed 1/1 no skip; App #92 merged 3454036 with all main checks PASS. Water AI #12 4b31e1f adds private ACL denial, receipt hash readback, post-receipt tamper and no inference reservation tests (storage double). Added read-only actual provider smoke and isolated write/ACL/quota acceptance guide; live tests not executed. Journal 75. T08 remains open for CI and real Drive/physical acceptance.
+
+## T09 snapshot consistency — 2026-11-28
+Water AI #12 merged cb55a0c, #45/#46 and cross #16/#17 both modes PASS (1/1 each no skip, 15 Python); App #93 merged 230cd7c with all main checks PASS. T09 first increment validates complete receipt inventory and batch/connection identities, unique channel/receipt IDs and review publication assessment/measurand in both Dart monitors. Four regression tests added. CI pending. Live Drive/JWT/native and full T09 cross-client acceptance remain open. Journal 76.

@@ -68,6 +68,9 @@ class BenchChannel {
     final v = publication['value'];
     return review?['status'] == 'published' &&
         review?['publicationScope'] == 'water_bench_reviewed_record' &&
+        review?['assessmentId'] == assessment['id'] &&
+        publication['assessmentId'] == assessment['id'] &&
+        publication['unit'] == assessment['unit'] &&
         publication['source'] == 'operator_attested_independent_reference' &&
         publication['productionSensorPublished'] == false &&
         benchUnit(analyte, publication['unit']) &&
@@ -81,4 +84,62 @@ class BenchDetail {
   final BenchJson timeline, receipts;
   final bool stale;
   final List<BenchChannel> channels;
+}
+
+/// Validate one complete server inventory before exposing any channel data.
+/// This is metadata consistency, not live Drive or chemical verification.
+void verifyBenchSnapshot(BenchBatch batch, BenchJson timeline,
+    BenchJson receipts, List<BenchJson> channelSets) {
+  bool matches(BenchJson row) => row['stationId'] == batch.stationId &&
+      row['bootId'] == batch.bootId && row['batchId'] == batch.batchId;
+  if (!matches(timeline) || !matches(receipts) ||
+      receipts['inventoryComplete'] != true ||
+      receipts['receiptBasis'] != 'persisted_backend_evidence' ||
+      receipts['timelineStatus'] != timeline['status']) {
+    throw const FormatException('Danh tính hoặc biên nhận WaterBench không khớp.');
+  }
+  final raw = receipts['items'];
+  final rows = benchRows(raw);
+  if (raw is! List || raw.length != rows.length ||
+      receipts['total'] != rows.length || rows.length > 517 ||
+      rows.isEmpty) {
+    throw const FormatException('Danh sách biên nhận không đầy đủ.');
+  }
+  final ids = <String>{}, events = <String>{}, media = <String>{};
+  final digest = RegExp(r'^[0-9a-f]{64}$');
+  for (final row in rows) {
+    final id = row['receiptId'], event = row['eventId'];
+    if (id is! String || !benchGuid(id) || !ids.add(id) ||
+        event is! String || !benchGuid(event) || !events.add(event) ||
+        row['connectionId'] != timeline['connectionId'] ||
+        !digest.hasMatch(row['serverPayloadSha256']?.toString() ?? '') ||
+        !const ['batch', 'media', 'nh3'].contains(row['kind'])) {
+      throw const FormatException('Biên nhận trùng hoặc sai liên kết.');
+    }
+    if (row['kind'] == 'media') {
+      final id = row['mediaId'];
+      if (id is! String || !benchGuid(id) || !media.add(id) ||
+          !digest.hasMatch(row['sha256']?.toString() ?? '')) {
+        throw const FormatException('Biên nhận ảnh không hợp lệ.');
+      }
+    }
+  }
+  if (!benchGuid(timeline['connectionId']?.toString() ?? '') ||
+      !rows.any((r) => r['evidenceKind'] == 'batch_start' && r['kind'] == 'batch') ||
+      receipts['timelineCount'] != rows.where((r) => r['kind'] == 'batch').length ||
+      receipts['mediaCount'] != media.length || media.length > 3 ||
+      receipts['nh3Count'] != rows.where((r) => r['kind'] == 'nh3').length ||
+      (receipts['nh3Count'] as int) > 2) {
+    throw const FormatException('Số lượng biên nhận không nhất quán.');
+  }
+  for (final set in [timeline, ...channelSets]) {
+    final raw = set['channels'];
+    final channels = benchRows(raw);
+    final seen = <Object?>{};
+    if (raw is! List || raw.length != channels.length ||
+        channels.any((c) => !benchAnalytes.contains(c['analyte']) ||
+            !seen.add(c['analyte']))) {
+      throw const FormatException('Danh sách kênh WaterBench không hợp lệ.');
+    }
+  }
 }
