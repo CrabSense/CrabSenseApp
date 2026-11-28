@@ -195,3 +195,6 @@ Kiosk #33 merged 3447793, #83/#84 all PASS; both exact BE 6648750 cross jobs 1/1
 
 ## T11 private integration accepted and REC04 instrumentation — 2026-11-28
 Private AI #14 merged 0b770f6, #51/#52 and cross #20/#21 both modes PASS, 1/1/no skip per job, exact BE 6648750/Kiosk 3447793; Python 15 passed/1 warning. App #103 merged fc71a44 and all main checks PASS. BE #117 84bd3a7 adds mandatory separate measured backup/restore metrics and retained TRX outside disposable cluster, artifacts 14 days; CI pending. Journal 86. Do not infer production RTO/RPO from isolated service-call times. SEC02/actual backup integrity, offsite, media and production/physical acceptance open.
+
+## REC04 acceptance — 2026-11-28
+BE #117 merged 6e1fd8d, CI #440/#441 PASS. Downloaded/inspected recovery artifacts 15266347768/15267215600: exact two files, TRX 1/1/no skip, 107 tables, SHA-256 verified; PR backup/restore 204/480ms, main 300/832ms, restore includes safety backup. Scope isolated synthetic only. App #104 merged 757cc9d, all main checks PASS. VPS #232 pending at review; dependent pins still BE 6648750. Branch protection 403 across five repos, BE Sonar scan skipped, production checksum/offsite/RTO/RPO/media and live acceptance open. Journal 87.
