@@ -1,9 +1,6 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
-import '../../../../core/di/injection.dart';
-import '../../../../core/network/network_info.dart';
-import '../../../authentication/data/datasources/auth_local_data_source.dart';
 import '../../../water_quality/data/datasources/water_quality_remote_data_source.dart';
 import '../../../water_quality/data/repositories/scoped_history_service.dart';
 import '../../../water_quality/domain/entities/water_quality.dart';
@@ -16,39 +13,102 @@ import '../../domain/repositories/home_repository.dart';
 /// Production Implementation of HomeRepository wired to CrabSense Backend APIs.
 /// Scopes dashboard / boxes / ops by selected [farmingAreaId].
 class HomeRepositoryImpl implements HomeRepository {
-  HomeRepositoryImpl({required ApiClient api}) : _api = api;
+  HomeRepositoryImpl({required ApiClient api,
+    required Future<HistoryIdentity> Function() identity,
+    required int Function() revision,
+    required bool Function(String) boundUser,
+    required Future<bool> Function() networkAvailable,
+  }) : _api = api, _identity = identity, _revision = revision,
+       _boundUser = boundUser, _networkAvailable = networkAvailable;
 
   final ApiClient _api;
-  HomeStateData? _cachedData;
+  final Future<HistoryIdentity> Function() _identity;
+  final int Function() _revision;
+  final bool Function(String) _boundUser;
+  final Future<bool> Function() _networkAvailable;
+  int _generation = 0;
 
-  Map<String, dynamic>? _areaQuery(String? farmingAreaId) {
-    if (farmingAreaId == null || farmingAreaId.isEmpty) return null;
-    return {'farmingAreaId': farmingAreaId};
-  }
+  void invalidate() => ++_generation;
 
   @override
   Future<HomeStateData> getHomeSummary({
-    bool forceRefresh = false,
-    String? farmingAreaId,
+    bool forceRefresh = false, String? farmingAreaId,
   }) async {
-    final requestedAreaId = farmingAreaId ?? _cachedData?.selectedFarmId;
-
-    if (_cachedData != null &&
-        !forceRefresh &&
-        _cachedData!.waterMetrics.isEmpty &&
-        requestedAreaId == _cachedData!.selectedFarmId) {
-      return _cachedData!;
+    final generation = ++_generation;
+    final revision = _revision();
+    final identity = await _identity();
+    Future<void> verify() async {
+      if (generation != _generation || revision != _revision() ||
+          !_boundUser(identity.userId) || !await _networkAvailable()) {
+        throw StateError('Home session or transport unavailable');
+      }
+      final current = await _identity();
+      if (generation != _generation || revision != _revision() ||
+          !_boundUser(identity.userId) || !identity.matches(current)) {
+        throw StateError('Home session changed');
+      }
     }
+    await verify();
+    final result = await _HomeRead(_api, identity, revision, verify)
+        .load(farmingAreaId);
+    await verify();
+    return result;
+  }
 
-    try {
+  @override
+  Future<HomeStateData> switchFarm(String farmId) =>
+      getHomeSummary(forceRefresh: true, farmingAreaId: farmId);
+
+  @override
+  Future<void> dismissRecommendation(String recommendationId) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+  }
+}
+
+/// A read owns its credential and revision; overlapping reads never share them.
+class _HomeRead {
+  _HomeRead(this._api, this._identity, this._revision, this._verify);
+  final ApiClient _api;
+  final HistoryIdentity _identity;
+  final int _revision;
+  final Future<void> Function() _verify;
+
+  Future<Response<T>> _get<T>(String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    await _verify();
+    final res = await _api.get<T>(path, queryParameters: queryParameters,
+      options: Options(
+        followRedirects: false,
+        validateStatus: (status) => status == 200,
+        headers: {'Authorization': 'Bearer ${_identity.accessToken}'},
+        extra: const {'skipAuthInterceptor': true, 'skipTokenRefresh': true,
+          'skipSensitiveLogging': true},
+      ));
+    await _verify();
+    final body = _asStringKeyedMap(res.data);
+    if (body == null || body['success'] != true || !body.containsKey('data')) {
+      throw const FormatException('Invalid Home API envelope');
+    }
+    return res;
+  }
+
+  Map<String, dynamic> _areaQuery(String? farmingAreaId) {
+    if (farmingAreaId == null || farmingAreaId.isEmpty || farmingAreaId == 'default') {
+      throw StateError('Home area unavailable');
+    }
+    return {'farmingAreaId': farmingAreaId};
+  }
+
+  Future<HomeStateData> load(String? requestedAreaId) async {
       final now = DateTime.now();
-
       final userInfo = await _fetchUserInfo();
-      final userId = userInfo?['id']?.toString();
-
-      final farmsList = await _fetchFarms(userId);
+      final farmsList = await _fetchFarms();
       final selectedFarm = _resolveSelectedFarm(farmsList, requestedAreaId);
-      final areaId = selectedFarm?.id;
+      if (selectedFarm == null) {
+        throw StateError('Chưa có khu nuôi được xác minh quyền truy cập.');
+      }
+      final areaId = selectedFarm.id;
 
       final results = await Future.wait(
         [
@@ -63,9 +123,7 @@ class HomeRepositoryImpl implements HomeRepository {
           _fetchScheduledTasksToday(areaId),
           _fetchRecentActivities(areaId),
           _fetchUnreadNotificationsCount(),
-          _fetchFeedingHistory(),
-          _fetchBoxStatusHistory(),
-        ].map((p) => p.catchError((_) => null)),
+        ],
       );
 
       final boxInfo = results[0] as Map<String, int>?;
@@ -73,55 +131,29 @@ class HomeRepositoryImpl implements HomeRepository {
       final waterMetrics = results[2] as List<WaterMetricItem>?;
       final deviceSummary = results[3] as DeviceSummary?;
       final overview = results[4] as FarmSummary?;
+      if (overview == null) throw const FormatException('Missing Home overview');
       final healthScore = results[5] as FarmHealthScore?;
       final aiRecommendation = results[6] as AiRecommendation?;
       final todayTasks = results[7] as List<TodayTaskItem>?;
       final scheduledTasks = results[8] as List<TodayTaskItem>? ?? const [];
       final recentActivities = results[9] as List<RecentActivityItem>?;
       final unreadFromApi = results[10] as int?;
-      final feedingHistory = results[11] as List<FeedingHistoryDay>?;
-      final boxStatusHistory = results[12] as List<BoxStatusHistoryDay>?;
 
       final operatorName =
-          userInfo?['fullName']?.toString() ??
-          userInfo?['name']?.toString() ??
-          userInfo?['username']?.toString() ??
+          userInfo['fullName']?.toString() ??
+          userInfo['name']?.toString() ??
+          userInfo['username']?.toString() ??
           'Cán bộ vận hành';
       final alertsList =
           alertsData?['items'] as List<AlertSummaryItem>? ?? const [];
-      final openAlertsCount =
-          unreadFromApi ??
-          overview?.openAlerts ??
-          alertsData?['openCount'] as int? ??
-          alertsList.length;
-
-      final computedIotPct =
-          deviceSummary != null &&
-              (deviceSummary.esp32Total + deviceSummary.cameraTotal) > 0
-          ? (((deviceSummary.esp32Online + deviceSummary.cameraOnline) /
-                        (deviceSummary.esp32Total +
-                            deviceSummary.cameraTotal)) *
-                    100)
-                .roundToDouble()
-          : overview?.iotOnlinePercentage ?? 0.0;
-
       final summary = HomeStateData(
         operatorName: operatorName,
-        selectedFarmId: selectedFarm?.id,
-        selectedFarmName: selectedFarm?.name ?? 'Chưa có trang trại',
+        selectedFarmId: selectedFarm.id,
+        selectedFarmName: selectedFarm.name,
         availableFarms: farmsList,
         isOnline: true,
-        unreadNotificationsCount: openAlertsCount,
-        farmSummary:
-            overview ??
-            FarmSummary(
-              totalBoxes: boxInfo?['total'] ?? 0,
-              totalCrabs: 0,
-              activeBoxes: boxInfo?['active'] ?? 0,
-              openAlerts: openAlertsCount,
-              iotOnlinePercentage: computedIotPct,
-              lastUpdated: now,
-            ),
+        unreadNotificationsCount: unreadFromApi ?? 0,
+        farmSummary: overview,
         healthScore:
             healthScore ??
             FarmHealthScore(
@@ -139,12 +171,10 @@ class HomeRepositoryImpl implements HomeRepository {
         topAlerts: alertsList,
         waterMetrics: waterMetrics ?? const [],
           todayTasks: [...?todayTasks, ...scheduledTasks],
-        feedingHistory: feedingHistory ?? const [],
-        boxStatusHistory: _mergeStatusHistory(
-          boxStatusHistory,
-          feedingHistory,
-          boxInfo,
-        ),
+        // These history routes lack an explicit area contract. Never show
+        // authorized-all-area history under a specific area selection.
+        feedingHistory: const [],
+        boxStatusHistory: const [],
         boxStatusCounts: boxInfo ?? const {},
         deviceSummary:
             deviceSummary ??
@@ -163,41 +193,7 @@ class HomeRepositoryImpl implements HomeRepository {
         lastSyncedAt: now,
       );
 
-      _cachedData = summary;
       return summary;
-    } catch (e) {
-      if (_cachedData != null && requestedAreaId == _cachedData!.selectedFarmId) {
-        return HomeStateData(
-          operatorName: _cachedData!.operatorName,
-          selectedFarmId: _cachedData!.selectedFarmId,
-          selectedFarmName: _cachedData!.selectedFarmName,
-          availableFarms: _cachedData!.availableFarms,
-          isOnline: false,
-          unreadNotificationsCount: _cachedData!.unreadNotificationsCount,
-          farmSummary: _cachedData!.farmSummary,
-          healthScore: _cachedData!.healthScore,
-          aiRecommendation: _cachedData!.aiRecommendation,
-          topAlerts: _cachedData!.topAlerts,
-          waterMetrics: const [],
-          todayTasks: _cachedData!.todayTasks,
-          deviceSummary: _cachedData!.deviceSummary,
-          recentActivities: _cachedData!.recentActivities,
-          isOfflineCached: true,
-          lastSyncedAt: _cachedData!.lastSyncedAt ?? DateTime.now(),
-        );
-      }
-      rethrow;
-    }
-  }
-
-  @override
-  Future<HomeStateData> switchFarm(String farmId) async {
-    return getHomeSummary(forceRefresh: true, farmingAreaId: farmId);
-  }
-
-  @override
-  Future<void> dismissRecommendation(String recommendationId) async {
-    await Future.delayed(const Duration(milliseconds: 50));
   }
 
   FarmOption? _resolveSelectedFarm(
@@ -210,7 +206,7 @@ class HomeRepositoryImpl implements HomeRepository {
           return farm;
         }
       }
-      return FarmOption(id: preferredId, name: 'Khu nuôi');
+      // A persisted selection may have been revoked. Only use a fresh allowed area.
     }
     if (farms.isEmpty) return null;
     return farms.first;
@@ -249,62 +245,47 @@ class HomeRepositoryImpl implements HomeRepository {
     return farms;
   }
 
-  Future<Map<String, dynamic>?> _fetchUserInfo() async {
-    try {
-      final res = await _api.get(ApiConstants.currentUser);
-      if (res.statusCode == 200 && res.data != null) {
-        final root = _asStringKeyedMap(res.data);
-        final raw = root?['data'] ?? res.data;
-        return _asStringKeyedMap(raw);
-      }
-    } catch (_) {}
-    return null;
+  Future<Map<String, dynamic>> _fetchUserInfo() async {
+    final res = await _get(ApiConstants.currentUser);
+    final root = _asStringKeyedMap(res.data);
+    final user = _asStringKeyedMap(root?['data']);
+    if (user == null || user['id']?.toString().toLowerCase() != _identity.userId.toLowerCase()) {
+      throw StateError('Home actor mismatch');
+    }
+    return user;
   }
 
-  Future<List<FarmOption>> _fetchFarms([String? ownerId]) async {
-    Future<List<FarmOption>> request(Map<String, dynamic>? query) async {
-      final merged = <String, dynamic>{'page': 1, 'pageSize': 200, ...?query};
-      final res = await _api.get(
-        ApiConstants.farmingAreas,
-        queryParameters: merged,
-      );
-      if (res.statusCode == 200 && res.data != null) {
-        final list = _extractList(res.data);
-        if (list != null && list.isNotEmpty) {
-          return _mapFarms(list);
-        }
-      }
-      return const [];
+  Future<List<FarmOption>> _fetchFarms() async {
+    final res = await _get(ApiConstants.farmingAreas,
+      queryParameters: const {'page': 1, 'pageSize': 200});
+    final list = _extractList(res.data);
+    if (list == null) throw const FormatException('Invalid area inventory');
+    final farms = _mapFarms(list);
+    if (farms.length != list.length ||
+        farms.map((f) => f.id.toLowerCase()).toSet().length != farms.length ||
+        farms.any((f) => f.id.toLowerCase() == 'default')) {
+      throw const FormatException('Invalid area inventory identity');
     }
-
-    try {
-      final hasOwner = ownerId != null && ownerId.isNotEmpty;
-      final ownerLooksLikeGuid =
-          hasOwner && RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(ownerId);
-
-      if (ownerLooksLikeGuid) {
-        final scoped = await request({'ownerId': ownerId});
-        if (scoped.isNotEmpty) return scoped;
-      }
-
-      return request(null);
-    } catch (_) {
-      return const [];
-    }
+    return farms;
   }
 
   Future<Map<String, int>?> _fetchBoxes(String? farmingAreaId) async {
-    try {
-      final res = await _api.get(
-        ApiConstants.boxes,
-        queryParameters: _areaQuery(farmingAreaId),
-      );
+    final res = await _get(
+      ApiConstants.boxesOverview,
+      queryParameters: _areaQuery(farmingAreaId),
+    );
       if (res.statusCode == 200 && res.data != null) {
         final root = _asStringKeyedMap(res.data);
         final raw = _asStringKeyedMap(root?['data']) ?? root;
         if (raw != null) {
-          final items = raw['items'] is List ? raw['items'] as List : [];
-          final total = raw['totalCount'] as int? ?? items.length;
+          if (raw['farmingAreaId']?.toString().toLowerCase() != farmingAreaId?.toLowerCase() || raw['items'] is! List) {
+            throw const FormatException('Invalid scoped boxes overview');
+          }
+          final items = raw['items'] as List;
+          final summary = _asStringKeyedMap(raw['summary']);
+          if (summary?['total'] != items.length) throw const FormatException('Incomplete boxes overview');
+          final total = items.length;
+          final ids = <String>{};
           final counts = <String, int>{
             'normal': 0,
             'watch': 0,
@@ -314,7 +295,11 @@ class HomeRepositoryImpl implements HomeRepository {
           };
           for (final item in items) {
             final map = _asStringKeyedMap(item);
-            if (map == null) continue;
+            final id = map?['id']?.toString();
+            if (map == null || id == null || id.isEmpty || !ids.add(id.toLowerCase()) ||
+                map['farmingAreaId']?.toString().toLowerCase() != farmingAreaId?.toLowerCase()) {
+              throw const FormatException('Box outside Home area or duplicate');
+            }
             final occupied = map['isOccupied'] == true ||
                 ((map['crabCount'] as num?)?.toInt() ?? 0) > 0;
             final cc = (map['crabCondition'] ?? map['CrabCondition'] ?? '')
@@ -343,21 +328,16 @@ class HomeRepositoryImpl implements HomeRepository {
               counts['empty']!;
           return {'total': total, 'active': active, ...counts};
         }
-        if (res.data is List) {
-          final list = res.data as List;
-          return {'total': list.length, 'active': list.length};
-        }
       }
-    } catch (_) {}
-    return null;
+    throw const FormatException('Invalid scoped boxes overview');
   }
 
   Future<Map<String, dynamic>?> _fetchAlerts(String? farmingAreaId) async {
     final query = <String, dynamic>{'activeOnly': true};
     final area = _areaQuery(farmingAreaId);
-    if (area != null) query.addAll(area);
+    query.addAll(area);
 
-    final res = await _api.get(ApiConstants.alerts, queryParameters: query);
+    final res = await _get(ApiConstants.alerts, queryParameters: query);
     if (res.statusCode == 200 && res.data != null) {
       final list = _extractList(res.data);
       if (list != null) {
@@ -406,7 +386,7 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   Future<int?> _fetchUnreadNotificationsCount() async {
-    final res = await _api.get(ApiConstants.unreadNotificationCount);
+    final res = await _get(ApiConstants.unreadNotificationCount);
     if (res.statusCode != 200 || res.data == null) return null;
     final raw = res.data;
     Map<String, dynamic>? body;
@@ -426,36 +406,19 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   Future<List<WaterMetricItem>?> _fetchWaterMetrics(String? farmingAreaId) async {
-    if (farmingAreaId == null || farmingAreaId.isEmpty || farmingAreaId == 'default') return [];
-    final session = sl<ScopedHistoryService>();
-    final auth = sl<AuthLocalDataSource>();
-    final network = sl<NetworkInfo>();
-    final revision = session.revision;
-    if (!await historyNetworkAvailable(network)) return [];
-    final identity = await readHistoryIdentity(auth);
-    if (session.revision != revision) return [];
-    final res = await _api.get<Map<String,dynamic>>(
-      ApiConstants.waterQualityLatest,
-      queryParameters: _areaQuery(farmingAreaId),
-      options: Options(
-        followRedirects: false,
-        validateStatus: (status) => status == 200,
-        headers: {'Authorization': 'Bearer ${identity.accessToken}'},
-        extra: const {'skipAuthInterceptor': true, 'skipTokenRefresh': true,
-          'skipSensitiveLogging': true},
-      ),
-    );
-    final body = res.data;
-    if (body == null || body['success'] != true || body['data'] is! List) return [];
-    if (!await historyNetworkAvailable(network)) return [];
-    if (!identity.matches(await readHistoryIdentity(auth)) ||
-        session.revision != revision) return [];
+    if (farmingAreaId == null || farmingAreaId.isEmpty || farmingAreaId == 'default') {
+      throw StateError('Home area unavailable');
+    }
+    final res = await _get<Map<String, dynamic>>(ApiConstants.waterQualityLatest,
+      queryParameters: _areaQuery(farmingAreaId));
+    final body = res.data!;
+    if (body['data'] is! List) throw const FormatException('Invalid live water payload');
     return decodeHomeWaterMetrics(body['data'] as List,
-      areaId: farmingAreaId, revision: revision);
+      areaId: farmingAreaId, revision: _revision);
   }
 
   Future<DeviceSummary?> _fetchDevices(String? farmingAreaId) async {
-    final res = await _api.get(
+    final res = await _get(
       ApiConstants.devices,
       queryParameters: _areaQuery(farmingAreaId),
     );
@@ -507,7 +470,7 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   Future<FarmSummary?> _fetchOverview(String? farmingAreaId) async {
-    final res = await _api.get(
+    final res = await _get(
       ApiConstants.dashboardOverview,
       queryParameters: _areaQuery(farmingAreaId),
     );
@@ -530,7 +493,7 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   Future<FarmHealthScore?> _fetchHealthMetrics(String? farmingAreaId) async {
-    final res = await _api.get(
+    final res = await _get(
       ApiConstants.dashboardMetrics,
       queryParameters: _areaQuery(farmingAreaId),
     );
@@ -567,7 +530,7 @@ class HomeRepositoryImpl implements HomeRepository {
   Future<AiRecommendation?> _fetchAiRecommendation(
     String? farmingAreaId,
   ) async {
-    final res = await _api.get(
+    final res = await _get(
       ApiConstants.aiRecommendations,
       queryParameters: _areaQuery(farmingAreaId),
     );
@@ -612,7 +575,7 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   Future<List<TodayTaskItem>?> _fetchTodayTasks(String? farmingAreaId) async {
-    final res = await _api.get(
+    final res = await _get(
       ApiConstants.operationsToday,
       queryParameters: _areaQuery(farmingAreaId),
     );
@@ -649,7 +612,7 @@ class HomeRepositoryImpl implements HomeRepository {
   Future<List<TodayTaskItem>?> _fetchScheduledTasksToday(
     String? farmingAreaId,
   ) async {
-    final res = await _api.get(
+    final res = await _get(
       ApiConstants.scheduledTasks,
       queryParameters: _areaQuery(farmingAreaId),
     );
@@ -676,67 +639,13 @@ class HomeRepositoryImpl implements HomeRepository {
         .toList();
   }
 
-  Future<List<FeedingHistoryDay>?> _fetchFeedingHistory() async {
-    final res = await _api.get(
-      ApiConstants.operationsFeedingHistory,
-      queryParameters: const {'days': 7},
-    );
-    if (res.statusCode != 200 || res.data == null) return null;
-    final list = _extractList(res.data);
-    if (list == null) return const [];
-    return list
-        .map((item) {
-          final map = _asStringKeyedMap(item);
-          if (map == null) return null;
-          final date = DateTime.tryParse(map['date']?.toString() ?? '');
-          if (date == null) return null;
-          int number(String key) => (map[key] as num?)?.toInt() ?? 0;
-          return FeedingHistoryDay(
-            date: date,
-            many: number('many'),
-            little: number('little'),
-            none: number('none'),
-          );
-        })
-        .whereType<FeedingHistoryDay>()
-        .toList();
-  }
-
-  Future<List<BoxStatusHistoryDay>?> _fetchBoxStatusHistory() async {
-    final res = await _api.get(
-      ApiConstants.boxStatusHistoryDaily,
-      queryParameters: const {'days': 7},
-    );
-    if (res.statusCode != 200 || res.data == null) return null;
-    final list = _extractList(res.data);
-    if (list == null) return const [];
-    return list
-        .map((item) {
-          final map = _asStringKeyedMap(item);
-          if (map == null) return null;
-          final date = DateTime.tryParse(map['date']?.toString() ?? '');
-          if (date == null) return null;
-          int number(String key) => (map[key] as num?)?.toInt() ?? 0;
-          return BoxStatusHistoryDay(
-            date: date,
-            normal: number('normal'),
-            watch: number('watch'),
-            molting: number('molting'),
-            alert: number('alert'),
-            empty: number('empty'),
-          );
-        })
-        .whereType<BoxStatusHistoryDay>()
-        .toList();
-  }
-
   Future<List<RecentActivityItem>?> _fetchRecentActivities(
     String? farmingAreaId,
   ) async {
-    final res = await _api.get(
+    final res = await _get(
       ApiConstants.operationsRecent,
       queryParameters: {
-        ...?_areaQuery(farmingAreaId),
+        ..._areaQuery(farmingAreaId),
         'limit': 50,
       },
     );
@@ -772,131 +681,7 @@ class HomeRepositoryImpl implements HomeRepository {
         .toList();
   }
 
-  /// 7 ngày: API lịch sử tình trạng nếu có; hôm nay luôn = đếm hộp live.
-  /// Không lấy phiếu ăn để bịa "hộp trống = chưa cho ăn hôm nay".
-  List<BoxStatusHistoryDay> _mergeStatusHistory(
-    List<BoxStatusHistoryDay>? api,
-    List<FeedingHistoryDay>? feeding,
-    Map<String, int>? boxInfo,
-  ) {
-    DateTime dayOnly(DateTime d) => DateTime(d.year, d.month, d.day);
-    final today = dayOnly(DateTime.now());
-    final live = BoxStatusHistoryDay(
-      date: today,
-      normal: boxInfo?['normal'] ?? 0,
-      watch: boxInfo?['watch'] ?? 0,
-      molting: boxInfo?['molting'] ?? 0,
-      alert: boxInfo?['alert'] ?? 0,
-      empty: boxInfo?['empty'] ?? 0,
-    );
-
-    final byDay = <DateTime, BoxStatusHistoryDay>{};
-    if (api != null) {
-      for (final d in api) {
-        byDay[dayOnly(d.date)] = d;
-      }
-    }
-    if (byDay.isEmpty && feeding != null) {
-      for (final d in feeding) {
-        byDay[dayOnly(d.date)] = BoxStatusHistoryDay(
-          date: dayOnly(d.date),
-          normal: d.many,
-          watch: d.little,
-          molting: 0,
-          alert: d.none,
-          empty: 0,
-        );
-      }
-    }
-
-    final days = <BoxStatusHistoryDay>[];
-    BoxStatusHistoryDay? prev;
-    for (var i = 6; i >= 0; i--) {
-      final date = today.subtract(Duration(days: i));
-      if (i == 0) {
-        days.add(live);
-        break;
-      }
-      final cur = byDay[date];
-      if (cur != null) {
-        days.add(cur);
-        prev = cur;
-      } else if (prev != null) {
-        days.add(
-          BoxStatusHistoryDay(
-            date: date,
-            normal: prev.normal,
-            watch: prev.watch,
-            molting: prev.molting,
-            alert: prev.alert,
-            empty: prev.empty,
-          ),
-        );
-      } else {
-        days.add(
-          BoxStatusHistoryDay(
-            date: date,
-            normal: 0,
-            watch: 0,
-            molting: 0,
-            alert: 0,
-            empty: 0,
-          ),
-        );
-      }
-    }
-    return days;
-  }
-
-  HomeStateData _emptyDataState() {
-    final now = DateTime.now();
-    return HomeStateData(
-      operatorName: 'Cán bộ vận hành',
-      selectedFarmId: null,
-      selectedFarmName: 'Chưa có dữ liệu trang trại',
-      availableFarms: const [],
-      isOnline: false,
-      unreadNotificationsCount: 0,
-      farmSummary: FarmSummary(
-        totalBoxes: 0,
-        totalCrabs: 0,
-        activeBoxes: 0,
-        openAlerts: 0,
-        iotOnlinePercentage: 0,
-        lastUpdated: now,
-      ),
-      healthScore: FarmHealthScore(
-        score: 0,
-        statusLevel: HealthStatusLevel.good,
-        statusLabel: 'Chưa có chỉ số',
-        deltaVsYesterday: 0,
-        lastAiUpdated: now,
-        waterQualityScore: 0,
-        crabHealthScore: 0,
-        deviceStatusScore: 0,
-        explanation: 'Chưa kết nối dữ liệu từ Server.',
-      ),
-      aiRecommendation: AiRecommendation.empty,
-      topAlerts: const [],
-      waterMetrics: const [],
-      todayTasks: const [],
-      deviceSummary: const DeviceSummary(
-        esp32Online: 0,
-        esp32Total: 0,
-        cameraOnline: 0,
-        cameraTotal: 0,
-        pumpRunning: 0,
-        pumpTotal: 0,
-        valveReady: 0,
-        valveTotal: 0,
-      ),
-      recentActivities: const [],
-      isOfflineCached: true,
-      lastSyncedAt: now,
-    );
-  }
 }
-
 
 /// Reuse the environment decoder. A summary cannot manufacture an identity,
 /// receipt, threshold or measurement from a legacy row.
