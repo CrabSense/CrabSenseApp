@@ -292,35 +292,33 @@ class OwnerAttentionCard extends StatelessWidget {
     required this.items,
     required this.onViewAll,
     this.areaLabel,
-    this.alertBoxCount = 0,
+    this.alertBoxCount,
   });
 
   final List<(Color, String)> items;
   final VoidCallback onViewAll;
   final String? areaLabel;
-  final int alertBoxCount;
+  final int? alertBoxCount;
 
   @override
   Widget build(BuildContext context) {
-    final hasIssues = items.isNotEmpty || alertBoxCount > 0;
-    final count = alertBoxCount > 0
-        ? alertBoxCount
-        : items.where((e) => e.$1 == DashboardColors.risk).length;
+    final hasIssues = items.isNotEmpty || (alertBoxCount ?? 0) > 0;
+    final count = alertBoxCount;
     final area = (areaLabel == null || areaLabel!.isEmpty)
         ? 'khu hiện tại'
         : areaLabel!;
 
     return GlassCard(
-      color: hasIssues ? const Color(0xFFFFF4F4) : const Color(0xFFF3FBF8),
+      color: hasIssues ? const Color(0xFFFFF4F4) : const Color(0xFFF5F5F5),
       borderColor: hasIssues
           ? const Color(0xFFFECACA)
-          : DashboardColors.healthy.withValues(alpha: 0.35),
+          : DashboardColors.textMuted.withValues(alpha: 0.35),
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       child: Row(
         children: [
           Icon(
-            hasIssues ? Icons.warning_amber_rounded : Icons.check_circle_outline,
-            color: hasIssues ? DashboardColors.risk : DashboardColors.healthy,
+            hasIssues ? Icons.warning_amber_rounded : Icons.info_outline,
+            color: hasIssues ? DashboardColors.risk : DashboardColors.textMuted,
             size: 28,
           ),
           const SizedBox(width: 14),
@@ -329,7 +327,7 @@ class OwnerAttentionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  hasIssues ? 'Cần xử lý ngay' : 'Hệ thống ổn định',
+                  hasIssues ? 'Có thông tin cần theo dõi' : 'Chưa có kết luận tổng thể',
                   style: _bv(
                     color: DashboardColors.textPrimary,
                     fontSize: 15,
@@ -339,10 +337,10 @@ class OwnerAttentionCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   hasIssues
-                      ? (count > 0
+                      ? ((count ?? 0) > 0
                           ? '$count hộp đang cảnh báo • $area'
                           : items.first.$2)
-                      : 'Không có việc cần xử lý ngay.',
+                      : 'Chưa xác minh toàn bộ trạng thái hệ thống.',
                   style: _bv(
                     color: DashboardColors.textMuted,
                     fontSize: 13,

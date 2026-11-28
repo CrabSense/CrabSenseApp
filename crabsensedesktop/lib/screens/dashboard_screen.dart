@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../models/farm_layout.dart';
 import '../navigation/app_route.dart';
 import '../services/alert_service.dart';
 import '../services/farm_dashboard_service.dart';
@@ -129,9 +128,12 @@ class _DashboardContentState extends State<DashboardContent> {
     final analysis = widget.waterAnalysisService;
     final ras = widget.rasFlowService;
     final alerts = widget.alertService;
-    final summary = layout.boxes.isNotEmpty
-        ? layout.summary
-        : _summaryFromDashboard(dash);
+    final summary = layout.summary;
+    final layoutVerified = !layout.loading && layout.error == null &&
+        layout.loadedAt != null && layout.selectedAreaId == widget.areaId;
+    String count(int n) => layoutVerified ? '$n' : '—';
+    double? ratio(int n) => layoutVerified && summary.total > 0 ? n / summary.total : null;
+    String percent(int n) => ratio(n) == null ? '—' : '${(ratio(n)! * 100).round()}%';
 
     final attention = ownerAttentionItems(
       alerts: alerts.filteredAlerts,
@@ -147,8 +149,8 @@ class _DashboardContentState extends State<DashboardContent> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final total = summary.total <= 0 ? 1 : summary.total;
-    final alertCount = summary.alert + dash.alertCount;
+    final alertCount = dash.alertCount;
+    final alertBoxes = layoutVerified ? summary.alert : null;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
@@ -170,7 +172,7 @@ class _DashboardContentState extends State<DashboardContent> {
           const SizedBox(height: 16),
           OwnerAttentionCard(
             items: attention,
-            alertBoxCount: alertCount,
+            alertBoxCount: alertBoxes,
             areaLabel: widget.areaLabel,
             onViewAll: () => widget.onNavigate(AppRoute.alerts),
           ),
@@ -179,52 +181,49 @@ class _DashboardContentState extends State<DashboardContent> {
             items: [
               OwnerKpiItem(
                 label: 'Tổng hộp',
-                value: '${summary.total}',
-                caption: '↑ so với hôm qua',
+                value: count(summary.total),
+                caption: 'Theo khu đã xác minh',
                 color: DashboardColors.textPrimary,
                 icon: Icons.inventory_2_outlined,
               ),
               OwnerKpiItem(
                 label: 'Đang nuôi',
-                value: '${summary.occupied}',
-                caption: '${((summary.occupied / total) * 100).round()}%',
+                value: count(summary.occupied),
+                caption: percent(summary.occupied),
                 color: DashboardColors.blue,
                 icon: Icons.pets_outlined,
-                progress: summary.occupied / total,
+                progress: ratio(summary.occupied),
               ),
               OwnerKpiItem(
                 label: 'Hộp trống',
-                value: '${summary.empty}',
-                caption: '${((summary.empty / total) * 100).round()}%',
+                value: count(summary.empty),
+                caption: percent(summary.empty),
                 color: DashboardColors.dead,
                 icon: Icons.crop_square_outlined,
-                progress: summary.empty / total,
+                progress: ratio(summary.empty),
               ),
               OwnerKpiItem(
                 label: 'Bình thường',
-                value: '${summary.normal}',
-                caption: '${((summary.normal / total) * 100).round()}%',
+                value: count(summary.normal),
+                caption: percent(summary.normal),
                 color: DashboardColors.healthy,
                 icon: Icons.check_circle_outline,
-                progress: summary.normal / total,
+                progress: ratio(summary.normal),
               ),
               OwnerKpiItem(
                 label: 'Theo dõi',
-                value: '${summary.watch}',
-                caption: '${((summary.watch / total) * 100).round()}%',
+                value: count(summary.watch),
+                caption: percent(summary.watch),
                 color: DashboardColors.monitoring,
                 icon: Icons.visibility_outlined,
-                progress: summary.watch / total,
+                progress: ratio(summary.watch),
               ),
               OwnerKpiItem(
-                label: 'Cảnh báo',
-                value: '$alertCount',
-                caption: '${((alertCount / total) * 100).round()}%',
-                color: alertCount > 0
-                    ? DashboardColors.risk
-                    : DashboardColors.healthy,
+                label: 'Cảnh báo mở',
+                value: alertCount?.toString() ?? '—',
+                caption: 'Số bản ghi cảnh báo, không phải số hộp',
+                color: (alertCount ?? 0) > 0 ? DashboardColors.risk : DashboardColors.textMuted,
                 icon: Icons.warning_amber_rounded,
-                progress: alertCount / total,
               ),
             ],
           ),
@@ -263,7 +262,8 @@ class _DashboardContentState extends State<DashboardContent> {
           LayoutBuilder(
             builder: (context, c) {
               final wide = c.maxWidth > 1100;
-              final crab = OwnerCrabStatusCard(summary: summary);
+              final crab = layoutVerified ? OwnerCrabStatusCard(summary: summary) :
+                  const Center(child: Text('Chưa xác minh tình trạng hộp.'));
               final trend = OwnerTrendCard(readings: water, onOpenHistory: () => widget.onNavigate(AppRoute.environment));
               final devices = OwnerRasCard(
                 nodes: ras.diagram?.nodes ?? const [],
@@ -298,28 +298,4 @@ class _DashboardContentState extends State<DashboardContent> {
     );
   }
 
-  FarmLayoutSummary _summaryFromDashboard(FarmDashboardService dash) {
-    int pick(String needle) {
-      for (final k in [...dash.summaryKpis, ...dash.kpiRow1]) {
-        if (k.label.toLowerCase().contains(needle)) {
-          return int.tryParse(k.value.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-        }
-      }
-      return 0;
-    }
-
-    final total = pick('tổng hộp') > 0 ? pick('tổng hộp') : pick('hộp');
-    final occupied = pick('đang nuôi');
-    final alerts = pick('cảnh báo');
-    return FarmLayoutSummary(
-      total: total,
-      occupied: occupied,
-      empty: (total - occupied).clamp(0, total),
-      normal: occupied,
-      watch: 0,
-      molting: 0,
-      alert: alerts,
-      deceased: 0,
-    );
-  }
 }

@@ -1441,68 +1441,27 @@ extension ProductionCloudApi on CloudApiClient {
     String token,
     String farmId,
   ) async {
-    final q = farmId.isEmpty ? null : {'farmingAreaId': farmId};
-    var overviewUri = Uri.parse('${AppEnv.cloudApiUrl}/api/dashboard/overview');
-    var metricsUri = Uri.parse('${AppEnv.cloudApiUrl}/api/dashboard/metrics');
-    if (q != null) {
-      overviewUri = overviewUri.replace(queryParameters: q);
-      metricsUri = metricsUri.replace(queryParameters: q);
+    if (farmId.isEmpty || farmId == 'default' || token.isEmpty) {
+      throw CloudApiException('Chưa xác minh khu nuôi hoặc phiên đăng nhập.');
     }
-    final headers = authHeaders(token, farmId: farmId.isEmpty ? null : farmId);
-    final overviewRes = await _client.get(overviewUri, headers: headers);
-    final metricsRes = await _client.get(metricsUri, headers: headers);
-    _ensureOk(overviewRes);
-    final overviewBody = _decode(overviewRes);
-    final overview = _asMap(_dataOf(overviewBody) ?? overviewBody);
-
-    var healthScore = 0;
-    var waterQualityScore = 0;
-    var crabHealthScore = 0;
-    var deviceStatusScore = 0;
-    var statusLabel = '';
-    var statusMessage = '';
-    if (metricsRes.statusCode >= 200 && metricsRes.statusCode < 300) {
-      final metricsBody = _decode(metricsRes);
-      if (!_isApiFailure(metricsRes, metricsBody)) {
-        final metrics = _asMap(_dataOf(metricsBody) ?? metricsBody);
-        healthScore = (metrics['score'] as num?)?.toInt() ?? 0;
-        waterQualityScore = (metrics['waterQualityScore'] as num?)?.toInt() ?? 0;
-        crabHealthScore = (metrics['crabHealthScore'] as num?)?.toInt() ?? 0;
-        deviceStatusScore = (metrics['deviceStatusScore'] as num?)?.toInt() ?? 0;
-        statusLabel = (metrics['statusLabel'] ?? '').toString();
-        statusMessage = (metrics['explanation'] ?? '').toString();
-      }
+    final uri = Uri.parse('${AppEnv.cloudApiUrl}/api/dashboard/overview')
+        .replace(queryParameters: {'farmingAreaId': farmId});
+    final res = await _client.get(uri, headers: authHeaders(token, farmId: farmId));
+    _ensureOk(res);
+    final body = _decode(res);
+    final overview = _asMap(_dataOf(body));
+    if (body['success'] != true || overview.isEmpty) {
+      throw CloudApiException('Dữ liệu tổng quan không hợp lệ.');
     }
-
-    if (overview.containsKey('summaryKpis') || overview.containsKey('healthScore')) {
-      return FarmDashboardOverview.fromJson(overview);
-    }
-
-    List<Map<String, dynamic>> live = const [];
-    List<Map<String, dynamic>> alerts = const [];
-    try {
-      live = await fetchIotLive(token, farmingAreaId: farmId);
-    } catch (_) {}
-    try {
-      alerts = await fetchAlerts(token, farmingAreaId: farmId);
-    } catch (_) {}
-
+    // Only canonical business counters. Do not consume /metrics, old
+    // aggregate assessment DTOs, or unqualified live-water snapshots.
     return FarmDashboardOverview.fromCrabSense(
-      totalBoxes: (overview['totalBoxes'] as num?)?.toInt() ?? 0,
-      totalCrabs: (overview['totalCrabs'] as num?)?.toInt() ?? 0,
-      activeBoxes: (overview['activeBoxes'] as num?)?.toInt() ?? 0,
-      openAlerts: (overview['openAlerts'] as num?)?.toInt() ?? alerts.length,
-      iotOnlinePercentage:
-          (overview['iotOnlinePercentage'] as num?)?.toDouble() ?? 0,
-      healthScore: healthScore,
-      waterQualityScore: waterQualityScore,
-      crabHealthScore: crabHealthScore,
-      deviceStatusScore: deviceStatusScore,
-      statusLabel: statusLabel,
-      statusMessage: statusMessage,
-      primaryAreaId: farmId.isEmpty ? null : farmId,
-      environmentParams: FarmDashboardOverview.envFromLive(live),
-      alerts: FarmDashboardOverview.alertsFromApi(alerts),
+      totalBoxes: dashboardCount(overview['totalBoxes']),
+      totalCrabs: dashboardCount(overview['totalCrabs']),
+      activeBoxes: dashboardCount(overview['activeBoxes']),
+      openAlerts: dashboardCount(overview['openAlerts']),
+      iotOnlinePercentage: null,
+      primaryAreaId: farmId,
     );
   }
 
