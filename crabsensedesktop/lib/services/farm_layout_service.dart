@@ -42,6 +42,13 @@ class FarmLayoutService extends ChangeNotifier {
   bool loading = false;
   String? error;
   DateTime? loadedAt;
+  int _generation = 0;
+  bool _disposed = false;
+
+  void _clearSnapshot() {
+    boxes = []; areas = []; rows = []; zones = [];
+    boxesPerZone.clear(); loadedAt = null; _resetSummary();
+  }
 
   String get token => _session.token;
   String get farmId => _session.selectedFarm.id;
@@ -52,14 +59,12 @@ class FarmLayoutService extends ChangeNotifier {
   }
 
   void updateSession(AuthSession session) {
+    ++_generation;
     _session = session;
     selectedAreaId = _areaIdOf(session);
-    boxes = [];
-    areas = [];
-    rows = [];
-    zones = [];
-    boxesPerZone.clear();
-    _resetSummary();
+    loading = false;
+    error = null;
+    _clearSnapshot();
     notifyListeners();
   }
 
@@ -83,79 +88,73 @@ class FarmLayoutService extends ChangeNotifier {
   }
 
   Future<void> load({bool force = false}) async {
-    if (loading && !force) return;
+    if (_disposed || (loading && !force)) return;
+    final generation = ++_generation;
+    final bearer = token;
+    final requestedArea = selectedAreaId;
+    bool current() => !_disposed && generation == _generation && bearer == token;
+    _clearSnapshot();
     loading = true;
     error = null;
     notifyListeners();
 
     try {
-      final areaList = await _api.fetchAreas(token, '');
-      if (selectedAreaId != null &&
-          !areaList.any((a) => a.id == selectedAreaId)) {
-        final fromHeader = _areaIdOf(_session);
-        selectedAreaId = areaList.any((a) => a.id == fromHeader)
-            ? fromHeader
-            : (areaList.isEmpty ? null : areaList.first.id);
+      final areaList = await _api.fetchAreas(bearer, '');
+      if (!current()) return;
+      if (requestedArea != null && !areaList.any((a) => a.id == requestedArea)) {
+        throw StateError('Khu nuôi chưa được xác minh quyền truy cập.');
       }
-
-      final fetchedRows = await _api.fetchAllRows(token, areaId: selectedAreaId);
-      final rawBoxes = await _api.fetchAllBoxes(token, areaId: selectedAreaId);
+      if (areaList.isEmpty) return;
+      final fetchedRows = await _api.fetchAllRows(bearer, areaId: requestedArea);
+      if (!current()) return;
+      final rawBoxes = await _api.fetchAllBoxes(bearer, areaId: requestedArea);
+      if (!current()) return;
       final areaById = {for (final a in areaList) a.id: a};
-      final rowById = {for (final r in fetchedRows) r.id: r};
+      final rowById = {for (final r in fetchedRows)
+        if (areaById.containsKey(r.areaId) &&
+            (requestedArea == null || requestedArea == r.areaId)) r.id: r};
       final merged = <FarmMapBox>[];
       final perZone = <String, int>{};
-
+      final ids = <String>{};
       for (final box in rawBoxes) {
-        final row = rowById[box.rowId];
-        final areaId = box.areaId ?? row?.areaId ?? selectedAreaId ?? '';
-        final area = areaById[areaId] ??
-            (areaList.isEmpty
-                ? AreaRecord(
-                    id: areaId,
-                    farmId: farmId,
-                    areaCode: box.areaCode ?? '—',
-                    areaName: box.areaName ?? 'Khu',
-                  )
-                : areaList.first);
-        final safeRow = row ??
-            RowRecord(
-              id: box.rowId,
-              areaId: area.id,
-              rowCode: box.rowCode ?? '—',
-              rowName: box.rowName ?? '—',
-            );
-        merged.add(toFarmMapBox(box: box, area: area, row: safeRow));
-        final z = area.areaCode;
-        perZone[z] = (perZone[z] ?? 0) + 1;
+        final item = scopedFarmMapBox(box: box, areas: areaById,
+          rows: rowById, selectedAreaId: requestedArea);
+        if (item == null || box.id.isEmpty || !ids.add(box.id)) {
+          throw StateError('Dữ liệu hộp không khớp phạm vi khu/dãy.');
+        }
+        merged.add(item);
+        perZone[item.areaCode] = (perZone[item.areaCode] ?? 0) + 1;
       }
-
       merged.sort((a, b) {
         final z = a.areaCode.compareTo(b.areaCode);
-        if (z != 0) return z;
-        return a.display.id.compareTo(b.display.id);
+        return z != 0 ? z : a.display.id.compareTo(b.display.id);
       });
-
       areas = areaList;
-      rows = fetchedRows;
+      rows = rowById.values.toList();
       boxes = merged;
-      zones = [
-        for (final a in areaList)
-          if (selectedAreaId == null || a.id == selectedAreaId) a.areaCode,
-      ];
-      boxesPerZone
-        ..clear()
-        ..addAll(perZone);
+      zones = [for (final a in areaList)
+        if (requestedArea == null || a.id == requestedArea) a.areaCode];
+      boxesPerZone.addAll(perZone);
       summary = merged.toSummary();
+      // Local fetch time, not a measurement or box update timestamp.
       loadedAt = DateTime.now();
-      error = null;
-    } on CloudApiException catch (e) {
-      error = e.message;
     } catch (e) {
-      error = '$e';
+      if (!current()) return;
+      _clearSnapshot();
+      error = e is CloudApiException ? e.message : '$e';
     } finally {
-      loading = false;
-      notifyListeners();
+      if (current()) {
+        loading = false;
+        notifyListeners();
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    ++_generation;
+    super.dispose();
   }
 
   String mascotMessage() => boxes.mascotMessage();
