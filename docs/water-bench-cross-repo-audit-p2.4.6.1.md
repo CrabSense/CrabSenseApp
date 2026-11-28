@@ -111,3 +111,6 @@ App #78 merged 5e8e96d; CI #240 Mobile 95/95 and all main workflows passed. BE #
 
 ## Nullable dashboard consumers — 2026-11-28
 BE #114 merged a8306ca, CI #431/#432 and VPS #229 PASS. App #79 merged 78972cd, Desktop 58/58 (two map regressions), all main workflows green. FE #41 9a7b00d suppresses legacy score/health filters and uses operational status, scoped inventory and recorded alerts. Desktop Dashboard drops metrics and unqualified live overview fetch, strict nullable business counts, no fake trend/combined alert count or layout fallback, neutral assessment, generation guard. Two Desktop and two Node regressions pending CI. No production JWT/device acceptance, broader legacy reports and branch protection remain open.
+
+## CI check — 2026-11-28
+FE #41 merged 7fc170b after all four PR workflows passed; main Audit #22 and Sonar #159 passed, Pages #147 in_progress. App #80 de07c7d failed Sonar #244/Desktop Hosted #99/Local #32/Pages #125. Desktop analysis job 140900528366 has two undefined ParamStatus errors at farm_dashboard_service.dart:154, because dashboard_theme.dart import was removed; hosted build confirms same. Mobile job 140900528124 passed. Desktop tests not executed. App main unchanged 78972cd. Check-only; no source edits or merge, journal snapshot kept separate from failing PR head. Restore import and revalidate all checks before merge.

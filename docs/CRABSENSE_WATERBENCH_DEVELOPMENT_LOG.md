@@ -125,7 +125,7 @@
 | CrabSenseKiosk | 98458f3 | Main CI #78 PASS |
 | CrabSenseBE | a8306ca | #114 merged; main CI #432/VPS #229 PASS |
 | CrabSenseAIWaterQualityAnalysis | 700d5b2 | AI CI #37 / private cross #11 PASS |
-| CrabSenseFE | 7647cfa | #40 merged; #41 nullable monitoring pending |
+| CrabSenseFE | 7fc170b | #41 merged; Audit #22/Sonar #159 PASS; Pages #147 in_progress |
 | CrabSenseApp | 78972cd | #79 merged; main #243/Mobile #99/Desktop #98/Pages #124 PASS |
 
 | Mã | Ưu tiên | Việc còn lại | Điều kiện hoàn thành |
@@ -134,7 +134,7 @@
 | T02 | P0 | DONE: App main #61/#52/#43 và Sonar #156 PASS | Tất cả PASS đúng main 83e7eec |
 | T03 | P0 | Đã merge BE scoped history và khôi phục chart scoped Mobile/Desktop; chưa production smoke | Sửa cấu hình test Npgsql, chạy đủ HTTP/PostgreSQL, CI PASS, review migration, deploy, App chart thật |
 | T04 | P1 | SQLite v4 scope/session/expiry fail-closed; #73 generation guard/chart lifecycle PASS; offline reading tắt, native còn mở | Kiểm thử offline và isolation; phục hồi chart/cache an toàn |
-| T05 | P1 | RAS Chromium PASS; BE #113/VPS, FE #40/App #76 PASS; Mobile #77 CI #238 92/92 PASS merged; L03–L06 Mobile #78 PASS; BE #114/VPS và Desktop #79 PASS; Web #41 và Desktop dashboard containment pending; production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
+| T05 | P1 | RAS Chromium PASS; BE #113/VPS, FE #40/App #76 PASS; Mobile #77 CI #238 92/92 PASS merged; L03–L06 Mobile #78 PASS; BE #114/VPS và Desktop #79 PASS; Web #41 merged; App #80 CI #244 failed missing ParamStatus import; production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
 | T06 | P1 | FE #37 merged, main Audit #14 và Pages #139 gate full/omit-dev 0 PASS; required branch check chưa xác minh | Phân loại direct/transitive/dev/runtime, sửa an toàn, CI PASS |
 | T07 | P1 | Kiểm thử PostgreSQL technical diagnostics, JWT bốn role | P2.4.6.2; 401/403 và scoped access |
 | T08 | P1 | Geometry QC bắt buộc với fixture phù hợp; kiểm tra private media/Drive | P2.4.6.3 |
@@ -395,3 +395,7 @@
 - BE #114 d88e741 CI #431 PASS (job 140893167662 regression area+assessment/time, PostgreSQL/publish/migration job 140893167496 PASS), merged a8306ca, main CI #432/VPS [#229](https://github.com/CrabSense/CrabSenseBE/actions/runs/46118719140) PASS. App #79 92c8803 Sonar #242/Desktop #97/Local #31/Pages #123 PASS, merged 78972cd; Desktop job 140893406544 58/58 tests, 2 map regressions PASS. Main #243/Mobile #99/Desktop #98/Pages #124 PASS.
 - FE [#41](https://github.com/CrabSense/CrabSenseFE/pull/41) 9a7b00d, fix(monitoring): consume nullable assessments without legacy scores. Bỏ score /100, health filter và summary heuristic, chỉ status nghiệp vụ, alert thực và offline inventory đã xác minh; unknown neutral, offline count chỉ explicit scope, test 2 Node groups. CI pending.
 - Desktop Dashboard: bỏ /dashboard/metrics và legacy aggregate/live fetch trong overview, giữ canonical counter strict nullable, không suy ra tỷ lệ thiết bị khi thiếu denominator. Guard request generation, clear overview khi lỗi/đổi phiên; UI bỏ KPI tăng giả và cộng alert với hộp, không infer trạng thái hộp từ summary fallback, unknown dash, neutral attention/assessment. Thêm 2 mandatory Desktop tests (HTTP mock và count policy). Một commit/repo; CI pending; chưa production JWT/cross-client real smoke. Các route báo cáo/health/AI khác chưa rà hết, native T04 và required branch check còn mở. Không DB/schema/role/firmware/sampling change; không đóng T05/P2.4.6.1.
+
+### 57 — T05: kiểm tra FE #41 và App #80 (28/11/2026)
+- FE #41 head 9a7b00d: Audit #21/Sonar #158/Pages #146/Chromium #20 PASS; merged 7fc170b. Main Audit #22/Sonar #159 PASS; [Pages #147](https://github.com/CrabSense/CrabSenseFE/actions/runs/46119886281) in_progress tại snapshot. Chưa production smoke JWT.
+- App #80 head de07c7d: [Sonar #244](https://github.com/CrabSense/CrabSenseApp/actions/runs/46119459050), Desktop Hosted #99, Desktop Local #32, Pages #125 FAIL; Mobile analysis/test job 140900528124 PASS. Desktop job 140900528366 fail tại Analyze Desktop, hai error undefined_identifier ParamStatus ở farm_dashboard_service.dart:154:57/154:76. Hosted build job 140900527955 cùng lỗi dart2js. Xác minh enum ParamStatus nằm trong theme/dashboard_theme.dart, import này bị bỏ ở bản sửa #80. Warning unnecessary_type_check ở production_cloud_api.dart:1453:9. Desktop regression mới chưa chạy vì analyze fail; Sonar gate fail do validation. App main vẫn 78972cd. Không merge, không sửa source trong lượt chỉ kiểm tra. Nhật ký snapshot trên nhánh riêng xuất phát từ head #80 để không trigger lại CI lỗi; khi fix tích hợp mục 57 vào cùng commit sửa PR #80. Next khôi phục import, rà warning, chạy lại đủ CI, merge khi PASS; chưa đóng T05. Native/production/branch protection vẫn mở.
