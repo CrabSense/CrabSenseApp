@@ -9,6 +9,26 @@ const area='11111111-1111-1111-1111-111111111111',other='22222222-2222-2222-2222
 const station='33333333-3333-3333-3333-333333333333',boot='0123456789abcdef',batch='abcdef0123456789';
 final user=User(id:'staff',email:'',name:'Staff',role:UserRole.farmStaff,assignedFarmIds:[],createdAt:DateTime.utc(2026));
 Map<String,dynamic> ok(Object? d)=>{'success':true,'data':d};
+
+const connection='55555555-5555-5555-5555-555555555555';
+Map<String,dynamic> receiptFixture()=> {
+  'stationId':station,'bootId':boot,'batchId':batch,
+  'inventoryComplete':true,'receiptBasis':'persisted_backend_evidence',
+  'timelineStatus':'firmware_complete_reported','total':2,
+  'timelineCount':1,'mediaCount':1,'nh3Count':0,
+  'items':[
+    {'receiptId':'66666666-6666-6666-6666-666666666666',
+      'eventId':'77777777-7777-7777-7777-777777777777',
+      'connectionId':connection,'serverPayloadSha256':List.filled(64,'a').join(),
+      'kind':'batch','evidenceKind':'batch_start'},
+    {'receiptId':'88888888-8888-8888-8888-888888888888',
+      'eventId':'99999999-9999-9999-9999-999999999999',
+      'connectionId':connection,'serverPayloadSha256':List.filled(64,'b').join(),
+      'kind':'media','mediaId':'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      'sha256':List.filled(64,'c').join()},
+  ],
+};
+
 void main(){
  test('server-scoped areas, staff only, strict identity and missing != zero',()async{
   final calls=<String>[];
@@ -18,9 +38,10 @@ void main(){
     expect(p,startsWith('/areas/$area/water-bench'));
     if(p.endsWith('/station'))return ok(null);
     if(p.endsWith('/batches'))return ok([{'stationId':station,'bootId':boot,'firmwareBatchId':batch}]);
-    if(p.endsWith('/$batch'))return ok({'timeline':{'stationId':station,'bootId':boot,'batchId':batch,'channels':[]},'observationStale':true});
+    if(p.endsWith('/$batch'))return ok({'timeline':{'stationId':station,'bootId':boot,'batchId':batch,'connectionId':connection,'status':'firmware_complete_reported','channels':[]},'observationStale':true});
     if(p.endsWith('/results'))return ok({'channels':[{'analyte':'NO2','assessment':{'id':'a','status':'estimate_review_required','estimatedValue':0,'unit':'mg/L NO2'}}]});
     if(p.endsWith('/NO2/review'))return ok({'assessmentId':'a','status':'pending_review'});
+    if(p.endsWith('/receipts'))return ok(receiptFixture());
     return ok({'channels':[]});
   });
   await expectLater(svc.overview(user,area),throwsStateError);
@@ -66,7 +87,7 @@ void main(){
       if(path.endsWith('/station'))return ok({'enabled':true,'times':['08:00'],'timezone':'UTC+07:00'});
       if(path.endsWith('/batches'))return ok([{'stationId':station,'bootId':boot,'firmwareBatchId':batch}]);
       if(path.endsWith('/$batch'))return ok({'observationStale':true,'timeline':{
-        'stationId':station,'bootId':boot,'batchId':batch,'status':'firmware_complete_reported',
+        'stationId':station,'bootId':boot,'batchId':batch,'connectionId':connection,'status':'firmware_complete_reported',
         'channels':[{'analyte':'NO2','status':'drained_reported'}]}});
       if(path.endsWith('/results'))return ok({'channels':[
         {'analyte':'NO2','status':'estimate_review_required','assessment':{
@@ -76,10 +97,10 @@ void main(){
       if(path.endsWith('/NO2/review'))return ok({
         'assessmentId':'a','status':'published','publicationScope':'water_bench_reviewed_record',
         'productionSensorPublished':false,'publication':{
-          'value':0.2,'unit':'mg/L NO2','source':'operator_attested_independent_reference',
+          'assessmentId':'a','value':0.2,'unit':'mg/L NO2','source':'operator_attested_independent_reference',
           'productionSensorPublished':false}
       });
-      if(path.endsWith('/receipts'))return ok({'total':4,'mediaCount':1});
+      if(path.endsWith('/receipts'))return ok(receiptFixture());
       return ok({'channels':[]});
     });
     await tester.binding.setSurfaceSize(const Size(420,2200));
@@ -119,5 +140,28 @@ void main(){
     expect(find.byKey(const Key('water-history-unavailable')),findsOneWidget);
     expect(find.text('Chưa đủ dữ liệu lịch sử đã xác minh để vẽ biểu đồ.'),findsOneWidget);
     expect(find.textContaining('Không sử dụng dữ liệu giả'),findsOneWidget);
+  });
+
+  test('snapshot rejects wrong batch, duplicate receipts and channel identities', () {
+    final selected=BenchBatch.fromJson({'stationId':station,'bootId':boot,'firmwareBatchId':batch});
+    final timeline=<String,dynamic>{'stationId':station,'bootId':boot,'batchId':batch,
+      'connectionId':connection,'status':'firmware_complete_reported','channels':[]};
+    final receipts=receiptFixture();
+    verifyBenchSnapshot(selected,timeline,receipts,[{'channels':[]}]);
+    expect(()=>verifyBenchSnapshot(selected,timeline,{...receipts,'batchId':boot},[]),throwsFormatException);
+    expect(()=>verifyBenchSnapshot(selected,timeline,{...receipts,'total':9},[]),throwsFormatException);
+    final items=receipts['items'] as List;
+    expect(()=>verifyBenchSnapshot(selected,timeline,{...receipts,'items':[items.first,items.first]},[]),throwsFormatException);
+    expect(()=>verifyBenchSnapshot(selected,timeline,receipts,[{'channels':[{'analyte':'NO2'},{'analyte':'NO2'}]}]),throwsFormatException);
+  });
+  test('published reference must match the estimate assessment and measurand', () {
+    BenchChannel channel(String id,String unit)=>BenchChannel('NH3',null,{'assessment':{
+      'id':'assessment','status':'estimate_review_required','estimatedValue':0,'unit':'mg/L TAN-N'}},
+      null,null,{'assessmentId':'assessment','status':'published','publicationScope':'water_bench_reviewed_record',
+        'publication':{'assessmentId':id,'unit':unit,'value':0,'source':'operator_attested_independent_reference',
+          'productionSensorPublished':false}},false);
+    expect(channel('assessment','mg/L TAN-N').publishedReference,0);
+    expect(channel('other','mg/L TAN-N').publishedReference,isNull);
+    expect(channel('assessment','mg/L NH3').publishedReference,isNull);
   });
 }

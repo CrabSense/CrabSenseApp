@@ -72,6 +72,8 @@ class StaffWaterBenchService {
       throw const FormatException('Danh tính phiên không khớp.');
     }
     final results=_object(data[1]),ready=_object(data[2]),retry=_object(data[3]);
+    final receipts=_object(data[4]);
+    verifyBenchSnapshot(batch,timeline,receipts,[results,ready,retry]);
     final channels=await Future.wait(benchAnalytes.map((a)async{
       final result=benchChannel(results,a);
       BenchJson? review;
@@ -87,6 +89,6 @@ class StaffWaterBenchService {
       }
       return BenchChannel(a,benchChannel(timeline,a),result,benchChannel(ready,a),benchChannel(retry,a),review,unavailable);
     }));
-    return BenchDetail(timeline:timeline,stale:detail['observationStale']!=false,receipts:_object(data[4]),channels:channels);
+    return BenchDetail(timeline:timeline,stale:detail['observationStale']!=false,receipts:receipts,channels:channels);
   }
 }

@@ -74,6 +74,8 @@ class WaterBenchMonitorService {
       throw const FormatException('Phản hồi không khớp phiên đã chọn.');
     }
     final results = _object(data[1]), readiness = _object(data[2]), retry = _object(data[3]);
+    final receipts = _object(data[4]);
+    verifyBenchSnapshot(batch, timeline, receipts, [results, readiness, retry]);
     final channels = await Future.wait(benchAnalytes.map((a) async {
       final observation = benchChannel(timeline, a), result = benchChannel(results, a);
       BenchJson? review;
@@ -96,7 +98,7 @@ class WaterBenchMonitorService {
           benchChannel(retry, a), review, unavailable);
     }));
     return BenchDetail(timeline: timeline, stale: detail['observationStale'] != false,
-      receipts: _object(data[4]), channels: channels);
+      receipts: receipts, channels: channels);
   }
 
   void dispose() {
