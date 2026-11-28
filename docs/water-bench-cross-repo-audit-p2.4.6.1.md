@@ -180,3 +180,6 @@ Private AI #13 merged fffcfda with #48/#49 and #18/#19 both modes PASS (each 1/1
 
 ## T11 CI #436 correction — 2026-11-28
 BE #116 original CI failed CS4007 in both unit and PostgreSQL jobs, audit parser rejected omitted clean frameworks. Actual audit artifact 15258804804 reports 3 packages/4 distinct High advisories. Replacement commit 6fc5820 (one commit, 13 files) fixes span/await, parser with mandatory six regressions, patches dependencies, keeps high/critical gate and all recovery checks. Recovery not executed successfully. App #98 merged 622bda1; journal 80 merged. Journal 81 records failure and correction. No production or schema change, new CI pending.
+
+## T11 CI #437 recovery correction — 2026-11-28
+BE #116 6fc5820 unit 744 PASS/2 integration skips and security actual audit zero across all severity levels; recovery final FK probe failed 23505 instead of 23503, not a full recovery pass. Replacement d74298e isolates one measurement and verifies absent parent, exact FK code/table/schema plus post-rollback snapshot. Full CI pending. App #99 merged 1433d20, journal 81. Journal 82 documents correction. No production restore or merge/deploy of BE.
