@@ -39,3 +39,6 @@ Journal 93. No actual provider recovery or production restore.
 
 ## Storage optimization P0
 App preview handoffs are only uploaded when the corresponding existing protected deploy job is eligible; retain all build/test/package steps and required upload on enabled deployment, 1-day retention. Pages 1 day. REC05 mandatory artifacts unchanged; old quota usage not retroactively reduced. No production changes or M05 acceptance. Journal 94.
+
+## Retention rollout — journal 95
+App #112 and BE #118 main CI PASS, verified reduced artifact retention and REC04 still 14 days. BE deployment #233 pending. FE #45 candidate baseline corrected, CI pending. Private #23/#24 no artifacts; public upload success not evidence private quota is resolved. M05/M08 remain open; no quota bypass.
