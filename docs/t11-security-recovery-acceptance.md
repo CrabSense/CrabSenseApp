@@ -36,3 +36,6 @@ Kiosk #33 merged 3447793, PR/main #83/#84 PASS; exact BE 6648750 cross 1/1/no sk
 
 ## Private integration acceptance and REC04 implementation
 Private AI #14 merged 0b770f6, both PR/main compatibility and geometry modes 1/1 PASS without skips on exact BE 6648750/Kiosk 3447793. BE #117 84bd3a7 adds actual separate service-call durations in validated JSON and retains Recovery TRX, both uploaded for 14 days. Restore duration includes pre-restore safety backup. New CI required for numeric results and artifact verification. No production RTO/RPO claim or live restore. Journal 86.
+
+## REC04 accepted in isolated CI
+BE #117 6e1fd8d, #440/#441 PASS. Verified both downloaded recovery ZIPs (PR 15266347768, main 15267215600) against CI logs: backup 204/300ms, restore 480/832ms, 107 tables and SHA-256 verified, TRX 1/1 PASS/no skip. Restore includes safety backup; not production RTO/RPO. App #104 main accepted. Deploy #232 pending at review and Kiosk/AI pins remain on 6648750. SEC02 protection inaccessible (403 on five repos); actual BE Sonar scan skipped. Persistent production backup checksum/offsite copy, actual RTO/RPO and REC05 real media recovery still open. Journal 87.
