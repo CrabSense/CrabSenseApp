@@ -186,3 +186,6 @@ BE #116 6fc5820 unit 744 PASS/2 integration skips and security actual audit zero
 
 ## T11 isolated recovery and deployed BE — 2026-11-28
 BE #116 merged 6648750; CI #438/#439 all PASS, NuGet five projects all severities zero. Recovery jobs 140952358322/140953532783 each 1/1 PASS with mandatory marker and clean/legacy migration markers; rounded whole-test durations 2s/1s, individual timing not exposed/retained. VPS #231 job 140954410188 exact SHA deploy PASS, predeploy archive verified, health/CORS PASS, hardware control disabled. App #100 merged 55112fd, all main checks PASS. Journal 83. Next refresh Kiosk/AI pins; SEC02, production backup integrity/offsite, individual metrics/production RTO/RPO, real Drive/JWT/physical acceptance remain open.
+
+## T11 Kiosk Backend repin — 2026-11-28
+App #101 merged 8efa00c, #289/#290 and all main preview/Pages checks PASS. BE 6648750 remains deployed, #439/#231 PASS. Kiosk #33 78b05db updates exact BE checkout/assertion and explicit executed/no-skip TRX guard, one CI-only commit; PR/main validation pending. Private AI pins unchanged until Kiosk acceptance. Journal 84; live and recovery metrics gates remain open.

@@ -27,3 +27,6 @@ Actual five-project NuGet audit passed with zero advisories across severity leve
 
 ## CI #438 / main #439 and VPS #231 acceptance
 SEC01, SEC03, SEC04 and isolated REC01–REC03 passed mandatory PR/main CI on BE 6648750. Five-project NuGet audit zero advisory occurrences; isolated recovery executed 1/1 with marker on both. Whole-test duration 2s PR, 1s main; exact backup/restore metrics not present in public workflow logs or separately retained TRX. Add metric export and retained recovery report in follow-up, do not infer production RTO/RPO. VPS #231 verified predeploy archive, exact CI/SHA, migration, health, CORS and hardware-disabled state. No production restore. SEC02/production backup integrity/offsite/REC04/REC05 still open. Repin Kiosk then private AI before accepting cross integration against new BE.
+
+## Kiosk repin after deployed BE acceptance
+Kiosk #33 (78b05db) pins exact deployed BE 6648750 and strengthens mandatory executed/no-skip TRX assertion. Require Kiosk PR/main PASS before private AI repin. Previous write was blocked, current PR created. No production changes or additional recovery acceptance. Journal 84.
