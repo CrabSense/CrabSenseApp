@@ -119,6 +119,7 @@ class ScopedHistoryService {
   final _invalidations = StreamController<int>.broadcast(sync: true);
 
   int get revision => _generation;
+  bool isBoundUser(String userId) => _user == userId;
   Stream<int> get invalidations => _invalidations.stream;
 
   /// Called synchronously at auth-event start and when AuthBloc publishes
