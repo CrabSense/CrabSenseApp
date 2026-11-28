@@ -10,11 +10,11 @@ class WelcomeSection extends StatelessWidget {
     super.key,
     required this.userName,
     required this.healthScore,
-    this.statusMessage = 'Hôm nay hệ thống đang vận hành ổn định',
+    this.statusMessage = 'Chưa có đánh giá xác minh',
   });
 
   final String userName;
-  final int healthScore;
+  final int? healthScore;
   final String statusMessage;
 
   @override
@@ -59,7 +59,7 @@ class WelcomeSection extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'Health Score trung bình: $healthScore/100',
+                'Chưa có đánh giá sức khỏe xác minh',
                 style: GoogleFonts.notoSans(
                   color: DashboardColors.cyan,
                   fontSize: 13,
@@ -69,7 +69,7 @@ class WelcomeSection extends StatelessWidget {
             ],
           ),
         ),
-        HealthScoreRing(score: healthScore),
+        const HealthScoreRing(score: null),
       ],
     );
   }
@@ -78,67 +78,12 @@ class WelcomeSection extends StatelessWidget {
 class HealthScoreRing extends StatelessWidget {
   const HealthScoreRing({super.key, required this.score});
 
-  final int score;
+  final int? score;
 
   @override
   Widget build(BuildContext context) {
-    final progress = score / 100;
-    return GlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: SizedBox(
-        width: 160,
-        child: Column(
-          children: [
-            Text(
-              'ĐIỂM SỨC KHỎE HỆ THỐNG',
-              style: GoogleFonts.notoSans(
-                color: DashboardColors.textMuted,
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.8,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: 72,
-              height: 72,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  SizedBox(
-                    width: 72,
-                    height: 72,
-                    child: CircularProgressIndicator(
-                      value: progress,
-                      strokeWidth: 6,
-                      backgroundColor: DashboardColors.cardBorder,
-                      valueColor: const AlwaysStoppedAnimation(
-                        DashboardColors.cyan,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '$score',
-                    style: GoogleFonts.notoSans(
-                      color: DashboardColors.cyan,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              '/100',
-              style: GoogleFonts.notoSans(
-                color: DashboardColors.textMuted,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return const GlassCard(
+      child: Text('Chưa có điểm xác minh'),
     );
   }
 }
@@ -298,7 +243,7 @@ class _StatusColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pct = segment.count / total;
+    final pct = total > 0 ? segment.count / total : 0.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

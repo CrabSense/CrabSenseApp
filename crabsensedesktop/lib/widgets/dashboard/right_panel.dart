@@ -74,16 +74,16 @@ class EnvironmentPanel extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: DashboardColors.healthy.withValues(alpha: 0.15),
+                  color: DashboardColors.textMuted.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: DashboardColors.healthy.withValues(alpha: 0.4),
+                    color: DashboardColors.textMuted.withValues(alpha: 0.4),
                   ),
                 ),
                 child: Text(
-                  'Tốt',
+                  'Chưa kết luận',
                   style: GoogleFonts.notoSans(
-                    color: DashboardColors.healthy,
+                    color: DashboardColors.textMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -176,7 +176,7 @@ class DeviceAlertSummary extends StatelessWidget {
   });
 
   final String devicesOnline;
-  final int alertCount;
+  final int? alertCount;
 
   @override
   Widget build(BuildContext context) {
@@ -237,7 +237,7 @@ class DeviceAlertSummary extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '$alertCount',
+                  alertCount?.toString() ?? '—',
                   style: GoogleFonts.notoSans(
                     color: DashboardColors.monitoring,
                     fontSize: 22,
@@ -322,7 +322,7 @@ class CrabAssistantCard extends StatefulWidget {
     required this.hint,
   });
 
-  final int healthScore;
+  final int? healthScore;
   final String hint;
 
   @override
@@ -360,7 +360,7 @@ class _CrabAssistantCardState extends State<CrabAssistantCard>
 
   @override
   Widget build(BuildContext context) {
-    final mood = mascotMoodFromHealth(widget.healthScore);
+    final mood = MascotMood.calm;
     final moodColor = switch (mood) {
       MascotMood.happy => DashboardColors.healthy,
       MascotMood.calm => DashboardColors.cyan,
@@ -422,7 +422,7 @@ class _CrabAssistantCardState extends State<CrabAssistantCard>
                       ),
                     ),
                     Text(
-                      _moodLabel(mood),
+                      'Chưa có đánh giá AI xác minh',
                       style: GoogleFonts.notoSans(
                         color: moodColor,
                         fontSize: 11,
@@ -435,7 +435,7 @@ class _CrabAssistantCardState extends State<CrabAssistantCard>
           ),
           const SizedBox(height: 16),
           Text(
-            widget.hint,
+            'Xem từng chỉ số và cảnh báo đã ghi nhận.',
             style: GoogleFonts.notoSans(
               color: DashboardColors.textMuted,
               fontSize: 12,
@@ -486,10 +486,4 @@ class _CrabAssistantCardState extends State<CrabAssistantCard>
     );
   }
 
-  String _moodLabel(MascotMood mood) => switch (mood) {
-        MascotMood.happy => 'Trạng thái: Vui vẻ',
-        MascotMood.calm => 'Trạng thái: Bình thường',
-        MascotMood.alert => 'Trạng thái: Cảnh giác',
-        MascotMood.critical => 'Trạng thái: Khẩn cấp',
-      };
 }
