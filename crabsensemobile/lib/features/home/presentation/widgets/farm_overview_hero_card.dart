@@ -18,16 +18,6 @@ class FarmOverviewHeroCard extends StatelessWidget {
 
   final FarmSummary summary;
 
-  String _formatTime(DateTime dateTime) {
-    final diff = DateTime.now().difference(dateTime);
-    if (diff.inMinutes < 1) {
-      return 'Vừa xong';
-    }
-    if (diff.inMinutes < 60) {
-      return '${diff.inMinutes} phút trước';
-    }
-    return '${diff.inHours} giờ trước';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +93,7 @@ class FarmOverviewHeroCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Cập nhật: ${_formatTime(summary.lastUpdated)}',
+                      'Cập nhật: ${homeTimeLabel(summary.lastUpdated)}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.white70, fontSize: 11,
                           ),
@@ -132,7 +122,7 @@ class FarmOverviewHeroCard extends StatelessWidget {
                         color: color,
                       ),
                       label: 'Tổng Hộp\nNuôi',
-                      value: '${summary.totalBoxes}',
+                      value: homeCountLabel(summary.totalBoxes),
                     ),
                     _vDivider(),
                     _StatTile(
@@ -146,26 +136,24 @@ class FarmOverviewHeroCard extends StatelessWidget {
                         ),
                       ),
                       label: 'Số Cua Đang\nNuôi',
-                      value: '${summary.totalCrabs}',
+                      value: homeCountLabel(summary.totalCrabs),
                     ),
                     _vDivider(),
                     _StatTile(
-                      iconColor: summary.openAlerts > 0
+                      iconColor: (summary.openAlerts ?? 0) > 0
                           ? CrabSenseColors.warning
-                          : CrabSenseColors.success,
+                          : Colors.white70,
                       iconBuilder: (color) => Icon(
                         Icons.warning_amber_rounded,
                         size: 22,
                         color: color,
                       ),
                       label: 'Cảnh Báo\nMở',
-                      value: '${summary.openAlerts}',
+                      value: homeCountLabel(summary.openAlerts),
                     ),
                     _vDivider(),
                     _StatTile(
-                      iconColor: summary.iotOnlinePercentage >= 90
-                          ? CrabSenseColors.success
-                          : const Color(0xFF35E08A),
+                      iconColor: Colors.white70,
                       iconBuilder: (color) => Icon(
                         Icons.wifi_tethering_rounded,
                         size: 22,
@@ -173,7 +161,7 @@ class FarmOverviewHeroCard extends StatelessWidget {
                       ),
                       label: 'IoT\nOnline',
                       value:
-                          '${summary.iotOnlinePercentage.toStringAsFixed(0)}%',
+                          summary.iotOnlinePercentage == null ? '—' : '${summary.iotOnlinePercentage!.toStringAsFixed(0)}%',
                     ),
                   ],
                 ),

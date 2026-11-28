@@ -48,12 +48,7 @@ class RecentActivitySection extends StatelessWidget {
     }
   }
 
-  String _formatTimeAgo(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1) return 'Vừa xong';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
-    return '${diff.inHours} giờ trước';
-  }
+  String _formatTimeAgo(DateTime? dt) => homeTimeLabel(dt);
 
   @override
   Widget build(BuildContext context) {

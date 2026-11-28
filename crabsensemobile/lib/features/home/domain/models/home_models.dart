@@ -3,12 +3,12 @@ import '../../../water_quality/domain/entities/water_quality.dart';
 
 /// Trạng thái tổng quan trang trại (Farm Overview Hero)
 class FarmSummary {
-  final int totalBoxes;
-  final int totalCrabs;
-  final int activeBoxes;
-  final int openAlerts;
-  final double iotOnlinePercentage;
-  final DateTime lastUpdated;
+  final int? totalBoxes;
+  final int? totalCrabs;
+  final int? activeBoxes;
+  final int? openAlerts;
+  final double? iotOnlinePercentage;
+  final DateTime? lastUpdated;
 
   const FarmSummary({
     required this.totalBoxes,
@@ -29,14 +29,14 @@ enum HealthStatusLevel {
 }
 
 class FarmHealthScore {
-  final int score; // 0 - 100
-  final HealthStatusLevel statusLevel;
+  final int? score;
+  final HealthStatusLevel? statusLevel;
   final String statusLabel; // Excellent / Good / Warning / Critical
-  final double deltaVsYesterday; // e.g. +3.0 %
-  final DateTime lastAiUpdated;
-  final int waterQualityScore; // e.g. 94
-  final int crabHealthScore; // e.g. 90
-  final int deviceStatusScore; // e.g. 88
+  final double? deltaVsYesterday;
+  final DateTime? lastAiUpdated;
+  final int? waterQualityScore;
+  final int? crabHealthScore;
+  final int? deviceStatusScore;
   final String explanation; // Explanation why score increased/decreased
 
   const FarmHealthScore({
@@ -50,6 +50,13 @@ class FarmHealthScore {
     required this.deviceStatusScore,
     required this.explanation,
   });
+
+  static const unavailable = FarmHealthScore(
+    score: null, statusLevel: null, statusLabel: 'Chưa có đánh giá xác minh',
+    deltaVsYesterday: null, lastAiUpdated: null, waterQualityScore: null,
+    crabHealthScore: null, deviceStatusScore: null,
+    explanation: 'Xem riêng từng phép đo RAS và cảnh báo đã ghi nhận.',
+  );
 
   static HealthStatusLevel calculateLevel(int score) {
     if (score >= 85) return HealthStatusLevel.excellent;
@@ -70,7 +77,7 @@ class AiRecommendation {
   final String title;
   final String description;
   final String targetBoxOrArea; // e.g. "Box B01-12"
-  final int confidencePercentage; // e.g. 94
+  final int? confidencePercentage;
   final ActionPriority priority;
   final String reason; // AI detected molting completion
   final String optimalTimeframe; // e.g. "Trong 6 giờ"
@@ -92,17 +99,12 @@ class AiRecommendation {
   });
 
   static const AiRecommendation empty = AiRecommendation(
-    id: 'empty',
-    type: AiActionType.observe,
-    title: 'Không có hành động khẩn cấp',
-    description: 'Hệ thống đang hoạt động ổn định',
-    targetBoxOrArea: 'Toàn trang trại',
-    confidencePercentage: 99,
-    priority: ActionPriority.low,
-    reason:
-        'Tất cả các thông số nước và tình trạng cua đều nằm trong ngưỡng an toàn.',
-    optimalTimeframe: 'Duy trì giám sát',
-    expectedImpact: 'Ổn định vận hành',
+    id: 'empty', type: AiActionType.observe,
+    title: 'Chưa có đánh giá AI xác minh',
+    description: 'Chưa có đề xuất có nguồn gốc xác minh.',
+    targetBoxOrArea: '', confidencePercentage: null,
+    priority: ActionPriority.low, reason: '',
+    optimalTimeframe: '', expectedImpact: '',
     hasActiveRecommendation: false,
   );
 }
@@ -134,7 +136,7 @@ class AlertSummaryItem {
   final String title;
   final String location;
   final AlertSeverityLevel severity;
-  final DateTime timestamp;
+  final DateTime? timestamp;
   final String status;
 
   const AlertSummaryItem({
@@ -185,7 +187,7 @@ class TodayTaskItem {
   final String id;
   final String title;
   final String target;
-  final DateTime deadline;
+  final DateTime? deadline;
   final ActionPriority priority;
   final bool isCompleted;
 
@@ -233,25 +235,50 @@ class BoxStatusHistoryDay {
 
 /// Trạng thái thiết bị (Device Status Section D)
 class DeviceSummary {
-  final int esp32Online;
-  final int esp32Total;
-  final int cameraOnline;
-  final int cameraTotal;
-  final int pumpRunning;
-  final int pumpTotal;
-  final int valveReady;
-  final int valveTotal;
+  final int? onlineCount;
+  final int? totalCount;
+  const DeviceSummary({required this.onlineCount, required this.totalCount});
+  static const unavailable = DeviceSummary(onlineCount: null, totalCount: null);
+  factory DeviceSummary.fromAreaInventory(Map<String, dynamic>? json) {
+    final total = homeCount(json?['totalCount']);
+    final online = homeCount(json?['onlineCount']);
+    if (total == null || online == null || online > total ||
+        json?['isOnline'] is! bool || json?['isOnline'] != (online > 0)) {
+      return unavailable;
+    }
+    return DeviceSummary(onlineCount: online, totalCount: total);
+  }
+  double? get percentage {
+    final total = totalCount, online = onlineCount;
+    if (total == null || total == 0 || online == null || online > total) return null;
+    return online * 100 / total;
+  }
+}
 
-  const DeviceSummary({
-    required this.esp32Online,
-    required this.esp32Total,
-    required this.cameraOnline,
-    required this.cameraTotal,
-    required this.pumpRunning,
-    required this.pumpTotal,
-    required this.valveReady,
-    required this.valveTotal,
-  });
+int? homeCount(Object? value) => value is int && value >= 0 ? value : null;
+
+DateTime? homeSourceTime(Object? raw, {bool allowFuture = false, DateTime? now}) {
+  if (raw is! String) return null;
+  final p = RegExp(r'^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-](\d{2}):(\d{2}))$').firstMatch(raw);
+  if (p == null) return null;
+  final year = int.parse(p[1]!), month = int.parse(p[2]!), day = int.parse(p[3]!);
+  if (year < 2000 || month < 1 || month > 12 || day < 1 ||
+      day > DateTime.utc(year, month + 1, 0).day ||
+      int.parse(p[4]!) > 23 || int.parse(p[5]!) > 59 || int.parse(p[6]!) > 59 ||
+      int.parse(p[7] ?? '0') > 23 || int.parse(p[8] ?? '0') > 59) return null;
+  final dt = DateTime.tryParse(raw);
+  return dt == null || (!allowFuture && dt.isAfter(now ?? DateTime.now())) ? null : dt;
+}
+
+String homeCountLabel(int? count) => count?.toString() ?? '—';
+String homeTimeLabel(DateTime? dt, {DateTime? now}) {
+  if (dt == null) return 'Chưa có thời gian';
+  final diff = (now ?? DateTime.now()).difference(dt);
+  if (diff.isNegative) return 'Chưa có thời gian';
+  if (diff.inMinutes < 1) return 'Vừa xong';
+  if (diff.inHours < 1) return '${diff.inMinutes} phút trước';
+  if (diff.inDays < 1) return '${diff.inHours} giờ trước';
+  return '${diff.inDays} ngày trước';
 }
 
 /// Nhật ký hoạt động gần đây (Recent Activity Section E)
@@ -269,7 +296,7 @@ class RecentActivityItem {
   final String title;
   final String description;
   final ActivityType type;
-  final DateTime timestamp;
+  final DateTime? timestamp;
 
   const RecentActivityItem({
     required this.id,
@@ -296,7 +323,7 @@ class HomeStateData {
   final String selectedFarmName;
   final List<FarmOption> availableFarms;
   final bool isOnline;
-  final int unreadNotificationsCount;
+  final int? unreadNotificationsCount;
   final FarmSummary farmSummary;
   final FarmHealthScore healthScore;
   final AiRecommendation aiRecommendation;

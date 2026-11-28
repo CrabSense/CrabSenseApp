@@ -5,6 +5,9 @@ import 'dart:typed_data';
 import 'package:crabsensemobile/core/network/api_client.dart';
 import 'package:crabsensemobile/features/authentication/data/datasources/auth_local_data_source.dart';
 import 'package:crabsensemobile/features/home/data/repositories/home_repository_impl.dart';
+import 'package:crabsensemobile/features/home/domain/models/home_models.dart';
+import 'package:crabsensemobile/features/home/presentation/widgets/farm_health_score_card.dart';
+import 'package:flutter/material.dart';
 import 'package:crabsensemobile/features/water_quality/data/repositories/scoped_history_service.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -28,6 +31,9 @@ class _Adapter implements HttpClientAdapter {
   bool wrongBox = false;
   bool wrongActor = false;
   int overviewStatus = 200;
+  bool missing = false;
+  bool withDevices = false;
+  bool sourceRecords = false;
   Completer<void>? startedA;
   Completer<void>? delayA;
 
@@ -46,13 +52,15 @@ class _Adapter implements HttpClientAdapter {
         {'id': a, 'name': 'A'}, {'id': b, 'name': 'B'}
       ]};
     } else if (path.endsWith('/notifications/unread/count')) {
-      data = {'count': 3};
+      data = {'count': missing ? '0' : 3};
     } else {
       if (area != a && area != b) throw StateError('Unscoped Home query: $path');
       if (path.endsWith('/boxes/overview')) {
-        data = {'farmingAreaId': area, 'summary': {'total': 1}, 'items': [{
+        data = {'farmingAreaId': area, 'summary': {'total': 1},
+          'areaDevices': {'totalCount': withDevices ? 2 : 0, 'onlineCount': 0, 'isOnline': false},
+          'items': [{
           'id': 'box-$area', 'farmingAreaId': wrongBox ? (area == a ? b : a) : area,
-          'isOccupied': false, 'crabCount': 0,
+          'isOccupied': missing, 'crabCount': missing ? 1 : 0,
         }]};
       } else if (path.endsWith('/dashboard/overview')) {
         if (area == a && delayA != null) {
@@ -60,16 +68,19 @@ class _Adapter implements HttpClientAdapter {
           await delayA!.future;
         }
         status = overviewStatus;
-        data = {'totalBoxes': area == a ? 1 : 2, 'totalCrabs': 0,
-          'activeBoxes': 0, 'openAlerts': 0, 'iotOnlinePercentage': 0,
+        data = {'totalBoxes': area == a ? 1 : 2, 'totalCrabs': missing ? null : 0,
+          'activeBoxes': missing ? '0' : 0, 'openAlerts': missing ? false : 0, 'iotOnlinePercentage': 100,
           'lastUpdated': '2026-11-28T05:00:00Z'};
-      } else if (path.endsWith('/dashboard/metrics')) {
-        data = {'score': 70, 'statusLevel': 'good'};
-      } else if (path.endsWith('/alerts') || path.endsWith('/iot/live') ||
-          path.endsWith('/devices') || path.endsWith('/ai/recommendations') ||
-          path.endsWith('/operations/today') ||
-          path.endsWith('/operations/scheduled-tasks') ||
-          path.endsWith('/operations/recent')) {
+      } else if (path.endsWith('/alerts')) {
+        data = sourceRecords ? [{'id':'alert-a','createdAt':null,'severity':'warning'}] : <Object>[];
+      } else if (path.endsWith('/operations/today')) {
+        data = sourceRecords ? [{'id':'task-a','deadline':'bad'}] : <Object>[];
+      } else if (path.endsWith('/operations/scheduled-tasks/today')) {
+        data = sourceRecords ? [{'id':'due-a','isEnabled':true,
+          'nextRunAt':'2026-11-28T12:00:00Z'}] : <Object>[];
+      } else if (path.endsWith('/operations/recent')) {
+        data = sourceRecords ? [{'id':'act-a','timestamp':null}] : <Object>[];
+      } else if (path.endsWith('/iot/live')) {
         data = <Object>[];
       } else {
         throw StateError('Unexpected Home request: $path');
@@ -114,9 +125,9 @@ void main() {
     expect(data.feedingHistory,isEmpty);
     expect(data.boxStatusHistory,isEmpty);
     expect(adapter.requests.where((req) =>
-      req.uri.path.endsWith('/operations/scheduled-tasks')), hasLength(1));
+      req.uri.path.endsWith('/operations/scheduled-tasks')), isEmpty);
     expect(adapter.requests.where((req) =>
-      req.uri.path.endsWith('/operations/scheduled-tasks/today')), isEmpty);
+      req.uri.path.endsWith('/operations/scheduled-tasks/today')), hasLength(1));
     for(final req in adapter.requests) {
       expect(req.headers['Authorization'],'Bearer fixture');
       expect(req.extra['skipTokenRefresh'],isTrue);
@@ -185,5 +196,64 @@ void main() {
       if (!adapter.delayA!.isCompleted) adapter.delayA!.complete();
       await rejected;
     }
+  });
+
+  test('legacy assessment not queried; strict counts and source timestamps', () async {
+    adapter.missing = true;
+    adapter.sourceRecords = true;
+    final data = await repo.getHomeSummary(farmingAreaId:a);
+    expect(data.healthScore.score,isNull);
+    expect(data.healthScore.lastAiUpdated,isNull);
+    expect(data.healthScore.waterQualityScore,isNull);
+    expect(data.aiRecommendation.hasActiveRecommendation,isFalse);
+    expect(data.aiRecommendation.confidencePercentage,isNull);
+    expect(data.farmSummary.totalCrabs,isNull);
+    expect(data.farmSummary.activeBoxes,isNull);
+    expect(data.farmSummary.openAlerts,isNull);
+    expect(data.farmSummary.iotOnlinePercentage,isNull);
+    expect(data.farmSummary.lastUpdated,isNull);
+    expect(data.unreadNotificationsCount,isNull);
+    expect(data.boxStatusCounts['unknown'],1);
+    expect(data.topAlerts.single.timestamp,isNull);
+    expect(data.recentActivities.single.timestamp,isNull);
+    expect(data.todayTasks.first.deadline,isNull);
+    expect(data.todayTasks.last.deadline,DateTime.utc(2026,11,28,12));
+    expect(adapter.requests.any((r) => r.uri.path.endsWith('/dashboard/metrics') ||
+      r.uri.path.endsWith('/ai/recommendations') || r.uri.path.endsWith('/devices')),isFalse);
+    adapter.missing = false;
+    adapter.withDevices = true;
+    final valid = await repo.getHomeSummary(farmingAreaId:a);
+    expect(valid.farmSummary.totalCrabs,0);
+    expect(valid.farmSummary.openAlerts,0);
+    expect(valid.farmSummary.iotOnlinePercentage,0);
+    expect(valid.unreadNotificationsCount,3);
+  });
+
+  test('count, inventory and timestamp decoder preserve unknown separately from zero', () {
+    for (final raw in [null, '0', false, -1, 1.5]) {
+      expect(homeCount(raw),isNull);
+    }
+    expect(homeCount(0),0);
+    expect(homeCountLabel(null),'—');
+    expect(DeviceSummary.fromAreaInventory({'totalCount':0,'onlineCount':0,'isOnline':false}).percentage,isNull);
+    expect(DeviceSummary.fromAreaInventory({'totalCount':2,'onlineCount':0,'isOnline':false}).percentage,0);
+    expect(DeviceSummary.fromAreaInventory({'totalCount':2,'onlineCount':1,'isOnline':false}).percentage,isNull);
+    final now = DateTime.utc(2026,11,28,6);
+    for(final raw in [null,'bad','2026-02-30T05:00:00Z','2026-11-28T05:00:00','2026-11-28T08:00:00Z']) {
+      expect(homeSourceTime(raw,now:now),isNull);
+    }
+    final source = homeSourceTime('2026-11-28T12:30:00+07:00',now:now);
+    expect(source,DateTime.utc(2026,11,28,5,30));
+    expect(homeTimeLabel(source,now:now),'30 phút trước');
+    expect(homeTimeLabel(null,now:now),'Chưa có thời gian');
+    expect(homeSourceTime('2026-11-28T08:00:00Z',now:now,allowFuture:true),DateTime.utc(2026,11,28,8));
+  });
+
+  testWidgets('home assessment card does not display a numeric or safety claim', (tester) async {
+    await tester.pumpWidget(MaterialApp(home:Scaffold(body:FarmHealthScoreCard(
+      healthScore:FarmHealthScore.unavailable,onAnalysisPressed:(){}))));
+    expect(find.textContaining('Chưa có đánh giá xác minh'),findsOneWidget);
+    expect(find.textContaining('70/100'),findsNothing);
+    expect(find.textContaining('ổn định'),findsNothing);
   });
 }

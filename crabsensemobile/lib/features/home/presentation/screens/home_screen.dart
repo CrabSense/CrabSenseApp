@@ -120,6 +120,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             await context.push(RoutePaths.alerts);
                             if (context.mounted) {
                               ref.invalidate(unreadNotificationsCountProvider);
+                              await ref.read(homeStateProvider.notifier).refresh();
                             }
                           },
                         ),
