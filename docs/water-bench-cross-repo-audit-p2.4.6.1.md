@@ -144,3 +144,6 @@ App #84 merged 93affe3, all four PR and main workflows passed, Desktop 63/63 inc
 
 ## Operational Efficiency contract — 2026-11-28
 App #86 merged 87e3b53, all PR/main workflows PASS, Mobile 104/104. BE #115, FE #42 and App consumer PR implement nullable empty rates, no unverified health score, current stocked cohort and area gate/marker, strict scope/count/rate validation and UI invalidation, mandatory regressions. Explicit current box/current status limitation; no historical reconstruction. Journal 68. CI and coordinated deployment pending, no production acceptance.
+
+## Operational Efficiency CI / deployment evidence — 2026-11-28
+Journal 69–70: BE #433 fixture regression corrected without production changes; #434 PASS and merged 7ecaae7; main #435 PASS (744 passed, 1 skipped), VPS #230 exact SHA PASS and hardwareControlDisabled=true. FE #42 merged e7e939b (main #161/audit #24/Pages #149 PASS, 39 Node tests); App #87 merged 0825eac (main #262/Mobile #113/Desktop #112/Pages #143 PASS, 106 Mobile and 64 Desktop). All eight Efficiency regressions passed. FE/App merged before VPS completion; record ordering deviation. External endpoint reads unavailable, JWT production and cross-client/native smoke checks remain unverified. T05 final acceptance stays open. Docs-only update.
