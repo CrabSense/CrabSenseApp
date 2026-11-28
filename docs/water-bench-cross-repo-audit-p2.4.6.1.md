@@ -62,3 +62,6 @@ FE #31 merged; main #137 and Deploy #125 passed, 25 Node tests, 19 affected npm 
 
 ## Compatible dependency remediation candidate — FE main 556c06f
 FE #32 merged; audit #2 confirms full 19 / omit-dev 17 affected packages. Main #139 28 Node tests, Deploy #127 PASS. App #63 merged 6a0247b. shadcn CSS is required, existing React plugin peer excludes Vite 8. FE #33 c275c55 proposes isolated shadcn 4 + non-force compatible npm remediation with actual registry resolution, lock evidence, full/omit-dev audit, npm ci and browser/build tests. No committed dependency upgrade until candidate validation; separate Vite major migration required. T06 remains open.
+
+## Candidate runner correction
+FE #33 Candidate #1 resolved shadcn 4.23.1, reduced full/omit-dev audit to 2 (Vite/esbuild), npm ci/28 tests/Pages build passed; Chromium install failed because ubuntu-latest is Ubuntu 26.04 unsupported by Playwright 1.56.1. Commit 2d5445b pins Ubuntu 24.04; no test bypass or package changes. Exact candidate must pass browser tests before adoption. App #64 merged fdd8d12 after CI #210. T06 remains open.
