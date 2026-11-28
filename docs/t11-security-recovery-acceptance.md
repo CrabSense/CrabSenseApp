@@ -39,3 +39,6 @@ Private AI #14 merged 0b770f6, both PR/main compatibility and geometry modes 1/1
 
 ## REC04 accepted in isolated CI
 BE #117 6e1fd8d, #440/#441 PASS. Verified both downloaded recovery ZIPs (PR 15266347768, main 15267215600) against CI logs: backup 204/300ms, restore 480/832ms, 107 tables and SHA-256 verified, TRX 1/1 PASS/no skip. Restore includes safety backup; not production RTO/RPO. App #104 main accepted. Deploy #232 pending at review and Kiosk/AI pins remain on 6648750. SEC02 protection inaccessible (403 on five repos); actual BE Sonar scan skipped. Persistent production backup checksum/offsite copy, actual RTO/RPO and REC05 real media recovery still open. Journal 87.
+
+## REC04 deployment and REC05 design
+VPS #232 exact 6e1fd8d accepted; Kiosk #34 repin CI #85 pending. Private AI repin requires accepted Kiosk main. REC05 proposed isolated recovery acceptance matrix in docs/t11-rec05-media-recovery.md. Existing snapshot_verified does not prove current media bytes; mediaContentRechecked=false is explicit. No provider/production recovery accepted. Journal 88.
