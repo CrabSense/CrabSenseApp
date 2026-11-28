@@ -207,3 +207,6 @@ Kiosk #34 merged db9aeb8, #85/#86 PASS with exact BE 6e1fd8d, cross 1/1 no skip 
 
 ## REC05 CI #22 correction — 2026-11-28
 Private AI #15 a325b0d Python PASS but both cross modes FAIL pg_restore 18.7 -> server 16 unsupported transaction_timeout; both artifact uploads also failed storage quota, no artifacts. Replacement 7105dc6 explicitly matches PostgreSQL 16 client and verifies server major, retains all gates and required uploads; redacted summary added. App #107 merged 3fa79ca and all main checks PASS. Journal 90. No new REC05 marker or raw-content guard acceptance. Actual Drive and production gates open.
+
+## REC05 isolated test PASS, artifact blocked — 2026-11-28
+Private AI #15 7105dc6 #56 PASS, cross #23 both real test steps PASS and both emit REC05_ISOLATED_RECOVERY_PASSED=1, TRX counters 1/1/no skip per mode, 3 media/16 receipts, PG client 16.16, exact new pins. Both required uploads fail storage quota; no downloadable artifacts and overall FAIL, unmerged. Raw content hash guard remains false and real Drive unverified. App #108 merged 446fe84 all main checks PASS. Journal 91. Resolve quota, rerun and verify downloadable evidence before merge; then M05 backend guard.

@@ -48,3 +48,6 @@ Kiosk #34 main db9aeb8 accepted with BE 6e1fd8d. Private AI #15 a325b0d repins b
 
 ## REC05 CI #22 failure correction
 Both private cross jobs failed actual restore with client 18.7 against server 16; artifact quota exhausted independently. Private AI #15 replacement 7105dc6 fixes runner/client selection and asserts server version; mandatory artifacts and all integrity tests retained. No artifacts from #22 and no REC05 acceptance. Admin must resolve quota if persistent. Raw content SHA guard deferred until baseline PASS. Journal 90.
+
+## REC05 isolated test results and evidence blocker
+Cross #23 jobs 141013278383/141013278538 both emitted actual REC05 marker and 1/1/no-skip TRX counters; 3 media and 16 receipts, exact BE 6e1fd8d/Kiosk db9aeb8, 36s/22s. All tested isolated integrity assertions passed. Both required artifact uploads fail quota, no downloadable artifacts and workflow failure. No merge or quota bypass. M05 raw content SHA guard and M08 retention still open; real Drive and production not accepted. App #108 main PASS. Journal 91.
