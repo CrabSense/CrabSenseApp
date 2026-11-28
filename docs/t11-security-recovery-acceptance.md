@@ -30,3 +30,6 @@ SEC01, SEC03, SEC04 and isolated REC01–REC03 passed mandatory PR/main CI on BE
 
 ## Kiosk repin after deployed BE acceptance
 Kiosk #33 (78b05db) pins exact deployed BE 6648750 and strengthens mandatory executed/no-skip TRX assertion. Require Kiosk PR/main PASS before private AI repin. Previous write was blocked, current PR created. No production changes or additional recovery acceptance. Journal 84.
+
+## Kiosk main accepted; private AI repin
+Kiosk #33 merged 3447793, PR/main #83/#84 PASS; exact BE 6648750 cross 1/1/no skip on each and Windows 85/85. App #102 merged dc93281, all main checks PASS. Private AI #14 540637a repins both repositories, PR/main mandatory matrix acceptance pending. Journal 85. Retain all production and individual recovery timing gates.
