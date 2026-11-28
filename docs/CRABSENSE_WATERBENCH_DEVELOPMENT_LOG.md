@@ -126,7 +126,7 @@
 | CrabSenseBE | a8306ca | #114 merged; main CI #432/VPS #229 PASS |
 | CrabSenseAIWaterQualityAnalysis | 700d5b2 | AI CI #37 / private cross #11 PASS |
 | CrabSenseFE | 7fc170b | #41 merged; main Audit #22/Sonar #159/Pages #147 PASS |
-| CrabSenseApp | 0c3b06c | #82 merged; main #250/Mobile #103/Desktop #103/Pages #131 PASS |
+| CrabSenseApp | dca80f4 | #83 merged; main #253/Mobile #106/Desktop #104/Pages #134 PASS |
 
 | Mã | Ưu tiên | Việc còn lại | Điều kiện hoàn thành |
 |---|---|---|---|
@@ -134,7 +134,7 @@
 | T02 | P0 | DONE: App main #61/#52/#43 và Sonar #156 PASS | Tất cả PASS đúng main 83e7eec |
 | T03 | P0 | Đã merge BE scoped history và khôi phục chart scoped Mobile/Desktop; chưa production smoke | Sửa cấu hình test Npgsql, chạy đủ HTTP/PostgreSQL, CI PASS, review migration, deploy, App chart thật |
 | T04 | P1 | SQLite v4 scope/session/expiry fail-closed; #73 generation guard/chart lifecycle PASS; offline reading tắt, native còn mở | Kiểm thử offline và isolation; phục hồi chart/cache an toàn |
-| T05 | P1 | RAS Chromium PASS; BE #113/VPS, FE #40/App #76 PASS; Mobile #77 CI #238 92/92 PASS merged; L03–L06 Mobile #78 PASS; BE #114/VPS và Desktop #79 PASS; Web #41 merged/main Pages PASS; App #80 CI #245 Desktop 60/60 PASS merged; Home H01–H03 #82 CI #249 99/99 PASS merged; H04–H09 #83 CI #251 failed legacy CrabHomeScreen nullable consumer; corrected head pending; Desktop Health/Reports/production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
+| T05 | P1 | RAS Chromium PASS; BE #113/VPS, FE #40/App #76 PASS; Mobile #77 CI #238 92/92 PASS merged; L03–L06 Mobile #78 PASS; BE #114/VPS và Desktop #79 PASS; Web #41 merged/main Pages PASS; App #80 CI #245 Desktop 60/60 PASS merged; Home H01–H03 #82 CI #249 99/99 PASS merged; H04–H09 #83 CI #252 102/102 PASS merged; Desktop Health/export containment pending; Reports/production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
 | T06 | P1 | FE #37 merged, main Audit #14 và Pages #139 gate full/omit-dev 0 PASS; required branch check chưa xác minh | Phân loại direct/transitive/dev/runtime, sửa an toàn, CI PASS |
 | T07 | P1 | Kiểm thử PostgreSQL technical diagnostics, JWT bốn role | P2.4.6.2; 401/403 và scoped access |
 | T08 | P1 | Geometry QC bắt buộc với fixture phù hợp; kiểm tra private media/Drive | P2.4.6.3 |
@@ -143,7 +143,7 @@
 | T11 | P2 | Tổng kiểm thử bảo mật, CI/CD và quy trình test thực tế | P2.4.6.6 |
 | T12 | P3 | Thiết bị thật, UART, đo chuẩn, mẫu thật, vệ sinh, vận hành lâu dài | Chỉ sau P2.4.6 PASS |
 
-**Việc kế tiếp:** nghiệm thu Home H04–H09, sau đó Desktop Health và BE/Web Efficiency nullable; kiểm tra cross-client contract, native T04 và required status check với quyền admin còn mở. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
+**Việc kế tiếp:** nghiệm thu Desktop Health/export, rà Mobile legacy water card, sau đó BE/Web Efficiency nullable; kiểm tra cross-client contract, native T04 và required status check với quyền admin còn mở. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
 
 ## 6. Quy định cập nhật file sau mỗi lượt
 
@@ -426,3 +426,7 @@
 ### 64 — T05: App #83 CI #251 correction (28/11/2026)
 - #83 head 5c39954, Sonar #251 FAIL, Mobile Hosted #104 FAIL, Pages #132 in progress at check. Desktop job 140909870826 PASS, Mobile analysis job 140909870963 has 17 compile errors all in legacy crab_home_screen.dart: nullable count subtraction, legend denominator, notification count, activity/alert timestamp. Mobile tests not executed. Build job 140909870140 confirms compilation errors. No merge.
 - Fix legacy consumer: unknown counts dash, nullable unread marker, actual empty box count not derived from total minus active, percentage only known nonzero scoped denominator, nullable source time, explicit unknown donut segment and legend, painter repaint on changed counts. Clear refresh/reload previous data and guard selected area mismatch; use verified farm label. Preserve #83 regression tests and required CI, no default 0/time workaround. Single replacement commit on isolated branch with expected SHA. Remaining legacy water widget heuristics (hard-coded water references, selection among sensors) identified in CrabHomeScreen, needs separate scoped water card review; Desktop Health Monitoring/export remains open until #83 accepted. No production/JWT/native acceptance or API/DB/role changes. Next check revised CI #83, merge only all PASS, then Desktop Health/export. Do not close T05.
+
+### 65 — T05: App #83 PASS; Desktop Health D01–D08 (28/11/2026)
+- App #83 dfb4825 Sonar #252/Mobile #105/Pages #133 PASS, merged dca80f4. Mobile job 140910560901 102/102 tests PASS, 3 Home legacy regressions PASS. Main #253/Mobile #106/Desktop #104/Pages #134 PASS. Journal 63–64 merged.
+- Desktop Health: xác nhận HealthMonitoringPage gọi HealthMonitoringProfile.empty (score 0, emergency, low disease, Optimum, epoch, defaults), live badge và clipboard report chứa dữ liệu giả. Search references cho thấy model/widgets chỉ dùng trang Health; không có nguồn verified profile được nối tại trang. Thay model bằng explicit unavailable state không có numeric score/diagnosis, bỏ formula/chart/auto-alert/placeholder report generator và clipboard path, render neutral cards, export button disabled, giữ back/hồ sơ cua (callback thực tế quay về detail, không gắn nhãn lịch sử). Bỏ fallback CRAB-A01-001 và first crab ở hai route individualDetail/individualHealth, yêu cầu lựa chọn thực; key theo khu/id. Ba regression (state + 2 widget) thêm mandatory Desktop CI. Một commit, CI pending, không triển khai nguồn đánh giá mới vì chưa có contract xác minh; không khẳng định hồ sơ đã được xác minh chỉ từ id. Native/production JWT, branch protection, Mobile legacy water thresholds, BE/Web Efficiency còn mở. Không DB/API/role/firmware/sampling change; không đóng T05.
