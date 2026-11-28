@@ -21,3 +21,6 @@ BE #116 (75d705a) implements SEC01, CI portion of SEC03 and SEC04; adds isolated
 
 ## CI #436 correction
 BE #116 replacement 6fc5820 fixes CS4007 and actual audit schema, remediates three affected packages/four distinct High advisories observed in artifact 15258804804. Mandatory parser regression and recovery test remain enabled. No production recovery established; all acceptance conditions unchanged. See journal 81 and BE T11 security/recovery notes.
+
+## CI #437 recovery correction
+Actual five-project NuGet audit passed with zero advisories across severity levels; unit tests passed. Recovery reached final FK assertion but failed due to replay unique collision. BE #116 d74298e targets one restored measurement with verified absent parent and asserts correct FK code/table/schema plus post-rollback snapshot. Await full CI; production integrity/offsite and administrator acceptance remain open.
