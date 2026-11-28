@@ -174,3 +174,6 @@ App #95 and FE #44 merged c74285e/d74196b; all PR/main checks PASS, 112 Mobile/6
 
 ## T10 main and T11 readiness — 2026-11-28
 Firmware #14 merged b00ad7d main #26 PASS (host and all three targets); Kiosk #32 merged ad3e21e main #82 PASS (85 Windows, cross 1/1 no skip); App #96 merged 0431532 and all main checks PASS. Private AI #13 f7d8564 repins Kiosk to ad3e21e, BE unchanged, both cross modes #18 and CI #48 pending. T11 preliminary: direct DEV-Khanh auto-merge/push has no CI gate in workflow, branch protection inaccessible; backup archive list is not full restore verification. See journal 79 and T11 acceptance plan. Do not close T10/T11 or change production before acceptance.
+
+## T11 CI security and isolated recovery — 2026-11-28
+Private AI #13 merged fffcfda with #48/#49 and #18/#19 both modes PASS (each 1/1 no skip, Python 15 passed); App #97 merged b1c98cc and all main checks PASS. BE #116 75d705a removes unsafe direct merge, adds mandatory security/NuGet gate, latest exact-main deploy check and production-service backup/restore in disposable PostgreSQL. CI pending. Branch protection/admin, production checksums/offsite and real recovery remain open. Journal 80.
