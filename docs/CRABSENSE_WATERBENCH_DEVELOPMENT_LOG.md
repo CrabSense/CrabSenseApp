@@ -1,6 +1,6 @@
 # CrabSense — Nhật ký triển khai WaterBench
 
-**Cập nhật:** 27/11/2026 (UTC+7) · **Mốc hiện tại:** P2.4.6.1  
+**Cập nhật:** 28/11/2026 (UTC+7) · **Mốc hiện tại:** P2.4.6.1  
 **Phạm vi:** hardware-water-quality-analysis, CrabSenseKiosk, CrabSenseBE, CrabSenseAIWaterQualityAnalysis, CrabSenseFE, CrabSenseApp.  
 **Nguồn:** nội dung cuộc trao đổi hiện có, PR/commit/workflow GitHub đã đối chiếu ngày 27/11/2026. Các giai đoạn trước phần lịch sử hội thoại còn truy xuất được được ghi ở mức tổng hợp, không khẳng định đã tái dựng đầy đủ từng thao tác. Các kết quả CI lịch sử không thay thế nghiệm thu thiết bị thật.
 
@@ -28,7 +28,7 @@
 | P2.4.3 | Farm Manager Desktop | PASS CI/CD |
 | P2.4.4 | Farm Staff Mobile | PASS CI/CD |
 | P2.4.5 | System Admin Web | PASS CI/CD |
-| P2.4.6.1 | Rà soát hợp đồng, DB, repo | ĐANG LÀM — lịch sử/cached dữ liệu thật và bảo mật chưa hoàn tất |
+| P2.4.6.1 | Rà soát hợp đồng, DB, repo | ĐANG LÀM — T06 bảo mật FE; T04/T05 còn nghiệm thu lifecycle, JWT, KPI/legacy và production |
 | P2.4.6.2 | JWT thật và phân quyền bốn role | CHƯA NGHIỆM THU |
 | P2.4.6.3 | Hardware–Kiosk–BE–AI | CHƯA NGHIỆM THU toàn diện; CI mô phỏng đã có |
 | P2.4.6.4 | Đồng bộ kết quả Web/Desktop/Mobile | CHƯA NGHIỆM THU xuyên nền tảng |
@@ -122,20 +122,20 @@
 | Repo | Main mới nhất ghi nhận | Ghi chú |
 |---|---|---|
 | hardware-water-quality-analysis | b552498 | Mốc audit; chưa flash/test thật |
-| CrabSenseKiosk | 3fc897c | PR #29 merged, CI #75/#76 PASS |
-| CrabSenseBE | 40464ce | PR #111 merged; CI #424/#425 và VPS #226 PASS |
-| CrabSenseAIWaterQualityAnalysis | 2c63944 | PR #8 merged; AI CI #32/#33 và private cross #8/#9 PASS |
-| CrabSenseFE | 0e1178d | Main deployment #123 PASS |
-| CrabSenseApp | d6f2ff0 | Nhật ký #48 merged; Sonar #174, Mobile #51, Desktop #60, Pages #69 PASS |
+| CrabSenseKiosk | 98458f3 | Main CI #78 PASS |
+| CrabSenseBE | 5f4415f | Main CI #427 / VPS #227 PASS |
+| CrabSenseAIWaterQualityAnalysis | 700d5b2 | AI CI #37 / private cross #11 PASS |
+| CrabSenseFE | 43e4ff9 | Main audit #5/Sonar #142/Deploy #130 PASS; #34 chưa merge |
+| CrabSenseApp | 5e7277d | #66 CI #214 PASS và merged; CI main mới chưa xác minh |
 
 | Mã | Ưu tiên | Việc còn lại | Điều kiện hoàn thành |
 |---|---|---|---|
 | T01 | P0 | DONE: AI #7 merged, AI main #29 và private cross #7 PASS | Exact BE main pin, main CI PASS |
 | T02 | P0 | DONE: App main #61/#52/#43 và Sonar #156 PASS | Tất cả PASS đúng main 83e7eec |
-| T03 | P0 | BE #111 CI #424/#425 và VPS #226 PASS, merged 40464ce; App chart còn chờ | Sửa cấu hình test Npgsql, chạy đủ HTTP/PostgreSQL, CI PASS, review migration, deploy, App chart thật |
-| T04 | P1 | Cache offline nullable, có user/area scope, invalidation khi logout/revoke, retention/migration | Kiểm thử offline và isolation; phục hồi chart/cache an toàn |
-| T05 | P1 | Kiểm tra toàn bộ current metric UI, status/threshold/unit, dữ liệu stale và scope; bổ sung production smoke | Không label sai hoặc hiển thị số liệu ngoài quyền |
-| T06 | P1 | 19 npm vulnerabilities theo log trước (cần audit lại) | Phân loại direct/transitive/dev/runtime, sửa an toàn, CI PASS |
+| T03 | P0 | Đã merge BE scoped history và khôi phục chart scoped Mobile/Desktop; chưa production smoke | Sửa cấu hình test Npgsql, chạy đủ HTTP/PostgreSQL, CI PASS, review migration, deploy, App chart thật |
+| T04 | P1 | SQLite v4, scope/session/expiry và fail-closed đã test; offline reading chưa bật, native lifecycle còn mở | Kiểm thử offline và isolation; phục hồi chart/cache an toàn |
+| T05 | P1 | Live/history scoped và RAS chung khu đã triển khai; KPI/legacy, RAS browser và production smoke còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
+| T06 | P1 | PR #34 full/omit-dev còn 2; cả 4 workflow PASS, chưa merge; main full 19/omit-dev 17; Vite/plugin và gate còn mở | Phân loại direct/transitive/dev/runtime, sửa an toàn, CI PASS |
 | T07 | P1 | Kiểm thử PostgreSQL technical diagnostics, JWT bốn role | P2.4.6.2; 401/403 và scoped access |
 | T08 | P1 | Geometry QC bắt buộc với fixture phù hợp; kiểm tra private media/Drive | P2.4.6.3 |
 | T09 | P1 | Cùng batch/receipt/estimate/review trên ba nền tảng, retry/cancellation/stale | P2.4.6.4–5 |
@@ -143,7 +143,7 @@
 | T11 | P2 | Tổng kiểm thử bảo mật, CI/CD và quy trình test thực tế | P2.4.6.6 |
 | T12 | P3 | Thiết bị thật, UART, đo chuẩn, mẫu thật, vệ sinh, vận hành lâu dài | Chỉ sau P2.4.6 PASS |
 
-**Việc kế tiếp:** nghiệm thu nền tảng cache scoped Mobile, sau đó nối auth/API/UI và kiểm thử offline/revoke. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
+**Việc kế tiếp:** merge FE #34 sau xác nhận head CI, kiểm tra main/deploy, thử Vite/React plugin riêng và security gate; rà các điều kiện T04/T05 còn mở trước tổng nghiệm thu. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
 
 ## 6. Quy định cập nhật file sau mỗi lượt
 
@@ -332,3 +332,8 @@
 ### 42 — T06: áp dụng chính xác bản vá dependency đã nghiệm thu (28/11/2026)
 - FE #33 merged 43e4ff9; Candidate #2 [run](https://github.com/CrabSense/CrabSenseFE/actions/runs/46105670510) job 140857738842 PASS toàn bộ npm ci, Node/build, Chromium browser và artifact upload. Sonar #141/Chromium #11/Pages #129/Audit #4 PASS. Candidate full/omit-dev đều còn 2 (Vite 5.4.21 High, esbuild 0.21.5 Moderate), không critical. App #65 CI #212 PASS và merged 929c91b.
 - Đã tải ZIP artifact 15247876071 và xác minh SHA256 921d0791f38ad6f1772596031d74a70614fbcee45007ccc26ebe1b96c54e5158; candidate lock SHA256 c59738b9a0888730f64af6c6509bfe48c9eed7c4ca359c021fb529938acc275b. Khôi phục từ log delta và đối chiếu Git blob SHA với từng file trong ZIP: package.json 916b0eaad93c66fdbf28faf90e5af941519f9649, package-lock.json c6f5a6b84ba39f4ea0cb1fd70379b52a9d930fbe, đều khớp. FE [PR #34](https://github.com/CrabSense/CrabSenseFE/pull/34) head 1a9dab5, một commit chỉ hai file dependency; shadcn pin 4.23.1, không force fix/major upgrade/đổi logic. Audit #6 queued tại lần kiểm tra đầu; yêu cầu Sonar/Pages/Chromium/Audit PASS trước merge. FE main chưa đổi, chưa production. Next: merge sau CI, thử nâng Vite/React plugin riêng và audit/security gate. T06 và P2.4.6.1 chưa đóng; JWT/browser RAS/hardware còn mở.
+
+### 43 — Đối chiếu tài liệu và tiến độ sáu repo (28/11/2026)
+- Đọc nhật ký 01–42, cross-repo audit, Mobile data integrity, Manager Desktop và Staff Mobile acceptance; cập nhật snapshot/mốc T03–T06 vì bảng cũ chưa theo kịp nhật ký append-only. Main firmware b552498 CI #24 PASS; Kiosk 98458f3 CI #78 PASS; BE 5f4415f CI #427/VPS #227 PASS; AI 700d5b2 CI #37/private cross #11 PASS; FE 43e4ff9 Audit #5/Sonar #142/Deploy #130 PASS; App trước merge #66 929c91b Sonar #213/Desktop #83/Mobile #80/Pages #104 PASS, đúng main SHA.
+- FE [#34](https://github.com/CrabSense/CrabSenseFE/pull/34) head 1a9dab5: Audit #6 (46106957479), Sonar #143 (46106957477), Pages #131 (46106957461), Chromium #12 (46106957508) đều PASS, mergeable. Sonar scan thực tế skipped. Main audit #5 job 140858184335 còn full 19 / omit-dev 17, PR còn 2 (Vite High/esbuild Moderate). Chưa merge FE trong lượt kiểm tra tài liệu; không sửa code/dependency/API/DB.
+- App [#66](https://github.com/CrabSense/CrabSenseApp/pull/66) head 3e4f7b5 CI #214 PASS, merged 5e7277d; mục 42 đã vào main, CI main mới chưa xác minh. T04 offline reading vẫn tắt; T05 KPI/legacy/RAS browser/JWT production chưa hoàn tất. T07–T12 giữ nguyên phạm vi. Next: merge FE #34, xác nhận main audit/deploy, Vite/plugin migration, gate; chưa chuyển P2.4.6.2 hay P3. Không xác nhận thiết bị thật.
