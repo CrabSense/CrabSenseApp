@@ -125,8 +125,8 @@
 | CrabSenseKiosk | 98458f3 | Main CI #78 PASS |
 | CrabSenseBE | 5f4415f | Main CI #427 / VPS #227 PASS |
 | CrabSenseAIWaterQualityAnalysis | 700d5b2 | AI CI #37 / private cross #11 PASS |
-| CrabSenseFE | 3d20f94 | #37 merged; main Audit #14 zero/Sonar #151/Pages #139 security/build/browser/deploy PASS; #38 T05 pending |
-| CrabSenseApp | 48004ae | #70 CI #223 PASS merged; main #224/Mobile #85/Desktop #88/Pages #109 running |
+| CrabSenseFE | a96343e | #38 merged; main Audit #16/Sonar #153/Pages #141 PASS; #39 RAS browser lifecycle pending |
+| CrabSenseApp | d8f06d2 | #71 CI #225 PASS merged; main #226/Mobile #86/Desktop #89/Pages #110 running |
 
 | Mã | Ưu tiên | Việc còn lại | Điều kiện hoàn thành |
 |---|---|---|---|
@@ -134,7 +134,7 @@
 | T02 | P0 | DONE: App main #61/#52/#43 và Sonar #156 PASS | Tất cả PASS đúng main 83e7eec |
 | T03 | P0 | Đã merge BE scoped history và khôi phục chart scoped Mobile/Desktop; chưa production smoke | Sửa cấu hình test Npgsql, chạy đủ HTTP/PostgreSQL, CI PASS, review migration, deploy, App chart thật |
 | T04 | P1 | SQLite v4, scope/session/expiry và fail-closed đã test; offline reading chưa bật, native lifecycle còn mở | Kiểm thử offline và isolation; phục hồi chart/cache an toàn |
-| T05 | P1 | Live/history scoped và RAS chung khu đã triển khai; #38 thay legacy Web dashboard score bằng qualified RAS, CI pending; KPI/legacy/browser/production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
+| T05 | P1 | Live/history scoped và RAS chung khu đã triển khai; #38 merged; #39 RAS Chromium lifecycle pending; KPI/legacy/production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
 | T06 | P1 | FE #37 merged, main Audit #14 và Pages #139 gate full/omit-dev 0 PASS; required branch check chưa xác minh | Phân loại direct/transitive/dev/runtime, sửa an toàn, CI PASS |
 | T07 | P1 | Kiểm thử PostgreSQL technical diagnostics, JWT bốn role | P2.4.6.2; 401/403 và scoped access |
 | T08 | P1 | Geometry QC bắt buộc với fixture phù hợp; kiểm tra private media/Drive | P2.4.6.3 |
@@ -143,7 +143,7 @@
 | T11 | P2 | Tổng kiểm thử bảo mật, CI/CD và quy trình test thực tế | P2.4.6.6 |
 | T12 | P3 | Thiết bị thật, UART, đo chuẩn, mẫu thật, vệ sinh, vận hành lâu dài | Chỉ sau P2.4.6 PASS |
 
-**Việc kế tiếp:** nghiệm thu FE #38, bổ sung RAS browser lifecycle, rà KPI/legacy và T04; cấu hình required status check với quyền admin trước tổng nghiệm thu. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
+**Việc kế tiếp:** nghiệm thu FE #39 RAS Chromium lifecycle, rà KPI/legacy và T04; cấu hình required status check với quyền admin trước tổng nghiệm thu. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
 
 ## 6. Quy định cập nhật file sau mỗi lượt
 
@@ -356,3 +356,7 @@
 ### 47 — T06: gate main PASS; T05: Dashboard Web dùng số đo RAS đã xác minh (28/11/2026)
 - FE #37 head c16e459, Audit #13/Sonar #150/Pages #138/Chromium #16 PASS, merged 3d20f94. Main [Audit #14](https://github.com/CrabSense/CrabSenseFE/actions/runs/46108991845) job 140868064988 và [Pages #139](https://github.com/CrabSense/CrabSenseFE/actions/runs/46108991858) job security 140868065515 đều 6/6 tests PASS, marker NPM_SECURITY_GATE_PASS full=0 omit-dev=0; build/browser/deploy đều success, Sonar #151 PASS. Branch protection vẫn cần admin; connector không có công cụ chỉnh ruleset/protection. Không tuyên bố chặn mọi merge hoặc đã nghiệm thu security toàn hệ thống. App #70 CI #223 PASS, merged 48004ae; main #224/Mobile #85/Desktop #88/Pages #109 running tại snapshot.
 - Rà BE DashboardService: waterQualityScore thực chất tỷ lệ sensor active có LastSeenAt trong 2h trừ điểm cảnh báo, không đánh giá nồng độ; overall score bỏ component null. FE [#38](https://github.com/CrabSense/CrabSenseFE/pull/38) c2207d4, một commit fix(dashboard): replace legacy water health score with scoped RAS readings. Dashboard dùng useRasWater/EnvironmentGrid hiện có với khu đã xác minh, không tổng hợp All Areas, giữ từng sensor/giá trị thực/unit/time/ngưỡng. Bỏ hiển thị score tổng hợp/breakdown và request /dashboard/metrics từ hook; giữ overview/KPI nghiệp vụ, ẩn card device của grid khi thiếu payload. Thêm 1 source-wiring test, dự kiến 32 Node tests, không thay model gate. CI Audit #15/Pages #140/Sonar #152/Chromium #17 queued. Chưa merge, chưa browser regression RAS chuyên biệt, JWT/production smoke, KPI semantics và T04 native lifecycle chưa nghiệm thu. Không đổi BE/schema/role/dependency/vị trí lấy mẫu. Next: kiểm tra #38, rà T04/T05 và required check với admin. Chưa đóng P2.4.6.1 hoặc chuyển P2.4.6.2/P3.
+
+### 48 — T05: kiểm thử vòng đời RAS trên Chromium (28/11/2026)
+- FE #38 head c2207d4, Audit #15/Sonar #152/Chromium #17/Pages #140 PASS, merged a96343e; main Audit #16/Sonar #153/Pages #141 PASS. App #71 CI #225 PASS, merged d8f06d2; main #226/Mobile #86/Desktop #89/Pages #110 running tại snapshot.
+- FE [#39](https://github.com/CrabSense/CrabSenseFE/pull/39) head 4f8077c, một commit test(ras): exercise scoped water lifecycle in Chromium. Thêm tests/browser/rasWater.mjs và nối vào workflow Chromium bắt buộc trước Pages deployment; tài liệu shared-ras-area-monitoring.md. Chromium thật + API synthetic: giữ riêng sensor/zero, loại sai khu/chemistry/null, delay request khu A khi chuyển B, All Areas không query/gộp, offline/reconnect, đổi credential/403/revalidate, Dashboard và Monitoring cùng scoped cards. Lưu screenshot/diagnostics khi fail; không bỏ bộ WaterBench cũ. Chromium #18/Pages #142 queued tại snapshot; chưa nghiệm thu test mới. Không đổi dependency/production code/BE/schema/role/vị trí lấy mẫu. Chưa JWT production/native/physical; T04 và KPI/legacy T05 còn mở, branch protection cần admin. Next kiểm tra #39 và #72, xử lý test nếu lỗi, rà T04/T05. Không đóng P2.4.6.1.
