@@ -1,0 +1,22 @@
+# REC05 — Media, Receipt and Provenance Recovery
+
+## Scope and sequencing
+Run only after Kiosk PR/main CI with BE 6e1fd8d and private AI both new-pin modes pass. Extend private cross integration against disposable PostgreSQL and synthetic private-storage double, then require a separate authorized non-production Drive recovery exercise. No production restore, deletion, permission changes, secrets or hardware commands. Do not label chemical results verified.
+
+## Existing evidence and gap
+Private AI tests/cross_integration/WaterBenchCrossIntegrationTests.cs already verifies committed receipt/media reads by scoped roles, ACL rejection, same-length byte corruption before inference, retry and persisted AI provenance. BE WaterBenchResultController.ResultEvidence returns snapshot_verified for verified persisted linkage but mediaContentRechecked=false. PrepareAssessment separately verifies actual byte length and hash. Existing T08/T09 tests do not restore PostgreSQL and media to an independent target as one recovery drill. A database dump alone cannot recover external media bytes or prove current ACL. Do not conflate raw media GET or snapshot digest with current-byte verification.
+
+## Proposed mandatory test matrix
+| Gate | Isolated procedure | Required evidence |
+|---|---|---|
+| M01 | Capture successful synthetic receipts, media and assessment using current controllers/AI; snapshot source and private byte map | Stable receipt, media, assessment, session IDs and SHA-256; no production publication |
+| M02 | Backup source schema with pg_dump, restore to separate disposable target with verified local identity, reconstruct independent private-storage double from snapshot | Source unchanged, restored migration history and linked rows, no upload or infer side effects |
+| M03 | Read receipt inventory and evidence from fresh target HTTP host with actual controller/repositories | Compare expected persisted IDs, payload hashes, provenance digest, status and flags against source; exact JSON contract, not mocked API |
+| M04 | Restore metadata but omit one media object; check content/assessment paths on target | No false success, no new inference/receipt/publication; snapshot evidence remains explicitly not current-byte verification |
+| M05 | Restore incorrect same-length bytes or invalid ACL | Integrity or ACL rejection before new inference; if content route lacks byte integrity, record and fix contract in separate reviewed BE change |
+| M06 | Restore correct bytes/ACL; check authorized content SHA-256 and evidence, foreign/anonymous access denial | Original IDs/digests unchanged, no duplicate records or fabricated publication, 401/403 as appropriate |
+| M07 | Verify missing or altered receipt/provenance in target only, using safe synthetic fixture | Fail closed on invalid linkage; distinguish historic metadata from current media verification |
+| M08 | Export redacted counts, statuses and executed TRX for both matrix modes | No skipped tests, no images, dump, credentials or row payloads in artifacts |
+
+## Actual provider and production gates
+Actual Google Drive private ACL, file availability, byte integrity, independent copy and restore permissions require an authorized test folder/provider account. Use a separate recovery target and synthetic non-production images, no production overwrite or deletion. Verify backup generation consistency, offsite retention, checksum inventory, recovery access controls and measured recovery times at realistic scale before production RTO/RPO acceptance. Explicitly record actor, environment, UTC time, exact SHAs, test results and unresolved gaps. Branch Protection and independent production backup integrity remain separate gates. This is a design/acceptance checklist, not an executed test result.

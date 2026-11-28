@@ -198,3 +198,6 @@ Private AI #14 merged 0b770f6, #51/#52 and cross #20/#21 both modes PASS, 1/1/no
 
 ## REC04 acceptance — 2026-11-28
 BE #117 merged 6e1fd8d, CI #440/#441 PASS. Downloaded/inspected recovery artifacts 15266347768/15267215600: exact two files, TRX 1/1/no skip, 107 tables, SHA-256 verified; PR backup/restore 204/480ms, main 300/832ms, restore includes safety backup. Scope isolated synthetic only. App #104 merged 757cc9d, all main checks PASS. VPS #232 pending at review; dependent pins still BE 6648750. Branch protection 403 across five repos, BE Sonar scan skipped, production checksum/offsite/RTO/RPO/media and live acceptance open. Journal 87.
+
+## REC04 VPS and REC05 readiness — 2026-11-28
+VPS #232 exact BE 6e1fd8d PASS (health/CORS/hardware disabled, DEPLOY_OK 21:22:09 ICT); App #105 merged ac49fc7 and all main workflows PASS. Kiosk #34 c34e5cd pin update CI #85 pending; private AI unchanged until Kiosk main acceptance. REC05 source review confirms existing storage double negative tests and snapshot-only provenance flag; isolated DB/media restoration matrix documented, not yet executed. Journal 88.
