@@ -125,7 +125,7 @@ class _DashboardContentState extends State<DashboardContent> {
   Widget build(BuildContext context) {
     final dash = widget.dashboardService;
     final layout = widget.farmLayoutService;
-    final water = widget.waterQualityService;
+    final water = dash.qualifiedReadingsFor(widget.areaId);
     final analysis = widget.waterAnalysisService;
     final ras = widget.rasFlowService;
     final alerts = widget.alertService;
@@ -136,14 +136,12 @@ class _DashboardContentState extends State<DashboardContent> {
     final attention = ownerAttentionItems(
       alerts: alerts.filteredAlerts,
       summary: summary,
-      water: water.readings,
+      water: water,
     );
-    final stable = attention.isEmpty && dash.alertCount == 0;
-    final status = stable
-        ? 'Hệ thống hoạt động ổn định'
-        : (dash.statusMessage.isNotEmpty
-            ? dash.statusMessage
-            : 'Có việc cần Owner xem');
+    final stable = false; // No overall safety inference from an area sample.
+    final status = attention.isEmpty
+        ? 'Chưa xác minh toàn bộ trạng thái hệ thống; xem từng chỉ số nước.'
+        : 'Có chỉ số hoặc cảnh báo cần theo dõi.';
 
     if (dash.loading && dash.overview == null && layout.boxes.isEmpty) {
       return const Center(child: CircularProgressIndicator());
@@ -235,7 +233,7 @@ class _DashboardContentState extends State<DashboardContent> {
             builder: (context, c) {
               final wide = c.maxWidth > 980;
               final waterCard = OwnerWaterCard(
-                readings: water.readings,
+                readings: water,
                 onOpenRealtime: () => widget.onNavigate(AppRoute.environment),
               );
               final analysisCard = OwnerAnalysisCard(
@@ -266,7 +264,7 @@ class _DashboardContentState extends State<DashboardContent> {
             builder: (context, c) {
               final wide = c.maxWidth > 1100;
               final crab = OwnerCrabStatusCard(summary: summary);
-              final trend = OwnerTrendCard(readings: water.readings);
+              final trend = OwnerTrendCard(readings: water, onOpenHistory: () => widget.onNavigate(AppRoute.environment));
               final devices = OwnerRasCard(
                 nodes: ras.diagram?.nodes ?? const [],
                 onOpen: () => widget.onNavigate(AppRoute.devices),

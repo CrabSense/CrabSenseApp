@@ -290,15 +290,15 @@ class _ChartBody extends StatelessWidget {
   }
 
   bool _hasValue(WaterQuality r) => switch (parameter) {
-        WaterQualityParameter.temperature => r.temperature != 0,
-        WaterQualityParameter.ph => r.ph != 0,
-        WaterQualityParameter.dissolvedOxygen => r.dissolvedOxygen != 0,
-        WaterQualityParameter.salinity => r.salinity != 0,
-        WaterQualityParameter.ammonia => r.ammonia != 0,
-        WaterQualityParameter.nitrite => r.nitrite != 0,
-        WaterQualityParameter.kh => r.kh != 0,
-        WaterQualityParameter.calcium => r.calcium != 0,
-        WaterQualityParameter.magnesium => r.magnesium != 0,
+        WaterQualityParameter.temperature => r.temperature?.isFinite == true,
+        WaterQualityParameter.ph => r.ph?.isFinite == true,
+        WaterQualityParameter.dissolvedOxygen => r.dissolvedOxygen?.isFinite == true,
+        WaterQualityParameter.salinity => r.salinity?.isFinite == true,
+        WaterQualityParameter.ammonia => r.ammonia?.isFinite == true,
+        WaterQualityParameter.nitrite => r.nitrite?.isFinite == true,
+        WaterQualityParameter.kh => r.kh?.isFinite == true,
+        WaterQualityParameter.calcium => r.calcium?.isFinite == true,
+        WaterQualityParameter.magnesium => r.magnesium?.isFinite == true,
       };
 }
 
@@ -581,15 +581,15 @@ class _ChartContent extends StatelessWidget {
       );
 
   double _getValue(WaterQuality reading) => switch (parameter) {
-        WaterQualityParameter.temperature => reading.temperature,
-        WaterQualityParameter.ph => reading.ph,
-        WaterQualityParameter.dissolvedOxygen => reading.dissolvedOxygen,
-        WaterQualityParameter.salinity => reading.salinity,
-        WaterQualityParameter.ammonia => reading.ammonia,
-        WaterQualityParameter.nitrite => reading.nitrite,
-        WaterQualityParameter.kh => reading.kh,
-        WaterQualityParameter.calcium => reading.calcium,
-        WaterQualityParameter.magnesium => reading.magnesium,
+        WaterQualityParameter.temperature => reading.temperature!,
+        WaterQualityParameter.ph => reading.ph!,
+        WaterQualityParameter.dissolvedOxygen => reading.dissolvedOxygen!,
+        WaterQualityParameter.salinity => reading.salinity!,
+        WaterQualityParameter.ammonia => reading.ammonia!,
+        WaterQualityParameter.nitrite => reading.nitrite!,
+        WaterQualityParameter.kh => reading.kh!,
+        WaterQualityParameter.calcium => reading.calcium!,
+        WaterQualityParameter.magnesium => reading.magnesium!,
       };
 
   double? _thresholdMin() => switch (parameter) {

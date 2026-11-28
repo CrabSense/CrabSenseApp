@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../water_quality/domain/entities/water_quality.dart';
 
 /// Trạng thái tổng quan trang trại (Farm Overview Hero)
 class FarmSummary {
@@ -161,6 +162,8 @@ class WaterMetricItem {
   final DateTime lastUpdated;
   final double? minThreshold;
   final double? maxThreshold;
+  final WaterQuality? qualifiedReading;
+  final int? sessionRevision;
 
   const WaterMetricItem({
     required this.code,
@@ -172,6 +175,8 @@ class WaterMetricItem {
     required this.lastUpdated,
     this.minThreshold,
     this.maxThreshold,
+    this.qualifiedReading,
+    this.sessionRevision,
   });
 }
 

@@ -2,6 +2,37 @@ import 'package:equatable/equatable.dart';
 
 import 'water_quality_thresholds.dart';
 
+/// Qualified metadata for an online sensor measurement, not a legacy cache row.
+enum LiveWaterKind {
+  temperature('Nhiệt độ'), ph('pH'), oxygen('Oxy hòa tan'),
+  salinity('Độ mặn'), tds('TDS');
+  const LiveWaterKind(this.label);
+  final String label;
+}
+
+class LiveWaterMetric extends Equatable {
+  const LiveWaterMetric({
+    required this.kind, required this.value, required this.unit,
+    required this.receivedAt, required this.status,
+    required this.sensorCode, this.min, this.max, this.alarm,
+  });
+  final LiveWaterKind kind;
+  final double value;
+  final String unit;
+  final DateTime receivedAt;
+  final String status;
+  final String sensorCode;
+  final double? min;
+  final double? max;
+  final String? alarm;
+
+  bool get hasConfiguredThreshold => min != null || max != null;
+  bool get outsideThreshold =>
+      (min != null && value < min!) || (max != null && value > max!);
+  @override
+  List<Object?> get props => [kind,value,unit,receivedAt,status,sensorCode,min,max,alarm];
+}
+
 /// Water quality entity representing sensor readings for a specific location.
 ///
 /// Captures real-time water quality parameters from IoT sensors deployed
@@ -24,11 +55,12 @@ class WaterQuality extends Equatable {
     required this.timestamp,
     required this.isAlertTriggered,
     this.pondId,
-    this.ammonia = 0,
-    this.nitrite = 0,
-    this.kh = 0,
-    this.calcium = 0,
-    this.magnesium = 0,
+    this.ammonia,
+    this.nitrite,
+    this.kh,
+    this.calcium,
+    this.magnesium,
+    this.liveMetric,
   });
 
   /// Unique identifier for this water quality reading
@@ -46,27 +78,28 @@ class WaterQuality extends Equatable {
   /// Water temperature in degrees Celsius
   ///
   /// Normal range for mud crabs: 26.0°C - 30.0°C
-  final double temperature;
+  final double? temperature;
 
   /// pH level of the water
   ///
   /// Normal range for mud crabs: 7.5 - 8.5
-  final double ph;
+  final double? ph;
 
   /// Dissolved oxygen concentration in milligrams per liter (mg/L)
   ///
   /// Minimum safe level for mud crabs: 5.0 mg/L
-  final double dissolvedOxygen;
+  final double? dissolvedOxygen;
 
   /// Salinity in parts per thousand (ppt)
   ///
   /// Normal range for mud crabs: 15.0 - 25.0 ppt
-  final double salinity;
-  final double ammonia;
-  final double nitrite;
-  final double kh;
-  final double calcium;
-  final double magnesium;
+  final double? salinity;
+  final double? ammonia;
+  final double? nitrite;
+  final double? kh;
+  final double? calcium;
+  final double? magnesium;
+  final LiveWaterMetric? liveMetric;
 
   /// Timestamp when these readings were captured by the sensor
   final DateTime timestamp;
@@ -89,13 +122,15 @@ class WaterQuality extends Equatable {
   ///
   /// Uses [WaterQualityThresholds] to determine if values are acceptable.
   bool isWithinThresholds(WaterQualityThresholds thresholds) =>
-      temperature >= thresholds.minTemperature &&
-      temperature <= thresholds.maxTemperature &&
-      ph >= thresholds.minPh &&
-      ph <= thresholds.maxPh &&
-      dissolvedOxygen >= thresholds.minDissolvedOxygen &&
-      salinity >= thresholds.minSalinity &&
-      salinity <= thresholds.maxSalinity;
+      temperature?.isFinite == true && ph?.isFinite == true &&
+      dissolvedOxygen?.isFinite == true && salinity?.isFinite == true &&
+      temperature! >= thresholds.minTemperature &&
+      temperature! <= thresholds.maxTemperature &&
+      ph! >= thresholds.minPh &&
+      ph! <= thresholds.maxPh &&
+      dissolvedOxygen! >= thresholds.minDissolvedOxygen &&
+      salinity! >= thresholds.minSalinity &&
+      salinity! <= thresholds.maxSalinity;
 
   /// Creates a copy of this water quality reading with the given fields
   /// replaced with new values.
@@ -115,6 +150,7 @@ class WaterQuality extends Equatable {
     double? magnesium,
     DateTime? timestamp,
     bool? isAlertTriggered,
+    LiveWaterMetric? liveMetric,
   }) => WaterQuality(
     id: id ?? this.id,
     sensorId: sensorId ?? this.sensorId,
@@ -131,6 +167,7 @@ class WaterQuality extends Equatable {
     magnesium: magnesium ?? this.magnesium,
     timestamp: timestamp ?? this.timestamp,
     isAlertTriggered: isAlertTriggered ?? this.isAlertTriggered,
+    liveMetric: liveMetric ?? this.liveMetric,
   );
 
   @override
@@ -150,6 +187,7 @@ class WaterQuality extends Equatable {
     magnesium,
     timestamp,
     isAlertTriggered,
+    liveMetric,
   ];
 
   @override

@@ -35,6 +35,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required this.logoutUseCase,
     required this.refreshTokenUseCase,
     required this.authRepository,
+    this.onHistorySessionChanged,
   }) : super(const AuthInitial()) {
     on<LoginRequested>(_onLoginRequested);
     on<GoogleLoginRequested>(_onGoogleLoginRequested);
@@ -53,6 +54,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final LogoutUseCase logoutUseCase;
   final RefreshTokenUseCase refreshTokenUseCase;
   final AuthRepository authRepository;
+  final void Function(User?)? onHistorySessionChanged;
+
+  @override
+  void onEvent(AuthEvent event) {
+    onHistorySessionChanged?.call(null);
+    super.onEvent(event);
+  }
+
+  void _publishUser(User user, Emitter<AuthState> emit) {
+    final allowed = user.role.canUseMobile;
+    onHistorySessionChanged?.call(allowed ? user : null);
+    emit(allowed ? Authenticated(user) : const Unauthenticated());
+  }
 
   /// Handles the login request event.
   ///
@@ -74,7 +88,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     result.fold(
       (failure) => emit(AuthError(failure.message, code: failure.code)),
-      (user) => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()),
+      (user) => _publishUser(user, emit),
     );
   }
 
@@ -93,7 +107,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     result.fold(
       (failure) => emit(AuthError(failure.message, code: failure.code)),
-      (user) => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()),
+      (user) => _publishUser(user, emit),
     );
   }
 
@@ -136,7 +150,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     await isAuthResult.fold((_) async => emit(const Unauthenticated()), (isAuthenticated) async {
       if (isAuthenticated) {
         final userResult = await authRepository.getCurrentUser();
-        userResult.fold((_) => emit(const Unauthenticated()), (user) => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()));
+        userResult.fold((_) => emit(const Unauthenticated()), (user) => _publishUser(user, emit));
         return;
       }
       // Access token is one hour. A still-valid refresh token (7 days)
@@ -148,8 +162,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           return;
         }
         final cached = await authRepository.getCurrentUser();
-        cached.fold((_) => emit(const Unauthenticated()), (user) => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()));
-      }, (user) async => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()));
+        cached.fold((_) => emit(const Unauthenticated()), (user) => _publishUser(user, emit));
+      }, (user) async => _publishUser(user, emit));
     });
   }
 
@@ -180,7 +194,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       } else {
         emit(AuthError(failure.message, code: failure.code));
       }
-    }, (user) => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()));
+    }, (user) => _publishUser(user, emit));
   }
 
   /// Handles the biometric authentication request event.
@@ -206,7 +220,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     result.fold(
       (failure) => emit(AuthError(failure.message, code: failure.code)),
-      (user) => emit(user.role.canUseMobile ? Authenticated(user) : const Unauthenticated()),
+      (user) => _publishUser(user, emit),
     );
   }
 }

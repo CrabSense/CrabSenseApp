@@ -53,6 +53,7 @@ class RouteNames {
 
   /// Water quality monitoring.
   static const String waterQuality = 'waterQuality';
+  static const String waterBench = 'waterBench';
 
   /// Alert list.
   static const String alerts = 'alerts';
@@ -175,6 +176,7 @@ class RoutePaths {
 
   /// `/water-quality` — Water quality.
   static const String waterQuality = '/water-quality';
+  static const String waterBench = '/water-bench';
 
   /// `/alerts` — Alert list.
   static const String alerts = '/alerts';

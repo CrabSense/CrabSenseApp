@@ -1,5 +1,13 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
+import '../../../../core/di/injection.dart';
+import '../../../../core/network/network_info.dart';
+import '../../../authentication/data/datasources/auth_local_data_source.dart';
+import '../../../water_quality/data/datasources/water_quality_remote_data_source.dart';
+import '../../../water_quality/data/repositories/scoped_history_service.dart';
+import '../../../water_quality/domain/entities/water_quality.dart';
+
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/api_client.dart';
 import '../../domain/models/home_models.dart';
@@ -27,6 +35,7 @@ class HomeRepositoryImpl implements HomeRepository {
 
     if (_cachedData != null &&
         !forceRefresh &&
+        _cachedData!.waterMetrics.isEmpty &&
         requestedAreaId == _cachedData!.selectedFarmId) {
       return _cachedData!;
     }
@@ -157,7 +166,7 @@ class HomeRepositoryImpl implements HomeRepository {
       _cachedData = summary;
       return summary;
     } catch (e) {
-      if (_cachedData != null) {
+      if (_cachedData != null && requestedAreaId == _cachedData!.selectedFarmId) {
         return HomeStateData(
           operatorName: _cachedData!.operatorName,
           selectedFarmId: _cachedData!.selectedFarmId,
@@ -169,7 +178,7 @@ class HomeRepositoryImpl implements HomeRepository {
           healthScore: _cachedData!.healthScore,
           aiRecommendation: _cachedData!.aiRecommendation,
           topAlerts: _cachedData!.topAlerts,
-          waterMetrics: _cachedData!.waterMetrics,
+          waterMetrics: const [],
           todayTasks: _cachedData!.todayTasks,
           deviceSummary: _cachedData!.deviceSummary,
           recentActivities: _cachedData!.recentActivities,
@@ -416,151 +425,33 @@ class HomeRepositoryImpl implements HomeRepository {
     return int.tryParse('$count');
   }
 
-  Future<List<WaterMetricItem>?> _fetchWaterMetrics(
-    String? farmingAreaId,
-  ) async {
-    final res = await _api.get(
+  Future<List<WaterMetricItem>?> _fetchWaterMetrics(String? farmingAreaId) async {
+    if (farmingAreaId == null || farmingAreaId.isEmpty || farmingAreaId == 'default') return [];
+    final session = sl<ScopedHistoryService>();
+    final auth = sl<AuthLocalDataSource>();
+    final network = sl<NetworkInfo>();
+    final revision = session.revision;
+    if (!await historyNetworkAvailable(network)) return [];
+    final identity = await readHistoryIdentity(auth);
+    if (session.revision != revision) return [];
+    final res = await _api.get<Map<String,dynamic>>(
       ApiConstants.waterQualityLatest,
       queryParameters: _areaQuery(farmingAreaId),
+      options: Options(
+        followRedirects: false,
+        validateStatus: (status) => status == 200,
+        headers: {'Authorization': 'Bearer ${identity.accessToken}'},
+        extra: const {'skipAuthInterceptor': true, 'skipTokenRefresh': true,
+          'skipSensitiveLogging': true},
+      ),
     );
-    if (res.statusCode == 200 && res.data != null) {
-      final list = _extractList(res.data);
-      if (list != null) {
-        final now = DateTime.now();
-        final items = <WaterMetricItem>[];
-        for (final item in list) {
-          final map = _asStringKeyedMap(item);
-          if (map == null) continue;
-          final type =
-              map['sensorType']?.toString() ??
-              map['code']?.toString() ??
-              map['type']?.toString() ??
-              '';
-          final tl = type.toLowerCase();
-          if (tl.contains('float') || tl.contains('relay') || tl.contains('pump')) {
-            continue;
-          }
-          final rawVal =
-              map['latestValue'] ??
-              map['value'] ??
-              map['currentValue'] ??
-              map['reading'];
-          if (rawVal == null) continue;
-          final val = rawVal is num
-              ? rawVal.toDouble()
-              : double.tryParse('$rawVal') ?? 0.0;
-          if (tl.contains('temp') && (val < 5 || val > 40)) continue;
-          final alarm = map['alarm']?.toString().toLowerCase() ?? '';
-          final min = (map['minThreshold'] as num?)?.toDouble();
-          final max = (map['maxThreshold'] as num?)?.toDouble();
-
-          MetricStatus status = MetricStatus.optimal;
-          if (alarm.isNotEmpty) {
-            status = MetricStatus.danger;
-          } else if (min != null && val < min) {
-            status = MetricStatus.warning;
-          } else if (max != null && val > max) {
-            status = MetricStatus.warning;
-          }
-
-          final measuredAt = map['latestMeasuredAt'] ?? map['measuredAt'];
-          final updated = measuredAt != null
-              ? DateTime.tryParse(measuredAt.toString()) ?? now
-              : now;
-
-          items.add(
-            WaterMetricItem(
-              code: type.toLowerCase(),
-              name: _waterMetricLabel(type),
-              currentValue: val,
-              unit: map['unit']?.toString() ?? _waterMetricUnit(type),
-              status: status,
-              trend: MetricTrend.stable,
-              lastUpdated: updated,
-              minThreshold: min,
-              maxThreshold: max,
-            ),
-          );
-        }
-        await _mergeWaterLab(farmingAreaId, items);
-        return items;
-      }
-    }
-    return null;
-  }
-
-  Future<void> _mergeWaterLab(
-    String? farmingAreaId,
-    List<WaterMetricItem> items,
-  ) async {
-    if (farmingAreaId == null || farmingAreaId.isEmpty) return;
-    try {
-      final res = await _api.get(ApiConstants.waterAnalysis(farmingAreaId));
-      if (res.statusCode != 200 || res.data == null) return;
-      final root = _asStringKeyedMap(res.data);
-      final data = _asStringKeyedMap(root?['data']) ?? root;
-      if (data == null) return;
-      final latest =
-          _asStringKeyedMap(data['latest']) ?? _asStringKeyedMap(data['Latest']);
-      final raw = latest?['metrics'] ??
-          latest?['Metrics'] ??
-          data['metrics'] ??
-          data['Metrics'];
-      if (raw is! List) return;
-      final now = DateTime.now();
-      for (final row in raw) {
-        final map = _asStringKeyedMap(row);
-        if (map == null) continue;
-        final code = (map['code'] ?? map['Code'] ?? '').toString();
-        final val = map['value'] ?? map['Value'];
-        if (code.isEmpty || val == null) continue;
-        final n = val is num ? val.toDouble() : double.tryParse('$val');
-        if (n == null) continue;
-        final t = code.toLowerCase();
-        if (items.any((m) =>
-            m.code.contains(t) || m.name.toLowerCase().contains(t))) {
-          continue;
-        }
-        items.add(
-          WaterMetricItem(
-            code: t,
-            name: _waterMetricLabel(code),
-            currentValue: n,
-            unit: map['unit']?.toString() ?? _waterMetricUnit(code),
-            status: MetricStatus.optimal,
-            trend: MetricTrend.stable,
-            lastUpdated: now,
-          ),
-        );
-      }
-    } catch (_) {}
-  }
-
-  String _waterMetricLabel(String type) {
-    final t = type.toLowerCase();
-    if (t.contains('temp')) return 'Nhiệt độ';
-    if (t.contains('ph')) return 'pH';
-    if (t.contains('do') || t.contains('oxygen') || t.contains('oxy'))
-      return 'Oxy hòa tan';
-    if (t.contains('salin') || t.contains('salt')) return 'Độ mặn';
-    if (t.contains('tds')) return 'TDS';
-    if (t.contains('nh3') || t.contains('ammon')) return 'NH₃/NH₄';
-    if (t.contains('no2') || t.contains('nitrit')) return 'NO₂';
-    if (t.contains('alkal') || t == 'kh') return 'KH';
-    if (t.contains('calci') || t == 'ca') return 'Ca';
-    if (t.contains('magnes') || t == 'mg') return 'Mg';
-    if (type.trim().isEmpty) return 'Thông số nước';
-    return type;
-  }
-
-  String _waterMetricUnit(String type) {
-    final t = type.toLowerCase();
-    if (t.contains('temp')) return '°C';
-    if (t.contains('ph')) return '';
-    if (t.contains('do') || t.contains('oxygen')) return 'mg/L';
-    if (t.contains('salin') || t.contains('salt')) return 'ppt';
-    if (t.contains('tds')) return 'ppm';
-    return '';
+    final body = res.data;
+    if (body == null || body['success'] != true || body['data'] is! List) return [];
+    if (!await historyNetworkAvailable(network)) return [];
+    if (!identity.matches(await readHistoryIdentity(auth)) ||
+        session.revision != revision) return [];
+    return decodeHomeWaterMetrics(body['data'] as List,
+      areaId: farmingAreaId, revision: revision);
   }
 
   Future<DeviceSummary?> _fetchDevices(String? farmingAreaId) async {
@@ -1004,4 +895,36 @@ class HomeRepositoryImpl implements HomeRepository {
       lastSyncedAt: now,
     );
   }
+}
+
+
+/// Reuse the environment decoder. A summary cannot manufacture an identity,
+/// receipt, threshold or measurement from a legacy row.
+List<WaterMetricItem> decodeHomeWaterMetrics(List<dynamic> rows, {
+  required String areaId, required int revision,
+}) {
+  if (areaId.isEmpty || areaId == 'default') return [];
+  final qualified = <WaterQuality>[];
+  for (final raw in rows) {
+    if (raw is! Map<String,dynamic>) continue;
+    final r = decodeLiveWaterReading(raw, farmId: areaId);
+    if (r?.liveMetric != null) qualified.add(r!);
+  }
+  final counts = <String,int>{};
+  for (final r in qualified) {
+    counts[r.sensorId] = (counts[r.sensorId] ?? 0) + 1;
+  }
+  return [
+    for (final r in qualified)
+      if (counts[r.sensorId] == 1)
+        WaterMetricItem(
+          code: r.liveMetric!.kind.name, name: r.liveMetric!.kind.label,
+          currentValue: r.liveMetric!.value, unit: r.liveMetric!.unit,
+          status: r.liveMetric!.alarm != null || r.liveMetric!.outsideThreshold
+              ? MetricStatus.danger : MetricStatus.warning,
+          trend: MetricTrend.stable, lastUpdated: r.timestamp,
+          minThreshold: r.liveMetric!.min, maxThreshold: r.liveMetric!.max,
+          qualifiedReading: r, sessionRevision: revision,
+        ),
+  ];
 }

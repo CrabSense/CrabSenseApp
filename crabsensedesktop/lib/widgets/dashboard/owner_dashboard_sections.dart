@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,6 +8,7 @@ import '../../models/farm_layout.dart';
 import '../../models/ras_flow.dart';
 import '../../models/water_analysis.dart';
 import '../../models/water_quality.dart';
+import '../shared/mgmt_ui.dart' show fmtDateTimeVn;
 import '../../theme/dashboard_theme.dart';
 import '../shared/ai_assistant_avatar.dart';
 import 'glass_card.dart';
@@ -379,150 +378,45 @@ class OwnerAttentionCard extends StatelessWidget {
   }
 }
 
-class OwnerWaterCard extends StatelessWidget {
-  const OwnerWaterCard({
-    super.key,
-    required this.readings,
-    required this.onOpenRealtime,
-  });
+/// Current readings only. Each sensor has its own timestamps, unit and
+/// configured limits, never infer overall water safety.
+String dashboardWaterAssessment(WaterSensorReading r, DateTime now) {
+  final measured=r.measuredAt,received=r.receivedAt;
+  if(measured==null || received==null || !r.value.isFinite)return 'Chưa xác minh dữ liệu';
+  final a=now.difference(measured),b=now.difference(received);
+  if(a.isNegative || b.isNegative || a>const Duration(minutes:5) ||
+      b>const Duration(minutes:5))return 'Dữ liệu cũ / chưa xác minh';
+  if(r.offline)return 'Chưa xác minh hiện trạng';
+  if(r.status==WaterSensorStatus.exceeded || r.status==WaterSensorStatus.danger)
+    return 'Cảnh báo từ cấu hình';
+  if(r.threshold.min==null && r.threshold.max==null)return 'Chưa có ngưỡng cấu hình';
+  return 'Trong giới hạn cấu hình';
+}
 
+class OwnerWaterCard extends StatelessWidget {
+  const OwnerWaterCard({super.key,required this.readings,required this.onOpenRealtime});
   final List<WaterSensorReading> readings;
   final VoidCallback onOpenRealtime;
-
-  WaterSensorReading? _of(WaterSensorType t) {
-    for (final r in readings) {
-      if (r.type == t) return r;
-    }
-    return null;
-  }
-
   @override
-  Widget build(BuildContext context) {
-    final picks = [
-      _of(WaterSensorType.temperature),
-      _of(WaterSensorType.salinity),
-      _of(WaterSensorType.tds),
-    ].whereType<WaterSensorReading>().toList();
-    final safe = picks.isNotEmpty &&
-        picks.every(
-          (r) =>
-              r.status == WaterSensorStatus.normal ||
-              r.status == WaterSensorStatus.good,
-        );
-
-    return GlassCard(
-      child: Stack(
-        children: [
-          Positioned(
-            right: -20,
-            bottom: -28,
-            child: Icon(
-              Icons.water_drop_outlined,
-              size: 110,
-              color: DashboardColors.brand.withValues(alpha: 0.06),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  const Text('💧', style: TextStyle(fontSize: 16)),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Giám sát nước',
-                    style: _bv(
-                      color: DashboardColors.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              if (picks.isEmpty)
-                Text(
-                  'Chưa có dữ liệu cảm biến realtime trên khu này.',
-                  style: _bv(color: DashboardColors.textMuted, fontSize: 13.5),
-                )
-              else
-                Row(
-                  children: [
-                    for (final r in picks)
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Icon(r.type.icon, color: r.type.accent, size: 22),
-                            const SizedBox(height: 6),
-                            Text(
-                              r.displayValue,
-                              style: _bv(
-                                color: DashboardColors.textPrimary,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            Text(
-                              r.type.label,
-                              style: _bv(
-                                color: DashboardColors.textMuted,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              const SizedBox(height: 14),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: (safe
-                            ? DashboardColors.healthy
-                            : DashboardColors.monitoring)
-                        .withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    picks.isEmpty
-                        ? '◆  Chưa có dữ liệu ngưỡng'
-                        : safe
-                            ? '◆  Tất cả trong ngưỡng an toàn'
-                            : '◆  Có chỉ số cần theo dõi',
-                    style: _bv(
-                      color: safe
-                          ? DashboardColors.healthy
-                          : DashboardColors.monitoring,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: onOpenRealtime,
-                  child: Text(
-                    'Xem giám sát Realtime →',
-                    style: _bv(
-                      color: DashboardColors.brand,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => GlassCard(child:Column(
+    crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      Text('Nước RAS chung khu',style:_bv(fontWeight:FontWeight.w800,fontSize:15)),
+      const SizedBox(height:8),
+      const Text('Dữ liệu đại diện chung các dãy/hộp. Không kết luận nước an toàn.'),
+      if(readings.isEmpty)const Text('Chưa có phép đo đã xác minh.'),
+      for(final r in readings) ...[
+        const Divider(),
+        Text(r.type.label+' · '+(r.sensorCode??r.sensorId??'—'),style:_bv(fontWeight:FontWeight.w700)),
+        Text((r.value==0?'0':r.value.toString())+' '+r.unit,style:_bv(fontSize:18,fontWeight:FontWeight.w800)),
+        if(r.location?.isNotEmpty??false)Text('Vị trí cảm biến: '+r.location!),
+        Text('Đo: '+fmtDateTimeVn(r.measuredAt)),
+        Text('Nhận: '+fmtDateTimeVn(r.receivedAt)),
+        Text('Ngưỡng: '+r.threshold.goodRangeLabel),
+        Text(dashboardWaterAssessment(r,DateTime.now()),style:_bv(color:DashboardColors.textMuted)),
+      ],
+      Align(alignment:Alignment.centerRight,child:TextButton(
+        onPressed:onOpenRealtime,child:const Text('Xem giám sát Realtime →'))),
+    ]));
 }
 
 class OwnerAnalysisCard extends StatelessWidget {
@@ -980,182 +874,17 @@ class OwnerCrabStatusCard extends StatelessWidget {
 }
 
 class OwnerTrendCard extends StatelessWidget {
-  const OwnerTrendCard({super.key, required this.readings});
-
+  const OwnerTrendCard({super.key,required this.readings,this.onOpenHistory});
   final List<WaterSensorReading> readings;
-
+  final VoidCallback? onOpenHistory;
   @override
-  Widget build(BuildContext context) {
-    final tempReading = readings
-        .where((r) => r.type == WaterSensorType.temperature)
-        .toList();
-    final saltReading = readings
-        .where((r) => r.type == WaterSensorType.salinity)
-        .toList();
-    final temp = tempReading.isEmpty ? null : tempReading.first.value;
-    final salt = saltReading.isEmpty ? null : saltReading.first.value;
-
-    final hasData = temp != null || salt != null;
-    final tempSeries = _series(temp ?? 28, 7, amp: 0.6);
-    final saltSeries = _series(salt ?? 15, 7, amp: 0.4);
-    final labels = _last7DayLabels();
-
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Xu hướng 7 ngày qua',
-            style: _bv(
-              color: DashboardColors.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              _legendDot(DashboardColors.brand, 'Nhiệt độ (°C)'),
-              const SizedBox(width: 16),
-              _legendDot(DashboardColors.blue, 'Độ mặn (ppt)'),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 160,
-            child: hasData
-                ? LineChart(
-                    LineChartData(
-                      minY: 0,
-                      gridData: FlGridData(
-                        show: true,
-                        drawVerticalLine: false,
-                        getDrawingHorizontalLine: (v) => FlLine(
-                          color: DashboardColors.cardBorder.withValues(alpha: 0.55),
-                          strokeWidth: 1,
-                        ),
-                      ),
-                      borderData: FlBorderData(show: false),
-                      titlesData: FlTitlesData(
-                        topTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        rightTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 28,
-                            getTitlesWidget: (v, _) => Text(
-                              v.toInt().toString(),
-                              style: _bv(
-                                fontSize: 10,
-                                color: DashboardColors.textMuted,
-                              ),
-                            ),
-                          ),
-                        ),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            interval: 1,
-                            getTitlesWidget: (v, _) {
-                              final i = v.toInt();
-                              if (i < 0 || i >= labels.length) {
-                                return const SizedBox.shrink();
-                              }
-                              return Padding(
-                                padding: const EdgeInsets.only(top: 6),
-                                child: Text(
-                                  labels[i],
-                                  style: _bv(
-                                    fontSize: 10,
-                                    color: DashboardColors.textMuted,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      lineBarsData: [
-                        LineChartBarData(
-                          spots: [
-                            for (var i = 0; i < tempSeries.length; i++)
-                              FlSpot(i.toDouble(), tempSeries[i]),
-                          ],
-                          isCurved: true,
-                          color: DashboardColors.brand,
-                          barWidth: 2,
-                          dotData: const FlDotData(show: true),
-                          belowBarData: BarAreaData(show: false),
-                        ),
-                        LineChartBarData(
-                          spots: [
-                            for (var i = 0; i < saltSeries.length; i++)
-                              FlSpot(i.toDouble(), saltSeries[i]),
-                          ],
-                          isCurved: true,
-                          color: DashboardColors.blue,
-                          barWidth: 2,
-                          dotData: const FlDotData(show: true),
-                          belowBarData: BarAreaData(show: false),
-                        ),
-                      ],
-                    ),
-                  )
-                : Center(
-                    child: Text(
-                      'Chưa có dữ liệu xu hướng trên khu này.',
-                      style: _bv(color: DashboardColors.textMuted),
-                    ),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _legendDot(Color color, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.circle, size: 8, color: color),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: _bv(
-            color: DashboardColors.textMuted,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  static List<double> _series(double base, int n, {required double amp}) {
-    final rnd = math.Random(base.round());
-    return [
-      for (var i = 0; i < n; i++)
-        double.parse(
-          (base + math.sin(i * 0.9) * amp + (rnd.nextDouble() - 0.5) * amp * 0.4)
-              .toStringAsFixed(1),
-        ),
-    ];
-  }
-
-  static List<String> _last7DayLabels() {
-    final now = DateTime.now();
-    return [
-      for (var i = 6; i >= 0; i--)
-        () {
-          final d = now.subtract(Duration(days: i));
-          return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
-        }(),
-    ];
-  }
+  Widget build(BuildContext context) => GlassCard(child:Column(
+    crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      Text('Lịch sử nước RAS',style:_bv(fontSize:15,fontWeight:FontWeight.w800)),
+      const SizedBox(height:8),
+      const Text('Không suy ra lịch sử 7 ngày từ giá trị hiện tại. Chọn cảm biến gốc trong Giám sát thời gian thực để tải dữ liệu đã xác minh.'),
+      if(onOpenHistory!=null)TextButton(onPressed:onOpenHistory,child:const Text('Mở lịch sử cảm biến →')),
+    ]));
 }
 
 class OwnerAssistantCard extends StatelessWidget {

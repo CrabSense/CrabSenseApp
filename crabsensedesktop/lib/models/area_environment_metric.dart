@@ -1,3 +1,6 @@
+import '../services/qualified_live_water.dart';
+import 'water_quality.dart';
+
 class AreaEnvironmentMetric {
   const AreaEnvironmentMetric({
     required this.label,
@@ -12,6 +15,8 @@ class AreaEnvironmentMetric {
     this.recordedAt,
     this.minThreshold,
     this.maxThreshold,
+    this.receivedAt,
+    this.offline = true,
   });
 
   final String label;
@@ -26,8 +31,20 @@ class AreaEnvironmentMetric {
   final DateTime? recordedAt;
   final double? minThreshold;
   final double? maxThreshold;
+  final DateTime? receivedAt;
+  final bool offline;
 
-  bool get isMissing => recordedAt == null && value == 0;
+  bool get isMissing => recordedAt == null || !value.isFinite;
+  bool get isStale => recordedAt == null || receivedAt == null ||
+      DateTime.now().difference(recordedAt!) > const Duration(minutes:5) ||
+      DateTime.now().difference(receivedAt!) > const Duration(minutes:5);
+  String get assessment => isMissing ? 'Chưa có dữ liệu' : isStale ? 'Dữ liệu cũ' :
+      offline ? 'Chưa xác minh hiện trạng' : status == 'warning' ? 'Cảnh báo từ cấu hình' :
+      minThreshold == null && maxThreshold == null ? 'Chưa có ngưỡng cấu hình' :
+      'Trong giới hạn cấu hình';
+  String get thresholdText => minThreshold != null && maxThreshold != null ?
+      '$minThreshold – $maxThreshold $unit' : minThreshold != null ? '≥ $minThreshold $unit' :
+      maxThreshold != null ? '≤ $maxThreshold $unit' : 'Chưa cấu hình';
 
   factory AreaEnvironmentMetric.fromJson(Map<String, dynamic> json) {
     double? n(dynamic v) => v is num ? v.toDouble() : double.tryParse('$v');
@@ -79,75 +96,35 @@ class AreaSensorLatestData {
   bool get isBoxInherited =>
       inheritedByBox && scope == 'box' && (boxId?.isNotEmpty ?? false);
 
+  /// One shared RAS loop per area. Sensor placement metadata is not a
+  /// row/box-specific water measurement. Preserve every source separately.
   factory AreaSensorLatestData.fromIotLive({
     required String areaId,
-    required List<Map<String, dynamic>> live,
+    required List<Map<String,dynamic>> live,
+    String? boxId,
+    DateTime? now,
   }) {
+    final readings=decodeQualifiedDesktopLive(live,areaId:areaId,now:now??DateTime.now().toUtc());
+    final metrics=<AreaEnvironmentMetric>[];
     DateTime? latest;
-    final metrics = <AreaEnvironmentMetric>[];
-    for (final raw in live) {
-      final type = (raw['sensorType'] ?? raw['SensorType'] ?? '').toString();
-      final value = (raw['latestValue'] ?? raw['LatestValue'] as num?)?.toDouble();
-      if (value == null) continue;
-      final at = AreaEnvironmentMetric._parseDate(
-        raw['latestMeasuredAt'] ?? raw['LatestMeasuredAt'],
-      );
-      if (at != null && (latest == null || at.isAfter(latest))) latest = at;
-      final alarm = raw['alarm'] == true ||
-          raw['Alarm'] == true ||
-          (raw['alarm'] ?? raw['Alarm'] ?? '').toString().toLowerCase().contains('warn');
-      double? n(dynamic v) => v is num ? v.toDouble() : double.tryParse('$v');
-      metrics.add(
-        AreaEnvironmentMetric(
-          label: _liveLabel(type),
-          value: value,
-          unit: (raw['unit'] ?? raw['Unit'] ?? '').toString(),
-          icon: _liveIcon(type),
-          status: alarm ? 'warning' : 'good',
-          sensorType: type,
-          sensorCode: (raw['sensorCode'] ?? raw['SensorCode'])?.toString(),
-          sensorId: (raw['sensorId'] ?? raw['SensorId'] ?? raw['id'] ?? raw['Id'])?.toString(),
-          locationName: (raw['locationName'] ?? raw['LocationName'] ?? raw['rowName'] ?? raw['RowName'])?.toString(),
-          recordedAt: at,
-          minThreshold: n(raw['minThreshold'] ?? raw['MinThreshold']),
-          maxThreshold: n(raw['maxThreshold'] ?? raw['MaxThreshold']),
-        ),
-      );
+    for(final r in readings) {
+      final at=r.measuredAt!;
+      if(latest==null || at.isAfter(latest)) latest=at;
+      metrics.add(AreaEnvironmentMetric(label:r.type.label,value:r.value,
+        unit:r.unit,icon:switch(r.type) {
+          WaterSensorType.temperature=>'temp',WaterSensorType.ph=>'ph',
+          WaterSensorType.dissolvedOxygen=>'do',WaterSensorType.salinity=>'sal',
+          WaterSensorType.tds=>'tds',WaterSensorType.flow=>'flow',
+          WaterSensorType.orp=>'orp',_=>'sensor'},
+        status:r.status==WaterSensorStatus.exceeded ? 'warning' :
+          r.status==WaterSensorStatus.normal ? 'good' : 'watch',
+        sensorType:r.wireSensorType,sensorCode:r.sensorCode,sensorId:r.sensorId,
+        locationName:r.location,recordedAt:at,receivedAt:r.receivedAt,
+        offline:r.offline,minThreshold:r.threshold.min,maxThreshold:r.threshold.max));
     }
-    return AreaSensorLatestData(
-      areaId: areaId,
-      areaCode: '',
-      areaName: '',
-      scope: 'area',
-      inheritedByBox: true,
-      lastUpdatedAt: latest,
-      metrics: metrics,
-    );
-  }
-
-  static String _liveLabel(String type) {
-    final t = type.toLowerCase();
-    if (t.contains('temp')) return 'Nhiệt độ';
-    if (t.contains('ph')) return 'pH';
-    if (t == 'do' || t.contains('oxygen') || t.contains('oxy')) {
-      return 'Oxy hòa tan';
-    }
-    if (t.contains('tds')) return 'TDS';
-    if (t.contains('salin')) return 'Độ mặn';
-    if (t.contains('nh3') || t.contains('ammonia')) return 'NH₃';
-    if (t.contains('no2') || t.contains('nitrite')) return 'NO₂';
-    if (t.contains('flow')) return 'Lưu lượng';
-    return type.isEmpty ? 'Cảm biến' : type;
-  }
-
-  static String _liveIcon(String type) {
-    final t = type.toLowerCase();
-    if (t.contains('temp')) return 'temp';
-    if (t.contains('ph')) return 'ph';
-    if (t == 'do' || t.contains('oxygen')) return 'oxygen';
-    if (t.contains('tds') || t.contains('salin')) return 'tds';
-    if (t.contains('flow')) return 'flow';
-    return 'sensor';
+    return AreaSensorLatestData(areaId:areaId,areaCode:'',areaName:'',
+      scope:boxId==null ? 'area' : 'box',inheritedByBox:true,
+      boxId:boxId,lastUpdatedAt:latest,metrics:List.unmodifiable(metrics));
   }
 
   factory AreaSensorLatestData.fromJson(Map<String, dynamic> json) {

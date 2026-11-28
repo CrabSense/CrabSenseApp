@@ -6,6 +6,7 @@ import '../database.dart';
 import 'migration_v1.dart';
 import 'migration_v2.dart';
 import 'migration_v3.dart';
+import 'migration_v4.dart';
 
 /// Encapsulates all database migration logic for the CrabSense local database.
 ///
@@ -41,6 +42,7 @@ class DatabaseMigrationManager {
   /// performance indexes in a single pass.
   static Future<void> onCreate(Migrator m, AppDatabase db) async {
     await MigrationV1.create(m, db);
+    await MigrationV4.apply(db);
   }
 
   // ---------------------------------------------------------------------------
@@ -71,6 +73,9 @@ class DatabaseMigrationManager {
     }
     if (from < 3) {
       await MigrationV3.apply(m, db);
+    }
+    if (from < 4) {
+      await MigrationV4.apply(db);
     }
   }
 }

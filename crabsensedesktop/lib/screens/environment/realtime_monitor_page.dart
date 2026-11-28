@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../../models/auth_models.dart';
 import '../../models/farm_alert.dart';
@@ -47,12 +48,16 @@ class RealtimeMonitorPage extends StatefulWidget {
   State<RealtimeMonitorPage> createState() => _RealtimeMonitorPageState();
 }
 
-class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
+class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> with WidgetsBindingObserver {
   WaterQualityService get _svc => widget.service;
+  int _tablePage=0;
+  int _tableRevision=-1;
+  bool _exporting=false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _svc.addListener(_onUpdate);
     widget.alertService.addListener(_onUpdate);
     widget.controllerService?.addListener(_onUpdate);
@@ -63,11 +68,22 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _svc.stopLiveUpdates();
     _svc.removeListener(_onUpdate);
     widget.alertService.removeListener(_onUpdate);
     widget.controllerService?.removeListener(_onUpdate);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _svc.startLiveUpdates();
+    } else {
+      _svc.stopLiveUpdates();
+      _onUpdate();
+    }
   }
 
   void _onUpdate() {
@@ -119,26 +135,15 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
     if (r == null) return _Fresh.notConfigured;
     if (r.measuredAt == null) return _Fresh.noSignal;
     final age = DateTime.now().difference(r.measuredAt!.toLocal());
-    if (!_controllerOnline) return _Fresh.stale;
+    if (r.offline || r.receivedAt == null || !_svc.cloudLive) return _Fresh.stale;
+    if (DateTime.now().difference(r.receivedAt!) > _kDelayed) return _Fresh.stale;
     if (age <= _kLive) return _Fresh.live;
     if (age <= _kDelayed) return _Fresh.delayed;
     return _Fresh.stale;
   }
 
-  int get _liveCount => [
-        WaterSensorType.temperature,
-        WaterSensorType.ph,
-        WaterSensorType.tds,
-      ].where((t) => _freshOf(_svc.readingOf(t)) == _Fresh.live).length;
-
-  int get _sensorTotal {
-    final n = [
-      _svc.readingOf(WaterSensorType.temperature),
-      _svc.readingOf(WaterSensorType.ph),
-      _svc.readingOf(WaterSensorType.tds),
-    ].whereType<WaterSensorReading>().length;
-    return n == 0 ? 3 : n;
-  }
+  int get _liveCount => _svc.readings.where((r) => _freshOf(r) == _Fresh.live).length;
+  int get _sensorTotal => _svc.readings.length;
 
   List<FarmAlert> get _relatedAlerts {
     final code = (_svc.deviceFilter ?? _svc.deviceCode ?? '').toLowerCase();
@@ -160,19 +165,33 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
   }
 
   Future<void> _exportCsv() async {
-    final csv = _svc.exportRecentCsv();
-    final path = await FilePicker.platform.saveFile(
-      dialogTitle: 'Xuất dữ liệu gần đây',
-      fileName: 'crabsense-realtime-${_svc.deviceFilter ?? _svc.deviceCode ?? 'controller'}.csv',
-      type: FileType.custom,
-      allowedExtensions: const ['csv'],
-    );
-    if (path == null) return;
-    await File(path).writeAsString(csv);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Đã xuất CSV theo Controller đang xem.')),
-    );
+    if(kIsWeb || _exporting) return;
+    final revision=_svc.historyRevision;
+    final sensor=_svc.historyTable?.sensorId;
+    if(sensor==null || _svc.historyTable!.rows.isEmpty) return;
+    setState(()=>_exporting=true);
+    try {
+      final path=await FilePicker.platform.saveFile(
+        dialogTitle:'Xuất lịch sử cảm biến',
+        fileName:'crabsense-history-$sensor.csv',
+        type:FileType.custom,allowedExtensions:const ['csv']);
+      if(path==null || !mounted) return;
+      final csv=_svc.exportScopedCsv(revision);
+      if(csv==null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content:Text('Phiên hoặc dữ liệu đã thay đổi. Hãy tải lại lịch sử.')));
+        return;
+      }
+      await File(path).writeAsString(csv,flush:true);
+      if(!mounted)return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content:Text('Đã xuất lịch sử cảm biến. Hãy bảo vệ file đã lưu.')));
+    } catch (_) {
+      if(!mounted)return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Không thể lưu CSV.')));
+    } finally {
+      if(mounted)setState(()=>_exporting=false);
+    }
   }
 
   @override
@@ -362,7 +381,6 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
 
   Widget _sensorCards() {
     if (_svc.readings.isEmpty && !_svc.isLoading) {
-      final never = _svc.lastRealtimeAt == null;
       return Container(
         padding: const EdgeInsets.all(22),
         decoration: mgmtCardDeco(radius: 16),
@@ -371,7 +389,7 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
             Icon(Icons.sensors_off, color: DashboardColors.textMuted, size: 32),
             const SizedBox(height: 8),
             Text(
-              never ? 'Controller chưa có Sensor.' : 'Chưa nhận được dữ liệu từ sensor.',
+              'Chưa có phép đo đủ điều kiện hiển thị.',
               style: bvText(fontWeight: FontWeight.w800, color: DashboardColors.textPrimary),
             ),
             const SizedBox(height: 8),
@@ -383,26 +401,24 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
         ),
       );
     }
-    final types = _svc.sensorGroup == 'other'
-        ? _svc.readings.map((r) => r.type).toList()
-        : const [WaterSensorType.temperature, WaterSensorType.ph, WaterSensorType.tds];
+    final items = _svc.readings;
     return LayoutBuilder(
       builder: (context, c) {
-        final cols = c.maxWidth > 900 ? (types.length.clamp(1, 3)) : (c.maxWidth > 560 ? 2 : 1);
+        final cols = c.maxWidth > 900 ? (items.length.clamp(1, 3)) : (c.maxWidth > 560 ? 2 : 1);
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: types.length,
+          itemCount: items.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: cols,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 1.85,
+            mainAxisExtent: 230,
           ),
           itemBuilder: (_, i) => _SensorCard(
-            type: types[i],
-            reading: _svc.readingOf(types[i]),
-            fresh: _freshOf(_svc.readingOf(types[i])),
+            type: items[i].type,
+            reading: items[i],
+            fresh: _freshOf(items[i]),
             controllerOnline: _controllerOnline,
           ),
         );
@@ -414,16 +430,16 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
     final metric = _svc.chartMetric;
     final segs = _svc.chartSegments;
     final points = _svc.chartSeries;
-    final reading = metric == null ? null : _svc.readingOf(metric);
+    final reading = _svc.chartReading;
     final minV = points.isEmpty ? null : points.map((e) => e.value).reduce((a, b) => a < b ? a : b);
     final maxV = points.isEmpty ? null : points.map((e) => e.value).reduce((a, b) => a > b ? a : b);
     final avg = points.isEmpty ? null : points.map((e) => e.value).reduce((a, b) => a + b) / points.length;
     var over = 0;
     final lo = reading?.threshold.min;
     final hi = reading?.threshold.max;
-    if (lo != null && hi != null) {
+    if (lo != null || hi != null) {
       for (final p in points) {
-        if (p.value < lo || p.value > hi) over++;
+        if ((lo != null && p.value < lo) || (hi != null && p.value > hi)) over++;
       }
     }
     return Container(
@@ -446,21 +462,22 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _drop<WaterSensorType>(
-                label: 'Chỉ số',
-                value: metric ?? (_svc.availableMetrics.isEmpty ? null : _svc.availableMetrics.first),
-                items: [
-                  for (final m in _svc.availableMetrics) (m, m.label),
+              _drop<String?>(
+                label: 'Cảm biến cụ thể',
+                value: _svc.historySensorId,
+                items: [(null,'Chọn cảm biến'),
+                  for (final r in _svc.historySensors)
+                    (r.sensorId,'${r.type.label} · ${r.sensorCode} · ${r.sensorId}'),
                 ],
-                onChanged: (v) {
-                  if (v != null) _svc.setChartMetric(v);
-                },
+                onChanged: _svc.selectHistorySensor,
               ),
+              MgmtOutlineButton(icon: Icons.refresh, label: 'Tải lịch sử',
+                onTap: reading == null || _svc.chartLoading ? null : () => _svc.refreshTrend()),
               for (var i = 0; i < WaterQualityService.chartRangeLabels.length; i++)
                 _rangeChip(WaterQualityService.chartRangeLabels[i], i == _svc.chartRangeIndex, () => _svc.setChartRangeIndex(i)),
               FilterChip(
                 selected: _svc.showThreshold,
-                label: Text('Hiện ngưỡng', style: bvText(fontWeight: FontWeight.w700, fontSize: 12)),
+                label: Text('Ngưỡng hiện tại', style: bvText(fontWeight: FontWeight.w700, fontSize: 12)),
                 selectedColor: DashboardColors.mint,
                 onSelected: _svc.setShowThreshold,
               ),
@@ -473,9 +490,11 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
               _stat('THẤP NHẤT', _fmt(metric, minV)),
               _stat('TRUNG BÌNH', _fmt(metric, avg)),
               _stat('CAO NHẤT', _fmt(metric, maxV)),
-              _stat('NGOÀI NGƯỠNG', '$over lần'),
+              _stat('SO VỚI NGƯỠNG HIỆN TẠI', points.isEmpty || (lo == null && hi == null) ? '—' : '$over mẫu'),
             ],
           ),
+          if (_svc.historyAsOf != null && points.isNotEmpty)
+            Text('Mốc xác minh: ${fmtDateTimeVn(_svc.historyAsOf)} · ${points.length} mẫu · không nội suy', style: bvText(color: DashboardColors.textMuted)),
           const SizedBox(height: 12),
           SizedBox(
             height: 260,
@@ -489,11 +508,7 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
                         color: metric?.accent ?? DashboardColors.brand,
                         minTh: _svc.showThreshold ? lo : null,
                         maxTh: _svc.showThreshold ? hi : null,
-                        unit: metric == WaterSensorType.temperature
-                            ? '°C'
-                            : metric == WaterSensorType.tds
-                                ? 'ppt'
-                                : '',
+                        unit: reading?.unit ?? '',
                       ),
           ),
           const SizedBox(height: 8),
@@ -513,90 +528,60 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
     );
   }
 
-  Widget _chartEmpty() {
-    final had = _svc.lastRealtimeAt != null;
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            had
-                ? 'Không có dữ liệu trong ${_svc.chartRangeLabel} gần đây'
-                : 'Sensor chưa ghi nhận dữ liệu.',
-            style: bvText(fontWeight: FontWeight.w800, color: DashboardColors.textPrimary),
-            textAlign: TextAlign.center,
-          ),
-          if (had) ...[
-            const SizedBox(height: 4),
-            Text(
-              '${_svc.deviceFilter ?? _svc.deviceCode ?? 'Controller'} đã mất kết nối từ ${_svc.lastUpdateClock}.',
-              style: bvText(color: DashboardColors.textMuted),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              children: [
-                MgmtOutlineButton(label: 'Xem 24 giờ', onTap: () => _svc.setChartRangeIndex(2)),
-                MgmtOutlineButton(
-                  label: 'Kiểm tra Controller',
-                  onTap: () => widget.onNavigate?.call(AppRoute.controllers),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
+  Widget _chartEmpty() => Center(
+    child: Text(_svc.historyError ?? 'Chọn cảm biến và tải lịch sử đã xác minh phạm vi.',
+      style: bvText(color: DashboardColors.textMuted), textAlign: TextAlign.center),
+  );
 
   Widget _recentTable() {
-    final rows = _svc.recentRows;
+    final table=_svc.historyTable;
+    final count=table?.rows.length ?? 0;
+    const pageSize=25;
+    final revision=_svc.historyRevision;
+    final currentPage=_tableRevision==revision ? _tablePage : 0;
+    final start=currentPage*pageSize;
+    final rows=table?.rows.skip(start).take(pageSize).toList() ?? [];
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: mgmtCardDeco(radius: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(child: Text('Dữ liệu gần đây', style: bvText(fontSize: 15, fontWeight: FontWeight.w800, color: DashboardColors.textPrimary))),
-              MgmtOutlineButton(icon: Icons.download_outlined, label: 'Xuất CSV', onTap: rows.isEmpty ? null : _exportCsv),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (rows.isEmpty)
-            Text('Chưa có mẫu trong 1 giờ gần đây.', style: bvText(color: DashboardColors.textMuted))
-          else
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                headingTextStyle: bvText(fontWeight: FontWeight.w800, fontSize: 11.5, color: DashboardColors.textMuted),
-                dataTextStyle: bvText(fontWeight: FontWeight.w600, color: DashboardColors.textPrimary),
-                columns: const [
-                  DataColumn(label: Text('THỜI GIAN')),
-                  DataColumn(label: Text('NHIỆT ĐỘ (°C)')),
-                  DataColumn(label: Text('pH')),
-                  DataColumn(label: Text('TDS (ppt)')),
-                  DataColumn(label: Text('TRẠNG THÁI')),
-                ],
-                rows: [
-                  for (final r in rows)
-                    DataRow(cells: [
-                      DataCell(Text(fmtDateTimeVn(r.at))),
-                      DataCell(Text(r.temperature?.toStringAsFixed(1) ?? '—')),
-                      DataCell(Text(r.ph == null ? '—' : r.ph!.toStringAsFixed(2))),
-                      DataCell(Text(r.tds?.round().toString() ?? '—')),
-                      DataCell(MgmtStatusBadge(
-                        label: r.status,
-                        color: r.outOfRange ? _kRed : DashboardColors.brand,
-                      )),
-                    ]),
-                ],
-              ),
-            ),
+      padding:const EdgeInsets.all(16),decoration:mgmtCardDeco(radius:16),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        Row(children:[
+          Expanded(child:Text('Lịch sử cảm biến đã chọn',style:bvText(fontSize:15,fontWeight:FontWeight.w800))),
+          MgmtOutlineButton(icon:Icons.download_outlined,label:'Xuất CSV',
+            onTap:kIsWeb || count==0 || _exporting ? null : _exportCsv),
+        ]),
+        const SizedBox(height:8),
+        if(table==null)
+          const Text('Chọn cảm biến và tải lịch sử đã xác minh.')
+        else ...[
+          Text('${table.sensorType} · ${table.sensorId} · ${table.unit}'),
+          Text('Khu: ${table.areaId} · Dãy: ${table.rowId ?? 'Không gán dãy'}'),
+          Text('Từ ${table.from} đến ${table.to} · asOf ${table.asOf}',style:bvText(fontSize:11.5)),
+          if(rows.isEmpty) const Text('Không có phép đo trong khoảng đã tải.')
+          else ...[
+            SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(
+              columns:const [DataColumn(label:Text('ĐO')),DataColumn(label:Text('NHẬN')),
+                DataColumn(label:Text('GIÁ TRỊ')),DataColumn(label:Text('NGUỒN'))],
+              rows:[for(final r in rows)DataRow(cells:[
+                DataCell(Text(r.measuredAt)),DataCell(Text(r.receivedAt)),
+                DataCell(Text('${r.value} ${table.unit}')),DataCell(Text(r.source)),
+              ])])),
+            Row(children:[
+              Expanded(child:Text('${start+1}–${start+rows.length} / $count mẫu')),
+              IconButton(tooltip:'Trang trước',onPressed:currentPage==0 ? null : ()=>setState((){
+                _tableRevision=revision;_tablePage=currentPage-1;
+              }),icon:const Icon(Icons.chevron_left)),
+              IconButton(tooltip:'Trang sau',onPressed:start+rows.length>=count ? null : ()=>setState((){
+                _tableRevision=revision;_tablePage=currentPage+1;
+              }),icon:const Icon(Icons.chevron_right)),
+            ]),
+          ],
         ],
-      ),
+        Text(kIsWeb ? 'Xuất CSV hiện chỉ hỗ trợ Desktop native.'
+          : 'CSV gồm toàn bộ mẫu đã tải của một cảm biến, không chứa token.',
+          style:bvText(fontSize:11.5,color:DashboardColors.textMuted)),
+        Text('Phạm vi theo cấu hình lúc ghi nhận; chưa xác minh vị trí vật lý hoặc snapshot DB.',
+          style:bvText(fontSize:11.5,color:DashboardColors.textMuted)),
+      ]),
     );
   }
 
@@ -891,7 +876,7 @@ class _RealtimeMonitorPageState extends State<RealtimeMonitorPage> {
     if (v == null || t == null) return '—';
     if (t == WaterSensorType.temperature) return '${v.toStringAsFixed(1)}°C';
     if (t == WaterSensorType.ph) return v.toStringAsFixed(2);
-    if (t == WaterSensorType.tds) return '${v.toStringAsFixed(2)} ppt';
+    if (t == WaterSensorType.tds) return '${v.toStringAsFixed(2)} ${_svc.readingOf(t)?.unit ?? ''}';
     return v.toStringAsFixed(1);
   }
 
@@ -935,17 +920,16 @@ class _SensorCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = reading;
-    final out = r != null &&
-        r.threshold.min != null &&
-        r.threshold.max != null &&
-        (r.value < r.threshold.min! || r.value > r.threshold.max!);
+    final out = r?.status == WaterSensorStatus.exceeded;
+    final configured = r?.threshold.min != null || r?.threshold.max != null;
     final (badge, color) = switch (fresh) {
       _Fresh.live when out => ('Vượt ngưỡng', _kRed),
-      _Fresh.live => ('Bình thường', DashboardColors.brand),
+      _Fresh.live when !configured => ('Chưa có ngưỡng', _kAmber),
+      _Fresh.live => ('Trong ngưỡng cấu hình', DashboardColors.brand),
       _Fresh.delayed => ('Dữ liệu chậm', _kAmber),
       _Fresh.stale => ('Dữ liệu cũ', _kAmber),
       _Fresh.noSignal => ('Mất tín hiệu', _kRed),
-      _Fresh.notConfigured => ('Chưa cấu hình', _kSlate),
+      _Fresh.notConfigured => ('Chưa xác minh', _kSlate),
     };
     final staleLook = fresh == _Fresh.stale || fresh == _Fresh.delayed || !controllerOnline;
     return Container(
@@ -958,7 +942,7 @@ class _SensorCard extends StatelessWidget {
             children: [
               Icon(type.icon, size: 18, color: out ? _kRed : DashboardColors.brand),
               const SizedBox(width: 6),
-              Expanded(child: Text(type.label, style: bvText(fontWeight: FontWeight.w800, color: DashboardColors.textPrimary))),
+              Expanded(child: Text('${type.label} · ${r?.sensorCode ?? '—'}', style: bvText(fontWeight: FontWeight.w800, color: DashboardColors.textPrimary))),
               MgmtStatusBadge(label: badge, color: color),
             ],
           ),
@@ -977,27 +961,21 @@ class _SensorCard extends StatelessWidget {
             ),
           ],
           const Spacer(),
-          if (r?.threshold.min != null && r?.threshold.max != null)
-            Text('Ngưỡng: ${_range(type, r!.threshold.min!, r.threshold.max!)}', style: bvText(fontSize: 12, color: DashboardColors.textMuted)),
+          Text('Ngưỡng: ${r?.threshold.goodRangeLabel ?? 'Chưa cấu hình'}', style: bvText(fontSize: 12, color: DashboardColors.textMuted)),
+          if (r != null) Text('Đo: ${fmtDateTimeVn(r.measuredAt)} · Nhận: ${fmtDateTimeVn(r.receivedAt)}', style: bvText(fontSize: 11, color: DashboardColors.textMuted)),
           Text(
             switch (fresh) {
               _Fresh.live => 'Cập nhật: ${_ago(r?.measuredAt)}',
               _Fresh.delayed => 'Cập nhật: ${_ago(r?.measuredAt)}',
-              _Fresh.stale => 'Nhận lúc: ${r?.measuredAt == null ? '—' : fmtDateTimeVn(r!.measuredAt)} · ${_ago(r?.measuredAt)}${controllerOnline ? '' : '\nNguyên nhân: Controller mất kết nối'}',
+              _Fresh.stale => 'Đo lúc: ${r?.measuredAt == null ? '—' : fmtDateTimeVn(r!.measuredAt)} · ${_ago(r?.measuredAt)}${controllerOnline ? '' : '\nNguyên nhân: Controller mất kết nối'}',
               _Fresh.noSignal => 'Chưa nhận được dữ liệu từ sensor.',
-              _Fresh.notConfigured => 'Sensor chưa được gắn trên Controller.',
+              _Fresh.notConfigured => 'Chưa có phép đo hợp lệ.',
             },
             style: bvText(fontSize: 11.5, color: DashboardColors.textMuted, height: 1.35),
           ),
         ],
       ),
     );
-  }
-
-  String _range(WaterSensorType t, double min, double max) {
-    if (t == WaterSensorType.temperature) return '${min.toStringAsFixed(0)} – ${max.toStringAsFixed(0)}°C';
-    if (t == WaterSensorType.tds) return '${min.toStringAsFixed(1)} – ${max.toStringAsFixed(1)} ppt';
-    return '${min.toStringAsFixed(1)} – ${max.toStringAsFixed(1)}';
   }
 
   String _ago(DateTime? at) {
@@ -1043,9 +1021,9 @@ class HistoryChart extends StatelessWidget {
             spots: [for (final p in seg) FlSpot(p.xMinutes, p.value)],
             isCurved: false,
             color: color,
-            barWidth: 2.2,
-            dotData: const FlDotData(show: false),
-            belowBarData: BarAreaData(show: true, color: color.withValues(alpha: 0.08)),
+            barWidth: 0,
+            dotData: const FlDotData(show: true),
+            belowBarData: BarAreaData(show: false),
           ),
       if (minTh != null)
         LineChartBarData(

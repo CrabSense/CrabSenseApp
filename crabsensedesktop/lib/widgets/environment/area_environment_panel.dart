@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../models/area_environment_metric.dart';
 import '../../services/area_environment_service.dart';
 import '../../theme/dashboard_theme.dart';
-import '../dashboard/glass_card.dart';
+import 'qualified_environment_cards.dart';
 
 /// Cảm biến bể chung khu — read-only, dùng chung cho Quản lý hộp & chi tiết hộp.
 class AreaEnvironmentPanel extends StatefulWidget {
@@ -66,7 +65,7 @@ class _AreaEnvironmentPanelState extends State<AreaEnvironmentPanel> {
   void _load() {
     final boxId = widget.boxId;
     if (boxId != null && boxId.isNotEmpty) {
-      widget.service.startLiveRefreshByBox(boxId);
+      widget.service.startLiveRefreshByBox(boxId,areaId:widget.areaId);
       return;
     }
     final id = widget.areaId;
@@ -121,8 +120,9 @@ class _AreaEnvironmentPanelState extends State<AreaEnvironmentPanel> {
       );
     }
 
-    final data = svc.data;
-    final metrics = svc.metrics;
+    final candidate=hasBox ? svc.dataForBox(widget.areaId??'',widget.boxId!) : svc.data;
+    final data=candidate?.areaId==widget.areaId && candidate?.boxId==widget.boxId ? candidate : null;
+    final metrics=data?.metrics ?? const [];
     final title = widget.areaName ?? data?.areaName ?? 'Khu';
     final code = widget.areaCode ?? data?.areaCode ?? '';
     final boxLabel = widget.boxCode ?? data?.boxCode;
@@ -190,11 +190,7 @@ class _AreaEnvironmentPanelState extends State<AreaEnvironmentPanel> {
         if (metrics.isEmpty)
           _message(Icons.sensors, 'Chưa có chỉ số — sync ESP32 khu (areaCode, không boxCode)')
         else
-          Wrap(
-            spacing: widget.compact ? 10 : 16,
-            runSpacing: widget.compact ? 10 : 16,
-            children: metrics.map((m) => _metricCard(m, widget.compact)).toList(),
-          ),
+          QualifiedEnvironmentCards(metrics:metrics),
       ],
     );
   }
@@ -216,45 +212,6 @@ class _AreaEnvironmentPanelState extends State<AreaEnvironmentPanel> {
     );
   }
 
-  Widget _metricCard(AreaEnvironmentMetric m, bool compact) {
-    final color = _statusColor(m.status);
-    return GlassCard(
-      padding: EdgeInsets.all(compact ? 14 : 20),
-      child: SizedBox(
-        width: compact ? 150 : 200,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(_metricIcon(m.icon), size: compact ? 18 : 24, color: color),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    m.label,
-                    style: GoogleFonts.notoSans(
-                      fontSize: compact ? 13 : 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${m.value}${m.unit.isNotEmpty ? ' ${m.unit}' : ''}',
-              style: GoogleFonts.robotoMono(
-                fontSize: compact ? 18 : 22,
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   static String _formatTime(DateTime t) {
     final local = t.toLocal();
     return '${local.hour.toString().padLeft(2, '0')}:'
@@ -262,22 +219,4 @@ class _AreaEnvironmentPanelState extends State<AreaEnvironmentPanel> {
         '${local.day}/${local.month}/${local.year}';
   }
 
-  static Color _statusColor(String status) => switch (status) {
-        'warning' => DashboardColors.monitoring,
-        'critical' => DashboardColors.risk,
-        _ => DashboardColors.seaGreen,
-      };
-
-  static IconData _metricIcon(String key) => switch (key) {
-        'ph' => Icons.water,
-        'temp' => Icons.thermostat,
-        'do' => Icons.bubble_chart_outlined,
-        'sal' => Icons.waves,
-        'nh3' || 'no2' => Icons.science_outlined,
-        'orp' => Icons.electric_bolt,
-        'level' => Icons.vertical_align_top,
-        'flow' => Icons.speed,
-        'tds' => Icons.grain,
-        _ => Icons.sensors_outlined,
-      };
 }

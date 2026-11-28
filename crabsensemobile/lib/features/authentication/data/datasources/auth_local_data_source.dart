@@ -121,7 +121,8 @@ abstract class AuthLocalDataSource {
 /// Implementation of [AuthLocalDataSource] using FlutterSecureStorage.
 /// On Web: falls back to localStorage (no Keychain/Keystore available).
 class AuthLocalDataSourceImpl implements AuthLocalDataSource {
-  AuthLocalDataSourceImpl({required this.secureStorage});
+  AuthLocalDataSourceImpl({required this.secureStorage, this.onCredentialsChanged});
+  final void Function()? onCredentialsChanged;
   final FlutterSecureStorage secureStorage;
 
   // Web IndexedDB can lag behind writes; keep tokens in RAM so Dio
@@ -158,6 +159,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
 
   @override
   Future<void> cacheUser(UserModel user) async {
+    onCredentialsChanged?.call();
     try {
       final userJson = jsonEncode(user.toJson());
       await _write(_keyUser, userJson);
@@ -184,6 +186,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
 
   @override
   Future<void> saveAccessToken(String token) async {
+    onCredentialsChanged?.call();
     _memAccessToken = token;
     try {
       await _write(_keyAccessToken, token);
@@ -284,6 +287,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
 
   @override
   Future<void> clearAuthData() async {
+    onCredentialsChanged?.call();
     _memAccessToken = null;
     _memRefreshToken = null;
     try {

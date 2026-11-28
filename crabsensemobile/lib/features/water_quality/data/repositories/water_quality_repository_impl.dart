@@ -13,11 +13,7 @@ import '../datasources/water_quality_remote_data_source.dart';
 
 /// Concrete implementation of [WaterQualityRepository].
 ///
-/// Follows an offline-first strategy:
-/// - **Reads (online)**: fetch from remote, cache locally, return fresh data.
-/// - **Reads (offline)**: return cached data; emit [NetworkFailure] when no
-///   cached data exists.
-/// - Historical data uses the 7-day local retention via the local data source.
+/// Verified online reads only until the cache preserves presence and user scope.
 ///
 /// All data-layer exceptions are mapped to domain [Failure] types:
 /// - [ServerException]  → [ServerFailure]
@@ -51,8 +47,7 @@ class WaterQualityRepositoryImpl implements WaterQualityRepository {
     if (await networkInfo.isConnected) {
       try {
         final readings = await remoteDataSource.getCurrentReadings(farmId: farmId, pondId: pondId);
-        // Cache results; also enforces 7-day retention (Req 23.6).
-        await localDataSource.cacheReadings(readings);
+        // Legacy cache cannot preserve nullable values or user provenance.
         return Right(readings.map((r) => r.toEntity()).toList());
       } on ServerException catch (e) {
         return Left(_mapServerException(e));
@@ -63,12 +58,7 @@ class WaterQualityRepositoryImpl implements WaterQualityRepository {
       }
     }
 
-    // Offline — serve from cache (Requirement 8.10).
-    logger.d(
-      'WaterQualityRepo: offline — serving cached current readings '
-      'farmId=$farmId pondId=$pondId',
-    );
-    return _getCachedCurrentReadings(farmId: farmId, pondId: pondId);
+    return const Left(NetworkFailure('No verified offline sensor readings.'));
   }
 
   @override
@@ -84,8 +74,7 @@ class WaterQualityRepositoryImpl implements WaterQualityRepository {
           period: period,
           pondId: pondId,
         );
-        // Cache all fresh historical readings (7-day retention applied inside).
-        await localDataSource.cacheReadings(readings);
+        // Never cache unqualified historical data.
         return Right(readings.map((r) => r.toEntity()).toList());
       } on ServerException catch (e) {
         return Left(_mapServerException(e));
@@ -100,31 +89,12 @@ class WaterQualityRepositoryImpl implements WaterQualityRepository {
       }
     }
 
-    // Offline or network error — serve from local cache (Req 8.10).
-    logger.d(
-      'WaterQualityRepo: serving cached historical data '
-      'farmId=$farmId period=${period.name}',
-    );
-    try {
-      final cached = await localDataSource.getCachedHistoricalData(
-        farmId: farmId,
-        period: period,
-        pondId: pondId,
-      );
-      return Right(cached.map((r) => r.toEntity()).toList());
-    } on CacheException catch (e) {
-      return Left(CacheFailure(e.message, e.code));
-    }
+    return const Left(NetworkFailure('No verified offline sensor history.'));
   }
 
   @override
   Stream<List<WaterQuality>> watchCurrentReadings({required String farmId, String? pondId}) =>
-      localDataSource.watchCurrentReadings(farmId: farmId, pondId: pondId).handleError((
-        Object error,
-      ) {
-        // Log but don't terminate the stream on cache errors.
-        logger.e('WaterQualityRepo: watchCurrentReadings error — $error');
-      });
+      const Stream.empty();
 
   @override
   Future<Either<Failure, bool>> checkDeviceStatus({required String sensorId}) async {
@@ -139,25 +109,14 @@ class WaterQualityRepositoryImpl implements WaterQualityRepository {
       return Left(_mapServerException(e));
     } on NetworkException catch (e) {
       return Left(NetworkFailure(e.message, e.code));
+    } on ParseException catch (e) {
+      return Left(ParseFailure(e.message));
     }
   }
 
   // ──────────────────────────────────────────────────────────────────────────
   // Private helpers
   // ──────────────────────────────────────────────────────────────────────────
-
-  /// Reads cached current readings from the local data source.
-  Future<Either<Failure, List<WaterQuality>>> _getCachedCurrentReadings({
-    required String farmId,
-    String? pondId,
-  }) async {
-    try {
-      final cached = await localDataSource.getCachedCurrentReadings(farmId: farmId, pondId: pondId);
-      return Right(cached.map((r) => r.toEntity()).toList());
-    } on CacheException catch (e) {
-      return Left(CacheFailure(e.message, e.code));
-    }
-  }
 
   /// Converts a [ServerException] to the most specific [Failure] subtype.
   Failure _mapServerException(ServerException e) {

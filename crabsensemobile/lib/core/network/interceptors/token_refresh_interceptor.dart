@@ -80,7 +80,8 @@ class TokenRefreshInterceptor extends Interceptor {
 
     // No JWT was sent — refreshing cannot help (and CacheException here
     // used to surface as a generic "Không thể thực hiện" on Boxes).
-    if (!isUnauthorized || isRefreshEndpoint || !hasBearer) {
+    if (request.extra['skipTokenRefresh'] == true ||
+        !isUnauthorized || isRefreshEndpoint || !hasBearer) {
       handler.next(err);
       return;
     }
