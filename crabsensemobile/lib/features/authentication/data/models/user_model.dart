@@ -26,16 +26,42 @@ class UserModel extends User {
   /// Creates a [UserModel] from JSON data with safe fallback parsing for backend roles.
   factory UserModel.fromJson(Map<String, dynamic> json) {
     final roleEnum = UserRole.parse(json['role']);
+    final rawFarmIds = json['assignedFarmIds'] ?? json['farmingAreaIds'];
+    final assignedFarmIds = rawFarmIds is List
+        ? rawFarmIds
+              .map((id) => id.toString())
+              .where((id) => id.isNotEmpty)
+              .toList()
+        : <String>[];
+
+    // Một số phản hồi chỉ có một farmingAreaId; dùng làm phương án dự phòng
+    // khi danh sách khu nuôi không có phần tử.
+    final singleFarmId = json['farmingAreaId'] ?? json['farmId'];
+    if (assignedFarmIds.isEmpty &&
+        singleFarmId != null &&
+        singleFarmId.toString().isNotEmpty) {
+      assignedFarmIds.add(singleFarmId.toString());
+    }
     return UserModel(
       id: json['id']?.toString() ?? json['userId']?.toString() ?? 'user_001',
-      email: json['email']?.toString() ?? json['username']?.toString() ?? 'user@crabsense.app',
-      name: json['name']?.toString() ?? json['fullName']?.toString() ?? json['username']?.toString() ?? 'User',
+      email:
+          json['email']?.toString() ??
+          json['username']?.toString() ??
+          'user@crabsense.app',
+      name:
+          json['name']?.toString() ??
+          json['fullName']?.toString() ??
+          json['username']?.toString() ??
+          'User',
       role: roleEnum,
-      assignedFarmIds: (json['assignedFarmIds'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
-          (json['farmId'] != null ? [json['farmId'].toString()] : const ['farm_001']),
-      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now() : DateTime.now(),
+      assignedFarmIds: assignedFarmIds,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
       photoUrl: json['photoUrl'] as String?,
-      lastLoginAt: json['lastLoginAt'] != null ? DateTime.tryParse(json['lastLoginAt'].toString()) : null,
+      lastLoginAt: json['lastLoginAt'] != null
+          ? DateTime.tryParse(json['lastLoginAt'].toString())
+          : null,
     );
   }
 
@@ -118,17 +144,27 @@ class AuthResponse {
     // would skip unwrap and persist an empty JWT.
     final payload = _asMap(json['data']) ?? json;
 
-    final token = payload['accessToken'] ?? payload['access_token'] ?? payload['token'] ?? '';
+    final token =
+        payload['accessToken'] ??
+        payload['access_token'] ??
+        payload['token'] ??
+        '';
     final refresh = payload['refreshToken'] ?? payload['refresh_token'] ?? '';
 
-    final expiresAtRaw = payload['expiresAt'] ?? payload['accessTokenExpiresAt'] ?? payload['access_token_expires_at'];
+    final expiresAtRaw =
+        payload['expiresAt'] ??
+        payload['accessTokenExpiresAt'] ??
+        payload['access_token_expires_at'];
     final expiresAt = expiresAtRaw != null
-        ? (DateTime.tryParse(expiresAtRaw.toString()) ?? DateTime.now().add(const Duration(hours: 1)))
+        ? (DateTime.tryParse(expiresAtRaw.toString()) ??
+              DateTime.now().add(const Duration(hours: 1)))
         : DateTime.now().add(const Duration(hours: 1));
 
-    final refreshExpiresAtRaw = payload['refreshTokenExpiresAt'] ?? payload['refresh_token_expires_at'];
+    final refreshExpiresAtRaw =
+        payload['refreshTokenExpiresAt'] ?? payload['refresh_token_expires_at'];
     final refreshExpiresAt = refreshExpiresAtRaw != null
-        ? (DateTime.tryParse(refreshExpiresAtRaw.toString()) ?? DateTime.now().add(const Duration(days: 7)))
+        ? (DateTime.tryParse(refreshExpiresAtRaw.toString()) ??
+              DateTime.now().add(const Duration(days: 7)))
         : DateTime.now().add(const Duration(days: 7));
 
     final userJson = _asMap(payload['user']) ?? payload;

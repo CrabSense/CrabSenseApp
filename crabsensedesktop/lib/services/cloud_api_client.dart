@@ -728,6 +728,7 @@ class CloudApiClient {
   Future<List<Map<String, dynamic>>> fetchHarvestAssignments(String token, {
     required String farmingAreaId,
   }) => _getDataList(token, '/api/harvest-assignments', farmingAreaId: farmingAreaId);
+  
 
   Future<Map<String, dynamic>> fetchHarvestAssignmentDetail(String token, String id, {
     required String farmingAreaId,
@@ -1977,4 +1978,5 @@ class CloudApiClient {
 
     return _asMap(_dataOf(body) ?? body);
   }
+  
 }
