@@ -3,3 +3,6 @@ Nullable measurements; strict BE SensorLiveDto decoding with explicit area/row, 
 
 ## Updated status — 2026-11-28
 The preceding paragraph is the original baseline, not current state: SQLite v4 scoped cache and scoped-sensor-history-v1 chart are implemented and previously tested online; legacy cache remains excluded and offline reads remain disabled. App #73 ff15ea9 addresses old-session request lock and chart lifecycle independently of parent online state; two new regression tests pending CI. Native lifecycle/production acceptance remains open.
+
+## Session and lifecycle acceptance — 2026-11-28
+App #73 merged e3cc1bf; CI #229 mobile job 140872041041 confirms both new regressions pass, main d9adbc0 workflows passed. Native device lifecycle and actual JWT/production acceptance remain open. Offline cache reads intentionally disabled. BE #113 pending CI corrects legacy boxes/overview area scope; client review still required.

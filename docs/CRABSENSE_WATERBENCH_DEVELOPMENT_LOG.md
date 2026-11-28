@@ -123,18 +123,18 @@
 |---|---|---|
 | hardware-water-quality-analysis | b552498 | Mốc audit; chưa flash/test thật |
 | CrabSenseKiosk | 98458f3 | Main CI #78 PASS |
-| CrabSenseBE | 5f4415f | Main CI #427 / VPS #227 PASS |
+| CrabSenseBE | 5f4415f | Main CI #427 / VPS #227 PASS; #113 T05 area isolation pending |
 | CrabSenseAIWaterQualityAnalysis | 700d5b2 | AI CI #37 / private cross #11 PASS |
 | CrabSenseFE | 2b9aa32 | #39 merged; main Audit #18/Sonar #155/Pages #143 PASS; RAS Chromium 6/6 groups PASS |
-| CrabSenseApp | 861520c | #72 CI #227 PASS merged; main #228/Mobile #87/Desktop #90/Pages #111 running; #73 T04 pending |
+| CrabSenseApp | d9adbc0 | #73/#74 merged; main #232/Mobile #90/Desktop #92/Pages #114 PASS |
 
 | Mã | Ưu tiên | Việc còn lại | Điều kiện hoàn thành |
 |---|---|---|---|
 | T01 | P0 | DONE: AI #7 merged, AI main #29 và private cross #7 PASS | Exact BE main pin, main CI PASS |
 | T02 | P0 | DONE: App main #61/#52/#43 và Sonar #156 PASS | Tất cả PASS đúng main 83e7eec |
 | T03 | P0 | Đã merge BE scoped history và khôi phục chart scoped Mobile/Desktop; chưa production smoke | Sửa cấu hình test Npgsql, chạy đủ HTTP/PostgreSQL, CI PASS, review migration, deploy, App chart thật |
-| T04 | P1 | SQLite v4 scope/session/expiry fail-closed; #73 generation-scoped busy guard/chart lifecycle pending; offline reading tắt, native còn mở | Kiểm thử offline và isolation; phục hồi chart/cache an toàn |
-| T05 | P1 | Live/history scoped, RAS chung khu và #39 Chromium 6/6 nhóm PASS trên PR/main; KPI/legacy/production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
+| T04 | P1 | SQLite v4 scope/session/expiry fail-closed; #73 generation guard/chart lifecycle PASS; offline reading tắt, native còn mở | Kiểm thử offline và isolation; phục hồi chart/cache an toàn |
+| T05 | P1 | RAS Chromium 6/6 nhóm PASS; BE #113 sửa first-area/global device fallback trong boxes/overview pending; KPI/legacy/production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
 | T06 | P1 | FE #37 merged, main Audit #14 và Pages #139 gate full/omit-dev 0 PASS; required branch check chưa xác minh | Phân loại direct/transitive/dev/runtime, sửa an toàn, CI PASS |
 | T07 | P1 | Kiểm thử PostgreSQL technical diagnostics, JWT bốn role | P2.4.6.2; 401/403 và scoped access |
 | T08 | P1 | Geometry QC bắt buộc với fixture phù hợp; kiểm tra private media/Drive | P2.4.6.3 |
@@ -143,7 +143,7 @@
 | T11 | P2 | Tổng kiểm thử bảo mật, CI/CD và quy trình test thực tế | P2.4.6.6 |
 | T12 | P3 | Thiết bị thật, UART, đo chuẩn, mẫu thật, vệ sinh, vận hành lâu dài | Chỉ sau P2.4.6 PASS |
 
-**Việc kế tiếp:** nghiệm thu App #73 session/lifecycle, rà KPI/legacy và native T04; cấu hình required status check với quyền admin trước tổng nghiệm thu. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
+**Việc kế tiếp:** nghiệm thu BE #113 area isolation, rà consumer Web/Mobile/Desktop và legacy health/AI KPI; native T04 và required status check với quyền admin còn mở. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
 
 ## 6. Quy định cập nhật file sau mỗi lượt
 
@@ -364,3 +364,7 @@
 ### 49 — T05: RAS Chromium PASS; T04: cô lập phiên và vòng đời Mobile (28/11/2026)
 - FE #39 head 4f8077c, Sonar #154/Pages #142/Audit #17/Chromium #18 PASS, merged 2b9aa32. Chromium #18 job 140870817242 và main Pages #143 browser job 140871205242 xác nhận 6/6 nhóm RAS PASS: separate sensor/zero/wrong scope/chemistry, delayed prior area, All Areas, offline/reconnect, credential rotation/403/revalidate, Monitoring parity. Main Audit #18/Sonar #155/Pages #143 PASS; security job 140871205124 marker full=0 omit-dev=0. API synthetic, chưa production JWT/hardware. App #72 CI #227 PASS, merged 861520c; main #228/Mobile #87/Desktop #90/Pages #111 running tại snapshot.
 - Rà ScopedHistoryService: khóa _busy toàn service khiến phiên mới bị chặn bởi request cũ sau invalidate. Rà ScopedHistoryChart: phụ thuộc parent online flag cho lifecycle. App [#73](https://github.com/CrabSense/CrabSenseApp/pull/73) ff15ea9, một commit fix(mobile): isolate history requests across session and lifecycle changes; khóa theo generation, finally cũ không mở khóa request mới, giữ kiểm tra identity và cache epoch; chart trực tiếp observe lifecycle, clear selection/plot/request khi rời foreground hoặc resume, yêu cầu tải lại rõ ràng. Hai regression tests trong file bắt buộc: old/new session overlap và OS lifecycle giả lập khi parent online=true/late response. CI #229/Pages #112 queued, chưa merge/nghiệm thu. Không bật offline cache, không đổi DB/API/role/RAS sampling. Native device, KPI/legacy, JWT/production và required branch check còn mở. Không đóng P2.4.6.1.
+
+### 50 — T04: session/lifecycle PASS; T05: sửa scope legacy boxes/overview (28/11/2026)
+- App #73 head ff15ea9 CI #229/Mobile #88/Pages #112 PASS, merged e3cc1bf. Mobile job 140872041041 log xác nhận hai regression obsolete pending request cannot block or unlock a new session và background clears chart and late response cannot restore it. App #74 CI #230 PASS, merged d9adbc0; main #232/Mobile #90/Desktop #92/Pages #114 PASS. Offline cache vẫn tắt, native device/JWT production chưa nghiệm thu.
+- BE BoxOverviewService phát hiện first-box area dùng cho mọi hộp, fallback toàn bộ device nếu không liên kết, không có device trả online, legacy scalar thiếu provenance và ghi đè sensor cùng loại. BE [#113](https://github.com/CrabSense/CrabSenseBE/pull/113) head c6dbba1, một commit fix(ras): isolate box overview telemetry by farming area. Header chỉ explicit area/row; All Areas không có snapshot đại diện. Mỗi hộp lấy riêng khu theo row, canonical SensorHistoryScope, device cấu hình area/row nhất quán, alert captured area. Scalar legacy chỉ nhận unique qualified Realtime với observed scope/type, unit, receipt và freshness 5 phút; zero giữ nguyên; timestamp null khi khác thời điểm. Cảnh báo ngưỡng của mẫu hợp lệ giữ lại. Không fallback global; zero device trả false/0 theo DTO bool cũ, consumer cần phân biệt unknown. Test hai khu, zero, ngưỡng, không có device, header empty; chưa CI head mới. Head trước 0c4c790 CI #428 đang chạy, thay bằng lease trên nhánh riêng để giữ 1 commit, không force main. Legacy health/AI confidence, semantics client, PostgreSQL/JWT integration vẫn mở. Không migration/schema/role/sampling changes. Next kiểm tra #113, App journal, cross-client consumers. Không đóng P2.4.6.1/P3.
