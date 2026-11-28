@@ -8,7 +8,6 @@ import 'qualified_live_water.dart';
 import '../models/dashboard_ui.dart';
 import '../models/farm_dashboard_overview.dart';
 import '../services/dashboard_env_trend_service.dart';
-import '../theme/dashboard_theme.dart';
 import '../utils/farm_dashboard_mapper.dart';
 import 'cloud_api_client.dart';
 
@@ -42,6 +41,9 @@ class FarmDashboardService extends ChangeNotifier {
   String? _qualifiedArea;
   int _pollGeneration=0;
   bool _pollBusy=false;
+  int _overviewGeneration = 0;
+  bool _disposed = false;
+  bool _overviewBusy = false;
 
   List<WaterSensorReading> qualifiedReadingsFor(String area) {
     final age=_qualifiedAt==null ? null : DateTime.now().difference(_qualifiedAt!);
@@ -63,6 +65,9 @@ class FarmDashboardService extends ChangeNotifier {
       _liveDoSeries.isNotEmpty ? List.unmodifiable(_liveDoSeries) : const [];
 
   void updateSession(AuthSession session) {
+    ++_overviewGeneration;
+    _overviewBusy = false;
+    loading = false;
     _session = session;
     stopLiveRefresh();
     overview = null;
@@ -74,25 +79,34 @@ class FarmDashboardService extends ChangeNotifier {
   }
 
   Future<void> load({bool force = false}) async {
-    if (loading && !force) return;
+    if (_disposed || (loading && !force)) return;
+    final generation = ++_overviewGeneration;
+    final area = farmId, bearer = token;
+    bool current() => !_disposed && generation == _overviewGeneration &&
+        area == farmId && bearer == token;
+    _overviewBusy = false;
+    stopLiveRefresh();
+    overview = null;
     loading = true;
     error = null;
     notifyListeners();
-
     try {
-      overview = await _api.fetchFarmDashboardOverview(token, farmId);
-      error = null;
+      final next = await _api.fetchFarmDashboardOverview(bearer, area);
+      if (!current()) return;
+      overview = next;
       _seedTrendFromOverview();
       startLiveRefresh();
     } catch (e) {
+      if (!current()) return;
       error = '$e';
       overview = null;
       stopLiveRefresh();
       envTrend.stop();
-      envTrend.start();
     } finally {
-      loading = false;
-      notifyListeners();
+      if (current()) {
+        loading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -154,11 +168,26 @@ class FarmDashboardService extends ChangeNotifier {
   }
 
   Future<void> _refreshOverviewSilent() async {
+    if (_disposed || _overviewBusy) return;
+    final generation = _overviewGeneration;
+    final area = farmId, bearer = token;
+    bool current() => !_disposed && generation == _overviewGeneration &&
+        area == farmId && bearer == token;
+    _overviewBusy = true;
     try {
-      final next = await _api.fetchFarmDashboardOverview(token, farmId);
+      final next = await _api.fetchFarmDashboardOverview(bearer, area);
+      if (!current()) return;
       overview = next;
+      error = null;
       notifyListeners();
-    } catch (_) {}
+    } catch (e) {
+      if (!current()) return;
+      overview = null;
+      error = '$e';
+      notifyListeners();
+    } finally {
+      if (current()) _overviewBusy = false;
+    }
   }
 
   void _seedTrendFromOverview() {
@@ -169,12 +198,14 @@ class FarmDashboardService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
+    ++_overviewGeneration;
     stopLiveRefresh();
     envTrend.dispose();
     super.dispose();
   }
 
-  int get healthScore => overview?.healthScore ?? 0;
+  int? get healthScore => null;
 
   String get statusMessage => overview?.statusMessage ??
       (error != null
@@ -187,7 +218,7 @@ class FarmDashboardService extends ChangeNotifier {
 
   String get devicesOnline => overview?.devicesOnline ?? '—';
 
-  int get alertCount => overview?.alertCount ?? 0;
+  int? get alertCount => overview?.alertCount;
 
   List<KpiItem> get summaryKpis =>
       _mapKpis(overview?.summaryKpis, _emptySummaryKpis);
@@ -198,7 +229,7 @@ class FarmDashboardService extends ChangeNotifier {
 
   List<StatusSegment> get statusSegments => hasApiData
       ? overview!.statusSegments.map(mapStatusSegment).toList()
-      : _emptyStatusSegments;
+      : const [];
 
   List<EnvParameter> get environmentParams =>
       qualifiedReadingsFor(farmId).isNotEmpty ? _liveEnvParams : const [];
@@ -219,36 +250,29 @@ class FarmDashboardService extends ChangeNotifier {
   }
 
   static final _emptySummaryKpis = [
-    const KpiItem(label: 'Tổng Số Cua', value: '0'),
-    const KpiItem(label: 'Lứa Nuôi', value: '0'),
+    const KpiItem(label: 'Tổng Số Cua', value: '—'),
+    const KpiItem(label: 'Lứa Nuôi', value: '—'),
     const KpiItem(label: 'Tỷ Lệ Sống', value: '—'),
     const KpiItem(label: 'Doanh Thu (Dự kiến)', value: '—'),
   ];
 
   static final _emptyDetailKpis1 = [
-    const KpiItem(label: 'Tổng cua', value: '0'),
-    const KpiItem(label: 'Lứa nuôi', value: '0'),
-    const KpiItem(label: 'Cua khỏe', value: '0'),
-    const KpiItem(label: 'Theo dõi', value: '0'),
-    const KpiItem(label: 'Nguy cơ', value: '0'),
-    const KpiItem(label: 'Lột xác', value: '0'),
+    const KpiItem(label: 'Tổng cua', value: '—'),
+    const KpiItem(label: 'Lứa nuôi', value: '—'),
+    const KpiItem(label: 'Cua khỏe', value: '—'),
+    const KpiItem(label: 'Theo dõi', value: '—'),
+    const KpiItem(label: 'Nguy cơ', value: '—'),
+    const KpiItem(label: 'Lột xác', value: '—'),
   ];
 
   static final _emptyDetailKpis2 = [
-    const KpiItem(label: 'Cua chết', value: '0'),
-    const KpiItem(label: 'Thu hoạch', value: '0'),
+    const KpiItem(label: 'Cua chết', value: '—'),
+    const KpiItem(label: 'Thu hoạch', value: '—'),
     const KpiItem(label: 'Tỷ lệ sống', value: '—'),
     const KpiItem(label: 'Doanh thu', value: '—'),
     const KpiItem(label: 'Health', value: '—'),
     const KpiItem(label: 'Thiết bị', value: '—'),
-    const KpiItem(label: 'Cảnh báo', value: '0'),
+    const KpiItem(label: 'Cảnh báo', value: '—'),
   ];
 
-  static final _emptyStatusSegments = [
-    StatusSegment(label: 'CUA KHỎE', count: 0, color: DashboardColors.healthy),
-    StatusSegment(label: 'THEO DÕI', count: 0, color: DashboardColors.monitoring),
-    StatusSegment(label: 'LỘT XÁC', count: 0, color: DashboardColors.molting),
-    StatusSegment(label: 'NGUY CƠ', count: 0, color: DashboardColors.risk),
-    StatusSegment(label: 'CUA CHẾT', count: 0, color: DashboardColors.dead),
-  ];
 }

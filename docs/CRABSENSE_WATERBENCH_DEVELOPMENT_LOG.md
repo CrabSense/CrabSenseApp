@@ -123,10 +123,10 @@
 |---|---|---|
 | hardware-water-quality-analysis | b552498 | Mốc audit; chưa flash/test thật |
 | CrabSenseKiosk | 98458f3 | Main CI #78 PASS |
-| CrabSenseBE | 949927b | #113 merged; main CI #430 / VPS #228 PASS; #114 assessment/time pending |
+| CrabSenseBE | a8306ca | #114 merged; main CI #432/VPS #229 PASS |
 | CrabSenseAIWaterQualityAnalysis | 700d5b2 | AI CI #37 / private cross #11 PASS |
-| CrabSenseFE | 7647cfa | #40 merged; main Audit #20/Sonar #157/Pages #145 PASS |
-| CrabSenseApp | 5e8e96d | #78 merged; main #241/Mobile #98/Desktop #96/Pages #122 PASS |
+| CrabSenseFE | 7647cfa | #40 merged; #41 nullable monitoring pending |
+| CrabSenseApp | 78972cd | #79 merged; main #243/Mobile #99/Desktop #98/Pages #124 PASS |
 
 | Mã | Ưu tiên | Việc còn lại | Điều kiện hoàn thành |
 |---|---|---|---|
@@ -134,7 +134,7 @@
 | T02 | P0 | DONE: App main #61/#52/#43 và Sonar #156 PASS | Tất cả PASS đúng main 83e7eec |
 | T03 | P0 | Đã merge BE scoped history và khôi phục chart scoped Mobile/Desktop; chưa production smoke | Sửa cấu hình test Npgsql, chạy đủ HTTP/PostgreSQL, CI PASS, review migration, deploy, App chart thật |
 | T04 | P1 | SQLite v4 scope/session/expiry fail-closed; #73 generation guard/chart lifecycle PASS; offline reading tắt, native còn mở | Kiểm thử offline và isolation; phục hồi chart/cache an toàn |
-| T05 | P1 | RAS Chromium PASS; BE #113/VPS, FE #40/App #76 PASS; Mobile #77 CI #238 92/92 PASS merged; L03–L06 Mobile #78 PASS; BE #114 source fix và Desktop map containment pending; Desktop dashboard/production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
+| T05 | P1 | RAS Chromium PASS; BE #113/VPS, FE #40/App #76 PASS; Mobile #77 CI #238 92/92 PASS merged; L03–L06 Mobile #78 PASS; BE #114/VPS và Desktop #79 PASS; Web #41 và Desktop dashboard containment pending; production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
 | T06 | P1 | FE #37 merged, main Audit #14 và Pages #139 gate full/omit-dev 0 PASS; required branch check chưa xác minh | Phân loại direct/transitive/dev/runtime, sửa an toàn, CI PASS |
 | T07 | P1 | Kiểm thử PostgreSQL technical diagnostics, JWT bốn role | P2.4.6.2; 401/403 và scoped access |
 | T08 | P1 | Geometry QC bắt buộc với fixture phù hợp; kiểm tra private media/Drive | P2.4.6.3 |
@@ -143,7 +143,7 @@
 | T11 | P2 | Tổng kiểm thử bảo mật, CI/CD và quy trình test thực tế | P2.4.6.6 |
 | T12 | P3 | Thiết bị thật, UART, đo chuẩn, mẫu thật, vệ sinh, vận hành lâu dài | Chỉ sau P2.4.6 PASS |
 
-**Việc kế tiếp:** nghiệm thu BE #114 và Desktop map fix, rà dashboard metrics/consumer Web, native T04 và required status check với quyền admin còn mở. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
+**Việc kế tiếp:** nghiệm thu FE #41 và Desktop dashboard, kiểm tra cross-client nullable contract và KPI legacy còn lại, native T04 và required status check với quyền admin còn mở. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
 
 ## 6. Quy định cập nhật file sau mỗi lượt
 
@@ -390,3 +390,8 @@
 - App #78 2b676e4 Sonar #240/Mobile #97/Pages #121 PASS merged 5e8e96d; job 140887151404 xác nhận 95/95 Mobile tests, cả 3 regression L03–L06 PASS. Main #241/Mobile #98/Desktop #96/Pages #122 PASS.
 - BE [#114](https://github.com/CrabSense/CrabSenseBE/pull/114) d88e741, fix(ras): remove unverified box assessment and timestamp defaults. Xóa ComputeAreaScores/ComputeBoxHealth/BuildAiTip, trả null score/confidence/trend/priority/recommendation, healthStatus unknown, summary assessment null; offline chỉ có nghĩa khi explicit area và có inventory. LastUpdated nullable lấy UTC event nguồn hợp lệ, bỏ default/future, không dùng UtcNow thay dữ liệu; SyncedAt là giờ trả snapshot. Giữ trường JSON nhưng thay nullability, regression hai khu mở rộng. Chưa CI/merge/deploy. Mobile đã hỗ trợ null; Web null display hỗ trợ nhưng cột /100, filter và summary còn cần rà.
 - Desktop Farm Manager dùng farming-areas/rows/boxes độc lập, phát hiện mapper gán 90/75/85/60, BoxGridCard hashCode tạo %, fallback khu/dãy giả, load cũ ghi đè. Sửa map/card không tạo điểm, không gắn aiSummary vào map, mascot không khẳng định nước ổn định, xác minh area/row/box và loại toàn snapshot khi sai scope, không tự đổi sang khu đầu tiên, generation guard/clear on load/failure/session/dispose. Hai model regression vào mandatory Desktop CI. Không thay phân quyền. Dashboard Desktop vẫn đọc /dashboard/metrics (healthScore, waterQualityScore, fallback 0, assistant status); cần đợt tiếp theo, cùng AI/timestamp consumer khác và Web. Native/JWT/production/branch protection vẫn mở. Không đổi database/firmware/sampling, không đóng T05.
+
+### 56 — T05: BE #114/App #79 PASS; Dashboard Desktop và Web nullable (28/11/2026)
+- BE #114 d88e741 CI #431 PASS (job 140893167662 regression area+assessment/time, PostgreSQL/publish/migration job 140893167496 PASS), merged a8306ca, main CI #432/VPS [#229](https://github.com/CrabSense/CrabSenseBE/actions/runs/46118719140) PASS. App #79 92c8803 Sonar #242/Desktop #97/Local #31/Pages #123 PASS, merged 78972cd; Desktop job 140893406544 58/58 tests, 2 map regressions PASS. Main #243/Mobile #99/Desktop #98/Pages #124 PASS.
+- FE [#41](https://github.com/CrabSense/CrabSenseFE/pull/41) 9a7b00d, fix(monitoring): consume nullable assessments without legacy scores. Bỏ score /100, health filter và summary heuristic, chỉ status nghiệp vụ, alert thực và offline inventory đã xác minh; unknown neutral, offline count chỉ explicit scope, test 2 Node groups. CI pending.
+- Desktop Dashboard: bỏ /dashboard/metrics và legacy aggregate/live fetch trong overview, giữ canonical counter strict nullable, không suy ra tỷ lệ thiết bị khi thiếu denominator. Guard request generation, clear overview khi lỗi/đổi phiên; UI bỏ KPI tăng giả và cộng alert với hộp, không infer trạng thái hộp từ summary fallback, unknown dash, neutral attention/assessment. Thêm 2 mandatory Desktop tests (HTTP mock và count policy). Một commit/repo; CI pending; chưa production JWT/cross-client real smoke. Các route báo cáo/health/AI khác chưa rà hết, native T04 và required branch check còn mở. Không DB/schema/role/firmware/sampling change; không đóng T05/P2.4.6.1.

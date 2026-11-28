@@ -1,3 +1,5 @@
+int? dashboardCount(Object? value) => value is int && value >= 0 ? value : null;
+
 class FarmDashboardOverview {
   const FarmDashboardOverview({
     required this.healthScore,
@@ -15,8 +17,8 @@ class FarmDashboardOverview {
     required this.statusMessage,
   });
 
-  final int healthScore;
-  final int alertCount;
+  final int? healthScore;
+  final int? alertCount;
   final String devicesOnline;
   final String? primaryAreaId;
   final List<DashboardKpiDto> summaryKpis;
@@ -40,9 +42,9 @@ class FarmDashboardOverview {
     }
 
     return FarmDashboardOverview(
-      healthScore: (json['healthScore'] as num?)?.toInt() ?? 0,
-      alertCount: (json['alertCount'] as num?)?.toInt() ?? 0,
-      devicesOnline: (json['devicesOnline'] ?? '0/0').toString(),
+      healthScore: null,
+      alertCount: dashboardCount(json['alertCount']),
+      devicesOnline: '—',
       primaryAreaId: (json['primaryAreaId'] ?? json['PrimaryAreaId'])?.toString(),
       summaryKpis: list('summaryKpis', DashboardKpiDto.fromJson),
       kpiRow1: list('kpiRow1', DashboardKpiDto.fromJson),
@@ -60,80 +62,36 @@ class FarmDashboardOverview {
     );
   }
 
-  /// Map CrabSenseBE `/api/dashboard/overview` + `/metrics`.
+  /// Canonical business counters only. Unknown is not zero.
   factory FarmDashboardOverview.fromCrabSense({
-    required int totalBoxes,
-    required int totalCrabs,
-    required int activeBoxes,
-    required int openAlerts,
-    required double iotOnlinePercentage,
-    int healthScore = 0,
-    int waterQualityScore = 0,
-    int crabHealthScore = 0,
-    int deviceStatusScore = 0,
-    String statusLabel = '',
-    String statusMessage = '',
+    required int? totalBoxes,
+    required int? totalCrabs,
+    required int? activeBoxes,
+    required int? openAlerts,
+    required double? iotOnlinePercentage,
     String? primaryAreaId,
-    List<DashboardEnvParamDto> environmentParams = const [],
-    List<DashboardAlertDto> alerts = const [],
   }) {
-    kpi(String label, String value, {String? colorKey}) => DashboardKpiDto(
-          label: label,
-          value: value,
-          colorKey: colorKey,
-        );
+    DashboardKpiDto kpi(String label, int? value) =>
+        DashboardKpiDto(label: label, value: value?.toString() ?? '—');
     return FarmDashboardOverview(
-      healthScore: healthScore,
+      healthScore: null,
       alertCount: openAlerts,
-      devicesOnline: '${iotOnlinePercentage.toStringAsFixed(0)}%',
+      devicesOnline: '—', // No verified device denominator in overview.
       primaryAreaId: primaryAreaId,
       summaryKpis: [
-        kpi('Hộp', '$totalBoxes'),
-        kpi('Cua', '$totalCrabs'),
-        kpi('Hộp đang nuôi', '$activeBoxes', colorKey: 'healthy'),
-        kpi(
-          'Cảnh báo',
-          '$openAlerts',
-          colorKey: openAlerts > 0 ? 'risk' : 'healthy',
-        ),
+        kpi('Hộp', totalBoxes),
+        kpi('Cua', totalCrabs),
+        kpi('Hộp đang nuôi', activeBoxes),
+        kpi('Cảnh báo', openAlerts),
       ],
-      kpiRow1: [
-        kpi('Tổng hộp', '$totalBoxes'),
-        kpi('Cua sống', '$totalCrabs', colorKey: 'healthy'),
-        kpi('Health', '$healthScore', colorKey: healthScore >= 70 ? 'healthy' : 'monitoring'),
-        kpi('Nước', '$waterQualityScore', colorKey: 'cyan'),
-      ],
-      kpiRow2: [
-        kpi('Cua khỏe', '$crabHealthScore', colorKey: 'healthy'),
-        kpi('Thiết bị', '$deviceStatusScore', colorKey: 'cyan'),
-        kpi('IoT online', '${iotOnlinePercentage.toStringAsFixed(0)}%', colorKey: 'cyan'),
-        kpi(
-          'Cảnh báo mở',
-          '$openAlerts',
-          colorKey: openAlerts > 0 ? 'risk' : 'healthy',
-        ),
-      ],
-      statusSegments: [
-        DashboardStatusSegmentDto(
-          label: 'Đang nuôi',
-          count: activeBoxes,
-          colorKey: 'healthy',
-        ),
-        DashboardStatusSegmentDto(
-          label: 'Trống',
-          count: (totalBoxes - activeBoxes).clamp(0, totalBoxes),
-          colorKey: 'monitoring',
-        ),
-      ],
-      environmentParams: environmentParams,
-      alerts: alerts,
+      kpiRow1: [kpi('Tổng hộp', totalBoxes), kpi('Tổng cua', totalCrabs)],
+      kpiRow2: [kpi('Cảnh báo mở', openAlerts)],
+      statusSegments: const [],
+      environmentParams: const [],
+      alerts: const [],
       charts: DashboardChartsDto.fromJson(const {}),
-      assistantHint: statusLabel.isEmpty
-          ? 'Dữ liệu realtime từ CrabSenseBE'
-          : statusLabel,
-      statusMessage: statusMessage.isEmpty
-          ? 'Đã kết nối CrabSenseBE'
-          : statusMessage,
+      assistantHint: 'Chưa có đánh giá AI xác minh.',
+      statusMessage: 'Tổng quan nghiệp vụ; xem riêng từng phép đo nước.',
     );
   }
 
