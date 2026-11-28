@@ -126,7 +126,7 @@
 | CrabSenseBE | a8306ca | #114 merged; main CI #432/VPS #229 PASS |
 | CrabSenseAIWaterQualityAnalysis | 700d5b2 | AI CI #37 / private cross #11 PASS |
 | CrabSenseFE | 7fc170b | #41 merged; main Audit #22/Sonar #159/Pages #147 PASS |
-| CrabSenseApp | 78972cd | #79 merged; main #243/Mobile #99/Desktop #98/Pages #124 PASS; #80 CI #244 failed, corrected head pending |
+| CrabSenseApp | d72edf3 | #80 merged; main #247/Mobile #100/Desktop #102/Pages #128 PASS; Home scope fix pending |
 
 | Mã | Ưu tiên | Việc còn lại | Điều kiện hoàn thành |
 |---|---|---|---|
@@ -134,7 +134,7 @@
 | T02 | P0 | DONE: App main #61/#52/#43 và Sonar #156 PASS | Tất cả PASS đúng main 83e7eec |
 | T03 | P0 | Đã merge BE scoped history và khôi phục chart scoped Mobile/Desktop; chưa production smoke | Sửa cấu hình test Npgsql, chạy đủ HTTP/PostgreSQL, CI PASS, review migration, deploy, App chart thật |
 | T04 | P1 | SQLite v4 scope/session/expiry fail-closed; #73 generation guard/chart lifecycle PASS; offline reading tắt, native còn mở | Kiểm thử offline và isolation; phục hồi chart/cache an toàn |
-| T05 | P1 | RAS Chromium PASS; BE #113/VPS, FE #40/App #76 PASS; Mobile #77 CI #238 92/92 PASS merged; L03–L06 Mobile #78 PASS; BE #114/VPS và Desktop #79 PASS; Web #41 merged/main Pages PASS; App #80 corrected ParamStatus import and redundant type check, CI pending; production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
+| T05 | P1 | RAS Chromium PASS; BE #113/VPS, FE #40/App #76 PASS; Mobile #77 CI #238 92/92 PASS merged; L03–L06 Mobile #78 PASS; BE #114/VPS và Desktop #79 PASS; Web #41 merged/main Pages PASS; App #80 CI #245 Desktop 60/60 PASS merged; Home H01–H03 fix pending; remaining legacy KPIs and production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
 | T06 | P1 | FE #37 merged, main Audit #14 và Pages #139 gate full/omit-dev 0 PASS; required branch check chưa xác minh | Phân loại direct/transitive/dev/runtime, sửa an toàn, CI PASS |
 | T07 | P1 | Kiểm thử PostgreSQL technical diagnostics, JWT bốn role | P2.4.6.2; 401/403 và scoped access |
 | T08 | P1 | Geometry QC bắt buộc với fixture phù hợp; kiểm tra private media/Drive | P2.4.6.3 |
@@ -143,7 +143,7 @@
 | T11 | P2 | Tổng kiểm thử bảo mật, CI/CD và quy trình test thực tế | P2.4.6.6 |
 | T12 | P3 | Thiết bị thật, UART, đo chuẩn, mẫu thật, vệ sinh, vận hành lâu dài | Chỉ sau P2.4.6 PASS |
 
-**Việc kế tiếp:** nghiệm thu App #80 corrected head, merge khi toàn bộ CI PASS; kiểm tra cross-client nullable contract và KPI legacy còn lại, native T04 và required status check với quyền admin còn mở. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
+**Việc kế tiếp:** nghiệm thu Home H01–H03, sau đó H04–H09, Desktop Health và BE/Web Efficiency nullable; kiểm tra cross-client contract, native T04 và required status check với quyền admin còn mở. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
 
 ## 6. Quy định cập nhật file sau mỗi lượt
 
@@ -403,3 +403,10 @@
 ### 58 — T05: sửa lỗi CI App #80 (28/11/2026)
 - FE main 7fc170b: Audit #22, Sonar #159 và [Pages #147](https://github.com/CrabSense/CrabSenseFE/actions/runs/46119886281) đều completed success. App #80 head cũ de07c7d chưa merge, bốn workflow #244/#99/#32/#125 FAIL như mục 57; App main 78972cd.
 - Khôi phục import `../theme/dashboard_theme.dart` với `show ParamStatus` trong farm_dashboard_service.dart để resolve enum cho qualified live water. production_cloud_api.dart: bỏ kiểm tra `body is! Map` dư thừa do `_decode` trả `Map<String, dynamic>`; giữ nguyên success==true, overview không rỗng, HTTP validation, scope và nullable business counters. Giữ nguyên 2 Desktop regression tests và mandatory CI, không bỏ gate/không giảm assertion. Tích hợp mục 57 từ snapshot d1c6baa vào cùng commit PR #80. Dùng expected SHA cập nhật riêng nhánh PR, parent main cũ, giữ một commit; không force main. CI mới chưa nghiệm thu tại lúc commit. Next kiểm tra đủ Sonar/Desktop hosted/Desktop local/Pages của head mới, đọc Desktop test log, merge nếu tất cả PASS. Không đóng T05, chưa JWT production/native device/branch protection, không thay API/schema/role/firmware/vị trí lấy mẫu.
+
+### 59 — T05: App #80 PASS; audit Home/Health/Reports (28/11/2026)
+- App #80 2340d17 Sonar #245/Desktop Hosted #100/Local #33/Pages #126 PASS merged d72edf3; Desktop job 140902992869 60/60 tests, 2 nullable dashboard regressions PASS. Main #247/Mobile #100/Desktop #102/Pages #128 PASS. Journal 57–58 merged; FE main 7fc170b Pages #147 PASS.
+- Mobile Home: H01 old snapshot relabel on area switch; H02 cache/refresh failure reuse without verified session; H03 fabricate selected area absent from authorized inventory (P0). H04 /dashboard/metrics, H05 AI confidence 80/empty 99, H06 unsupported safety claims, H07 feeding substitution/forward-fill/zero history, H08 now timestamp fallback, H09 unread notifications conflated with open alerts (P1). Desktop HealthMonitoringPage directly renders empty profile with zero score/emergency, low disease risk, Optimum water, epoch molt, exports defaults. BE OperationalEfficiencyReportService health score 30 on empty cohort, zero denominator rate 0, survival excludes molted category; FE efficiency API does not send selected area, report formatting coerces empty/boolean and global selection does not invalidate loaded report. Static audit only, no cross-tenant authorization breach asserted. Review cohort semantics before changing rates. Scope first, then KPI containment.
+
+### 60 — T05: Mobile Home H01–H03 scope/session/cache (28/11/2026)
+- HomeRepositoryImpl removes _cachedData and error fallback; immutable per-load bearer/revision, bound user/network/generation checks before/after reads and before return; strict success envelope; /auth/me identity match, fresh authorized area list, only select authorized area; absent area fails, revoked stored area selects first freshly allowed. Scoped /boxes/overview checks area header, item area, duplicate IDs and summary total. No unscoped feeding/status-history request because current routes lack explicit area filter; no feeding substitution/forward-filled history. Notification count separated from alert count. Provider clears all snapshot data on load/switch/error/auth/network invalidation, guards late generation, only persists verified selected area; screen guards scope mismatch and disables previous data on refresh. Four HTTP adapter regressions added mandatory Mobile CI; no production/native/provider race acceptance yet. H04–H06/H08 and other default count/device/activity semantics remain; no API/DB/role/sampling changes. One commit, CI pending. Next verify all PR CI, then H04–H09, Desktop Health and BE/Web report fixes. Do not close T05.

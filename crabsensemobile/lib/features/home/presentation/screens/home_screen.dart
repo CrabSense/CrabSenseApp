@@ -73,6 +73,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const ColoredBox(color: Color(0xCCF4F7F2)),
           SafeArea(
             child: homeAsyncState.when(
+          skipLoadingOnRefresh: false,
+          skipLoadingOnReload: false,
           loading: () => const HomeSkeleton(),
           error: (error, stackTrace) => Center(
             child: SectionErrorCard(
@@ -82,6 +84,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
           data: (data) {
+            if (sharedArea != null && sharedArea != data.selectedFarmId) {
+              return const HomeSkeleton();
+            }
             return RefreshIndicator(
               onRefresh: () => ref.read(homeStateProvider.notifier).refresh(),
               color: kHomePrimary,
@@ -109,12 +114,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         HomeHeader(
                           data: data,
                           onFarmSwitched: (farmId) {
-                            final name = data.availableFarms
-                                .where((f) => f.id == farmId)
-                                .map((f) => f.name)
-                                .firstOrNull;
                             ref.read(homeStateProvider.notifier).switchFarm(farmId);
-                            _showSnackBar('Đã chuyển sang ${name ?? farmId}');
                           },
                           onNotificationPressed: () async {
                             await context.push(RoutePaths.alerts);
