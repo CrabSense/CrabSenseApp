@@ -1883,7 +1883,7 @@ class _BoxBottomSheet extends StatelessWidget {
           _InfoRow(
             icon: Icons.health_and_safety_rounded,
             label: 'Điểm sức khỏe',
-            value: '${box.healthScore.score}/100',
+            value: 'Chưa có đánh giá xác minh',
           ),
           const SizedBox(height: 16),
           Row(

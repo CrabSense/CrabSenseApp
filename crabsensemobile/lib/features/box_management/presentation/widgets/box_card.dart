@@ -4,13 +4,13 @@ import '../../../home/presentation/widgets/home_palette.dart';
 import '../../domain/models/boxes_models.dart';
 import 'box_status_badge.dart';
 
-String formatRelativeTime(DateTime dt) {
-  final diff = DateTime.now().difference(dt.toLocal());
-  if (diff.isNegative || diff.inMinutes < 1) return 'vừa xong';
-  if (diff.inHours < 24) {
-    final hours = diff.inHours < 1 ? 1 : diff.inHours;
-    return '$hours tiếng trước';
-  }
+String formatRelativeTime(DateTime? dt, {DateTime? now}) {
+  if (dt == null) return 'chưa có thời gian';
+  final diff = (now ?? DateTime.now()).difference(dt);
+  if (diff.isNegative) return 'chưa có thời gian';
+  if (diff.inMinutes < 1) return 'vừa xong';
+  if (diff.inHours < 1) return '${diff.inMinutes} phút trước';
+  if (diff.inHours < 24) return '${diff.inHours} tiếng trước';
   return '${diff.inDays} ngày trước';
 }
 
@@ -234,11 +234,7 @@ class BoxCard extends StatelessWidget {
                         ),
                       ],
                       const Spacer(),
-                      Icon(
-                        box.healthScore.trend.icon,
-                        size: 14,
-                        color: box.healthScore.trend.color,
-                      ),
+
                     ],
                   ),
                   const SizedBox(height: 4),

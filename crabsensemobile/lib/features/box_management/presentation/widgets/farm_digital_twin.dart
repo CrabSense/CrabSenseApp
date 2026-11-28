@@ -276,7 +276,7 @@ class _BoxNode extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${box.healthScore.score}',
+                  box.healthScore.scoreLabel,
                   style: TextStyle(
                     color: const Color(0xFF5A7184), fontSize: 10,
                     fontWeight: FontWeight.w700,

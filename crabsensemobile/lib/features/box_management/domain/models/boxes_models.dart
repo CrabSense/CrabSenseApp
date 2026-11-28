@@ -161,6 +161,7 @@ enum BoxSortOption {
 }
 
 extension BoxSortOptionX on BoxSortOption {
+  bool get supported => this != BoxSortOption.lowestHealth && this != BoxSortOption.aiPriority;
   String get label {
     switch (this) {
       case BoxSortOption.name:
@@ -194,6 +195,7 @@ enum BoxQuickFilter {
 }
 
 extension BoxQuickFilterX on BoxQuickFilter {
+  bool get supported => this != BoxQuickFilter.hasAiRecommendation;
   String get label {
     switch (this) {
       case BoxQuickFilter.all:
@@ -225,11 +227,11 @@ enum BoxSyncStatus { synced, pending, conflict, stale }
 
 enum ActionPriorityLevel { high, medium, low }
 
-/// AI Health Score for a single box (0–100).
+/// Optional verified assessment. The current Boxes API has no AI provenance.
 class BoxHealthScore {
-  final int score;
-  final double aiConfidence;
-  final BoxTrend trend;
+  final int? score;
+  final double? aiConfidence;
+  final BoxTrend? trend;
   final String statusLabel;
   final String explanation;
 
@@ -241,7 +243,18 @@ class BoxHealthScore {
     required this.explanation,
   });
 
+  static const unavailable = BoxHealthScore(
+    score: null, aiConfidence: null, trend: null,
+    statusLabel: 'Chưa có đánh giá xác minh',
+    explanation: 'Chưa có kết quả đánh giá có nguồn gốc xác minh.',
+  );
+
+  String get scoreLabel => score?.toString() ?? '—';
+  String get confidenceLabel => aiConfidence == null ? '—' : '${aiConfidence!.round()}%';
+
   Color get scoreColor {
+    final score = this.score;
+    if (score == null) return CrabSenseColors.textSecondary;
     if (score >= 85) return CrabSenseColors.success;
     if (score >= 70) return CrabSenseColors.info;
     if (score >= 50) return CrabSenseColors.warning;
@@ -273,6 +286,28 @@ class BoxHealthScore {
           'Điểm sức khỏe tổng hợp từ chất lượng nước, tình trạng cua và thiết bị IoT.',
     );
   }
+}
+
+/// Only an explicit source instant is accepted. No clock substitute.
+DateTime? parseBoxUpdateTime(Object? raw, {DateTime? now}) {
+  if (raw is! String) return null;
+  final parts = RegExp(
+    r'^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-](\d{2}):(\d{2}))$',
+  ).firstMatch(raw);
+  if (parts == null) return null;
+  final year = int.parse(parts[1]!);
+  final month = int.parse(parts[2]!);
+  final day = int.parse(parts[3]!);
+  final hour = int.parse(parts[4]!);
+  final minute = int.parse(parts[5]!);
+  final second = int.parse(parts[6]!);
+  if (year < 2000 || month < 1 || month > 12 || day < 1 ||
+      day > DateTime.utc(year, month + 1, 0).day ||
+      hour > 23 || minute > 59 || second > 59 ||
+      int.parse(parts[7] ?? '0') > 23 || int.parse(parts[8] ?? '0') > 59) return null;
+  final value = DateTime.tryParse(raw);
+  if (value == null || value.isAfter(now ?? DateTime.now())) return null;
+  return value;
 }
 
 class BoxWaterSnapshot {
@@ -444,6 +479,15 @@ class BoxFilterState {
 
   static const initial = BoxFilterState();
 
+  // Remove obsolete filter state even if a caller restores an old selection.
+  BoxFilterState withoutLegacyAssessment() => copyWith(
+    healthScoreRange: const RangeValues(0, 100),
+    aiConfidenceRange: const RangeValues(0, 100),
+    clearHasAi: true,
+    clearPriority: true,
+    sortOption: sortOption.supported ? sortOption : BoxSortOption.name,
+  );
+
   bool get hasActiveAdvancedFilters {
     return statuses.isNotEmpty ||
         (crabType != null && crabType!.isNotEmpty) ||
@@ -536,12 +580,12 @@ class BoxSummary {
   final BoxDeviceStatus devices;
   final BoxAlertSummary alerts;
   final BoxAIRecommendation aiRecommendation;
-  final DateTime lastUpdated;
+  final DateTime? lastUpdated;
   final DateTime? expectedHarvestAt;
   final bool waterTestDue;
   final bool videoDue;
   final BoxSyncStatus syncStatus;
-  final ActionPriorityLevel priority;
+  final ActionPriorityLevel? priority;
 
   /// Tình trạng xấu nhất của cua đang nuôi trong hộp (API key: normal, premolt,
   /// molting, softshell, problem, weak, dead). Null khi chưa đánh dấu.
@@ -580,7 +624,7 @@ class BoxSummary {
 
   String get semanticLabel =>
       'Box $code, khu ${location.areaName}, trạng thái ${status.label}, '
-      'health score ${healthScore.score}';
+      '${healthScore.statusLabel}';
 }
 
 class FarmBoxesOverview {

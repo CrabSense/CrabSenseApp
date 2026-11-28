@@ -86,7 +86,7 @@ class BoxListTileCard extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      '${box.healthScore.score}',
+                      box.healthScore.scoreLabel,
                       style: TextStyle(
                         color: box.healthScore.scoreColor,
                         fontWeight: FontWeight.w800,
