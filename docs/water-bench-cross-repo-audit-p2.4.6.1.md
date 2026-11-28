@@ -53,3 +53,6 @@ Main #199 confirmed 69 Mobile / 54 Desktop tests, including the three shared RAS
 
 ## Desktop shared RAS overview — App main 628846b
 Main #202: 71 Mobile and 54 Desktop tests verified. Proposed area overview replaces inferred row heatmap with qualified common-area cards. Dashboard reads qualified per-sensor values and disables fabricated seven-day chart and unscoped combined trend/DO fallback; links to scoped history. Two new mandatory tests pending CI. Other summary/KPI paths, unused synthetic helpers, FE dependencies, JWT/browser/physical testing remain open.
+
+## Web Farm Admin shared RAS monitoring — App main 8ee6f46
+Main #205 confirmed 71 Mobile / 56 Desktop tests, including both dashboard provenance tests. FE PR #31 f3a64e3 proposes explicit selected area /iot/live per-sensor cards, box reference labels, no all-area aggregation, dedicated bearer and freshness/visibility/session guards. Four new mandatory Node tests, CI pending. New browser lifecycle and production JWT tests not yet performed. FE dependency audit and other dashboard KPI/legacy surfaces remain open.
