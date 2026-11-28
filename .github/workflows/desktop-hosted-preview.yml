@@ -57,11 +57,13 @@ jobs:
             --dart-define="CRABSENSE_PREVIEW_ORIGIN=$PREVIEW_ORIGIN"
           printf '{"commit":"%s"}\n' "$GITHUB_SHA" > build/web/version.json
           tar -C build/web -czf "$RUNNER_TEMP/desktop-preview.tar.gz" .
+      # The package is a same-run handoff, not a PR evidence artifact.
       - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DESKTOP_PREVIEW_DEPLOY_ENABLED == 'true'
         with:
           name: desktop-preview-${{ github.sha }}
           path: ${{ runner.temp }}/desktop-preview.tar.gz
-          retention-days: 7
+          retention-days: 1
           if-no-files-found: error
 
   deploy:

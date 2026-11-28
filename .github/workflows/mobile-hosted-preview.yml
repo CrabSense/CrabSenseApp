@@ -59,11 +59,13 @@ jobs:
           test -s build/web/main.dart.js
           printf '{"commit":"%s"}\n' "$GITHUB_SHA" > build/web/version.json
           tar -C build/web -czf "$RUNNER_TEMP/mobile-preview.tar.gz" .
+      # The package is a same-run handoff, not a PR evidence artifact.
       - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.MOBILE_PREVIEW_DEPLOY_ENABLED == 'true'
         with:
           name: mobile-preview-${{ github.sha }}
           path: ${{ runner.temp }}/mobile-preview.tar.gz
-          retention-days: 7
+          retention-days: 1
           if-no-files-found: error
 
   deploy:
