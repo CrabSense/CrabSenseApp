@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/routes.dart';
 import '../../../../core/providers/selected_farm_provider.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../notifications/presentation/providers/unread_notifications_provider.dart';
 import '../../domain/models/home_models.dart';
 
 // Light theme palette — xanh lá tuoi, n?n tr?ng/xám nh?t
@@ -192,11 +191,8 @@ class HomeHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pinned = ref.watch(selectedFarmProvider);
-    final farmName =
-        pinned.name.isNotEmpty ? pinned.name : data.selectedFarmName;
-    final apiUnread = ref.watch(unreadNotificationsCountProvider).valueOrNull;
-    final unread = apiUnread ?? data.unreadNotificationsCount;
+    final farmName = data.selectedFarmName;
+    final unread = data.unreadNotificationsCount;
 
     return SizedBox(
       height: 270,
@@ -251,7 +247,7 @@ class HomeHeader extends ConsumerWidget {
     return 'assets/images/home_morning.png';
   }
 
-  Widget _buildTopRow(BuildContext context, {required int unreadCount}) {
+  Widget _buildTopRow(BuildContext context, {required int? unreadCount}) {
     final greeting = _getGreeting();
     final isOnline = data.isOnline && !data.isOfflineCached;
     final onlineColor = isOnline
@@ -388,7 +384,7 @@ class HomeHeader extends ConsumerWidget {
         const SizedBox(width: 8),
         _HeaderActionButton(
           icon: Icons.notifications_outlined,
-          badge: unreadCount > 0
+          badge: unreadCount == null ? '?' : unreadCount > 0
               ? '${unreadCount > 99 ? '99+' : unreadCount}'
               : null,
           onPressed: onNotificationPressed,

@@ -37,7 +37,8 @@ class TodayTasksSection extends StatelessWidget {
     }
   }
 
-  String _formatDeadline(DateTime dt) {
+  String _formatDeadline(DateTime? dt) {
+    if (dt == null) return 'Chưa có thời hạn';
     final diff = dt.difference(DateTime.now());
     if (diff.isNegative) return 'Quá hạn';
     if (diff.inMinutes < 60) return 'Còn ${diff.inMinutes} phút';

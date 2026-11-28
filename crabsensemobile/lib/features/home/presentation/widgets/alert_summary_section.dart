@@ -36,11 +36,7 @@ class AlertSummarySection extends StatelessWidget {
     }
   }
 
-  String _formatTimeAgo(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
-    return '${diff.inHours} giờ trước';
-  }
+  String _formatTimeAgo(DateTime? dt) => homeTimeLabel(dt);
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +70,7 @@ class AlertSummarySection extends StatelessWidget {
                 ),
                 SizedBox(width: 8),
                 Text(
-                  'Không có cảnh báo nào cần xử lý',
+                  'Không có cảnh báo trong danh sách trả về',
                   style: TextStyle(
                     color: CrabSenseColors.textSecondary,
                     fontSize: 13,

@@ -58,6 +58,8 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
   Widget build(BuildContext context) {
     final homeState = ref.watch(homeStateProvider);
     return homeState.when(
+      skipLoadingOnRefresh: false,
+      skipLoadingOnReload: false,
       loading: () => const BrandedLoadingScreen(
         message: 'Đang tải trang trại...',
         subtitle: 'Đang đồng bộ dữ liệu hộp nuôi',
@@ -104,7 +106,13 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
           ),
         );
       },
-      data: _buildHome,
+      data: (data) {
+        final area = ref.watch(selectedFarmProvider).id;
+        if (area != null && area != data.selectedFarmId) {
+          return const BrandedLoadingScreen(message: 'Đang xác minh khu nuôi...');
+        }
+        return _buildHome(data);
+      },
     );
   }
 
@@ -141,8 +149,7 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
   }
 
   Widget _header(HomeStateData data) {
-    final pin = ref.watch(selectedFarmProvider);
-    final farmLabel = pin.name.isNotEmpty ? pin.name : data.selectedFarmName;
+    final farmLabel = data.selectedFarmName;
     return SizedBox(
       height: 245,
       child: Padding(
@@ -178,7 +185,7 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
                 const Spacer(),
                 _iconButton(
                   Icons.notifications_none_rounded,
-                  badge: data.unreadNotificationsCount > 0
+                  badge: data.unreadNotificationsCount == null ? '?' : (data.unreadNotificationsCount ?? 0) > 0
                       ? '${data.unreadNotificationsCount}'
                       : null,
                   onTap: () => context.push(RoutePaths.notificationHistory),
@@ -438,14 +445,14 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
           children: [
             _OverviewTile(
               'Tổng số hộp',
-              '${data.farmSummary.totalBoxes}',
+              homeCountLabel(data.farmSummary.totalBoxes),
               'tab_crab_management.png',
               blue,
             ),
             const SizedBox(width: 5),
             _OverviewTile(
               'Tổng số cua',
-              '${data.farmSummary.totalCrabs}',
+              homeCountLabel(data.farmSummary.totalCrabs),
               'iocn-crab-normal.png',
               const Color(0xFF168BE5),
             ),
@@ -456,14 +463,14 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
           children: [
             _OverviewTile(
               'Cần theo dõi',
-              '${data.boxStatusCounts['watch'] ?? 0}',
+              homeCountLabel(data.boxStatusCounts['watch']),
               'icon-carb-warning.png',
               const Color(0xFFF09A27),
             ),
             const SizedBox(width: 5),
             _OverviewTile(
               'Lột xác',
-              '${data.boxStatusCounts['molting'] ?? 0}',
+              homeCountLabel(data.boxStatusCounts['molting']),
               'icon-crab-lt.png',
               const Color(0xFFF3EAFE),
             ),
@@ -474,14 +481,14 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
           children: [
             _OverviewTile(
               'Bình thường',
-              '${data.boxStatusCounts['normal'] ?? 0}',
+              homeCountLabel(data.boxStatusCounts['normal']),
               'iocn-crab-normal.png',
               const Color(0xFF16A66A),
             ),
             const SizedBox(width: 5),
             _OverviewTile(
               'Hộp trống',
-              '${data.farmSummary.totalBoxes - data.farmSummary.activeBoxes}',
+              homeCountLabel(data.boxStatusCounts['empty']),
               'icon-box-empty.png',
               const Color(0xFF9AA7B2),
             ),
@@ -501,13 +508,12 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
               watch: data.boxStatusCounts['watch'] ?? 0,
               molting: data.boxStatusCounts['molting'] ?? 0,
               alert: data.boxStatusCounts['alert'] ?? 0,
-              empty:
-                  data.boxStatusCounts['empty'] ??
-                  (data.farmSummary.totalBoxes - data.farmSummary.activeBoxes),
+              empty: data.boxStatusCounts['empty'] ?? 0,
+              unknown: data.boxStatusCounts['unknown'] ?? 0,
             ),
             child: Center(
               child: Text(
-                '${data.farmSummary.totalCrabs}',
+                homeCountLabel(data.farmSummary.totalCrabs),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: navy,
@@ -523,45 +529,30 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
         const SizedBox(height: 3),
         _Legend(
           'Bình thường',
-          _legendValue(
-            data.boxStatusCounts['normal'] ?? 0,
-            data.farmSummary.totalBoxes,
-          ),
+          _legendValue(data.boxStatusCounts['normal'], data.boxStatusCounts['total']),
           const Color(0xFF16A66A),
         ),
         _Legend(
           'Cần theo dõi',
-          _legendValue(
-            data.boxStatusCounts['watch'] ?? 0,
-            data.farmSummary.totalBoxes,
-          ),
+          _legendValue(data.boxStatusCounts['watch'], data.boxStatusCounts['total']),
           const Color(0xFFF09A27),
         ),
         _Legend(
           'Lột xác',
-          _legendValue(
-            data.boxStatusCounts['molting'] ?? 0,
-            data.farmSummary.totalBoxes,
-          ),
+          _legendValue(data.boxStatusCounts['molting'], data.boxStatusCounts['total']),
           const Color(0xFF8B5CF6),
         ),
         _Legend(
           'Cảnh báo',
-          _legendValue(
-            data.boxStatusCounts['alert'] ?? 0,
-            data.farmSummary.totalBoxes,
-          ),
+          _legendValue(data.boxStatusCounts['alert'], data.boxStatusCounts['total']),
           const Color(0xFFE34850),
         ),
         _Legend(
           'Hộp trống',
-          _legendValue(
-            data.boxStatusCounts['empty'] ??
-                (data.farmSummary.totalBoxes - data.farmSummary.activeBoxes),
-            data.farmSummary.totalBoxes,
-          ),
+          _legendValue(data.boxStatusCounts['empty'], data.boxStatusCounts['total']),
           const Color(0xFF9AA7B2),
         ),
+        _Legend('Chưa xác định', _legendValue(data.boxStatusCounts['unknown'], data.boxStatusCounts['total']), const Color(0xFF56636D)),
       ],
     );
     return _card(
@@ -731,7 +722,8 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
     }
   }
 
-  String _activityTime(DateTime timestamp) {
+  String _activityTime(DateTime? timestamp) {
+    if (timestamp == null) return 'Chưa có thời gian';
     final local = timestamp.toLocal();
     return '${local.hour.toString().padLeft(2, '0')}:'
         '${local.minute.toString().padLeft(2, '0')}';
@@ -850,9 +842,10 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
   String _n(double v) =>
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 
-  String _legendValue(int value, int total) {
-    final percent = total <= 0 ? 0 : (value * 100 / total).round();
-    return '$value  $percent%';
+  String _legendValue(int? value, int? total) {
+    if (value == null) return '—';
+    if (total == null || total <= 0 || value > total) return '$value  —';
+    return '$value  ${(value * 100 / total).round()}%';
   }
 
   List<TodayTaskItem> _tasksForDisplay(HomeStateData data) {
@@ -1164,13 +1157,12 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
               watch: data.boxStatusCounts['watch'] ?? 0,
               molting: data.boxStatusCounts['molting'] ?? 0,
               alert: data.boxStatusCounts['alert'] ?? 0,
-              empty:
-                  data.boxStatusCounts['empty'] ??
-                  (data.farmSummary.totalBoxes - data.farmSummary.activeBoxes),
+              empty: data.boxStatusCounts['empty'] ?? 0,
+              unknown: data.boxStatusCounts['unknown'] ?? 0,
             ),
             child: Center(
               child: Text(
-                '${data.farmSummary.totalBoxes}\nhộp cua',
+                '${homeCountLabel(data.farmSummary.totalBoxes)}\nhộp cua',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: navy, fontWeight: FontWeight.w800),
               ),
@@ -1184,29 +1176,30 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
           children: [
             _Legend(
               'Bình thường',
-              '${data.boxStatusCounts['normal'] ?? 0}',
+              homeCountLabel(data.boxStatusCounts['normal']),
               const Color(0xFF16A66A),
             ),
             _Legend(
               'Cần theo dõi',
-              '${data.boxStatusCounts['watch'] ?? 0}',
+              homeCountLabel(data.boxStatusCounts['watch']),
               Color(0xFFF09A27),
             ),
             _Legend(
               'Lột xác',
-              '${data.boxStatusCounts['molting'] ?? 0}',
+              homeCountLabel(data.boxStatusCounts['molting']),
               Color(0xFF7B3FE4),
             ),
             _Legend(
               'Cảnh báo',
-              '${data.boxStatusCounts['alert'] ?? 0}',
+              homeCountLabel(data.boxStatusCounts['alert']),
               Color(0xFFE34850),
             ),
             _Legend(
               'Hộp trống',
-              '${data.boxStatusCounts['empty'] ?? 0}',
+              homeCountLabel(data.boxStatusCounts['empty']),
               Color(0xFF9AA6B2),
             ),
+            _Legend('Chưa xác định', homeCountLabel(data.boxStatusCounts['unknown']), const Color(0xFF56636D)),
           ],
         ),
       ],
@@ -1293,7 +1286,7 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
         };
         return _Alert(
           '${alert.title} ${alert.location}',
-          '${alert.timestamp.hour.toString().padLeft(2, '0')}:${alert.timestamp.minute.toString().padLeft(2, '0')}',
+          _activityTime(alert.timestamp),
           color,
           Icons.warning_rounded,
         );
@@ -2087,6 +2080,7 @@ class _DonutPainter extends CustomPainter {
     required this.molting,
     required this.alert,
     required this.empty,
+    required this.unknown,
   });
 
   final int normal;
@@ -2094,6 +2088,7 @@ class _DonutPainter extends CustomPainter {
   final int molting;
   final int alert;
   final int empty;
+  final int unknown;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2103,6 +2098,7 @@ class _DonutPainter extends CustomPainter {
       const Color(0xFF7B3FE4),
       const Color(0xFFE34850),
       const Color(0xFF9AA6B2),
+      const Color(0xFF56636D),
     ];
     final values = [
       normal.toDouble(),
@@ -2110,6 +2106,7 @@ class _DonutPainter extends CustomPainter {
       molting.toDouble(),
       alert.toDouble(),
       empty.toDouble(),
+      unknown.toDouble(),
     ];
     final total = values.fold<double>(0, (sum, value) => sum + value);
     if (total == 0) return;
@@ -2132,5 +2129,8 @@ class _DonutPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _DonutPainter oldDelegate) =>
+      normal != oldDelegate.normal || watch != oldDelegate.watch ||
+      molting != oldDelegate.molting || alert != oldDelegate.alert ||
+      empty != oldDelegate.empty || unknown != oldDelegate.unknown;
 }

@@ -101,7 +101,6 @@ class _HomeRead {
   }
 
   Future<HomeStateData> load(String? requestedAreaId) async {
-      final now = DateTime.now();
       final userInfo = await _fetchUserInfo();
       final farmsList = await _fetchFarms();
       final selectedFarm = _resolveSelectedFarm(farmsList, requestedAreaId);
@@ -110,34 +109,25 @@ class _HomeRead {
       }
       final areaId = selectedFarm.id;
 
-      final results = await Future.wait(
-        [
-          _fetchBoxes(areaId),
-          _fetchAlerts(areaId),
-          _fetchWaterMetrics(areaId),
-          _fetchDevices(areaId),
-          _fetchOverview(areaId),
-          _fetchHealthMetrics(areaId),
-          _fetchAiRecommendation(areaId),
-          _fetchTodayTasks(areaId),
-          _fetchScheduledTasksToday(areaId),
-          _fetchRecentActivities(areaId),
-          _fetchUnreadNotificationsCount(),
-        ],
-      );
-
-      final boxInfo = results[0] as Map<String, int>?;
+      final results = await Future.wait<Object?>([
+        _fetchBoxes(areaId),
+        _fetchAlerts(areaId),
+        _fetchWaterMetrics(areaId),
+        _fetchOverview(areaId),
+        _fetchTodayTasks(areaId),
+        _fetchScheduledTasksToday(areaId),
+        _fetchRecentActivities(areaId),
+        _fetchUnreadNotificationsCount(),
+      ]);
+      final boxInfo = results[0] as ({Map<String, int> counts, DeviceSummary devices});
       final alertsData = results[1] as Map<String, dynamic>?;
       final waterMetrics = results[2] as List<WaterMetricItem>?;
-      final deviceSummary = results[3] as DeviceSummary?;
-      final overview = results[4] as FarmSummary?;
+      final overview = results[3] as FarmSummary?;
       if (overview == null) throw const FormatException('Missing Home overview');
-      final healthScore = results[5] as FarmHealthScore?;
-      final aiRecommendation = results[6] as AiRecommendation?;
-      final todayTasks = results[7] as List<TodayTaskItem>?;
-      final scheduledTasks = results[8] as List<TodayTaskItem>? ?? const [];
-      final recentActivities = results[9] as List<RecentActivityItem>?;
-      final unreadFromApi = results[10] as int?;
+      final todayTasks = results[4] as List<TodayTaskItem>?;
+      final scheduledTasks = results[5] as List<TodayTaskItem>? ?? const [];
+      final recentActivities = results[6] as List<RecentActivityItem>?;
+      final unreadFromApi = results[7] as int?;
 
       final operatorName =
           userInfo['fullName']?.toString() ??
@@ -152,22 +142,15 @@ class _HomeRead {
         selectedFarmName: selectedFarm.name,
         availableFarms: farmsList,
         isOnline: true,
-        unreadNotificationsCount: unreadFromApi ?? 0,
-        farmSummary: overview,
-        healthScore:
-            healthScore ??
-            FarmHealthScore(
-              score: 0,
-              statusLevel: HealthStatusLevel.good,
-              statusLabel: 'Chưa có chỉ số',
-              deltaVsYesterday: 0.0,
-              lastAiUpdated: now,
-              waterQualityScore: 0,
-              crabHealthScore: 0,
-              deviceStatusScore: 0,
-              explanation: 'Chưa tải được /api/dashboard/metrics.',
-            ),
-        aiRecommendation: aiRecommendation ?? AiRecommendation.empty,
+        unreadNotificationsCount: unreadFromApi,
+        farmSummary: FarmSummary(
+          totalBoxes: overview.totalBoxes, totalCrabs: overview.totalCrabs,
+          activeBoxes: overview.activeBoxes, openAlerts: overview.openAlerts,
+          iotOnlinePercentage: boxInfo.devices.percentage,
+          lastUpdated: overview.lastUpdated,
+        ),
+        healthScore: FarmHealthScore.unavailable,
+        aiRecommendation: AiRecommendation.empty,
         topAlerts: alertsList,
         waterMetrics: waterMetrics ?? const [],
           todayTasks: [...?todayTasks, ...scheduledTasks],
@@ -175,22 +158,11 @@ class _HomeRead {
         // authorized-all-area history under a specific area selection.
         feedingHistory: const [],
         boxStatusHistory: const [],
-        boxStatusCounts: boxInfo ?? const {},
-        deviceSummary:
-            deviceSummary ??
-            const DeviceSummary(
-              esp32Online: 0,
-              esp32Total: 0,
-              cameraOnline: 0,
-              cameraTotal: 0,
-              pumpRunning: 0,
-              pumpTotal: 0,
-              valveReady: 0,
-              valveTotal: 0,
-            ),
+        boxStatusCounts: boxInfo.counts,
+        deviceSummary: boxInfo.devices,
         recentActivities: recentActivities ?? const [],
         isOfflineCached: false,
-        lastSyncedAt: now,
+        lastSyncedAt: DateTime.now(),
       );
 
       return summary;
@@ -269,7 +241,7 @@ class _HomeRead {
     return farms;
   }
 
-  Future<Map<String, int>?> _fetchBoxes(String? farmingAreaId) async {
+  Future<({Map<String, int> counts, DeviceSummary devices})> _fetchBoxes(String? farmingAreaId) async {
     final res = await _get(
       ApiConstants.boxesOverview,
       queryParameters: _areaQuery(farmingAreaId),
@@ -292,6 +264,7 @@ class _HomeRead {
             'molting': 0,
             'alert': 0,
             'empty': 0,
+            'unknown': 0,
           };
           for (final item in items) {
             final map = _asStringKeyedMap(item);
@@ -300,33 +273,24 @@ class _HomeRead {
                 map['farmingAreaId']?.toString().toLowerCase() != farmingAreaId?.toLowerCase()) {
               throw const FormatException('Box outside Home area or duplicate');
             }
-            final occupied = map['isOccupied'] == true ||
-                ((map['crabCount'] as num?)?.toInt() ?? 0) > 0;
-            final cc = (map['crabCondition'] ?? map['CrabCondition'] ?? '')
-                .toString()
-                .toLowerCase();
-            // Đếm theo tình trạng CUA, không theo Box.Status (Molting) hay
-            // "soft" trên mã hộp — nếu không 2 hộp lột mềm thành Lột xác dù
-            // phiếu 19h đã ghi ăn / không ăn.
-            final key = !occupied || cc.contains('empty')
-                ? 'empty'
-                : (cc.contains('problem') ||
-                      cc.contains('attention') ||
-                      cc.contains('alert'))
-                    ? 'alert'
-                    : (cc.contains('premolt') ||
-                          cc.contains('molting') ||
-                          cc.contains('soft'))
-                    ? 'molting'
-                    : cc.contains('weak')
-                    ? 'watch'
-                    : 'normal';
+            final crabCount = homeCount(map['crabCount']);
+            final occupied = map['isOccupied'];
+            final cc = map['crabCondition']?.toString().toLowerCase();
+            final key = crabCount == null || occupied is! bool
+                ? 'unknown'
+                : !occupied && crabCount == 0 ? 'empty'
+                : occupied != (crabCount > 0) ? 'unknown'
+                : switch (cc) {
+                    'problem' => 'alert',
+                    'premolt' || 'molting' || 'softshell' => 'molting',
+                    'weak' => 'watch',
+                    'normal' => 'normal',
+                    _ => 'unknown',
+                  };
             counts[key] = counts[key]! + 1;
           }
-          final active =
-              counts.values.fold<int>(0, (sum, value) => sum + value) -
-              counts['empty']!;
-          return {'total': total, 'active': active, ...counts};
+          return (counts: {'total': total, ...counts},
+            devices: DeviceSummary.fromAreaInventory(_asStringKeyedMap(raw['areaDevices'])));
         }
       }
     throw const FormatException('Invalid scoped boxes overview');
@@ -341,11 +305,12 @@ class _HomeRead {
     if (res.statusCode == 200 && res.data != null) {
       final list = _extractList(res.data);
       if (list != null) {
-        final now = DateTime.now();
         final mapped = list
             .map((item) {
               final map = _asStringKeyedMap(item);
-              if (map == null) return null;
+              if (map == null || map['id']?.toString().isNotEmpty != true) {
+                throw const FormatException('Invalid alert identity');
+              }
 
               final severityStr =
                   map['severity']?.toString().toLowerCase() ?? '';
@@ -360,7 +325,7 @@ class _HomeRead {
               }
 
               return AlertSummaryItem(
-                id: map['id']?.toString() ?? 'alt_01',
+                id: map['id'].toString(),
                 title:
                     map['title']?.toString() ??
                     map['message']?.toString() ??
@@ -370,19 +335,17 @@ class _HomeRead {
                     map['sensorName']?.toString() ??
                     'Trang trại',
                 severity: level,
-                timestamp: map['createdAt'] != null
-                    ? DateTime.tryParse(map['createdAt'].toString()) ?? now
-                    : now,
+                timestamp: homeSourceTime(map['createdAt']),
                 status: map['status']?.toString() ?? 'Cần theo dõi',
               );
             })
             .whereType<AlertSummaryItem>()
             .toList();
 
-        return {'items': mapped, 'openCount': mapped.length};
+        return {'items': mapped};
       }
     }
-    return null;
+    throw const FormatException('Invalid Home alerts payload');
   }
 
   Future<int?> _fetchUnreadNotificationsCount() async {
@@ -400,9 +363,7 @@ class _HomeRead {
         ? Map<String, dynamic>.from(body['data'] as Map)
         : body;
     final count = data['count'] ?? data['unreadCount'] ?? data['unread_count'];
-    if (count is int) return count;
-    if (count is num) return count.toInt();
-    return int.tryParse('$count');
+    return homeCount(count);
   }
 
   Future<List<WaterMetricItem>?> _fetchWaterMetrics(String? farmingAreaId) async {
@@ -417,58 +378,6 @@ class _HomeRead {
       areaId: farmingAreaId, revision: _revision);
   }
 
-  Future<DeviceSummary?> _fetchDevices(String? farmingAreaId) async {
-    final res = await _get(
-      ApiConstants.devices,
-      queryParameters: _areaQuery(farmingAreaId),
-    );
-    if (res.statusCode == 200 && res.data != null) {
-      final list = _extractList(res.data);
-      if (list != null) {
-        int espOnline = 0, espTotal = 0;
-        int camOnline = 0, camTotal = 0;
-        int pumpRunning = 0, pumpTotal = 0;
-        int valveReady = 0, valveTotal = 0;
-
-        for (final item in list) {
-          final map = _asStringKeyedMap(item);
-          if (map == null) continue;
-          final type = map['deviceType']?.toString().toLowerCase() ?? '';
-          final status = map['status']?.toString().toLowerCase() ?? '';
-          final isOnline =
-              map['isOnline'] == true ||
-              status == 'active' ||
-              status == 'online';
-          if (type.contains('esp') || type.contains('controller')) {
-            espTotal++;
-            if (isOnline) espOnline++;
-          } else if (type.contains('camera') || type.contains('cam')) {
-            camTotal++;
-            if (isOnline) camOnline++;
-          } else if (type.contains('pump') || type.contains('bơm')) {
-            pumpTotal++;
-            if (isOnline) pumpRunning++;
-          } else if (type.contains('valve') || type.contains('van')) {
-            valveTotal++;
-            if (isOnline) valveReady++;
-          }
-        }
-
-        return DeviceSummary(
-          esp32Online: espOnline,
-          esp32Total: espTotal,
-          cameraOnline: camOnline,
-          cameraTotal: camTotal,
-          pumpRunning: pumpRunning,
-          pumpTotal: pumpTotal,
-          valveReady: valveReady,
-          valveTotal: valveTotal,
-        );
-      }
-    }
-    return null;
-  }
-
   Future<FarmSummary?> _fetchOverview(String? farmingAreaId) async {
     final res = await _get(
       ApiConstants.dashboardOverview,
@@ -476,101 +385,18 @@ class _HomeRead {
     );
     if (res.statusCode != 200 || res.data == null) return null;
     final root = _asStringKeyedMap(res.data);
-    final data = _asStringKeyedMap(root?['data']) ?? root;
-    if (data == null) return null;
+    final data = _asStringKeyedMap(root?['data']);
+    if (data == null) throw const FormatException('Invalid Home overview payload');
 
     return FarmSummary(
-      totalBoxes: (data['totalBoxes'] as num?)?.toInt() ?? 0,
-      totalCrabs: (data['totalCrabs'] as num?)?.toInt() ?? 0,
-      activeBoxes: (data['activeBoxes'] as num?)?.toInt() ?? 0,
-      openAlerts: (data['openAlerts'] as num?)?.toInt() ?? 0,
-      iotOnlinePercentage:
-          (data['iotOnlinePercentage'] as num?)?.toDouble() ?? 0,
-      lastUpdated: data['lastUpdated'] != null
-          ? DateTime.tryParse(data['lastUpdated'].toString()) ?? DateTime.now()
-          : DateTime.now(),
-    );
-  }
-
-  Future<FarmHealthScore?> _fetchHealthMetrics(String? farmingAreaId) async {
-    final res = await _get(
-      ApiConstants.dashboardMetrics,
-      queryParameters: _areaQuery(farmingAreaId),
-    );
-    if (res.statusCode != 200 || res.data == null) return null;
-    final root = _asStringKeyedMap(res.data);
-    final data = _asStringKeyedMap(root?['data']) ?? root;
-    if (data == null) return null;
-
-    final score = (data['score'] as num?)?.toInt() ?? 0;
-    final levelRaw = data['statusLevel']?.toString().toLowerCase() ?? '';
-    final level = switch (levelRaw) {
-      'excellent' => HealthStatusLevel.excellent,
-      'warning' => HealthStatusLevel.warning,
-      'danger' || 'critical' => HealthStatusLevel.danger,
-      _ => FarmHealthScore.calculateLevel(score),
-    };
-
-    return FarmHealthScore(
-      score: score,
-      statusLevel: level,
-      statusLabel: data['statusLabel']?.toString() ?? level.name,
-      deltaVsYesterday: (data['deltaVsYesterday'] as num?)?.toDouble() ?? 0,
-      lastAiUpdated: data['lastAiUpdated'] != null
-          ? DateTime.tryParse(data['lastAiUpdated'].toString()) ??
-                DateTime.now()
-          : DateTime.now(),
-      waterQualityScore: (data['waterQualityScore'] as num?)?.toInt() ?? 0,
-      crabHealthScore: (data['crabHealthScore'] as num?)?.toInt() ?? 0,
-      deviceStatusScore: (data['deviceStatusScore'] as num?)?.toInt() ?? 0,
-      explanation: data['explanation']?.toString() ?? '',
-    );
-  }
-
-  Future<AiRecommendation?> _fetchAiRecommendation(
-    String? farmingAreaId,
-  ) async {
-    final res = await _get(
-      ApiConstants.aiRecommendations,
-      queryParameters: _areaQuery(farmingAreaId),
-    );
-    if (res.statusCode != 200 || res.data == null) return null;
-    final list = _extractList(res.data);
-    if (list == null || list.isEmpty) return AiRecommendation.empty;
-
-    final map = _asStringKeyedMap(list.first);
-    if (map == null) return AiRecommendation.empty;
-
-    final hasActive = map['hasActiveRecommendation'] != false;
-    if (!hasActive) return AiRecommendation.empty;
-
-    final typeRaw = map['type']?.toString().toLowerCase() ?? 'observe';
-    final type = switch (typeRaw) {
-      'harvest' => AiActionType.harvest,
-      'inspect' => AiActionType.inspect,
-      'watertreatment' || 'water_treatment' => AiActionType.waterTreatment,
-      _ => AiActionType.observe,
-    };
-    final prioRaw = map['priority']?.toString().toLowerCase() ?? 'low';
-    final priority = switch (prioRaw) {
-      'high' => ActionPriority.high,
-      'medium' => ActionPriority.medium,
-      _ => ActionPriority.low,
-    };
-
-    return AiRecommendation(
-      id: map['id']?.toString() ?? 'rec_1',
-      type: type,
-      title: map['title']?.toString() ?? 'Khuyến nghị AI',
-      description: map['description']?.toString() ?? '',
-      targetBoxOrArea: map['targetBoxOrArea']?.toString() ?? 'Trang trại',
-      confidencePercentage:
-          (map['confidencePercentage'] as num?)?.toInt() ?? 80,
-      priority: priority,
-      reason: map['reason']?.toString() ?? '',
-      optimalTimeframe: map['optimalTimeframe']?.toString() ?? '',
-      expectedImpact: map['expectedImpact']?.toString() ?? '',
-      hasActiveRecommendation: true,
+      totalBoxes: homeCount(data['totalBoxes']),
+      totalCrabs: homeCount(data['totalCrabs']),
+      activeBoxes: homeCount(data['activeBoxes']),
+      openAlerts: homeCount(data['openAlerts']),
+      iotOnlinePercentage: null,
+      // Backend calls this lastUpdated, but it is a snapshot generation time,
+      // not the latest event/measurement. Do not present it as source time.
+      lastUpdated: null,
     );
   }
 
@@ -581,12 +407,14 @@ class _HomeRead {
     );
     if (res.statusCode != 200 || res.data == null) return null;
     final list = _extractList(res.data);
-    if (list == null) return const [];
+    if (list == null) throw const FormatException('Invalid Home list');
 
     return list
         .map((item) {
           final map = _asStringKeyedMap(item);
-          if (map == null) return null;
+          if (map == null || map['id']?.toString().isNotEmpty != true) {
+            throw const FormatException('Invalid Home record identity');
+          }
           final prioRaw = map['priority']?.toString().toLowerCase() ?? 'low';
           final priority = switch (prioRaw) {
             'high' => ActionPriority.high,
@@ -594,13 +422,10 @@ class _HomeRead {
             _ => ActionPriority.low,
           };
           return TodayTaskItem(
-            id: map['id']?.toString() ?? 'task',
+            id: map['id'].toString(),
             title: map['title']?.toString() ?? 'Công việc',
             target: map['target']?.toString() ?? '',
-            deadline: map['deadline'] != null
-                ? DateTime.tryParse(map['deadline'].toString()) ??
-                      DateTime.now()
-                : DateTime.now(),
+            deadline: homeSourceTime(map['deadline'], allowFuture: true),
             priority: priority,
             isCompleted: map['isCompleted'] == true,
           );
@@ -613,19 +438,20 @@ class _HomeRead {
     String? farmingAreaId,
   ) async {
     final res = await _get(
-      ApiConstants.scheduledTasks,
+      ApiConstants.scheduledTasksToday,
       queryParameters: _areaQuery(farmingAreaId),
     );
     if (res.statusCode != 200 || res.data == null) return null;
     final list = _extractList(res.data);
-    if (list == null) return const [];
-    final today = DateTime.now();
+    if (list == null) throw const FormatException('Invalid Home list');
     return list
         .map((item) {
           final map = _asStringKeyedMap(item);
-          if (map == null || map['isEnabled'] != true) return null;
-          final nextRun =
-              DateTime.tryParse('${map['nextRunAt']}') ?? today;
+          if (map == null || map['id']?.toString().isNotEmpty != true) {
+            throw const FormatException('Invalid scheduled task identity');
+          }
+          if (map['isEnabled'] != true) return null;
+          final nextRun = homeSourceTime(map['nextRunAt'], allowFuture: true);
           return TodayTaskItem(
             id: 'scheduled-${map['id']}',
             title: map['title']?.toString() ?? 'Công việc theo lịch',
@@ -651,12 +477,14 @@ class _HomeRead {
     );
     if (res.statusCode != 200 || res.data == null) return null;
     final list = _extractList(res.data);
-    if (list == null) return const [];
+    if (list == null) throw const FormatException('Invalid Home list');
 
     return list
         .map((item) {
           final map = _asStringKeyedMap(item);
-          if (map == null) return null;
+          if (map == null || map['id']?.toString().isNotEmpty != true) {
+            throw const FormatException('Invalid Home record identity');
+          }
           final typeRaw = map['type']?.toString().toLowerCase() ?? 'sync';
           final type = switch (typeRaw) {
             'qrscan' || 'qr_scan' => ActivityType.qrScan,
@@ -667,14 +495,11 @@ class _HomeRead {
             _ => ActivityType.sync,
           };
           return RecentActivityItem(
-            id: map['id']?.toString() ?? 'act',
+            id: map['id'].toString(),
             title: map['title']?.toString() ?? 'Hoạt động',
             description: map['description']?.toString() ?? '',
             type: type,
-            timestamp: map['timestamp'] != null
-                ? DateTime.tryParse(map['timestamp'].toString()) ??
-                      DateTime.now()
-                : DateTime.now(),
+            timestamp: homeSourceTime(map['timestamp']),
           );
         })
         .whereType<RecentActivityItem>()

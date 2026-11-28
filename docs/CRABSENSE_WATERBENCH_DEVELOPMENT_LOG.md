@@ -126,7 +126,7 @@
 | CrabSenseBE | a8306ca | #114 merged; main CI #432/VPS #229 PASS |
 | CrabSenseAIWaterQualityAnalysis | 700d5b2 | AI CI #37 / private cross #11 PASS |
 | CrabSenseFE | 7fc170b | #41 merged; main Audit #22/Sonar #159/Pages #147 PASS |
-| CrabSenseApp | d72edf3 | #80 merged; main #247/Mobile #100/Desktop #102/Pages #128 PASS; Home #82 CI #248 failed; fixture and timeout cleanup corrected, CI pending |
+| CrabSenseApp | 0c3b06c | #82 merged; main #250/Mobile #103/Desktop #103/Pages #131 PASS |
 
 | Mã | Ưu tiên | Việc còn lại | Điều kiện hoàn thành |
 |---|---|---|---|
@@ -134,7 +134,7 @@
 | T02 | P0 | DONE: App main #61/#52/#43 và Sonar #156 PASS | Tất cả PASS đúng main 83e7eec |
 | T03 | P0 | Đã merge BE scoped history và khôi phục chart scoped Mobile/Desktop; chưa production smoke | Sửa cấu hình test Npgsql, chạy đủ HTTP/PostgreSQL, CI PASS, review migration, deploy, App chart thật |
 | T04 | P1 | SQLite v4 scope/session/expiry fail-closed; #73 generation guard/chart lifecycle PASS; offline reading tắt, native còn mở | Kiểm thử offline và isolation; phục hồi chart/cache an toàn |
-| T05 | P1 | RAS Chromium PASS; BE #113/VPS, FE #40/App #76 PASS; Mobile #77 CI #238 92/92 PASS merged; L03–L06 Mobile #78 PASS; BE #114/VPS và Desktop #79 PASS; Web #41 merged/main Pages PASS; App #80 CI #245 Desktop 60/60 PASS merged; Home H01–H03 #82 CI #248 failed, revised head pending; remaining legacy KPIs and production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
+| T05 | P1 | RAS Chromium PASS; BE #113/VPS, FE #40/App #76 PASS; Mobile #77 CI #238 92/92 PASS merged; L03–L06 Mobile #78 PASS; BE #114/VPS và Desktop #79 PASS; Web #41 merged/main Pages PASS; App #80 CI #245 Desktop 60/60 PASS merged; Home H01–H03 #82 CI #249 99/99 PASS merged; H04–H09 #83 CI #251 failed legacy CrabHomeScreen nullable consumer; corrected head pending; Desktop Health/Reports/production còn mở | Không label sai hoặc hiển thị số liệu ngoài quyền |
 | T06 | P1 | FE #37 merged, main Audit #14 và Pages #139 gate full/omit-dev 0 PASS; required branch check chưa xác minh | Phân loại direct/transitive/dev/runtime, sửa an toàn, CI PASS |
 | T07 | P1 | Kiểm thử PostgreSQL technical diagnostics, JWT bốn role | P2.4.6.2; 401/403 và scoped access |
 | T08 | P1 | Geometry QC bắt buộc với fixture phù hợp; kiểm tra private media/Drive | P2.4.6.3 |
@@ -143,7 +143,7 @@
 | T11 | P2 | Tổng kiểm thử bảo mật, CI/CD và quy trình test thực tế | P2.4.6.6 |
 | T12 | P3 | Thiết bị thật, UART, đo chuẩn, mẫu thật, vệ sinh, vận hành lâu dài | Chỉ sau P2.4.6 PASS |
 
-**Việc kế tiếp:** nghiệm thu Home H01–H03, sau đó H04–H09, Desktop Health và BE/Web Efficiency nullable; kiểm tra cross-client contract, native T04 và required status check với quyền admin còn mở. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
+**Việc kế tiếp:** nghiệm thu Home H04–H09, sau đó Desktop Health và BE/Web Efficiency nullable; kiểm tra cross-client contract, native T04 và required status check với quyền admin còn mở. Không tự đánh dấu P2.4.6.1 PASS chỉ vì CI riêng lẻ xanh.
 
 ## 6. Quy định cập nhật file sau mỗi lượt
 
@@ -418,3 +418,11 @@
 ### 62 — T05: sửa CI App #82 (28/11/2026)
 - Xác nhận #82 head 131b9da chưa merge, main d72edf3, Mobile Hosted #101 và Pages #129 PASS, Sonar #248 FAIL như mục 61. BE ScheduledTaskService.ListAsync trả danh sách lịch thuộc owner và khu chọn hoặc lịch không gắn khu, còn TodayAsync lọc IsEnabled/IsDueOnDate và tính NextRunAt theo ngày địa phương. Giữ route /operations/scheduled-tasks đang dùng trong Home để không đổi nghiệp vụ trong đợt fix CI; việc chỉ hiện lịch đến hạn hôm nay và timestamp thiếu thuộc rà H08/tasks tiếp theo.
 - Sửa HTTP adapter fixture đúng /operations/scheduled-tasks; thêm assertion xác nhận route list đúng một lần và không gọi route today. Hai test delayed response: giới hạn chờ tín hiệu bắt đầu 10s, complete pending gate trong finally và await assertion từ chối request cũ; teardown giải phóng gate còn tồn tại trước khi đóng client. Không tăng timeout tổng, không invalidate thêm phiên để làm test qua, giữ nguyên bốn nhóm test và mandatory CI. HomeNotifier._discard bỏ cast dư thừa do type promotion của final field, vẫn invalidate repository trước clear state. Tích hợp journal mục 61 từ 41d10ea và mục 62 cùng replacement commit trên nhánh PR, expected head SHA, giữ một commit, không force main. CI head mới chưa nghiệm thu. H04–H09, Desktop Health, BE/Web Reports, native/provider lifecycle, production JWT và branch protection còn mở. Không thay API/DB/role/firmware/vị trí lấy mẫu. Next nghiệm thu tất cả CI #82, merge nếu PASS rồi tiếp tục H04–H09. Không đóng T05.
+
+### 63 — T05: App #82 PASS; Mobile Home H04–H09 (28/11/2026)
+- App #82 7ce83cb Sonar #249/Mobile #102/Pages #130 PASS, merged 0c3b06c. Mobile job 140907666750 log 99/99 tests PASS gồm 4 Home regressions, main #250/Mobile #103/Desktop #103/Pages #131 PASS, nhật ký 61–62 vào main.
+- H04–H06: bỏ request /dashboard/metrics và /ai/recommendations, nullable health/AI confidence/delta/timestamps, neutral card/detail (không nút thực hiện/nhắc từ legacy), bỏ kết luận an toàn/ổn định. H07: giữ disabled lịch sử thiếu area contract, không giả lập hoặc forward-fill, box status unknown nếu không có condition/occupancy nhất quán. H08: strict source timestamp offset/calendar/future check, nullable alert/activity/deadline, không tạo thời gian thay thế; overview lastUpdated thực tế là snapshot generation time từ BE nên không dùng làm event timestamp, lastSyncedAt chỉ local fetch completion. Chuyển đúng scheduled-tasks/today theo TodayAsync BE lọc IsEnabled/IsDueOnDate. H09: strict nullable count, phân biệt unread và open alerts, header dùng snapshot đã pin, refresh sau notification. Device summary chỉ dùng areaDevices header đã verify scope/consistent count; no denominator -> unknown, không infer bơm/van/camera từ controller. Giữ online-only/session/scope gates. Thêm 3 regression vào file CI đã bắt buộc, cập nhật fixture route today và loại mock legacy, CI pending. Native/provider lifecycle, production JWT, Desktop Health, BE/Web reports, lịch sử area API và các route khác còn mở; không đổi BE/API/DB/role/firmware/sampling. Không đóng T05.
+
+### 64 — T05: App #83 CI #251 correction (28/11/2026)
+- #83 head 5c39954, Sonar #251 FAIL, Mobile Hosted #104 FAIL, Pages #132 in progress at check. Desktop job 140909870826 PASS, Mobile analysis job 140909870963 has 17 compile errors all in legacy crab_home_screen.dart: nullable count subtraction, legend denominator, notification count, activity/alert timestamp. Mobile tests not executed. Build job 140909870140 confirms compilation errors. No merge.
+- Fix legacy consumer: unknown counts dash, nullable unread marker, actual empty box count not derived from total minus active, percentage only known nonzero scoped denominator, nullable source time, explicit unknown donut segment and legend, painter repaint on changed counts. Clear refresh/reload previous data and guard selected area mismatch; use verified farm label. Preserve #83 regression tests and required CI, no default 0/time workaround. Single replacement commit on isolated branch with expected SHA. Remaining legacy water widget heuristics (hard-coded water references, selection among sensors) identified in CrabHomeScreen, needs separate scoped water card review; Desktop Health Monitoring/export remains open until #83 accepted. No production/JWT/native acceptance or API/DB/role changes. Next check revised CI #83, merge only all PASS, then Desktop Health/export. Do not close T05.
