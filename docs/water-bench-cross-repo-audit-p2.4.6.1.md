@@ -183,3 +183,6 @@ BE #116 original CI failed CS4007 in both unit and PostgreSQL jobs, audit parser
 
 ## T11 CI #437 recovery correction — 2026-11-28
 BE #116 6fc5820 unit 744 PASS/2 integration skips and security actual audit zero across all severity levels; recovery final FK probe failed 23505 instead of 23503, not a full recovery pass. Replacement d74298e isolates one measurement and verifies absent parent, exact FK code/table/schema plus post-rollback snapshot. Full CI pending. App #99 merged 1433d20, journal 81. Journal 82 documents correction. No production restore or merge/deploy of BE.
+
+## T11 isolated recovery and deployed BE — 2026-11-28
+BE #116 merged 6648750; CI #438/#439 all PASS, NuGet five projects all severities zero. Recovery jobs 140952358322/140953532783 each 1/1 PASS with mandatory marker and clean/legacy migration markers; rounded whole-test durations 2s/1s, individual timing not exposed/retained. VPS #231 job 140954410188 exact SHA deploy PASS, predeploy archive verified, health/CORS PASS, hardware control disabled. App #100 merged 55112fd, all main checks PASS. Journal 83. Next refresh Kiosk/AI pins; SEC02, production backup integrity/offsite, individual metrics/production RTO/RPO, real Drive/JWT/physical acceptance remain open.
