@@ -59,3 +59,6 @@ Main #205 confirmed 71 Mobile / 56 Desktop tests, including both dashboard prove
 
 ## Dependency inventory — FE main be31769
 FE #31 merged; main #137 and Deploy #125 passed, 25 Node tests, 19 affected npm packages (10 high, 9 moderate). Sonar scan skipped; browser #8 validated existing WaterBench/roles, not new RAS lifecycle. App #62 journal merged e551dce. FE PR #32 7adcd5f proposes validated full/omit-dev npm audit inventory, raw evidence and package/path/version/advisory/fix summaries, three parser tests. Valid findings warn; invalid report or registry failure fails the diagnostic job. No package version changes, no forced upgrade, CI and actual package classification pending. T06 not accepted.
+
+## Compatible dependency remediation candidate — FE main 556c06f
+FE #32 merged; audit #2 confirms full 19 / omit-dev 17 affected packages. Main #139 28 Node tests, Deploy #127 PASS. App #63 merged 6a0247b. shadcn CSS is required, existing React plugin peer excludes Vite 8. FE #33 c275c55 proposes isolated shadcn 4 + non-force compatible npm remediation with actual registry resolution, lock evidence, full/omit-dev audit, npm ci and browser/build tests. No committed dependency upgrade until candidate validation; separate Vite major migration required. T06 remains open.
