@@ -87,3 +87,6 @@ FE #37 merged 3d20f94; main Audit #14 and Pages #139 security job both 6/6 tests
 
 ## RAS Chromium lifecycle — 2026-11-28
 FE #38 merged a96343e; main Audit #16/Sonar #153/Pages #141 passed. App #71 CI #225 passed, merged d8f06d2; new main CI pending. FE #39 4f8077c adds real Chromium synthetic API test for separate sensors/zero, wrong scope/chemistry/null, delayed prior area, All Areas no request, offline/reconnect, token rotation/403 recovery and Monitoring parity, wired into mandatory existing browser workflow and deploy gate. Browser #18/Pages #142 queued. No production logic, dependency, BE/schema/role changes. Production JWT/native/physical, other KPI/legacy and T04, required branch check remain open.
+
+## RAS browser acceptance and Mobile history lifecycle — 2026-11-28
+FE #39 merged 2b9aa32; six RAS Chromium markers verified on PR #18 and main Pages #143, all main workflows pass and deployment gate full/omit-dev zero. App #72 merged 861520c after CI #227. App #73 ff15ea9 isolates busy guard by session generation and clears chart directly on foreground/background transitions with two mandatory regression tests; CI pending. Offline reads remain disabled. Native hardware, production JWT, other KPI/legacy and required branch check remain open.
