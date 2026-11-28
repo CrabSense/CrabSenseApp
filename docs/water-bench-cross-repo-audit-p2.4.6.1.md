@@ -189,3 +189,6 @@ BE #116 merged 6648750; CI #438/#439 all PASS, NuGet five projects all severitie
 
 ## T11 Kiosk Backend repin — 2026-11-28
 App #101 merged 8efa00c, #289/#290 and all main preview/Pages checks PASS. BE 6648750 remains deployed, #439/#231 PASS. Kiosk #33 78b05db updates exact BE checkout/assertion and explicit executed/no-skip TRX guard, one CI-only commit; PR/main validation pending. Private AI pins unchanged until Kiosk acceptance. Journal 84; live and recovery metrics gates remain open.
+
+## T11 Kiosk acceptance and private repin — 2026-11-28
+Kiosk #33 merged 3447793, #83/#84 all PASS; both exact BE 6648750 cross jobs 1/1 executed, zero skip, Windows 85/85. BE #439/VPS #231 PASS. App #102 merged dc93281, #291/#292 and all main previews/Pages PASS. Private AI #14 540637a updates both exact pins and assertions, mandatory compatibility and geometry-required checks retained, PR/main pending. Journal 85. No additional live acceptance; recovery timing and production gates remain open.
