@@ -201,3 +201,6 @@ BE #117 merged 6e1fd8d, CI #440/#441 PASS. Downloaded/inspected recovery artifac
 
 ## REC04 VPS and REC05 readiness — 2026-11-28
 VPS #232 exact BE 6e1fd8d PASS (health/CORS/hardware disabled, DEPLOY_OK 21:22:09 ICT); App #105 merged ac49fc7 and all main workflows PASS. Kiosk #34 c34e5cd pin update CI #85 pending; private AI unchanged until Kiosk main acceptance. REC05 source review confirms existing storage double negative tests and snapshot-only provenance flag; isolated DB/media restoration matrix documented, not yet executed. Journal 88.
+
+## REC05 isolated implementation — 2026-11-28
+Kiosk #34 merged db9aeb8, #85/#86 PASS with exact BE 6e1fd8d, cross 1/1 no skip each, Windows 85/85. App #106 merged 6d3a82e and all main checks PASS. Private AI #15 a325b0d combines both pin updates and actual isolated DB/media restore test, mandatory metrics/TRX for both modes. Raw content SHA guard explicitly remains false; assessment path rejects mismatch. CI pending; actual Drive and production gates remain open. Journal 89.
