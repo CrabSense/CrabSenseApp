@@ -158,6 +158,9 @@ class _WaterQualityOverviewState extends State<WaterQualityOverview>
               if (readings.length > items.length)
                 Text('Còn ${readings.length-items.length} cảm biến · Xem chi tiết'),
             ],
+            const Text('Dữ liệu đại diện vòng nước RAS dùng chung cho các dãy và hộp trong khu; không đo riêng từng hộp.',
+              style: TextStyle(color: kHomeTextSub, fontSize: 11)),
+            const SizedBox(height: 4),
             const Text('Ngưỡng cấu hình không phải kết luận nước an toàn.',
               style: TextStyle(color: kHomeTextSub, fontSize: 11)),
             const SizedBox(height: 4),

@@ -9,6 +9,8 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter/cupertino.dart';
 
 import '../../../../app/routes.dart';
+import '../../../../core/di/injection.dart';
+import '../../../../core/network/network_info.dart';
 import '../../../../core/providers/selected_farm_provider.dart';
 import '../../../../widgets/branded_loading_screen.dart';
 import '../../../authentication/domain/entities/user.dart';
@@ -18,6 +20,8 @@ import '../../../harvest/presentation/screens/harvest_assignments_screen.dart';
 import '../../../home/domain/models/home_models.dart';
 import '../../../home/presentation/providers/home_provider.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
+import '../../../home/presentation/widgets/water_quality_overview.dart';
+import '../../../water_quality/data/repositories/scoped_history_service.dart';
 
 class CrabHomeScreen extends ConsumerStatefulWidget {
   const CrabHomeScreen({super.key});
@@ -737,119 +741,6 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
         '${local.minute.toString().padLeft(2, '0')}';
   }
 
-  WaterMetricItem? _waterPick(HomeStateData data, String kind) {
-    final matches = data.waterMetrics
-        .where((m) => _waterKind(m, kind))
-        .toList();
-    if (matches.isEmpty) return null;
-    matches.sort((a, b) => b.lastUpdated.compareTo(a.lastUpdated));
-    if (kind == 'temp') {
-      final ok = matches.where(
-        (m) => m.currentValue >= 5 && m.currentValue <= 40,
-      );
-      return ok.isEmpty ? null : ok.first;
-    }
-    if (kind == 'ph') {
-      final ok = matches.where(
-        (m) => m.currentValue >= 5 && m.currentValue <= 10,
-      );
-      if (ok.isNotEmpty) return ok.first;
-    }
-    return matches.first;
-  }
-
-  bool _waterKind(WaterMetricItem m, String kind) {
-    final t = m.code.toLowerCase();
-    final n = m.name.toLowerCase();
-    switch (kind) {
-      case 'temp':
-        return t.contains('temp') || n.contains('nhiệt');
-      case 'sal':
-        return t.contains('salin') ||
-            t.contains('tds') ||
-            n.contains('mặn') ||
-            n.contains('tds');
-      case 'ph':
-        return t == 'ph' || t.startsWith('ph_') || n == 'ph';
-      case 'do':
-        return t == 'do' || t.contains('oxy') || n.contains('oxy');
-      case 'nh3':
-        return t.contains('nh3') ||
-            t.contains('nh4') ||
-            t.contains('ammon') ||
-            n.contains('amoni');
-      case 'no2':
-        return t.contains('no2') ||
-            t.contains('nitrit') ||
-            n.contains('nitrit');
-      case 'kh':
-        return t == 'kh' || t.contains('alkal') || n.contains('kh');
-      case 'ca':
-        return t == 'ca' || t.contains('calci') || n.contains('canxi');
-      case 'mg':
-        return t == 'mg' || t.contains('magnes') || n.contains('magie');
-      default:
-        return false;
-    }
-  }
-
-  String _metricFmt(WaterMetricItem? metric, [String? unit]) {
-    if (metric == null) return '--';
-    final u = (unit ?? metric.unit).trim();
-    final value = metric.currentValue == metric.currentValue.roundToDouble()
-        ? metric.currentValue.toStringAsFixed(0)
-        : metric.currentValue.toStringAsFixed(1);
-    return u.isEmpty ? value : '$value$u';
-  }
-
-  (double?, double?) _waterRefs(String kind) => switch (kind) {
-    'temp' => (24.0, 28.0),
-    'sal' => (10.0, 20.0),
-    'ph' => (7.5, 8.5),
-    'do' => (5.0, null),
-    'nh3' => (null, 0.1),
-    'no2' => (null, 0.2),
-    'kh' => (7.0, 10.0),
-    'ca' => (380.0, 460.0),
-    'mg' => (1200.0, 1400.0),
-    _ => (null, null),
-  };
-
-  _WaterLvl _waterLvl(WaterMetricItem? m, String kind) {
-    if (m == null) return _WaterLvl.none;
-    if (m.status == MetricStatus.danger) return _WaterLvl.alert;
-    final refs = _waterRefs(kind);
-    final min = m.minThreshold ?? refs.$1;
-    final max = m.maxThreshold ?? refs.$2;
-    final v = m.currentValue;
-    if (min != null && v < min) return _WaterLvl.alert;
-    if (max != null && v > max) return _WaterLvl.alert;
-    final span = (min != null && max != null)
-        ? (max - min)
-        : (min ?? max ?? 0).abs();
-    final margin = span * 0.1;
-    if (margin > 0) {
-      if (min != null && v < min + margin) return _WaterLvl.watch;
-      if (max != null && v > max - margin) return _WaterLvl.watch;
-    }
-    if (m.status == MetricStatus.warning) return _WaterLvl.watch;
-    return _WaterLvl.ok;
-  }
-
-  String _waterRange(WaterMetricItem? m, String kind) {
-    if (m == null) return '';
-    final refs = _waterRefs(kind);
-    final min = m.minThreshold ?? refs.$1;
-    final max = m.maxThreshold ?? refs.$2;
-    if (min != null && max != null) return '${_n(min)}–${_n(max)}';
-    if (min != null) return '≥${_n(min)}';
-    if (max != null) return '≤${_n(max)}';
-    return '';
-  }
-
-  String _n(double v) =>
-      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
-
   String _legendValue(int? value, int? total) {
     if (value == null) return '—';
     if (total == null || total <= 0 || value > total) return '$value  —';
@@ -861,62 +752,27 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
   }
 
   Widget _waterCard(HomeStateData data) {
-    const kinds = [
-      ('temp', '🌡', 'Nhiệt độ', '°C'),
-      ('sal', '≋', 'Độ mặn / TDS', null),
-      ('ph', 'pH', 'pH', null),
-      ('do', 'O₂', 'DO', null),
-      ('nh3', 'NH₃', 'NH₃/NH₄', null),
-      ('no2', 'NO₂', 'NO₂', null),
-      ('kh', 'KH', 'KH', null),
-      ('ca', 'Ca', 'Ca', null),
-      ('mg', 'Mg', 'Mg', null),
-    ];
-    return _card(
-      title: 'Chất lượng nước',
-      action: 'Xem chi tiết',
-      onAction: () {
-        final id = ref.read(selectedFarmProvider).id;
-        context.push(
-          id != null && id.isNotEmpty
-              ? RoutePaths.waterQualityForFarm(id)
-              : RoutePaths.waterQuality,
-        );
+    final selectedArea = ref.watch(selectedFarmProvider).id;
+    final areaId = data.selectedFarmId;
+    final scoped = areaId != null &&
+        areaId.isNotEmpty &&
+        areaId != 'default' &&
+        (selectedArea == null || selectedArea == areaId);
+    // Reuse the qualified per-sensor Home view, including session, transport,
+    // lifecycle and freshness guards. Never select a sensor by its value.
+    return WaterQualityOverview(
+      key: ValueKey('dashboard-water-${areaId ?? ''}'),
+      metrics: data.waterMetrics,
+      areaId: scoped ? areaId : null,
+      online: scoped && data.isOnline && !data.isOfflineCached,
+      session: sl<ScopedHistoryService>(),
+      network: sl<NetworkInfo>(),
+      onViewDetailsPressed: () {
+        final currentArea = ref.read(selectedFarmProvider).id;
+        if (areaId == null || !scoped ||
+            (currentArea != null && currentArea != areaId)) return;
+        context.push(RoutePaths.waterQualityForFarm(areaId));
       },
-      child: Column(
-        children: [
-          for (var r = 0; r < 3; r++) ...[
-            if (r > 0) const SizedBox(height: 9),
-            Row(
-              children: [
-                for (var c = 0; c < 3; c++)
-                  _WaterMetric(
-                    kinds[r * 3 + c].$2,
-                    _metricFmt(
-                      _waterPick(data, kinds[r * 3 + c].$1),
-                      kinds[r * 3 + c].$4,
-                    ),
-                    kinds[r * 3 + c].$3,
-                    _waterRange(
-                      _waterPick(data, kinds[r * 3 + c].$1),
-                      kinds[r * 3 + c].$1,
-                    ),
-                    _waterLvl(
-                      _waterPick(data, kinds[r * 3 + c].$1),
-                      kinds[r * 3 + c].$1,
-                    ),
-                  ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 10),
-          _smallStatus(
-            data.waterMetrics.isEmpty
-                ? 'Chưa có số liệu cảm biến / xét nghiệm khu này'
-                : 'Bấm Xem chi tiết để mở giám sát cảm biến',
-          ),
-        ],
-      ),
     );
   }
 
@@ -1401,23 +1257,6 @@ class _CrabHomeScreenState extends ConsumerState<CrabHomeScreen> {
     ),
   );
 
-  Widget _smallStatus(String text) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(7),
-    decoration: BoxDecoration(
-      color: const Color(0xFFE9F8F0),
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: Text(
-      text,
-      style: const TextStyle(
-        color: Color(0xFF168B59),
-        fontSize: 10,
-        fontWeight: FontWeight.w700,
-      ),
-    ),
-  );
-
   Widget _iconButton(IconData icon, {String? badge, VoidCallback? onTap}) =>
       GestureDetector(
         onTap: onTap,
@@ -1596,86 +1435,6 @@ class _ChartLegend extends StatelessWidget {
       ),
     ],
   );
-}
-
-enum _WaterLvl { none, ok, watch, alert }
-
-class _WaterMetric extends StatelessWidget {
-  const _WaterMetric(this.icon, this.value, this.label, this.range, this.level);
-  final String icon;
-  final String value;
-  final String label;
-  final String range;
-  final _WaterLvl level;
-  @override
-  Widget build(BuildContext context) {
-    final (color, badge) = switch (level) {
-      _WaterLvl.ok => (const Color(0xFF16A66A), Icons.check_circle),
-      _WaterLvl.watch => (const Color(0xFFF09A27), Icons.error_outline),
-      _WaterLvl.alert => (const Color(0xFFE34850), Icons.warning_rounded),
-      _WaterLvl.none => (const Color(0xFF9AA7B2), null),
-    };
-    return Expanded(
-      child: Column(
-        children: [
-          SizedBox(
-            height: 16,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (badge != null) ...[
-                  Icon(badge, size: 11, color: color),
-                  const SizedBox(width: 3),
-                ],
-                Text(
-                  icon,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    height: 1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF123968),
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              height: 1.2,
-            ),
-          ),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF50657A),
-              fontSize: 8,
-              height: 1.2,
-            ),
-          ),
-          SizedBox(
-            height: 11,
-            child: range.isEmpty
-                ? const SizedBox.shrink()
-                : Text(
-                    range,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: color, fontSize: 7, height: 1.2),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _Legend extends StatelessWidget {
