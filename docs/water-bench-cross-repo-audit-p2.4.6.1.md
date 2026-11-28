@@ -192,3 +192,6 @@ App #101 merged 8efa00c, #289/#290 and all main preview/Pages checks PASS. BE 66
 
 ## T11 Kiosk acceptance and private repin — 2026-11-28
 Kiosk #33 merged 3447793, #83/#84 all PASS; both exact BE 6648750 cross jobs 1/1 executed, zero skip, Windows 85/85. BE #439/VPS #231 PASS. App #102 merged dc93281, #291/#292 and all main previews/Pages PASS. Private AI #14 540637a updates both exact pins and assertions, mandatory compatibility and geometry-required checks retained, PR/main pending. Journal 85. No additional live acceptance; recovery timing and production gates remain open.
+
+## T11 private integration accepted and REC04 instrumentation — 2026-11-28
+Private AI #14 merged 0b770f6, #51/#52 and cross #20/#21 both modes PASS, 1/1/no skip per job, exact BE 6648750/Kiosk 3447793; Python 15 passed/1 warning. App #103 merged fc71a44 and all main checks PASS. BE #117 84bd3a7 adds mandatory separate measured backup/restore metrics and retained TRX outside disposable cluster, artifacts 14 days; CI pending. Journal 86. Do not infer production RTO/RPO from isolated service-call times. SEC02/actual backup integrity, offsite, media and production/physical acceptance open.

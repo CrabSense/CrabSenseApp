@@ -33,3 +33,6 @@ Kiosk #33 (78b05db) pins exact deployed BE 6648750 and strengthens mandatory exe
 
 ## Kiosk main accepted; private AI repin
 Kiosk #33 merged 3447793, PR/main #83/#84 PASS; exact BE 6648750 cross 1/1/no skip on each and Windows 85/85. App #102 merged dc93281, all main checks PASS. Private AI #14 540637a repins both repositories, PR/main mandatory matrix acceptance pending. Journal 85. Retain all production and individual recovery timing gates.
+
+## Private integration acceptance and REC04 implementation
+Private AI #14 merged 0b770f6, both PR/main compatibility and geometry modes 1/1 PASS without skips on exact BE 6648750/Kiosk 3447793. BE #117 84bd3a7 adds actual separate service-call durations in validated JSON and retains Recovery TRX, both uploaded for 14 days. Restore duration includes pre-restore safety backup. New CI required for numeric results and artifact verification. No production RTO/RPO claim or live restore. Journal 86.
