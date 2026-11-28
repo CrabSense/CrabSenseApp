@@ -63,7 +63,7 @@ class _WaterBenchMonitorPageState extends State<WaterBenchMonitorPage> {
       }
       selected ??= overview.batches.isEmpty ? null : overview.batches.first;
       setState(() { _overview = overview; _selected = selected; });
-      final detail = selected == null ? null : await _service.detail(session, selected!);
+      final detail = selected == null ? null : await _service.detail(session, selected!, current:()=>_current(generation));
       if (_current(generation)) setState(() { _detail = detail; });
     } catch (e) {
       if (_current(generation)) setState(() {
@@ -79,7 +79,7 @@ class _WaterBenchMonitorPageState extends State<WaterBenchMonitorPage> {
     final session = widget.session;
     setState(() { _selected = batch; _detail = null; _busy = true; _error = null; });
     try {
-      final detail = await _service.detail(session, batch);
+      final detail = await _service.detail(session, batch, current:()=>_current(generation));
       if (_current(generation)) setState(() { _detail = detail; });
     } catch (e) {
       if (_current(generation)) setState(() { _detail = null; _error = '$e'; });

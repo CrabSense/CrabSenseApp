@@ -32,10 +32,11 @@ http.Response fixture(http.Request request) {
     'stationId':station,'bootId':boot,'batchId':batchId,'connectionId':connection,'status':'firmware_complete_reported',
     'channels':[{'analyte':'NO2','status':'drained_reported'}]}});
   if(path.endsWith('/results')) return ok({'channels':[{'analyte':'NO2','status':'estimate_review_required',
-    'assessment':{'id':assessmentId,'status':'estimate_review_required','estimatedValue':0,'unit':'mg/L NO2'}}]});
+    'sessionId':'s','captureId':1,'assessment':estimateFixture()}]});
   if(path.endsWith('/ai-readiness')) return ok({'channels':[]});
   if(path.endsWith('/retry-status')) return ok({'channels':[{'analyte':'NO2','status':'retry_available','attempts':1,'maxAttempts':3}]});
   if(path.endsWith('/receipts')) return ok(receiptFixture());
+  if(path.endsWith('/NO2/evidence')) return ok(evidenceFixture());
   if(path.endsWith('/NO2/review')) return ok({'assessmentId':assessmentId,'status':'published',
     'publicationScope':'water_bench_reviewed_record','publication':{'source':'operator_attested_independent_reference',
       'assessmentId':assessmentId,'productionSensorPublished':false,'value':0.2,'unit':'mg/L NO2'}});
@@ -47,20 +48,46 @@ const connection='55555555-5555-5555-5555-555555555555';
 Map<String,dynamic> receiptFixture()=> {
   'stationId':station,'bootId':boot,'batchId':batchId,
   'inventoryComplete':true,'receiptBasis':'persisted_backend_evidence',
-  'timelineStatus':'firmware_complete_reported','total':2,
-  'timelineCount':1,'mediaCount':1,'nh3Count':0,
+  'timelineStatus':'firmware_complete_reported','total':3,
+  'timelineCount':2,'mediaCount':1,'nh3Count':0,
   'items':[
     {'receiptId':'66666666-6666-6666-6666-666666666666',
       'eventId':'77777777-7777-7777-7777-777777777777',
       'connectionId':connection,'serverPayloadSha256':List.filled(64,'a').join(),
       'kind':'batch','evidenceKind':'batch_start'},
+    {'receiptId':sessionReceipt,'eventId':'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      'connectionId':connection,'serverPayloadSha256':List.filled(64,'d').join(),
+      'kind':'batch','evidenceKind':'session','analyte':'NO2','sessionId':'s'},
     {'receiptId':'88888888-8888-8888-8888-888888888888',
       'eventId':'99999999-9999-9999-9999-999999999999',
       'connectionId':connection,'serverPayloadSha256':List.filled(64,'b').join(),
-      'kind':'media','mediaId':'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      'kind':'media','evidenceKind':'jpeg','analyte':'NO2','sessionId':'s','captureId':1,'privateMediaMetadataPresent':true,'mediaId':'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
       'sha256':List.filled(64,'c').join()},
   ],
 };
+
+
+const sessionReceipt='cccccccc-cccc-cccc-cccc-cccccccccccc';
+const imageReceipt='88888888-8888-8888-8888-888888888888';
+const mediaId='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+const requestId='dddddddd-dddd-dddd-dddd-dddddddddddd';
+const calId='eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
+Map<String,dynamic> estimateFixture()=>{'id':assessmentId,'requestId':requestId,
+  'sessionEvidenceId':sessionReceipt,'imageEvidenceId':imageReceipt,'mediaId':mediaId,
+  'calibrationId':calId,'status':'estimate_review_required','estimatedValue':0,'unit':'mg/L NO2','holdoutError':0.1};
+Map<String,dynamic> evidenceFixture(){
+  final rows=benchRows(receiptFixture()['items']);
+  return {'assessmentId':assessmentId,'requestId':requestId,'status':'estimate_review_required',
+    'candidateValue':0,'unit':'mg/L NO2','holdoutError':0.1,'chemicalResultValidated':false,'productionPublished':false,
+    'session':rows[1],'image':rows[2],'calibration':{'id':calId},'provenanceStatus':'snapshot_verified',
+    'provenanceSha256':List.filled(64,'f').join(),'provenance':{
+      'contract':'water-bench-ai-evidence-v1','assessmentId':assessmentId,'requestId':requestId,
+      'requestSha256':List.filled(64,'e').join(),'stationId':station,'bootId':boot,'batchId':batchId,
+      'analyte':'NO2','connectionId':connection,'sessionId':'s','captureId':1,
+      'sessionReceiptId':sessionReceipt,'imageReceiptId':imageReceipt,'mediaId':mediaId,'calibrationId':calId,
+      'sessionPayloadSha256':rows[1]['serverPayloadSha256'],'imagePayloadSha256':rows[2]['serverPayloadSha256'],
+      'imageSha256':rows[2]['sha256']}};
+}
 
 void main() {
   setUp(() => dotenv.testLoad(fileInput:'CLOUD_API_URL=http://localhost:5080'));
@@ -143,5 +170,27 @@ void main() {
     expect(channel('assessment','mg/L TAN-N').publishedReference,0);
     expect(channel('other','mg/L TAN-N').publishedReference,isNull);
     expect(channel('assessment','mg/L NH3').publishedReference,isNull);
+  });
+
+  test('estimate is bound to receipt, provenance and exact numeric value',(){
+    final selected=BenchBatch.fromJson({'stationId':station,'bootId':boot,'firmwareBatchId':batchId});
+    final result={'sessionId':'s','captureId':1,'assessment':estimateFixture()};
+    final evidence=evidenceFixture(), receipts=receiptFixture();
+    verifyBenchEstimate(selected,'NO2',result,receipts,evidence);
+    for(final patch in [{'provenanceStatus':'legacy_linkage_only'},{'candidateValue':1},
+      {'provenance':{...benchMap(evidence['provenance']),'imageSha256':'wrong'}}]){
+      expect(()=>verifyBenchEstimate(selected,'NO2',result,receipts,{...evidence,...patch}),throwsFormatException);
+    }
+    expect(()=>requireBenchCurrent(()=>false),throwsStateError);
+  });
+
+  test('cancelled detail does not issue evidence or review follow-up',() async {
+    var active=true;
+    final service=WaterBenchMonitorService(client:MockClient((r) async {
+      expect(r.url.path.endsWith('/evidence')||r.url.path.endsWith('/review'),isFalse);
+      if(r.url.path.endsWith('/receipts'))active=false;
+      return fixture(r);
+    }));
+    await expectLater(service.detail(session,BenchBatch.fromJson(batchJson),current:()=>active),throwsStateError);
   });
 }

@@ -143,3 +143,51 @@ void verifyBenchSnapshot(BenchBatch batch, BenchJson timeline,
     }
   }
 }
+
+void requireBenchCurrent(bool Function()? current) {
+  if (current != null && !current()) throw StateError('WaterBench load cancelled');
+}
+
+// Server-verified snapshot identity; not a fresh Drive read or an external signature.
+void verifyBenchEstimate(BenchBatch batch, String analyte, BenchJson result,
+    BenchJson receipts, BenchJson evidence) {
+  final a=benchMap(result['assessment']), p=benchMap(evidence['provenance']);
+  final session=benchMap(evidence['session']), image=benchMap(evidence['image']);
+  final value=a['estimatedValue'], error=a['holdoutError'];
+  final digest=RegExp(r'^[0-9a-f]{64}$');
+  bool id(Object? v)=>v is String && benchGuid(v);
+  bool hash(Object? v)=>v is String && digest.hasMatch(v);
+  bool number(Object? v)=>v is num && v.isFinite && v>=0;
+  bool matchesReceipt(BenchJson row, String kind, Object? key) {
+    final matches=benchRows(receipts['items']).where((r)=>r['receiptId']==key).toList();
+    if(matches.length!=1 || row['kind']!=kind || row['analyte']!=analyte) return false;
+    final stored=matches.single;
+    return ['receiptId','eventId','connectionId','sessionId','captureId','analyte',
+      'kind','evidenceKind','serverPayloadSha256','mediaId','sha256'].every((k)=>stored[k]==row[k]) &&
+      (kind!='media'||stored['privateMediaMetadataPresent']==true);
+  }
+  if(evidence['provenanceStatus']!='snapshot_verified' || !hash(evidence['provenanceSha256']) ||
+      evidence['status']!='estimate_review_required' || evidence['chemicalResultValidated']!=false ||
+      evidence['productionPublished']!=false || !id(a['id']) || !id(a['requestId']) ||
+      !id(a['calibrationId']) || !id(a['sessionEvidenceId']) || !id(a['imageEvidenceId']) ||
+      !id(a['mediaId']) || !number(value) || !number(error) || !benchUnit(analyte,a['unit']) ||
+      evidence['assessmentId']!=a['id'] || evidence['requestId']!=a['requestId'] ||
+      evidence['candidateValue']!=value || evidence['unit']!=a['unit'] || evidence['holdoutError']!=error ||
+      p['contract']!='water-bench-ai-evidence-v1' || p['assessmentId']!=a['id'] ||
+      p['requestId']!=a['requestId'] || !hash(p['requestSha256']) ||
+      p['stationId']!=batch.stationId || p['bootId']!=batch.bootId || p['batchId']!=batch.batchId ||
+      p['analyte']!=analyte || p['connectionId']!=session['connectionId'] ||
+      p['connectionId']!=image['connectionId'] || p['sessionId']!=session['sessionId'] ||
+      p['sessionId']!=image['sessionId'] || p['sessionId']!=result['sessionId'] ||
+      p['captureId']!=image['captureId'] || p['captureId']!=result['captureId'] ||
+      p['sessionReceiptId']!=a['sessionEvidenceId'] || p['imageReceiptId']!=a['imageEvidenceId'] ||
+      p['sessionPayloadSha256']!=session['serverPayloadSha256'] ||
+      p['imagePayloadSha256']!=image['serverPayloadSha256'] ||
+      p['imageSha256']!=image['sha256'] || p['mediaId']!=a['mediaId'] ||
+      p['mediaId']!=image['mediaId'] || p['calibrationId']!=a['calibrationId'] ||
+      benchMap(evidence['calibration'])['id']!=a['calibrationId'] ||
+      !matchesReceipt(session,'batch',a['sessionEvidenceId']) ||
+      session['evidenceKind']!='session' || !matchesReceipt(image,'media',a['imageEvidenceId'])) {
+    throw const FormatException('Bằng chứng ước tính WaterBench không khớp hoặc chưa xác minh.');
+  }
+}

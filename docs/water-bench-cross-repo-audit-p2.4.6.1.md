@@ -165,3 +165,6 @@ Water AI #11 merged 3fa11fe; Python #43 15 passed/1 warning, private cross #14/#
 
 ## T09 snapshot consistency — 2026-11-28
 Water AI #12 merged cb55a0c, #45/#46 and cross #16/#17 both modes PASS (1/1 each no skip, 15 Python); App #93 merged 230cd7c with all main checks PASS. T09 first increment validates complete receipt inventory and batch/connection identities, unique channel/receipt IDs and review publication assessment/measurand in both Dart monitors. Four regression tests added. CI pending. Live Drive/JWT/native and full T09 cross-client acceptance remain open. Journal 76.
+
+## T09 estimate provenance — 2026-11-28
+App #94 and FE #43 PR/main checks PASS; merged af83b39/642df73. App next increment requires verified server evidence, matches receipt IDs/digests and values, rejects legacy mismatch; logical cancellation stops follow-up and stale render. Four regressions pending CI. Journal 77. Live Drive/JWT/native and T09 acceptance open.
