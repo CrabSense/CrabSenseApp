@@ -65,3 +65,6 @@ FE #32 merged; audit #2 confirms full 19 / omit-dev 17 affected packages. Main #
 
 ## Candidate runner correction
 FE #33 Candidate #1 resolved shadcn 4.23.1, reduced full/omit-dev audit to 2 (Vite/esbuild), npm ci/28 tests/Pages build passed; Chromium install failed because ubuntu-latest is Ubuntu 26.04 unsupported by Playwright 1.56.1. Commit 2d5445b pins Ubuntu 24.04; no test bypass or package changes. Exact candidate must pass browser tests before adoption. App #64 merged fdd8d12 after CI #210. T06 remains open.
+
+## Verified compatible dependency adoption — FE main 43e4ff9
+FE #33 merged; Candidate #2 run 46105670510 passed npm ci, Node/build and actual Chromium browser contracts. Full and omit-dev each retain 2 affected packages (Vite High, esbuild Moderate). Artifact 15247876071 ZIP SHA256 matched GitHub; exact manifest/lock blob SHAs matched downloaded files after reconstructing the logged delta. FE PR #34 1a9dab5 contains only those two files in one commit; shadcn pinned 4.23.1, no force fix or major upgrade. Audit #6 queued at initial check; await Sonar/Pages/Chromium/audit on PR before merge. App #65 merged 929c91b after CI #212. Vite/plugin migration, security gate, production JWT, RAS browser and hardware tests remain open; no P2.4.6.1 sign-off.
