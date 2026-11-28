@@ -51,3 +51,6 @@ Both private cross jobs failed actual restore with client 18.7 against server 16
 
 ## REC05 isolated test results and evidence blocker
 Cross #23 jobs 141013278383/141013278538 both emitted actual REC05 marker and 1/1/no-skip TRX counters; 3 media and 16 receipts, exact BE 6e1fd8d/Kiosk db9aeb8, 36s/22s. All tested isolated integrity assertions passed. Both required artifact uploads fail quota, no downloadable artifacts and workflow failure. No merge or quota bypass. M05 raw content SHA guard and M08 retention still open; real Drive and production not accepted. App #108 main PASS. Journal 91.
+
+## REC05 merge deviation and retry
+Private AI #15 already merged 20f75bb despite #23 failure; no additional merge performed. Main #57 PASS, cross #24 running, failed-job rerun #23 accepted. Artifact lists empty at review. Billing/quota management blocked by connector; no deletion or gate bypass. Verify both modes on main and retry with downloadable artifacts; M05 guard deferred. Journal 92.
