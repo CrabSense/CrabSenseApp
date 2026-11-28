@@ -14,11 +14,6 @@ class BoxGridCard extends StatelessWidget {
   final BoxRecord box;
   final VoidCallback? onTap;
 
-  static int _healthScore(BoxRecord box) {
-    final h = box.boxCode.hashCode.abs() % 35;
-    return 65 + h;
-  }
-
   @override
   Widget build(BuildContext context) {
     final status = box.status.toLowerCase();
@@ -32,23 +27,19 @@ class BoxGridCard extends StatelessWidget {
     final Color accent;
     final String statusLabel;
     final IconData statusIcon;
-    final int? health;
 
     if (empty) {
       accent = const Color(0xFF64748B);
       statusLabel = 'Trống';
       statusIcon = Icons.inventory_2_outlined;
-      health = null;
     } else if (attention) {
       accent = DashboardColors.monitoring;
       statusLabel = 'Chú ý';
       statusIcon = Icons.warning_amber_rounded;
-      health = _healthScore(box).clamp(40, 70);
     } else {
       accent = DashboardColors.cyan;
       statusLabel = 'Nuôi';
       statusIcon = Icons.water_drop;
-      health = _healthScore(box).clamp(75, 99);
     }
 
     return Material(
@@ -136,35 +127,10 @@ class BoxGridCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (health != null) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '$health',
-                              style: GoogleFonts.notoSans(
-                                color: DashboardColors.textPrimary,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                height: 1,
-                              ),
-                            ),
-                            const SizedBox(width: 3),
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 2),
-                              child: Text(
-                                '%',
-                                style: GoogleFonts.notoSans(
-                                  color: DashboardColors.textMuted,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                      if (!empty)
+                        Text('Chưa có đánh giá xác minh',
+                          style: GoogleFonts.notoSans(
+                            color: DashboardColors.textMuted, fontSize: 9)),
                       if (box.volume != null && box.volume! > 0) ...[
                         const SizedBox(height: 2),
                         Text(
@@ -176,16 +142,6 @@ class BoxGridCard extends StatelessWidget {
                         ),
                       ],
                       const SizedBox(height: 4),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(3),
-                        child: LinearProgressIndicator(
-                          value: health != null ? health / 100 : 0,
-                          minHeight: 3,
-                          backgroundColor:
-                              DashboardColors.cardBorder.withValues(alpha: 0.5),
-                          valueColor: AlwaysStoppedAnimation(accent),
-                        ),
-                      ),
                     ],
                   ),
                 ),

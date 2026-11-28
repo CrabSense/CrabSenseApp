@@ -83,14 +83,8 @@ FarmMapBox toFarmMapBox({
           zone: area.areaCode,
           status: uiStatus,
           crabId: box.crabTag ?? box.crabId,
-          healthScore: switch (uiStatus) {
-            BoxStatus.normal => 90,
-            BoxStatus.watch => 75,
-            BoxStatus.molting => 85,
-            BoxStatus.alert => 60,
-            BoxStatus.deceased => 0,
-            BoxStatus.empty => 0,
-          },
+          // No verified assessment is available in this record.
+          healthScore: null,
           hasAlert: uiStatus == BoxStatus.alert || box.alertCount > 0,
         );
 
@@ -106,7 +100,23 @@ FarmMapBox toFarmMapBox({
     apiStatus: box.status,
     crabCount: crabCount,
     alertCount: box.alertCount,
-    aiSummary: box.aiSummary,
+    aiSummary: null,
     source: box,
   );
+}
+
+/// Resolve a box only from its authoritative row and authorized area inventory.
+/// Never borrow another area's name or construct a replacement row.
+FarmMapBox? scopedFarmMapBox({
+  required BoxRecord box,
+  required Map<String, AreaRecord> areas,
+  required Map<String, RowRecord> rows,
+  required String? selectedAreaId,
+}) {
+  final row = rows[box.rowId];
+  if (row == null || (box.areaId != null && box.areaId != row.areaId) ||
+      (selectedAreaId != null && selectedAreaId != row.areaId)) return null;
+  final area = areas[row.areaId];
+  if (area == null || area.id.isEmpty) return null;
+  return toFarmMapBox(box: box, area: area, row: row);
 }

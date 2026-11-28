@@ -107,10 +107,10 @@ extension FarmLayoutListX on List<FarmMapBox> {
     final alerts = map((e) => e.display).where((b) => b.status == BoxStatus.alert);
     final list = alerts.toList();
     if (list.isEmpty) {
-      return 'Hệ thống RAS đang hoạt động ổn định.\nKhông có hộp cần xử lý khẩn cấp.';
+      return 'Chưa có kết luận về nước RAS.\nKhông có hộp mang trạng thái cảnh báo trong danh sách.';
     }
     final ids = list.take(3).map((b) => b.id).join(', ');
-    return 'Hệ thống RAS đang hoạt động ổn định.\n'
+    return 'Chưa có kết luận về nước RAS.\n'
         'Lưu ý hộp $ids cần kiểm tra!';
   }
 }
