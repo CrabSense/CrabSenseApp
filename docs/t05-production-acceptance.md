@@ -25,3 +25,6 @@ No uploads of real business exports to public locations. If using the same cohor
 
 ## NT06 closure
 Record UTC timestamp, exact deploy SHA, anonymized role/case, HTTP status and pass/fail (no tokens, personal data or raw business JSON). Repeat unresolved checks after the App role patch passes CI. Review remaining T04 offline/native, T06 security/branch protection and T07–T12 cross-repo, real JWT, geometry/media, recovery and hardware acceptance separately. Current-box scope is not historical assignment. Never enable hardware control for this smoke.
+
+## Evidence update 2026-11-28 — App #89
+Role containment merged 92e0b7b; main #266 PASS (108 Mobile, 64 Desktop), both role regressions passed. Direct production GETs from the review environment fail DNS (curl 6/HTTP 000); no real JWT test executed and no outage inferred. NT04 CI portion accepted, all NT production checks still open. Kiosk #31 refreshes older BE pin; private Water AI repin and geometry gate remain separate. No change to approved test scope or hardware-disabled policy.
