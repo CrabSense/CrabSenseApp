@@ -60,13 +60,15 @@ class WaterBenchMonitorService {
     return BenchOverview(data[0] == null ? null : _object(data[0]), batches);
   }
 
-  Future<BenchDetail> detail(AuthSession session, BenchBatch batch) async {
+  Future<BenchDetail> detail(AuthSession session, BenchBatch batch, {bool Function()? current}) async {
+    requireBenchCurrent(current);
     final path = '${_scope(session)}/batches/${batch.key}';
     final data = await Future.wait([
       _get(session, path), _get(session, '$path/results'),
       _get(session, '$path/results/ai-readiness'), _get(session, '$path/results/retry-status'),
       _get(session, '$path/receipts'),
     ]);
+    requireBenchCurrent(current);
     final detail = _object(data[0]);
     final timeline = _object(detail['timeline']);
     if (timeline['stationId'] != batch.stationId || timeline['bootId'] != batch.bootId ||
@@ -81,6 +83,9 @@ class WaterBenchMonitorService {
       BenchJson? review;
       var unavailable = false;
       if (benchMap(result?['assessment'])['status'] == 'estimate_review_required') {
+        final evidence = _object(await _get(session, '$path/results/$a/evidence'));
+        requireBenchCurrent(current);
+        verifyBenchEstimate(batch, a, result!, receipts, evidence);
         try {
           review = _object(await _get(session, '$path/results/$a/review'));
           if (review['assessmentId'] != benchMap(result?['assessment'])['id']) {
@@ -97,6 +102,7 @@ class WaterBenchMonitorService {
       return BenchChannel(a, observation, result, benchChannel(readiness, a),
           benchChannel(retry, a), review, unavailable);
     }));
+    requireBenchCurrent(current);
     return BenchDetail(timeline: timeline, stale: detail['observationStale'] != false,
       receipts: receipts, channels: channels);
   }

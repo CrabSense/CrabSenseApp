@@ -10,24 +10,51 @@ const station='33333333-3333-3333-3333-333333333333',boot='0123456789abcdef',bat
 final user=User(id:'staff',email:'',name:'Staff',role:UserRole.farmStaff,assignedFarmIds:[],createdAt:DateTime.utc(2026));
 Map<String,dynamic> ok(Object? d)=>{'success':true,'data':d};
 
+const assessmentId='44444444-4444-4444-4444-444444444444';
 const connection='55555555-5555-5555-5555-555555555555';
 Map<String,dynamic> receiptFixture()=> {
   'stationId':station,'bootId':boot,'batchId':batch,
   'inventoryComplete':true,'receiptBasis':'persisted_backend_evidence',
-  'timelineStatus':'firmware_complete_reported','total':2,
-  'timelineCount':1,'mediaCount':1,'nh3Count':0,
+  'timelineStatus':'firmware_complete_reported','total':3,
+  'timelineCount':2,'mediaCount':1,'nh3Count':0,
   'items':[
     {'receiptId':'66666666-6666-6666-6666-666666666666',
       'eventId':'77777777-7777-7777-7777-777777777777',
       'connectionId':connection,'serverPayloadSha256':List.filled(64,'a').join(),
       'kind':'batch','evidenceKind':'batch_start'},
+    {'receiptId':sessionReceipt,'eventId':'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      'connectionId':connection,'serverPayloadSha256':List.filled(64,'d').join(),
+      'kind':'batch','evidenceKind':'session','analyte':'NO2','sessionId':'s'},
     {'receiptId':'88888888-8888-8888-8888-888888888888',
       'eventId':'99999999-9999-9999-9999-999999999999',
       'connectionId':connection,'serverPayloadSha256':List.filled(64,'b').join(),
-      'kind':'media','mediaId':'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      'kind':'media','evidenceKind':'jpeg','analyte':'NO2','sessionId':'s','captureId':1,'privateMediaMetadataPresent':true,'mediaId':'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
       'sha256':List.filled(64,'c').join()},
   ],
 };
+
+
+const sessionReceipt='cccccccc-cccc-cccc-cccc-cccccccccccc';
+const imageReceipt='88888888-8888-8888-8888-888888888888';
+const mediaId='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+const requestId='dddddddd-dddd-dddd-dddd-dddddddddddd';
+const calId='eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
+Map<String,dynamic> estimateFixture()=>{'id':assessmentId,'requestId':requestId,
+  'sessionEvidenceId':sessionReceipt,'imageEvidenceId':imageReceipt,'mediaId':mediaId,
+  'calibrationId':calId,'status':'estimate_review_required','estimatedValue':0,'unit':'mg/L NO2','holdoutError':0.1};
+Map<String,dynamic> evidenceFixture(){
+  final rows=benchRows(receiptFixture()['items']);
+  return {'assessmentId':assessmentId,'requestId':requestId,'status':'estimate_review_required',
+    'candidateValue':0,'unit':'mg/L NO2','holdoutError':0.1,'chemicalResultValidated':false,'productionPublished':false,
+    'session':rows[1],'image':rows[2],'calibration':{'id':calId},'provenanceStatus':'snapshot_verified',
+    'provenanceSha256':List.filled(64,'f').join(),'provenance':{
+      'contract':'water-bench-ai-evidence-v1','assessmentId':assessmentId,'requestId':requestId,
+      'requestSha256':List.filled(64,'e').join(),'stationId':station,'bootId':boot,'batchId':batch,
+      'analyte':'NO2','connectionId':connection,'sessionId':'s','captureId':1,
+      'sessionReceiptId':sessionReceipt,'imageReceiptId':imageReceipt,'mediaId':mediaId,'calibrationId':calId,
+      'sessionPayloadSha256':rows[1]['serverPayloadSha256'],'imagePayloadSha256':rows[2]['serverPayloadSha256'],
+      'imageSha256':rows[2]['sha256']}};
+}
 
 void main(){
  test('server-scoped areas, staff only, strict identity and missing != zero',()async{
@@ -39,8 +66,9 @@ void main(){
     if(p.endsWith('/station'))return ok(null);
     if(p.endsWith('/batches'))return ok([{'stationId':station,'bootId':boot,'firmwareBatchId':batch}]);
     if(p.endsWith('/$batch'))return ok({'timeline':{'stationId':station,'bootId':boot,'batchId':batch,'connectionId':connection,'status':'firmware_complete_reported','channels':[]},'observationStale':true});
-    if(p.endsWith('/results'))return ok({'channels':[{'analyte':'NO2','assessment':{'id':'a','status':'estimate_review_required','estimatedValue':0,'unit':'mg/L NO2'}}]});
-    if(p.endsWith('/NO2/review'))return ok({'assessmentId':'a','status':'pending_review'});
+    if(p.endsWith('/results'))return ok({'channels':[{'analyte':'NO2','sessionId':'s','captureId':1,'assessment':estimateFixture()}]});
+    if(p.endsWith('/NO2/evidence'))return ok(evidenceFixture());
+    if(p.endsWith('/NO2/review'))return ok({'assessmentId':assessmentId,'status':'pending_review'});
     if(p.endsWith('/receipts'))return ok(receiptFixture());
     return ok({'channels':[]});
   });
@@ -90,14 +118,14 @@ void main(){
         'stationId':station,'bootId':boot,'batchId':batch,'connectionId':connection,'status':'firmware_complete_reported',
         'channels':[{'analyte':'NO2','status':'drained_reported'}]}});
       if(path.endsWith('/results'))return ok({'channels':[
-        {'analyte':'NO2','status':'estimate_review_required','assessment':{
-          'id':'a','status':'estimate_review_required','estimatedValue':0,'unit':'mg/L NO2'}},
+        {'analyte':'NO2','status':'estimate_review_required','sessionId':'s','captureId':1,'assessment':estimateFixture()},
         {'analyte':'NH3','status':'needs_retest'}
       ]});
+      if(path.endsWith('/NO2/evidence'))return ok(evidenceFixture());
       if(path.endsWith('/NO2/review'))return ok({
-        'assessmentId':'a','status':'published','publicationScope':'water_bench_reviewed_record',
+        'assessmentId':assessmentId,'status':'published','publicationScope':'water_bench_reviewed_record',
         'productionSensorPublished':false,'publication':{
-          'assessmentId':'a','value':0.2,'unit':'mg/L NO2','source':'operator_attested_independent_reference',
+          'assessmentId':assessmentId,'value':0.2,'unit':'mg/L NO2','source':'operator_attested_independent_reference',
           'productionSensorPublished':false}
       });
       if(path.endsWith('/receipts'))return ok(receiptFixture());
@@ -163,5 +191,29 @@ void main(){
     expect(channel('assessment','mg/L TAN-N').publishedReference,0);
     expect(channel('other','mg/L TAN-N').publishedReference,isNull);
     expect(channel('assessment','mg/L NH3').publishedReference,isNull);
+  });
+
+  test('estimate is bound to receipt, provenance and exact numeric value',(){
+    final selected=BenchBatch.fromJson({'stationId':station,'bootId':boot,'firmwareBatchId':batch});
+    final result={'sessionId':'s','captureId':1,'assessment':estimateFixture()};
+    final evidence=evidenceFixture(), receipts=receiptFixture();
+    verifyBenchEstimate(selected,'NO2',result,receipts,evidence);
+    for(final patch in [{'provenanceStatus':'legacy_linkage_only'},{'candidateValue':1},
+      {'provenance':{...benchMap(evidence['provenance']),'imageSha256':'wrong'}}]){
+      expect(()=>verifyBenchEstimate(selected,'NO2',result,receipts,{...evidence,...patch}),throwsFormatException);
+    }
+    expect(()=>requireBenchCurrent(()=>false),throwsStateError);
+  });
+
+  test('cancelled staff detail stops before follow-up requests',() async {
+    var active=true;
+    final service=StaffWaterBenchService.testing((path,query)async {
+      if(path=='/farming-areas')return ok([{'id':area}]);
+      expect(path.endsWith('/evidence')||path.endsWith('/review'),isFalse);
+      if(path.endsWith('/receipts'))active=false;
+      return ok({});
+    });
+    await service.areas(user);
+    await expectLater(service.detail(user,area,BenchBatch.fromJson({'stationId':station,'bootId':boot,'firmwareBatchId':batch}),current:()=>active),throwsStateError);
   });
 }

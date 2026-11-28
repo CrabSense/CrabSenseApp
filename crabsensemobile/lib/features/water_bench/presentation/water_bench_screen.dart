@@ -38,7 +38,7 @@ class _WaterBenchScreenState extends State<WaterBenchScreen> {
   @override
   void didUpdateWidget(covariant WaterBenchScreen oldWidget){
     super.didUpdateWidget(oldWidget);
-    if(oldWidget.user!=widget.user){
+    if(oldWidget.user!=widget.user||oldWidget.initialAreaId!=widget.initialAreaId){
       _areas=[];_area=null;_overview=null;_batch=null;_detail=null;
       unawaited(_refresh());
     }
@@ -62,7 +62,7 @@ class _WaterBenchScreenState extends State<WaterBenchScreen> {
       for(final b in overview.batches){if(b.key==previous)batch=b;}
       batch??=overview.batches.isEmpty?null:overview.batches.first;
       setState((){_overview=overview;_batch=batch;});
-      final detail=batch==null?null:await _service.detail(user,selected,batch!);
+      final detail=batch==null?null:await _service.detail(user,selected,batch!,current:()=>_current(n));
       if(_current(n))setState(()=>_detail=detail);
     }catch(_){
       if(_current(n))setState((){_areas=[];_area=null;_overview=null;_detail=null;_batch=null;_error='Không tải được dữ liệu hoặc quyền truy cập đã thay đổi. Kiểm tra kết nối và đăng nhập.';});

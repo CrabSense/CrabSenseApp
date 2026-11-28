@@ -63,10 +63,12 @@ class StaffWaterBenchService {
     if(batches.map((b)=>b.key).toSet().length!=batches.length)throw const FormatException('Trùng danh tính phiên.');
     return BenchOverview(data[0]==null?null:_object(data[0]),batches);
   }
-  Future<BenchDetail> detail(User user,String area,BenchBatch batch) async {
+  Future<BenchDetail> detail(User user,String area,BenchBatch batch,{bool Function()? current}) async {
+    requireBenchCurrent(current);
     final p='${_scope(user,area)}/batches/${batch.key}';
     final data=await Future.wait([_read(p),_read('$p/results'),_read('$p/results/ai-readiness'),
       _read('$p/results/retry-status'),_read('$p/receipts')]);
+    requireBenchCurrent(current);
     final detail=_object(data[0]),timeline=_object(_object(data[0])['timeline']);
     if(timeline['stationId']!=batch.stationId||timeline['bootId']!=batch.bootId||timeline['batchId']!=batch.batchId){
       throw const FormatException('Danh tính phiên không khớp.');
@@ -79,6 +81,9 @@ class StaffWaterBenchService {
       BenchJson? review;
       var unavailable=false;
       if(benchMap(result?['assessment'])['status']=='estimate_review_required'){
+        final evidence=_object(await _read('$p/results/$a/evidence'));
+        requireBenchCurrent(current);
+        verifyBenchEstimate(batch,a,result!,receipts,evidence);
         try{
           review=_object(await _read('$p/results/$a/review'));
           if(review['assessmentId']!=benchMap(result?['assessment'])['id']){review=null;unavailable=true;}
@@ -89,6 +94,7 @@ class StaffWaterBenchService {
       }
       return BenchChannel(a,benchChannel(timeline,a),result,benchChannel(ready,a),benchChannel(retry,a),review,unavailable);
     }));
+    requireBenchCurrent(current);
     return BenchDetail(timeline:timeline,stale:detail['observationStale']!=false,receipts:receipts,channels:channels);
   }
 }
