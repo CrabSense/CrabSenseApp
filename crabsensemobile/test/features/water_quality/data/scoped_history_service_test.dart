@@ -165,4 +165,43 @@ void main() {
     expect(await db.customSelect('SELECT * FROM scoped_sensor_history_cache').get(),
       isEmpty);
   });
+
+  test('obsolete pending request cannot block or unlock a new session', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final cache = ScopedHistoryCache(db, clock: () => fixture.now);
+    var identity = const HistoryIdentity('a', 'token-a');
+    final oldStarted = Completer<void>();
+    final newStarted = Completer<void>();
+    final oldResponse = Completer<Map<String, dynamic>>();
+    final newResponse = Completer<Map<String, dynamic>>();
+    final service = ScopedHistoryService(cache: cache,
+      identity: () async => identity,
+      loadPage: (q, page, asOf, id) {
+        if (id.userId == 'a') {
+          oldStarted.complete();
+          return oldResponse.future;
+        }
+        newStarted.complete();
+        return newResponse.future;
+      });
+    final query = fixture.query();
+    await service.bindUser(staff('a'));
+    final old = service.fetchOnline(query);
+    final oldCheck = expectLater(old, throwsStateError);
+    await oldStarted.future;
+    identity = const HistoryIdentity('b', 'token-b');
+    await service.bindUser(staff('b'));
+    final current = service.fetchOnline(query);
+    await newStarted.future.timeout(const Duration(seconds: 2));
+    oldResponse.complete(fixture.page(query));
+    await oldCheck;
+    // Old completion must not release the current generation's busy guard.
+    await expectLater(service.fetchOnline(query), throwsStateError);
+    newResponse.complete(fixture.page(query));
+    expect((await current).pointCount, 1);
+    final rows = await db.customSelect(
+      'SELECT user_id FROM scoped_sensor_history_cache').get();
+    expect(rows.map((row) => row.read<String>('user_id')), ['b']);
+  });
 }

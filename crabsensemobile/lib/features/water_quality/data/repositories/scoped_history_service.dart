@@ -113,7 +113,7 @@ class ScopedHistoryService {
   String? _user;
   int _generation = 0;
   int? _epoch;
-  bool _busy = false;
+  int? _busyGeneration;
   // Notify listeners in the same turn as the credential change, before
   // awaiting SQLite I/O. Listeners must not re-enter invalidate().
   final _invalidations = StreamController<int>.broadcast(sync: true);
@@ -163,9 +163,12 @@ class ScopedHistoryService {
   }
 
   Future<ScopedHistorySnapshot> fetchOnline(ScopedHistoryQuery query) async {
-    if (_user == null || _busy) throw StateError('History session unavailable');
-    _busy = true;
     final generation = _generation;
+    if (_user == null || _busyGeneration == generation) {
+      throw StateError('History session unavailable');
+    }
+    // An invalidated request must not block a new authorized generation.
+    _busyGeneration = generation;
     try {
       await _requireNetwork();
       if (generation != _generation) throw StateError('History session changed');
@@ -212,7 +215,7 @@ class ScopedHistoryService {
       if (_generation == generation) await invalidate();
       rethrow;
     } finally {
-      _busy = false;
+      if (_busyGeneration == generation) _busyGeneration = null;
     }
   }
 }
