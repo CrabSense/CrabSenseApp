@@ -177,3 +177,6 @@ Firmware #14 merged b00ad7d main #26 PASS (host and all three targets); Kiosk #3
 
 ## T11 CI security and isolated recovery — 2026-11-28
 Private AI #13 merged fffcfda with #48/#49 and #18/#19 both modes PASS (each 1/1 no skip, Python 15 passed); App #97 merged b1c98cc and all main checks PASS. BE #116 75d705a removes unsafe direct merge, adds mandatory security/NuGet gate, latest exact-main deploy check and production-service backup/restore in disposable PostgreSQL. CI pending. Branch protection/admin, production checksums/offsite and real recovery remain open. Journal 80.
+
+## T11 CI #436 correction — 2026-11-28
+BE #116 original CI failed CS4007 in both unit and PostgreSQL jobs, audit parser rejected omitted clean frameworks. Actual audit artifact 15258804804 reports 3 packages/4 distinct High advisories. Replacement commit 6fc5820 (one commit, 13 files) fixes span/await, parser with mandatory six regressions, patches dependencies, keeps high/critical gate and all recovery checks. Recovery not executed successfully. App #98 merged 622bda1; journal 80 merged. Journal 81 records failure and correction. No production or schema change, new CI pending.
