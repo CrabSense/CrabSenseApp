@@ -153,3 +153,6 @@ App #88 merged 9235698, #263/#264 and hosted/Pages main all PASS (106 Mobile, 64
 
 ## T05–T12 readiness review — 2026-11-28
 App #89 merged 92e0b7b; all PR/main checks PASS, 108 Mobile and 64 Desktop. NT01–NT06 remain open for live acceptance (direct DNS failure, no JWT/fixture, no client smoke). FE #24 security gate 6/6 and full/omit-dev audit zero; branch protection inaccessible, rulesets empty. Kiosk #31 a0f95a8 repins mandatory cross integration to BE 7ecaae7, pending CI; private AI still pins BE 5f4415f and Kiosk 98458f3 with geometry disabled. T07–T12 are outstanding acceptance work, not completed by a green CI. See journal 72 for details; no role/schema/firmware/sampling changes and no P3 transition.
+
+## T07 private integration repin — 2026-11-28
+Kiosk #31 merged 9265e1d after #79 PASS; main #80 PASS, public cross PR/main exact BE 7ecaae7 TRX 1/1, no skips. App #90 merged 57d8590, #267/#268 and hosted/Pages main PASS, 108 Mobile/64 Desktop. Private AI #10 5180317 repins both merged public heads, retains existing synthetic HTTP/PostgreSQL fixture and mandatory TRX gate; CI pending. Geometry remains disabled in this compatibility suite. Journal 73; actual JWT, native, geometry, media and physical acceptance remain open.
