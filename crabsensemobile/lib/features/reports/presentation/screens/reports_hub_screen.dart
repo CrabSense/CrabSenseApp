@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routes.dart';
+import '../../../../core/providers/selected_farm_provider.dart';
 import '../../../home/presentation/widgets/home_palette.dart';
 import '../../../profile/presentation/widgets/profile_hub_scaffold.dart';
 import '../../data/models/report_models.dart';
@@ -114,6 +115,12 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
   Future<void> _export(ReportDetailData data) async {
     if (_exporting) return;
+    if (data.kind == ReportKind.efficiency) {
+      final current = ref.read(reportDetailProvider(data.kind));
+      if (current.isLoading || current.hasError || !current.hasValue ||
+          !identical(current.requireValue, data) ||
+          data.raw?['farmingAreaId'] != ref.read(selectedFarmProvider).id) return;
+    }
     setState(() => _exporting = true);
     try {
       final result = await ReportFileExporter.exportAndShare(data);
@@ -183,7 +190,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     return ProfileHubScaffold(
       title: kind.titleVi.toUpperCase(),
       actions: [
-        if (async.hasValue)
+        if (async.hasValue && !async.isLoading && !async.hasError)
           IconButton(
             tooltip: 'Xuất CSV / lưu Drive',
             onPressed: _exporting ? null : () => _export(async.requireValue),
@@ -206,6 +213,8 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
       ],
       onRefresh: () async => ref.refresh(reportDetailProvider(kind).future),
       body: async.when(
+        skipLoadingOnRefresh: false,
+        skipLoadingOnReload: false,
         loading: () => const Center(
           child: CircularProgressIndicator(color: kHomeCyan),
         ),
@@ -251,6 +260,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
           children: [
+            if (kind == ReportKind.efficiency)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: Text('Trạng thái hiện tại của nhóm cua đã thả trong kỳ, theo khu đang chọn. Không phải đánh giá sức khỏe hoặc báo cáo lịch sử.'),
+              ),
             SizedBox(
               width: double.infinity,
               height: 48,

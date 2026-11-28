@@ -72,6 +72,8 @@ class _ManagerReportsPageState extends State<ManagerReportsPage> {
           IconButton(onPressed: _reload, tooltip: 'Tải lại', icon: const Icon(Icons.refresh)),
         ]),
         if (_report == 'inventory/filtered') const Text('Tồn kho: sử dụng ngày kết thúc làm ngày đối chiếu.'),
+        if (_report == 'operational-efficiency')
+          const Text('Trạng thái hiện tại của nhóm cua đã thả trong kỳ; không phải đánh giá sức khỏe hoặc báo cáo lịch sử.'),
         const SizedBox(height: 12),
         Expanded(child: FutureBuilder<Object?>(future: _result, builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
@@ -99,6 +101,11 @@ class _ReportValue extends StatelessWidget {
     'missingCountAtClose': 'Thất lạc khi đóng lô',
     'moltingRate': 'Tỷ lệ lột xác', 'lotCode': 'Mã lô', 'totalWeight': 'Tổng khối lượng',
     'date': 'Ngày', 'period': 'Kỳ báo cáo',
+    'healthScore': 'Đánh giá sức khỏe (chưa có)',
+    'farmingAreaId': 'Mã khu nuôi', 'cohortBasis': 'Cơ sở tính báo cáo',
+    'unclassifiedCrabs': 'Chưa phân loại', 'moltedCrabs': 'Đã lột',
+    'moltingCrabs': 'Đang lột', 'aliveRate': 'Tỷ lệ chưa lột còn sống',
+    'mortalityRate': 'Tỷ lệ chết', 'harvestRate': 'Tỷ lệ thu hoạch',
   };
   @override
   Widget build(BuildContext context) {
