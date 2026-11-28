@@ -2,7 +2,7 @@ import '../../../core/network/api_client.dart';
 import 'models/report_models.dart';
 
 abstract class ReportsRepository {
-  Future<ReportDetailData> getReport(ReportKind kind);
+  Future<ReportDetailData> getReport(ReportKind kind, {String? areaId});
 }
 
 class ReportsRepositoryImpl implements ReportsRepository {
@@ -11,18 +11,30 @@ class ReportsRepositoryImpl implements ReportsRepository {
   final ApiClient _api;
 
   @override
-  Future<ReportDetailData> getReport(ReportKind kind) async {
-    final res = await _api.get(kind.apiPath);
+  Future<ReportDetailData> getReport(ReportKind kind, {String? areaId}) async {
+    final efficiency = kind == ReportKind.efficiency;
+    if (efficiency && (areaId == null || areaId.isEmpty || areaId == 'default')) {
+      throw StateError('Chọn khu nuôi trước khi xem báo cáo hiệu quả.');
+    }
+    final res = await _api.get(kind.apiPath,
+      queryParameters: efficiency ? {'farmingAreaId': areaId} : null);
     if (res.statusCode != 200 || res.data == null) {
       throw Exception('Không tải được ${kind.titleVi}');
     }
     final map = _asMap(res.data);
+    if (efficiency) {
+      final body = res.data;
+      if (body is! Map || body['success'] != true || body['data'] is! Map) {
+        throw const FormatException('Báo cáo hiệu quả chưa xác minh.');
+      }
+      return _parseEfficiency(verifyEfficiencyReport(map, areaId!));
+    }
     return switch (kind) {
       ReportKind.harvest => _parseHarvest(map),
       ReportKind.inventory => _parseInventory(map),
       ReportKind.molting => _parseMolting(map),
       ReportKind.survival => _parseSurvival(map),
-      ReportKind.efficiency => _parseEfficiency(map),
+      ReportKind.efficiency => throw StateError('Unverified efficiency report'),
     };
   }
 
@@ -272,27 +284,63 @@ class ReportsRepositoryImpl implements ReportsRepository {
           value: _n(m['harvestedCrabs'] ?? m['HarvestedCrabs']),
         ),
         ReportMetric(
-          label: 'Còn nuôi',
-          value: _n(m['aliveCrabs'] ?? m['AliveCrabs']),
+          label: 'Còn nuôi, chưa lột',
+          value: _n(m['aliveCrabs']),
+        ),
+        ReportMetric(
+          label: 'Đang lột',
+          value: _n(m['moltingCrabs']),
+        ),
+        ReportMetric(
+          label: 'Chưa phân loại',
+          value: _n(m['unclassifiedCrabs']),
+        ),
+        ReportMetric(
+          label: 'Tỷ lệ còn sống hiện tại',
+          value: _n(m['survivalRate'], '%'),
         ),
         ReportMetric(
           label: 'Chết',
           value: _n(m['deadCrabs'] ?? m['DeadCrabs']),
         ),
         ReportMetric(
-          label: 'Molting rate',
+          label: 'Tỷ lệ đang lột',
           value: _n(m['moltingRate'] ?? m['MoltingRate'], '%'),
         ),
         ReportMetric(
-          label: 'Harvest rate',
+          label: 'Tỷ lệ thu hoạch',
           value: _n(m['harvestRate'] ?? m['HarvestRate'], '%'),
         ),
         ReportMetric(
-          label: 'Mortality',
+          label: 'Tỷ lệ chết',
           value: _n(m['mortalityRate'] ?? m['MortalityRate'], '%'),
         ),
       ],
       raw: m,
     );
   }
+}
+
+Map<String, dynamic> verifyEfficiencyReport(Map<String, dynamic> data, String areaId) {
+  const countKeys = ['totalCrabs', 'aliveCrabs', 'moltingCrabs', 'moltedCrabs',
+    'harvestedCrabs', 'deadCrabs', 'unclassifiedCrabs'];
+  const rateKeys = ['survivalRate', 'moltingRate', 'harvestRate', 'mortalityRate', 'aliveRate'];
+  if (data['cohortBasis'] != 'stockedAt-current-status-v1' ||
+      data['farmingAreaId'] != areaId ||
+      countKeys.any((key) => data[key] is! int || (data[key] as int) < 0)) {
+    throw const FormatException('Báo cáo hiệu quả chưa xác minh.');
+  }
+  final total = data['totalCrabs'] as int;
+  final classified = countKeys.skip(1).fold<int>(0, (sum, key) => sum + (data[key] as int));
+  if (classified != total) throw const FormatException('Số lượng cua không nhất quán.');
+  final result = <String, dynamic>{for (final key in countKeys) key: data[key]};
+  for (final key in rateKeys) {
+    final value = data[key];
+    if (total == 0 ? value != null : value is! num || !value.isFinite || value < 0 || value > 100) {
+      throw const FormatException('Tỷ lệ báo cáo không hợp lệ.');
+    }
+    result[key] = value;
+  }
+  return {...result, 'farmingAreaId': areaId,
+    'cohortBasis': 'stockedAt-current-status-v1', 'healthScore': null};
 }

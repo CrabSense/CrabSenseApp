@@ -141,3 +141,6 @@ App #84 4161846 failed Sonar #254, Desktop Hosted #105, Desktop Local #35 and Pa
 
 ## Mobile Dashboard water provenance — 2026-11-28
 App #84 merged 93affe3, all four PR and main workflows passed, Desktop 63/63 including three Health regressions. Mobile dashboard now reuses qualified Home per-sensor overview instead of legacy hardcoded thresholds, 10% margin, value-based selection, conflated TDS/salinity and forced units. Scoped navigation, existing session/transport/lifecycle/freshness guards, RAS shared-area note, separate chemical tests. Delete unused NineWaterMetrics duplicate, two tests in mandatory suite. Journal 67. CI pending; BE/Web Efficiency contract and native/production acceptance remain open.
+
+## Operational Efficiency contract — 2026-11-28
+App #86 merged 87e3b53, all PR/main workflows PASS, Mobile 104/104. BE #115, FE #42 and App consumer PR implement nullable empty rates, no unverified health score, current stocked cohort and area gate/marker, strict scope/count/rate validation and UI invalidation, mandatory regressions. Explicit current box/current status limitation; no historical reconstruction. Journal 68. CI and coordinated deployment pending, no production acceptance.

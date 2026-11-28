@@ -502,11 +502,15 @@ class CloudApiClient {
       if (from != null &&
           report != 'inventory/filtered' &&
           report != 'crab-lots/compare')
-        'fromDate': from.toUtc().toIso8601String(),
+        'fromDate': report == 'operational-efficiency'
+            ? from.toIso8601String().split('T').first
+            : from.toUtc().toIso8601String(),
       if (to != null &&
           report != 'inventory/filtered' &&
           report != 'crab-lots/compare')
-        'toDate': to.toUtc().toIso8601String(),
+        'toDate': report == 'operational-efficiency'
+            ? to.toIso8601String().split('T').first
+            : to.toUtc().toIso8601String(),
       if (to != null && report == 'inventory/filtered')
         'asOfDate': to.toUtc().toIso8601String(),
     };
@@ -518,6 +522,13 @@ class CloudApiClient {
     if (_isApiFailure(res, body)) {
       throw CloudApiException(_errorMessage(body) ?? 'Không tải được báo cáo',
           statusCode: res.statusCode);
+    }
+    if (report == 'operational-efficiency') {
+      final data = _dataOf(body);
+      if (body['success'] != true || data is! Map) {
+        throw CloudApiException('Báo cáo hiệu quả chưa xác minh.');
+      }
+      return verifyEfficiencyReport(Map<String, dynamic>.from(data), areaId);
     }
     return _dataOf(body) ?? body;
   }
@@ -2205,4 +2216,28 @@ class CloudApiClient {
 
     return _asMap(_dataOf(body) ?? body);
   }
+}
+
+Map<String, dynamic> verifyEfficiencyReport(Map<String, dynamic> data, String areaId) {
+  const countKeys = ['totalCrabs', 'aliveCrabs', 'moltingCrabs', 'moltedCrabs',
+    'harvestedCrabs', 'deadCrabs', 'unclassifiedCrabs'];
+  const rateKeys = ['survivalRate', 'moltingRate', 'harvestRate', 'mortalityRate', 'aliveRate'];
+  if (data['cohortBasis'] != 'stockedAt-current-status-v1' ||
+      data['farmingAreaId'] != areaId ||
+      countKeys.any((key) => data[key] is! int || (data[key] as int) < 0)) {
+    throw CloudApiException('Báo cáo hiệu quả chưa xác minh.');
+  }
+  final total = data['totalCrabs'] as int;
+  final classified = countKeys.skip(1).fold<int>(0, (sum, key) => sum + (data[key] as int));
+  if (classified != total) throw CloudApiException('Số lượng cua không nhất quán.');
+  final result = <String, dynamic>{for (final key in countKeys) key: data[key]};
+  for (final key in rateKeys) {
+    final value = data[key];
+    if (total == 0 ? value != null : value is! num || !value.isFinite || value < 0 || value > 100) {
+      throw CloudApiException('Tỷ lệ báo cáo không hợp lệ.');
+    }
+    result[key] = value;
+  }
+  return {...result, 'farmingAreaId': areaId,
+    'cohortBasis': 'stockedAt-current-status-v1', 'healthScore': null};
 }

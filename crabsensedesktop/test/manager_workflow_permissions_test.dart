@@ -4,6 +4,13 @@ import '../lib/models/auth_models.dart';
 import '../lib/services/cloud_api_client.dart';
 import '../lib/services/ras_flow_service.dart';
 
+const empty = <String, dynamic>{
+  'cohortBasis': 'stockedAt-current-status-v1', 'farmingAreaId': 'area-a',
+  'totalCrabs': 0, 'aliveCrabs': 0, 'moltingCrabs': 0, 'moltedCrabs': 0,
+  'harvestedCrabs': 0, 'deadCrabs': 0, 'unclassifiedCrabs': 0,
+  'healthScore': 30,
+};
+
 void main() {
   const farm = FarmSummary(id: 'test-area', code: 'A', name: 'Test');
   const session = AuthSession(
@@ -33,5 +40,13 @@ void main() {
     }));
     await expectLater(api.fetchManagerReport('token', 'harvest', areaId: ''), throwsA(isA<CloudApiException>()));
     await expectLater(api.fetchManagerReport('token', '../users', areaId: 'a'), throwsA(isA<CloudApiException>()));
+  });
+
+  test('efficiency contract rejects legacy or wrong scope and keeps unknown rates', () {
+    final report = verifyEfficiencyReport(empty, 'area-a');
+    expect(report['healthScore'], isNull);
+    expect(report['survivalRate'], isNull);
+    expect(() => verifyEfficiencyReport(empty, 'area-b'), throwsA(isA<CloudApiException>()));
+    expect(() => verifyEfficiencyReport({...empty, 'harvestRate': 0}, 'area-a'), throwsA(isA<CloudApiException>()));
   });
 }
