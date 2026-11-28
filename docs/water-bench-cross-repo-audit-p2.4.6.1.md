@@ -159,3 +159,6 @@ Kiosk #31 merged 9265e1d after #79 PASS; main #80 PASS, public cross PR/main exa
 
 ## T08 geometry-required cross integration — 2026-11-28
 Water AI #10 merged df0d4a6; CI #39/#40 and private cross #12/#13 PASS, exact BE/Kiosk pins, TRX 1/1 no skips, Python main 14 passed (1 warning). App #91 merged 528637a, all PR/main checks PASS. Water AI #11 da7ee46 adds separate mandatory compatibility and strict geometry matrix jobs, deterministic synthetic anchor PNG/JPEG, signed fit and shifted in-range NO3 rejection, preserved accepted channels and persisted geometry evidence, no publication, focus-loss regression. Journal 74; revised CI pending, production geometry enforcement, actual fixture/chemistry, media/Drive, real JWT, native and hardware acceptance remain open.
+
+## T08 media acceptance — 2026-11-28
+Water AI #11 merged 3fa11fe; Python #43 15 passed/1 warning, private cross #14/#15 both modes passed 1/1 no skip; App #92 merged 3454036 with all main checks PASS. Water AI #12 4b31e1f adds private ACL denial, receipt hash readback, post-receipt tamper and no inference reservation tests (storage double). Added read-only actual provider smoke and isolated write/ACL/quota acceptance guide; live tests not executed. Journal 75. T08 remains open for CI and real Drive/physical acceptance.
