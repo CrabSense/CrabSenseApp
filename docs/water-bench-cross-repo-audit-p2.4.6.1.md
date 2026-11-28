@@ -168,3 +168,6 @@ Water AI #12 merged cb55a0c, #45/#46 and cross #16/#17 both modes PASS (1/1 each
 
 ## T09 estimate provenance — 2026-11-28
 App #94 and FE #43 PR/main checks PASS; merged af83b39/642df73. App next increment requires verified server evidence, matches receipt IDs/digests and values, rejects legacy mismatch; logical cancellation stops follow-up and stale render. Four regressions pending CI. Journal 77. Live Drive/JWT/native and T09 acceptance open.
+
+## T09 code/CI and T10 isolation — 2026-11-28
+App #95 and FE #44 merged c74285e/d74196b; all PR/main checks PASS, 112 Mobile/68 Desktop/43 Node, real Chromium retry and invalid-provenance refresh PASS. T09 software evidence accepted, production/native open. Firmware main b552498 #24 host + three target builds PASS; legacy draft #1 not merged. Firmware #14 35ba61e blocks root legacy sketch compilation and adds isolation/default-off guards; Kiosk #32 d9603f8 tests wrong gateway versions, negative ACK and raw actions. Both pending CI. BE #435 job 140925155841 clean and legacy full migrations PASS; no new schema. Journal 78. Actual UART, wiring, chemical calibration, Drive and JWT remain open.
